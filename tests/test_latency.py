@@ -5,6 +5,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from src.mockx.latency import LatencyScheduler, LatencyProfile
+from src.mockx.models import ProcessOrderCommand
 
 
 class TestLatencyScheduler:
@@ -223,19 +224,19 @@ class TestLatencyScheduler:
         """Test order processing scheduling."""
         scheduler = LatencyScheduler()
         events = []
-        
+
         def arrived_handler(data):
-            events.append(("arrived", data["order_id"]))
-            
+            events.append(("arrived", data.order_id))
+
         def process_handler(data):
-            events.append(("process", data["order_id"]))
+            events.append(("process", data.order_id))
             
         scheduler.register_handler("order_arrived", arrived_handler)
         scheduler.register_handler("order_process", process_handler)
         
         # Schedule order with network and engine latency
         scheduler.schedule_order_processing(
-            {"order_id": 1},
+            ProcessOrderCommand(order_id=1, expected_version=0),
             network_ms=100,
             engine_ms=20
         )

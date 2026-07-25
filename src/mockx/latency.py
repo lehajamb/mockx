@@ -7,7 +7,12 @@ from dataclasses import dataclass
 import asyncio
 import logging
 
-from .models import ScheduledEvent
+from .models import (
+    ExecutionReport,
+    InvalidOrderTransition,
+    ProcessOrderCommand,
+    ScheduledEvent,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +43,7 @@ class LatencyScheduler:
         """Register a handler for a specific event type."""
         self.event_handlers[event_type] = handler
         
-    def schedule_event(self, event_type: str, data: Dict, delay_ms: int) -> None:
+    def schedule_event(self, event_type: str, data: object, delay_ms: int) -> None:
         """Schedule an event to occur after a specified delay."""
         event_time = self.current_time + timedelta(milliseconds=delay_ms)
         event = ScheduledEvent(
@@ -51,34 +56,22 @@ class LatencyScheduler:
         heapq.heappush(self.event_queue, event)
         logger.debug(f"Scheduled {event_type} at {event_time} (in {delay_ms}ms)")
         
-    # def schedule_order_processing(self, order_data: Dict, network_ms: int, engine_ms: int) -> None:
-    #     """Schedule order processing with network and engine latencies."""
-    #     # First, simulate network latency to reach the exchange
-    #     self.schedule_event(
-    #         "order_arrived",
-    #         order_data,
-    #         network_ms // 2  # Half of round-trip
-    #     )
-        
-    #     # Then, simulate engine processing latency
-    #     total_delay = (network_ms // 2) + engine_ms
-    #     self.schedule_event(
-    #         "order_process",
-    #         order_data,
-    #         total_delay
-    #     )
-
-    def schedule_order_processing(self, order_data: Dict, network_ms: int, engine_ms: int) -> None:
+    def schedule_order_processing(
+        self,
+        command: ProcessOrderCommand,
+        network_ms: int,
+        engine_ms: int,
+        *,
+        session_alias: Optional[str] = None,
+    ) -> None:
         """Schedule order processing with network, engine, and session-specific latencies."""
-        # Get session-specific delay
-        session_alias = order_data.get("session_alias", "")
-        session_delay_ms = self.session_delays.get(session_alias, 0)
-        
+        session_delay_ms = self.session_delays.get(session_alias or "", 0)
+
         # First, simulate network latency + session delay to reach the exchange
         arrival_delay = (network_ms // 2) + session_delay_ms
         self.schedule_event(
             "order_arrived",
-            order_data,
+            command,
             arrival_delay
         )
         
@@ -86,18 +79,18 @@ class LatencyScheduler:
         total_delay = arrival_delay + engine_ms
         self.schedule_event(
             "order_process",
-            order_data,
+            command,
             total_delay
         )
         
         if session_delay_ms > 0:
             logger.debug(f"Applied {session_delay_ms}ms session delay for {session_alias}")
-        
-    def schedule_execution_report(self, report_data: Dict, network_ms: int) -> None:
+
+    def schedule_execution_report(self, report: ExecutionReport, network_ms: int) -> None:
         """Schedule execution report delivery back to client."""
         self.schedule_event(
             "exec_report",
-            report_data,
+            report,
             network_ms // 2  # Half of round-trip
         )
         
@@ -125,6 +118,12 @@ class LatencyScheduler:
                     else:
                         handler(event.data)
                     processed += 1
+                except InvalidOrderTransition:
+                    logger.exception(
+                        "Invalid order transition while processing %s",
+                        event.event_type,
+                    )
+                    raise
                 except Exception as e:
                     logger.error(f"Error processing {event.event_type}: {e}")
             else:

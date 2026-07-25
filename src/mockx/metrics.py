@@ -8,7 +8,14 @@ It includes latency tracking, order metrics, trade metrics, fix metrics, and mar
 
 
 import time
-from .models import DualTimestamp, OrderTimingData, MarketDataUpdate, Side, Trade, Order
+from .models import (
+    DualTimestamp,
+    ExecutionReport,
+    MarketDataUpdate,
+    OrderTimingData,
+    Side,
+    Trade,
+)
 from .tsdb_writer import TSDBWriter, Point
 import logging
 from typing import Dict, Tuple, Optional
@@ -64,39 +71,38 @@ class MetricsCollector:
                 "latency", {"exchange": self.exchange_name, "type": metric_name}, {"duration_ms": value_ms}, timestamp_ns
             )
 
-    def record_order(self, order: Order, event_timestamp: datetime):
-        """Record order metrics with an optimized tag/field schema."""
+    def record_order(self, report: ExecutionReport):
+        """Record order metrics solely from an immutable report snapshot."""
         if self.tsdb_writer:
             tags = {
                 "exchange": self.exchange_name,
-                "symbol": order.symbol,
-                "side": order.side.value,
-                "status": order.status.value,
-                "tif": order.tif.value,
+                "symbol": report.symbol,
+                "side": report.side.value,
+                "status": report.ord_status.value,
+                "tif": report.tif.value,
             }
             # Conditionally add tags that might be None
-            if order.session_alias:
-                tags["session_alias"] = order.session_alias
-            if order.reject_reason:
-                tags["reject_reason"] = order.reject_reason
+            if report.session_alias:
+                tags["session_alias"] = report.session_alias
+            if report.reject_reason:
+                tags["reject_reason"] = report.reject_reason
 
             fields = {
-                "order_id": order.id,
-                "qty": order.qty,
-                "filled_qty": order.filled_qty,
-                "ts_submitted": int(order.ts_submitted.timestamp() * 1_000_000_000),
+                "order_id": report.order_id,
+                "qty": report.order_qty,
+                "filled_qty": report.cum_qty,
+                "avg_fill_price": report.avg_px,
+                "ts_submitted": int(report.submitted_at.timestamp() * 1_000_000_000),
             }
             # Conditionally add optional fields
-            if order.price is not None:
-                fields["price"] = order.price
-            if order.avg_fill_price is not None:
-                fields["avg_fill_price"] = order.avg_fill_price
+            if report.order_price is not None:
+                fields["price"] = report.order_price
 
             self._create_point(
-                "orders", 
-                tags, 
-                fields, 
-                int(event_timestamp.timestamp() * 1_000_000_000)
+                "orders",
+                tags,
+                fields,
+                int(report.timestamp.timestamp() * 1_000_000_000)
             )
 
     def record_trade(self, trade: Trade):

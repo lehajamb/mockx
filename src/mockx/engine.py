@@ -8,7 +8,9 @@ import itertools
 
 from .models import (
     Order, OrderBook, Trade, Side, OrderStatus, TimeInForce,
-    ExecutionParams, ExecutionReport, MarketDataUpdate
+    ExecutionParams, ExecutionReport, MarketDataUpdate, NewOrderCommand,
+    ProcessOrderCommand, CancelOrderCommand, TERMINAL_ORDER_STATUSES,
+    create_execution_report,
 )
 from .latency import LatencyScheduler
 
@@ -78,41 +80,100 @@ class MatchingEngine:
             self.books[symbol] = OrderBook(symbol=symbol)
             logger.info(f"Added symbol: {symbol}")
             
-    def submit_order(self, order: Order) -> int:
+    def submit_order(self, command: NewOrderCommand | Order) -> int:
         """
-        Submit an order for processing.
+        Create and submit an engine-owned order for processing.
+
+        ``Order`` input remains as a compatibility adapter for existing local
+        callers, but it is copied into an immutable command and is never stored
+        or scheduled directly.
+
         Returns the assigned order ID.
         """
-        # Assign order ID
-        order.id = self.next_order_id
-        self.next_order_id += 1
-        
-        # Store order
-        self.orders[order.id] = order
-        
-        # Schedule processing with latencies
-        order_data = {
-            "order_id": order.id,
-            "session_alias": order.session_alias,
-            "timestamp": self.scheduler.current_time
-        }
-        
-        self.scheduler.schedule_order_processing(
-            order_data,
-            self.exec_params.network_latency_ms,
-            self.exec_params.engine_latency_ms
+        if isinstance(command, Order):
+            command = NewOrderCommand(
+                cl_ord_id=command.cl_ord_id,
+                symbol=command.symbol,
+                side=command.side,
+                qty=command.qty,
+                price=command.price,
+                tif=command.tif,
+                submitted_at=command.ts_submitted,
+                session_id=command.session_id,
+                session_alias=command.session_alias,
+            )
+
+        order = Order(
+            id=self.next_order_id,
+            cl_ord_id=command.cl_ord_id,
+            symbol=command.symbol,
+            side=command.side,
+            qty=command.qty,
+            price=command.price,
+            tif=command.tif,
+            ts_submitted=command.submitted_at,
+            session_id=command.session_id,
+            session_alias=command.session_alias,
         )
-        
+        self.next_order_id += 1
+        self.orders[order.id] = order
+
+        process_command = ProcessOrderCommand(
+            order_id=order.id,
+            expected_version=order.version,
+        )
+        self.scheduler.schedule_order_processing(
+            process_command,
+            self.exec_params.network_latency_ms,
+            self.exec_params.engine_latency_ms,
+            session_alias=order.session_alias,
+        )
+
         logger.debug(f"Order submitted: {order.cl_ord_id} ({order.side.value} {order.qty} @ {order.price})")
         return order.id
-        
-    def process_order(self, order_id: int) -> None:
-        """Process an order that has passed latency delays."""
-        order = self.orders.get(order_id)
+
+    def process_order(self, command: ProcessOrderCommand | int) -> None:
+        """Process one current, not-yet-consumed initial-order command."""
+        if isinstance(command, int):
+            order = self.orders.get(command)
+            command = ProcessOrderCommand(
+                order_id=command,
+                expected_version=order.version if order else 0,
+            )
+
+        order = self.orders.get(command.order_id)
         if not order:
-            logger.error(f"Order {order_id} not found")
+            logger.info("Ignoring process command for missing order %s", command.order_id)
             return
-            
+
+        if command.expected_version != order.version:
+            logger.info(
+                "Ignoring stale process command for order %s: expected version %s, current version %s",
+                command.order_id,
+                command.expected_version,
+                order.version,
+            )
+            return
+
+        if order.status in TERMINAL_ORDER_STATUSES:
+            logger.info(
+                "Ignoring process command for terminal order %s in state %s",
+                order.id,
+                order.status.value,
+            )
+            return
+
+        if order.status != OrderStatus.PENDING_NEW or order.processed:
+            logger.info(
+                "Ignoring duplicate process command for order %s in state %s",
+                order.id,
+                order.status.value,
+            )
+            return
+
+        # Claim the command before any matching or report side effects.
+        order.processed = True
+
         # Check for rejection
         if self._should_reject(order):
             self._reject_order(order, "Simulated rejection")
@@ -140,14 +201,14 @@ class MatchingEngine:
         
     def _reject_order(self, order: Order, reason: str) -> None:
         """Reject an order."""
-        order.status = OrderStatus.REJECTED
+        order.transition_to(OrderStatus.REJECTED)
         order.reject_reason = reason
 
-        report = ExecutionReport(
-            order=order,
+        report = create_execution_report(
+            order,
             exec_type="REJECTED",
             text=reason,
-            timestamp=self.scheduler.current_time
+            timestamp=self.scheduler.current_time,
         )
         self._send_execution_report(report)
         
@@ -169,15 +230,16 @@ class MatchingEngine:
         # Match: Attempt to match the order against the book.
         self._match_and_report(order, book)
         
-        # Add Remainder to Book (if applicable): This logic is correct and must be kept.
-        # It handles partially filled GTC orders.
-        if order.status not in [OrderStatus.FILLED, OrderStatus.REJECTED, OrderStatus.CANCELLED]:
-            # Acknowledge as NEW only when we are sure it's resting on the book.
-            if order.status == OrderStatus.NEW or order.status == OrderStatus.PARTIAL:
-                report = ExecutionReport(
-                    order=order,
+        # Add the nonterminal GTC remainder to the book.
+        if order.status not in TERMINAL_ORDER_STATUSES:
+            # A no-fill order becomes NEW when it is accepted onto the book.
+            # A PARTIAL report has already acknowledged a partially filled order.
+            if order.status == OrderStatus.PENDING_NEW:
+                order.transition_to(OrderStatus.NEW)
+                report = create_execution_report(
+                    order,
                     exec_type="NEW",
-                    timestamp=self.scheduler.current_time
+                    timestamp=self.scheduler.current_time,
                 )
                 self._send_execution_report(report)
 
@@ -199,27 +261,25 @@ class MatchingEngine:
         
         # Determine the final status and send the correct execution report
         if aggressor.filled_qty >= aggressor.qty:
-            aggressor.status = OrderStatus.FILLED
+            aggressor.transition_to(OrderStatus.FILLED)
             exec_type = "FILLED"
             text = None
         elif aggressor.tif == TimeInForce.IOC:
-            aggressor.status = OrderStatus.CANCELLED
+            aggressor.transition_to(OrderStatus.CANCELLED)
             exec_type = "CANCELLED"
             text = "IOC order cancelled - unfilled portion"
         else: # Partially filled GTC order
-            aggressor.status = OrderStatus.PARTIAL
+            aggressor.transition_to(OrderStatus.PARTIAL)
             exec_type = "PARTIAL"
             text = None
 
-        report = ExecutionReport(
-            order=aggressor,
+        report = create_execution_report(
+            aggressor,
             exec_type=exec_type,
             last_px=last_trade.price,
             last_qty=last_trade.qty,
-            cum_qty=aggressor.filled_qty,
-            avg_px=aggressor.avg_fill_price,
             timestamp=self.scheduler.current_time,
-            text=text
+            text=text,
         )
         self._send_execution_report(report)
 
@@ -303,20 +363,18 @@ class MatchingEngine:
     def _report_passive_fill(self, passive_order: Order, price: float, qty: float):
         """Send an execution report for a passive order that was hit."""
         if passive_order.filled_qty >= passive_order.qty:
-            passive_order.status = OrderStatus.FILLED
+            passive_order.transition_to(OrderStatus.FILLED)
             exec_type = "FILLED"
         else:
-            passive_order.status = OrderStatus.PARTIAL
+            passive_order.transition_to(OrderStatus.PARTIAL)
             exec_type = "PARTIAL"
 
-        report = ExecutionReport(
-            order=passive_order,
+        report = create_execution_report(
+            passive_order,
             exec_type=exec_type,
             last_px=price,
             last_qty=qty,
-            cum_qty=passive_order.filled_qty,
-            avg_px=passive_order.avg_fill_price,
-            timestamp=self.scheduler.current_time
+            timestamp=self.scheduler.current_time,
         )
         self._send_execution_report(report)
 
@@ -326,7 +384,7 @@ class MatchingEngine:
         This is now only checked once per aggressive order to reduce overhead.
         """
         # Only apply to aggressive orders, not every single passive match
-        if order.status == OrderStatus.NEW:
+        if order.status == OrderStatus.PENDING_NEW:
              return self.rng.random() < self.exec_params.partial_fill_prob
         return False
         
@@ -355,11 +413,10 @@ class MatchingEngine:
         if self.on_execution_report:
             self.on_execution_report(report)
 
-            report_data = {"report": report}
-            self.scheduler.schedule_execution_report(
-                report_data,
-                self.exec_params.network_latency_ms
-            )
+        self.scheduler.schedule_execution_report(
+            report,
+            self.exec_params.network_latency_ms,
+        )
             
     def _send_market_data_update(self, symbol: str) -> None:
         """Send market data update for a symbol."""
@@ -384,42 +441,60 @@ class MatchingEngine:
         """Get current order book snapshot."""
         return self.books.get(symbol)
         
-    def cancel_order(self, order_id: int) -> None:
+    def cancel_order(self, command: CancelOrderCommand | int) -> Optional[str]:
         """
-        Cancel an order.
-        This method will generate a `CANCELLED` or `REJECTED` ExecutionReport.
-        It does not return a value.
+        Cancel an order and return a rejection reason when it cannot be done.
+
+        Integer input is retained as a compatibility adapter. Gateway callers
+        provide the immutable command explicitly.
         """
-        order = self.orders.get(order_id)
+        if isinstance(command, int):
+            order = self.orders.get(command)
+            command = CancelOrderCommand(
+                order_id=command,
+                expected_version=order.version if order else 0,
+                cancel_cl_ord_id=None,
+                orig_cl_ord_id=order.cl_ord_id if order else None,
+                requested_at=self.scheduler.current_time,
+                session_id=order.session_id if order else None,
+                session_alias=order.session_alias if order else None,
+            )
+
+        order = self.orders.get(command.order_id)
         if not order:
-            logger.warning(f"Attempted to cancel non-existent order: {order_id}")
-            return
+            reason = f"Order not found: {command.orig_cl_ord_id or command.order_id}"
+            logger.warning(reason)
+            return reason
+
+        if command.expected_version != order.version:
+            reason = (
+                f"Stale cancel command for order {order.id}: expected version "
+                f"{command.expected_version}, current version {order.version}"
+            )
+            logger.info(reason)
+            return reason
 
         # If order is already terminated, reject the cancel request
-        if order.status in [OrderStatus.FILLED, OrderStatus.REJECTED, OrderStatus.CANCELLED]:
+        if order.status in TERMINAL_ORDER_STATUSES:
             reason = f"Order already in terminal state: {order.status.value}"
-            report = ExecutionReport(
-                order=order,
-                exec_type="REJECTED", # This should be a CancelReject, but the engine only sends ERs
-                text=reason,
-                timestamp=self.scheduler.current_time
-            )
-            self._send_execution_report(report)
-            return
+            logger.info(reason)
+            return reason
 
         # Remove from book if it's there
         if order.symbol in self.books:
             book = self.books[order.symbol]
             book.remove_order(order)
-            
-        # Update status
-        order.status = OrderStatus.CANCELLED
+
+        # A successful cancel invalidates any queued initial-processing command.
+        order.version += 1
+        order.transition_to(OrderStatus.CANCELLED)
 
         # Send cancellation report
-        report = ExecutionReport(
-            order=order,
+        report = create_execution_report(
+            order,
             exec_type="CANCELLED",
             text="Order cancelled by request",
-            timestamp=self.scheduler.current_time
+            timestamp=self.scheduler.current_time,
         )
         self._send_execution_report(report)
+        return None
