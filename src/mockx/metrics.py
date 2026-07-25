@@ -13,8 +13,10 @@ from .models import (
     ExecutionReport,
     MarketDataUpdate,
     OrderTimingData,
+    LiquidityCategory,
     Side,
     Trade,
+    liquidity_category_for_session,
 )
 from .tsdb_writer import TSDBWriter, Point
 import logging
@@ -116,10 +118,16 @@ class MetricsCollector:
             }
             
             # Add strategy involvement tags for faster querying
-            if trade.buyer_session_alias == "strategy_bot":
+            if (
+                liquidity_category_for_session(trade.buyer_session_alias)
+                == LiquidityCategory.STRATEGY
+            ):
                 tags["strategy_side"] = "buy"
                 tags["has_strategy"] = "true"
-            elif trade.seller_session_alias == "strategy_bot":
+            elif (
+                liquidity_category_for_session(trade.seller_session_alias)
+                == LiquidityCategory.STRATEGY
+            ):
                 tags["strategy_side"] = "sell"
                 tags["has_strategy"] = "true"
             else:
@@ -175,13 +183,13 @@ class MetricsCollector:
         # Calculate strategy quotes
         strategy_bid = None
         for level in update.bid_levels:  # Bids are sorted high-to-low
-            if any(o.session_alias == 'strategy_bot' for o in level.orders):
+            if any(o.is_strategy_order for o in level.orders):
                 strategy_bid = level.price
                 break  # The first one found IS the best one
         
         strategy_ask = None
         for level in update.ask_levels:  # Asks are sorted low-to-high
-            if any(o.session_alias == 'strategy_bot' for o in level.orders):
+            if any(o.is_strategy_order for o in level.orders):
                 strategy_ask = level.price
                 break  # The first one found IS the best one
                 

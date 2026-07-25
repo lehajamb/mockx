@@ -2,15 +2,14 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from random import Random
-import itertools
 
 from .models import (
     Order, OrderBook, Trade, Side, OrderStatus, TimeInForce,
     ExecutionParams, ExecutionReport, MarketDataUpdate, NewOrderCommand,
     ProcessOrderCommand, CancelOrderCommand, TERMINAL_ORDER_STATUSES,
-    create_execution_report,
+    QUANTITY_EPSILON, create_execution_report,
 )
 from .latency import LatencyScheduler
 
@@ -204,45 +203,45 @@ class MatchingEngine:
             self._reject_order(order, "No liquidity available")
             return
 
-        self._match_and_report(order, book)
+        self._match_and_report(order, book, rest_remainder=False)
 
     # [CHANGED] Method simplified due to bug fix and refactoring
     def _process_limit_order(self, order: Order, book: OrderBook) -> None:
         """Process a limit order."""
-        # Match: Attempt to match the order against the book.
-        self._match_and_report(order, book)
-        
-        # Add the nonterminal GTC remainder to the book.
-        if order.status not in TERMINAL_ORDER_STATUSES:
-            # A no-fill order becomes NEW when it is accepted onto the book.
-            # A PARTIAL report has already acknowledged a partially filled order.
-            if order.status == OrderStatus.PENDING_NEW:
-                order.transition_to(OrderStatus.NEW)
-                report = create_execution_report(
-                    order,
-                    exec_type="NEW",
-                    timestamp=self.scheduler.current_time,
-                )
-                self._send_execution_report(report)
-
-            if order.side == Side.BUY:
-                book.add_bid(order)
-            else:
-                book.add_ask(order)
-
-    # [NEW] Helper method created from refactoring
-    def _match_and_report(self, aggressor: Order, book: OrderBook):
-        """Centralized matching and reporting logic."""
-        trades = self._match_aggressive_order(aggressor, book)
-        
-        # If no trades occurred, there's nothing more to do for the aggressor
-        if not trades:
+        if self._match_and_report(order, book, rest_remainder=True):
             return
 
+        # With no executions, put the accepted limit order on the book before
+        # publishing its NEW snapshot. The existing IOC/no-fill semantics are
+        # intentionally unchanged by this accounting remediation.
+        book.add_order(order)
+        order.transition_to(OrderStatus.NEW)
+        report = create_execution_report(
+            order,
+            exec_type="NEW",
+            timestamp=self.scheduler.current_time,
+        )
+        self._send_execution_report(report)
+
+    # [NEW] Helper method created from refactoring
+    def _match_and_report(
+        self,
+        aggressor: Order,
+        book: OrderBook,
+        *,
+        rest_remainder: bool,
+    ) -> bool:
+        """Match, reach a final observable state, then publish its report."""
+        trades = self._match_aggressive_order(aggressor, book)
+
+        # If no trades occurred, there's nothing more to do for the aggressor
+        if not trades:
+            return False
+
         last_trade = trades[-1]
-        
+
         # Determine the final status and send the correct execution report
-        if aggressor.filled_qty >= aggressor.qty:
+        if aggressor.remaining_qty == 0.0:
             aggressor.transition_to(OrderStatus.FILLED)
             exec_type = "FILLED"
             text = None
@@ -251,6 +250,10 @@ class MatchingEngine:
             exec_type = "CANCELLED"
             text = "IOC order cancelled - unfilled portion"
         else: # Partially filled GTC order
+            if rest_remainder:
+                # Queue and aggregates become authoritative before any callback
+                # can observe the PARTIAL execution report.
+                book.add_order(aggressor)
             aggressor.transition_to(OrderStatus.PARTIAL)
             exec_type = "PARTIAL"
             text = None
@@ -264,6 +267,7 @@ class MatchingEngine:
             text=text,
         )
         self._send_execution_report(report)
+        return True
 
     def _match_aggressive_order(self, aggressor: Order, book: OrderBook) -> List[Trade]:
         """
@@ -271,7 +275,7 @@ class MatchingEngine:
         This version is optimized to avoid creating list copies in hot paths.
         """
         trades: List[Trade] = []
-        remaining_qty = aggressor.qty - aggressor.filled_qty
+        remaining_qty = aggressor.remaining_qty
         
         # Determine max fill for partial fill simulation
         max_fill_qty = remaining_qty
@@ -283,7 +287,11 @@ class MatchingEngine:
 
         # Continue as long as there's quantity and available levels
         level_idx = 0
-        while remaining_qty > 0 and passive_levels and aggressor.filled_qty < max_fill_qty:
+        while (
+            remaining_qty > QUANTITY_EPSILON
+            and passive_levels
+            and aggressor.filled_qty < max_fill_qty - QUANTITY_EPSILON
+        ):
             best_level = passive_levels[0]
 
             # Price check for limit orders
@@ -294,10 +302,14 @@ class MatchingEngine:
                     break
             
             # Match against orders at the best price level
-            while remaining_qty > 0 and best_level.orders and aggressor.filled_qty < max_fill_qty:
+            while (
+                remaining_qty > QUANTITY_EPSILON
+                and best_level.orders
+                and aggressor.filled_qty < max_fill_qty - QUANTITY_EPSILON
+            ):
                 passive_order = best_level.orders[0]
-                
-                passive_remaining = passive_order.qty - passive_order.filled_qty
+
+                passive_remaining = passive_order.remaining_qty
                 match_qty = min(remaining_qty, passive_remaining)
                 
                 # Ensure we don't exceed max fill
@@ -307,23 +319,41 @@ class MatchingEngine:
                     break
 
                 exec_price = passive_order.price
-                trade = self._create_trade(aggressor, passive_order, exec_price, match_qty, level_idx)
+                if exec_price is None:
+                    raise RuntimeError(
+                        f"Resting order {passive_order.id} has no limit price"
+                    )
+
+                # Validate both halves before changing either. The resting half
+                # is then committed solely through the book mutation layer.
+                aggressor.validate_fill(match_qty, exec_price)
+                book.validate_fill(passive_order, match_qty, exec_price)
+                aggressor.apply_fill(match_qty, exec_price)
+                fill_result = book.apply_fill(
+                    passive_order,
+                    match_qty,
+                    exec_price,
+                )
+                remaining_qty = aggressor.remaining_qty
+
+                trade = self._create_trade(
+                    aggressor,
+                    passive_order,
+                    exec_price,
+                    fill_result.fill_qty,
+                    level_idx,
+                )
                 trades.append(trade)
 
-                self._update_order_fill(aggressor, exec_price, match_qty)
-                self._update_order_fill(passive_order, exec_price, match_qty)
-                remaining_qty -= match_qty
+                self._report_passive_fill(
+                    passive_order,
+                    exec_price,
+                    fill_result.fill_qty,
+                )
 
-                self._report_passive_fill(passive_order, exec_price, match_qty)
-
-                # If passive order is filled, remove it from the level
-                if passive_order.filled_qty >= passive_order.qty:
-                    best_level.orders.popleft()
-
-            # If the level is now empty, remove it from the book
-            if not best_level.orders:
-                level_idx += 1
-                passive_levels.popleft()
+                if fill_result.level_removed:
+                    level_idx += 1
+                    break
 
         for trade in trades:
             if self.on_trade:
@@ -332,19 +362,9 @@ class MatchingEngine:
         return trades
         
     # [NEW] Helper method for DRY code
-    def _update_order_fill(self, order: Order, price: float, qty: float):
-        """Update an order's filled quantity and average price."""
-        if order.avg_fill_price is None:
-            order.avg_fill_price = price
-        else:
-            total_value = (order.avg_fill_price * order.filled_qty) + (price * qty)
-            order.avg_fill_price = total_value / (order.filled_qty + qty)
-        order.filled_qty += qty
-    
-    # [NEW] Helper method for DRY code
     def _report_passive_fill(self, passive_order: Order, price: float, qty: float):
         """Send an execution report for a passive order that was hit."""
-        if passive_order.filled_qty >= passive_order.qty:
+        if passive_order.remaining_qty == 0.0:
             passive_order.transition_to(OrderStatus.FILLED)
             exec_type = "FILLED"
         else:

@@ -1,5 +1,7 @@
 """Tests for the matching engine."""
 
+import itertools
+
 import pytest
 from datetime import datetime, timezone
 
@@ -16,6 +18,9 @@ from src.mockx.models import (
 )
 from src.mockx.engine import MatchingEngine
 from src.mockx.latency import LatencyScheduler
+
+
+ORDER_IDS = itertools.count(1_000_000)
 
 @pytest.fixture
 def exec_params():
@@ -42,7 +47,7 @@ def engine(exec_params):
 def create_order(side: Side, qty: float, price: float = None) -> Order:
     """Helper to create test orders."""
     return Order(
-        id=0,
+        id=next(ORDER_IDS),
         cl_ord_id=f"TEST_{datetime.now(timezone.utc).timestamp()}",
         symbol="TEST",
         side=side,
