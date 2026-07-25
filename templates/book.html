@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ symbol }} Order Book - MockX</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 30px;
+        }
+        
+        .stats {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        
+        .stats span {
+            margin: 0 15px;
+        }
+        
+        .mid-price {
+            color: #FFC107;
+            font-weight: bold;
+        }
+        
+        .spread {
+            color: #9C27B0;
+        }
+        
+        .book-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        
+        .book-side {
+            flex: 1;
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .book-side h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .bids h2 {
+            color: #4CAF50;
+        }
+        
+        .asks h2 {
+            color: #F44336;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 8px;
+            text-align: right;
+            border-bottom: 1px solid #444;
+        }
+        
+        th {
+            background-color: #333;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+        
+        .bid-row {
+            color: #81C784;
+        }
+        
+        .ask-row {
+            color: #EF5350;
+        }
+        
+        .best-price {
+            background-color: #3a3a3a;
+            font-weight: bold;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .disconnected {
+            background-color: #F44336;
+            color: white;
+        }
+        
+        .timestamp {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ symbol }} Order Book</h1>
+        
+        <div class="stats">
+            <span class="spread">Spread: <span id="spread">-</span></span>
+            <span class="mid-price">Mid: <span id="mid-price">{{ mid_price|round(2) if mid_price else '-' }}</span></span>
+            <span>Best Bid: <span id="best-bid">{{ best_bid|round(2) if best_bid else '-' }}</span></span>
+            <span>Best Ask: <span id="best-ask">{{ best_ask|round(2) if best_ask else '-' }}</span></span>
+        </div>
+        
+        <div class="book-container">
+            <div class="book-side">
+                <h2>BIDS</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Orders</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bids-tbody">
+                        {% for bid in bids %}
+                        <tr class="bid-row {% if loop.first %}best-price{% endif %}">
+                            <td>{{ bid.price|round(2) }}</td>
+                            <td>{{ bid.qty|round(4) }}</td>
+                            <td>{{ bid.orders }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="book-side">
+                <h2>ASKS</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Orders</th>
+                        </tr>
+                    </thead>
+                    <tbody id="asks-tbody">
+                        {% for ask in asks %}
+                        <tr class="ask-row {% if loop.first %}best-price{% endif %}">
+                            <td>{{ ask.price|round(2) }}</td>
+                            <td>{{ ask.qty|round(4) }}</td>
+                            <td>{{ ask.orders }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="timestamp" id="timestamp">Last Update: -</div>
+    </div>
+    
+    <div class="connection-status disconnected" id="connection-status">
+        Disconnected
+    </div>
+    
+    <script>
+        const symbol = "{{ symbol }}";
+        const wsPort = {{ ws_port }};
+        let ws = null;
+        let reconnectInterval = null;
+        
+        function updateBook(data) {
+            // Update bids
+            const bidsBody = document.getElementById('bids-tbody');
+            bidsBody.innerHTML = '';
+            data.bids.forEach((bid, index) => {
+                const row = document.createElement('tr');
+                row.className = `bid-row ${index === 0 ? 'best-price' : ''}`;
+                row.innerHTML = `
+                    <td>${bid.price.toFixed(2)}</td>
+                    <td>${bid.qty.toFixed(4)}</td>
+                    <td>${bid.orders || ''}</td>
+                `;
+                bidsBody.appendChild(row);
+            });
+            
+            // Update asks
+            const asksBody = document.getElementById('asks-tbody');
+            asksBody.innerHTML = '';
+            data.asks.forEach((ask, index) => {
+                const row = document.createElement('tr');
+                row.className = `ask-row ${index === 0 ? 'best-price' : ''}`;
+                row.innerHTML = `
+                    <td>${ask.price.toFixed(2)}</td>
+                    <td>${ask.qty.toFixed(4)}</td>
+                    <td>${ask.orders || ''}</td>
+                `;
+                asksBody.appendChild(row);
+            });
+            
+            // Update stats
+            if (data.bids.length > 0 && data.asks.length > 0) {
+                const bestBid = data.bids[0].price;
+                const bestAsk = data.asks[0].price;
+                const spread = bestAsk - bestBid;
+                const mid = (bestBid + bestAsk) / 2;
+                
+                document.getElementById('best-bid').textContent = bestBid.toFixed(2);
+                document.getElementById('best-ask').textContent = bestAsk.toFixed(2);
+                document.getElementById('spread').textContent = spread.toFixed(2);
+                document.getElementById('mid-price').textContent = mid.toFixed(2);
+            }
+            
+            // Update timestamp
+            document.getElementById('timestamp').textContent = 
+                `Last Update: ${new Date().toLocaleTimeString()}`;
+        }
+        
+        function connect() {
+            const wsUrl = `ws://localhost:${wsPort}/ws/${symbol}`;
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                console.log('WebSocket connected');
+                document.getElementById('connection-status').className = 'connection-status connected';
+                document.getElementById('connection-status').textContent = 'Connected';
+                
+                if (reconnectInterval) {
+                    clearInterval(reconnectInterval);
+                    reconnectInterval = null;
+                }
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'snapshot' || data.type === 'update') {
+                    updateBook(data);
+                } else if (data.type === 'heartbeat') {
+                    console.log('Heartbeat received');
+                }
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket disconnected');
+                document.getElementById('connection-status').className = 'connection-status disconnected';
+                document.getElementById('connection-status').textContent = 'Disconnected';
+                
+                // Reconnect after 5 seconds
+                if (!reconnectInterval) {
+                    reconnectInterval = setInterval(connect, 5000);
+                }
+            };
+        }
+        
+        // Connect on page load
+        connect();
+        
+        // Also refresh via HTTP every 2 seconds as fallback
+        setInterval(async function() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                try {
+                    const response = await fetch(`/book/${symbol}`);
+                    const data = await response.json();
+                    updateBook(data);
+                } catch (error) {
+                    console.error('Failed to fetch book:', error);
+                }
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

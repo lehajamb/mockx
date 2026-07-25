@@ -1,0 +1,25 @@
+exchange_name: "MockX-1"
+symbols:
+  - BTC-USDT
+  - ETH-USDT
+latency:
+  network_ms: 0
+  engine_ms: 1
+  session_delays:
+    liquidity_bot: 1_000      # 0.1 seconds - goes first to establish liquidity
+    strategy_bot: 5_000       # 0.5 seconds - reacts to established liquidity
+    taker_bot: 10_000         # 1.0 seconds - random traders
+    noise_bot: 10_000         # 1.0 seconds - random traders
+execution:
+  partial_fill_prob: 0.0
+  reject_prob: 0.0
+  random_seed: 42
+admin_api:
+  port: 8000
+# prometheus:
+#   port: 9100
+tsdb:
+  url: "http://influxdb:8086"
+  token: "mockx-token"
+  org: "mockx-org"
+  bucket: "mockx"

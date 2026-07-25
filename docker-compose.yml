@@ -1,0 +1,114 @@
+version: "3.9"
+
+services:
+  mockx1:
+    build: .
+    container_name: mockx1
+    volumes:
+      - ./configs/mockx1.yml:/opt/mockx1/config.yml:ro
+      - ./configs/mockx1-docker.cfg:/opt/mockx1/fix.cfg:ro
+      - ./configs/FIX44.xml:/opt/mockx1/FIX44.xml:ro
+      - ./logs/mockx1:/opt/mockx1/logs
+      - ./store/mockx1:/opt/mockx1/store
+    environment:
+      - CFG_PATH=/opt/mockx1/config.yml
+      - FIX_CONFIG_FILE=/opt/mockx1/fix.cfg
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=mockx-token
+      - INFLUXDB_ORG=mockx-org
+      - INFLUXDB_BUCKET=mockx
+    ports:
+      - "4001:4001"     # FIX
+      - "8001:8000"     # REST / WebSocket
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - mockx-net
+
+  mockx2:
+    build: .
+    container_name: mockx2
+    volumes:
+      - ./configs/mockx2.yml:/opt/mockx2/config.yml:ro
+      - ./configs/mockx2-docker.cfg:/opt/mockx2/fix.cfg:ro
+      - ./configs/FIX44.xml:/opt/mockx2/FIX44.xml:ro
+      - ./logs/mockx2:/opt/mockx2/logs
+      - ./store/mockx2:/opt/mockx2/store
+    environment:
+      - CFG_PATH=/opt/mockx2/config.yml
+      - FIX_CONFIG_FILE=/opt/mockx2/fix.cfg
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=mockx-token
+      - INFLUXDB_ORG=mockx-org
+      - INFLUXDB_BUCKET=mockx
+    ports:
+      - "4002:4002"     # FIX
+      - "8002:8000"     # REST / WebSocket
+      - "9102:9100"     # Prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - mockx-net
+
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: prometheus
+  #   volumes:
+  #     - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus-data:/prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #   networks:
+  #     - mockx-net
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=mockx-user
+      - DOCKER_INFLUXDB_INIT_PASSWORD=mockx-password
+      - DOCKER_INFLUXDB_INIT_ORG=mockx-org
+      - DOCKER_INFLUXDB_INIT_BUCKET=mockx
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=mockx-token
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    networks:
+      - mockx-net
+
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: grafana
+  #   volumes:
+  #     - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+  #     - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+  #     - grafana-data:/var/lib/grafana
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #     - GF_USERS_ALLOW_SIGN_UP=false
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - mockx-net
+  #   depends_on:
+  #     - prometheus
+  #     - influxdb
+
+networks:
+  mockx-net:
+
+volumes:
+  influxdb-data:
+  # prometheus-data:
+  # grafana-data:

@@ -1,0 +1,22 @@
+# Core dependencies
+fastapi==0.115.14
+httpx==0.28.1
+influxdb_client==1.49.0
+jinja2==3.1.4
+prometheus_client==0.20.0
+pydantic==2.11.7
+pyyaml==6.0.2
+uvicorn==0.35.0
+# QuickFIX for FIX protocol
+quickfix==1.15.1
+
+# Testing dependencies
+pytest==8.2.2
+pytest-asyncio==0.23.7
+pytest-cov==5.0.0
+hypothesis==6.103.1
+
+# Development dependencies
+black==24.4.2
+flake8==7.0.0
+mypy==1.10.0

@@ -1,0 +1,15 @@
+exchange_name: "MockX-2"
+symbols:
+  - BTC-USDT
+  - ETH-USDT
+latency:
+  network_ms: 100
+  engine_ms: 20
+execution:
+  partial_fill_prob: 0.3
+  reject_prob: 0.02
+  random_seed: 84
+admin_api:
+  port: 8000
+# prometheus:
+#   port: 9100
