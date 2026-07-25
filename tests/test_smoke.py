@@ -2,9 +2,13 @@
 
 import pytest
 import asyncio
+from pathlib import Path
 from src.mockx.main import MockExchange
 from src.mockx.models import Order, OrderStatus, Side, TimeInForce
 from datetime import datetime, timezone
+
+
+FIX_CONFIG = Path(__file__).resolve().parents[1] / "configs" / "mockx1.cfg"
 
 @pytest.fixture
 def test_config():
@@ -46,7 +50,7 @@ async def test_engine_smoke():
         "prometheus": {"port": 9199}
     }
 
-    fix_cfg = "configs/mockx1.cfg"
+    fix_cfg = str(FIX_CONFIG)
     ex = MockExchange(config, fix_cfg)
     ex.fix_gateway.application.loop = asyncio.get_event_loop()
 
@@ -73,11 +77,14 @@ async def test_engine_smoke():
     )
 
     # Submit passive order first, then aggressive
-    ex.engine.submit_order(buy_order)
-    ex.engine.submit_order(sell_order)
+    buy_order_id = ex.engine.submit_order(buy_order)
+    sell_order_id = ex.engine.submit_order(sell_order)
 
     # Execute all scheduled events
     await ex.scheduler.run_until_idle()
+
+    buy_order = ex.engine.orders[buy_order_id]
+    sell_order = ex.engine.orders[sell_order_id]
 
     # --- Assertions ---
     # 1. Check the status of both orders
@@ -127,7 +134,7 @@ async def test_api_endpoints(test_config):
     from httpx import AsyncClient, ASGITransport
     
     # Create minimal engine
-    fix_cfg = "configs/mockx1.cfg"  # Path to your FIX config file
+    fix_cfg = str(FIX_CONFIG)
     
     # Create exchange without FIX
     ex = MockExchange(test_config, fix_cfg)

@@ -293,8 +293,8 @@ class TestMatchingEngine:
         
         # Find the NEW execution report in the queue
         new_reports = [
-            e.data['report'] for e in engine.scheduler.event_queue
-            if e.event_type == 'exec_report' and e.data['report'].exec_type == 'NEW'
+            e.data for e in engine.scheduler.event_queue
+            if e.event_type == 'exec_report' and e.data.exec_type == 'NEW'
         ]
         assert len(new_reports) == 1
         report_ack = new_reports[0]
@@ -306,9 +306,9 @@ class TestMatchingEngine:
 
         # Check that a CANCELLED ExecutionReport was scheduled
         assert engine.scheduler.get_pending_count() == 1
-        
+
         # Verify the cancellation report
-        report_cancel = engine.scheduler.event_queue[0].data['report']
-        assert report_cancel.order.id == order_id
+        report_cancel = engine.scheduler.event_queue[0].data
+        assert report_cancel.order_id == order_id
         assert report_cancel.exec_type == "CANCELLED"
-        assert report_cancel.order.status == OrderStatus.CANCELLED
+        assert report_cancel.ord_status == OrderStatus.CANCELLED

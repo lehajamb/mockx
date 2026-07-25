@@ -1,41 +1,36 @@
 """FIX protocol gateway for the mock exchange."""
 
-import quickfix as fix
+try:
+    import quickfix as fix
+except ModuleNotFoundError:  # Pure report mapping and non-FIX tests remain importable.
+    fix = None
 import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional
 import json
+import math
 import time
 
-from .models import Order, Side, TimeInForce, OrderStatus, ExecutionReport
+from .models import (
+    CancelOrderCommand,
+    ExecutionReport,
+    InvalidOrderTransition,
+    NewOrderCommand,
+    OrderStatus,
+    Side,
+    TimeInForce,
+)
+from .fix_fields import execution_report_fields
 from .metrics import MetricsCollector, LatencyTracker
 from .engine import MatchingEngine
 
 logger = logging.getLogger(__name__)
 
-exec_type_map = {
-    "NEW": '0',        # NEW - correct
-    "PARTIAL": 'F',    # TRADE - for partial fills
-    "FILLED": 'F',     # TRADE - for complete fills
-    "CANCELLED": '4',  # CANCELED - correct
-    "REJECTED": '8',   # REJECTED - correct
-}
+_FIX_APPLICATION_BASE = fix.Application if fix is not None else object
 
-ord_status_map = {
-    OrderStatus.NEW: '0',
-    OrderStatus.PARTIAL: '1',
-    OrderStatus.FILLED: '2',
-    OrderStatus.CANCELLED: '4',
-    OrderStatus.REJECTED: '8',
-}
 
-side_map = {
-    Side.BUY: fix.Side_BUY,
-    Side.SELL: fix.Side_SELL,
-}
-
-class FIXApplication(fix.Application):
+class FIXApplication(_FIX_APPLICATION_BASE):
     """QuickFIX application for handling FIX protocol messages.
 
     The matching engine and scheduler live on the asyncio event loop
@@ -45,7 +40,7 @@ class FIXApplication(fix.Application):
     ``self.loop.call_soon_threadsafe`` where ``self.loop has been set to the
     asyncio event loop running in the main thread.
     """
-    
+
     def __init__(self, engine: MatchingEngine, metrics: MetricsCollector, latency_tracker: LatencyTracker):
         super().__init__()
         self.engine = engine
@@ -53,8 +48,8 @@ class FIXApplication(fix.Application):
         self.latency_tracker = latency_tracker
 
         self.sessions = {}
-        # Map clOrdID to {'order_id': id, 'session_id': sessionStr}
-        self.order_map: Dict[str, Dict[str, str]] = {}
+        # ClOrdID is scoped by FIX session; it is not globally unique.
+        self.order_map: Dict[tuple[str, str], int] = {}
         self.loop = None  # <-- Add this line to store the event loop
 
     def reset(self):
@@ -128,6 +123,7 @@ class FIXApplication(fix.Application):
             side = self._get_field(message, fix.Side())
             order_qty = self._get_field(message, fix.OrderQty())
             ord_type = self._get_field(message, fix.OrdType())
+            session_id = sessionID.toString()
             session_alias = sessionID.getTargetCompID().getValue()
             
             # Convert side
@@ -154,27 +150,22 @@ class FIXApplication(fix.Application):
                                 
             # Submit to engine on the event loop thread
             def _submit():
-                # Create order object
-                order = Order(
-                    id=0,  # Will be assigned by engine
+                command = NewOrderCommand(
                     cl_ord_id=cl_ord_id,
                     symbol=symbol,
-                    status= OrderStatus.NEW,
                     side=order_side,
                     qty=float(order_qty),
                     price=price,
                     tif=tif,
-                    ts_submitted=self.engine.scheduler.current_time,
-                    session_alias=session_alias
+                    submitted_at=self.engine.scheduler.current_time,
+                    session_id=session_id,
+                    session_alias=session_alias,
                 )
 
-                order_id = self.engine.submit_order(order)
+                order_id = self.engine.submit_order(command)
                 self.latency_tracker.order_submitted(order_id)
 
-                self.order_map[cl_ord_id] = {
-                    "order_id": order_id,
-                    "session_id": sessionID.toString(),
-                }
+                self.order_map[(session_id, cl_ord_id)] = order_id
                 logger.debug(f"Order submitted: {cl_ord_id} -> {order_id}")
 
             self.loop.call_soon_threadsafe(_submit)
@@ -189,29 +180,34 @@ class FIXApplication(fix.Application):
             _side = order_side if 'order_side' in locals() else Side.BUY
             _qty = float(order_qty) if 'order_qty' in locals() else 0.0
             _price = price if 'price' in locals() else None
+            _tif = tif if 'tif' in locals() else TimeInForce.GTC
+            _session_id = session_id if 'session_id' in locals() else sessionID.toString()
             _session_alias = session_alias if 'session_alias' in locals() else "UNKNOWN"
             _error_text = str(e)
 
             def _reject():
                 simulated_time = self.engine.scheduler.current_time
-                
-                reject_order = Order(
-                    id=0,
+                safe_qty = _qty if math.isfinite(_qty) and _qty >= 0 else 0.0
+                report = ExecutionReport(
+                    order_id=0,
                     cl_ord_id=_cl_ord_id,
                     symbol=_symbol,
                     side=_side,
-                    qty=_qty,
-                    price=_price,
-                    tif=TimeInForce.GTC,
-                    ts_submitted=simulated_time,
-                    status=OrderStatus.REJECTED,
-                    session_alias=_session_alias
-                )
-                report = ExecutionReport(
-                    order=reject_order,
+                    order_qty=safe_qty,
+                    order_price=_price,
+                    tif=_tif,
+                    ord_status=OrderStatus.REJECTED,
                     exec_type="REJECTED",
+                    leaves_qty=safe_qty,
+                    cum_qty=0.0,
+                    avg_px=0.0,
+                    reject_reason=_error_text,
                     text=_error_text,
+                    session_id=_session_id,
+                    session_alias=_session_alias,
+                    submitted_at=simulated_time,
                     timestamp=simulated_time,
+                    order_version=0,
                 )
                 self.send_execution_report(sessionID, report)
             
@@ -222,24 +218,47 @@ class FIXApplication(fix.Application):
         try:
             cl_ord_id = self._get_field(message, fix.ClOrdID())
             orig_cl_ord_id = self._get_field(message, fix.OrigClOrdID())
-            
+            session_id = sessionID.toString()
+            session_alias = sessionID.getTargetCompID().getValue()
+
             def _cancel_logic():
                 """This function will run on the main asyncio event loop."""
                 try:
-                    # Find order
-                    entry = self.order_map.get(orig_cl_ord_id)
-                    if not entry:
-                        raise ValueError(f"Order not found: {orig_cl_ord_id}")
-                    
-                    order_id = entry["order_id"]
-                    
-                    # The engine will generate an ExecutionReport on success or failure
-                    self.engine.cancel_order(order_id)
+                    order_id = self.order_map.get((session_id, orig_cl_ord_id), 0)
+                    order = self.engine.orders.get(order_id)
+                    command = CancelOrderCommand(
+                        order_id=order_id,
+                        expected_version=order.version if order else 0,
+                        cancel_cl_ord_id=cl_ord_id,
+                        orig_cl_ord_id=orig_cl_ord_id,
+                        requested_at=self.engine.scheduler.current_time,
+                        session_id=session_id,
+                        session_alias=session_alias,
+                    )
 
+                    rejection_reason = self.engine.cancel_order(command)
+                    if rejection_reason:
+                        self.send_cancel_reject(
+                            sessionID,
+                            command.cancel_cl_ord_id or "UNKNOWN",
+                            command.orig_cl_ord_id or "UNKNOWN",
+                            command.order_id or None,
+                            rejection_reason,
+                        )
+
+                except InvalidOrderTransition:
+                    logger.exception("Invalid order transition while cancelling %s", orig_cl_ord_id)
+                    raise
                 except Exception as exc:
                     logger.error(f"Error handling OrderCancelRequest: {exc}")
-                    order_id_for_reject = self.order_map.get(orig_cl_ord_id, {}).get("order_id")
-                    self.send_cancel_reject(sessionID, cl_ord_id, orig_cl_ord_id, order_id_for_reject, str(exc))
+                    order_id_for_reject = self.order_map.get((session_id, orig_cl_ord_id))
+                    self.send_cancel_reject(
+                        sessionID,
+                        cl_ord_id,
+                        orig_cl_ord_id,
+                        order_id_for_reject,
+                        str(exc),
+                    )
 
             # Schedule the cancellation logic to run on the event loop
             self.loop.call_soon_threadsafe(_cancel_logic)
@@ -263,43 +282,40 @@ class FIXApplication(fix.Application):
         
     def send_execution_report(self, sessionID, report: ExecutionReport):
         """Send ExecutionReport (35=8) message."""
+        fields = execution_report_fields(report)
         msg = fix.Message()
         msg.getHeader().setField(fix.MsgType(fix.MsgType_ExecutionReport))
-        order_id = str(report.order.id) if report.order.id else self.generate_order_id()
-        # LeavesQty, CumQty, AvgPx are mandatory
-        cum_qty = report.cum_qty if report.cum_qty is not None else report.order.filled_qty
-        leaves_qty = report.order.qty - cum_qty
-        avg_px = report.avg_px if report.avg_px is not None else (report.order.avg_fill_price or 0)
 
         # Required fields
-        msg.setField(fix.ClOrdID(report.order.cl_ord_id))
-        msg.setField(fix.ExecType(exec_type_map.get(report.exec_type, '8')))
-        msg.setField(fix.OrdStatus(ord_status_map.get(report.order.status, '8')))
+        msg.setField(fix.ClOrdID(str(fields["ClOrdID"])))
+        msg.setField(fix.ExecType(str(fields["ExecType"])))
+        msg.setField(fix.OrdStatus(str(fields["OrdStatus"])))
         msg.setField(fix.ExecID(self.generate_exec_id()))
-        msg.setField(fix.OrderID(order_id))
-        msg.setField(fix.Symbol(report.order.symbol))
-        msg.setField(fix.Side(side_map.get(report.order.side, fix.Side_BUY)))
-        msg.setField(fix.LeavesQty(float(leaves_qty)))
-        msg.setField(fix.CumQty(float(cum_qty)))
-        msg.setField(fix.AvgPx(float(avg_px)))
+        order_id = fields["OrderID"] if report.order_id else self.generate_order_id()
+        msg.setField(fix.OrderID(str(order_id)))
+        msg.setField(fix.Symbol(str(fields["Symbol"])))
+        msg.setField(fix.Side(str(fields["Side"])))
+        msg.setField(fix.LeavesQty(float(fields["LeavesQty"])))
+        msg.setField(fix.CumQty(float(fields["CumQty"])))
+        msg.setField(fix.AvgPx(float(fields["AvgPx"])))
+        msg.setField(fix.OrderQty(float(fields["OrderQty"])))
+        msg.setField(fix.TimeInForce(str(fields["TimeInForce"])))
 
         # Optional fields
-        if report.order.price is not None:
-            msg.setField(fix.Price(float(report.order.price)))
-        if report.last_px is not None:
-            msg.setField(fix.LastPx(float(report.last_px)))
-        if report.last_qty is not None:
-            msg.setField(fix.LastQty(float(report.last_qty)))
-        if report.text:
-            msg.setField(fix.Text(report.text))
-
-        msg.setField(fix.OrderQty(float(report.order.qty)))
+        if "Price" in fields:
+            msg.setField(fix.Price(float(fields["Price"])))
+        if "LastPx" in fields:
+            msg.setField(fix.LastPx(float(fields["LastPx"])))
+        if "LastQty" in fields:
+            msg.setField(fix.LastQty(float(fields["LastQty"])))
+        if "Text" in fields:
+            msg.setField(fix.Text(str(fields["Text"])))
 
         # Send message
         fix.Session.sendToTarget(msg, sessionID)
-        
+
         # Record E2E latency now that the message is sent
-        self.latency_tracker.record_e2e_latency(report.order.id)
+        self.latency_tracker.record_e2e_latency(report.order_id)
         
     def send_cancel_reject(self, sessionID, cl_ord_id: str, orig_cl_ord_id: str, order_id: Optional[str], text: str):
         """Send OrderCancelReject (35=9) message."""
@@ -311,10 +327,10 @@ class FIXApplication(fix.Application):
         reject.setField(fix.OrigClOrdID(orig_cl_ord_id))
         reject.setField(fix.OrdStatus('8'))  # Rejected
         
-        # The OrderID is conditionally required. If the cancel request is rejected and the order exists, 
+        # The OrderID is conditionally required. If the cancel request is rejected and the order exists,
         # it should be included.
         if order_id:
-            reject.setField(fix.OrderID(order_id))
+            reject.setField(fix.OrderID(str(order_id)))
 
         # Optional fields
         reject.setField(fix.CxlRejReason(99))  # Other
@@ -343,20 +359,27 @@ class FIXApplication(fix.Application):
         
     def process_execution_report(self, report: ExecutionReport):
         """Process execution report from engine and send via FIX."""
-        # Find session for this order
-        cl_ord_id = report.order.cl_ord_id
-        
-        entry = self.order_map.get(cl_ord_id)
-        session_obj = None
-        if entry:
-            session_str = entry.get("session_id")
-            if session_str:
-                session_obj = self.sessions.get(session_str)
+        session_obj = self.sessions.get(report.session_id) if report.session_id else None
+
+        # Backward-compatible fallback for snapshots that predate session routing:
+        # route only when ClOrdID identifies exactly one known FIX session.
+        if session_obj is None and report.session_id is None:
+            matching_session_ids = {
+                session_id
+                for session_id, cl_ord_id in self.order_map
+                if cl_ord_id == report.cl_ord_id
+            }
+            if len(matching_session_ids) == 1:
+                session_obj = self.sessions.get(matching_session_ids.pop())
 
         if session_obj:
             self.send_execution_report(session_obj, report)
         else:
-            logger.warning(f"Session not found for order {cl_ord_id}")
+            logger.warning(
+                "Session not found for order %s (session_id=%s)",
+                report.cl_ord_id,
+                report.session_id,
+            )
             
     def generate_exec_id(self) -> str:
         """Generate unique execution ID."""
@@ -400,6 +423,10 @@ class FIXGateway:
         
     def start(self):
         """Start FIX acceptor."""
+        if fix is None:
+            raise RuntimeError(
+                "QuickFIX is unavailable; install the native quickfix module to start the FIX gateway"
+            )
         try:
             logger.info(f"Using FIX configuration: {self.fix_cfg}")
 

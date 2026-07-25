@@ -9,7 +9,15 @@ import os
 from typing import Dict, Optional
 import uvicorn
 
-from .models import ExecutionParams, MarketDataUpdate, OrderStatus, Trade
+from .models import (
+    ExecutionParams,
+    ExecutionReport,
+    InvalidOrderTransition,
+    MarketDataUpdate,
+    ProcessOrderCommand,
+    TERMINAL_ORDER_STATUSES,
+    Trade,
+)
 from .engine import MatchingEngine
 from .latency import LatencyScheduler
 from .gateway import FIXGateway
@@ -99,39 +107,35 @@ class MockExchange:
         self.engine.on_market_data_update = self._on_market_data_update
         self.engine.on_trade = self._on_trade
     
-    def _handle_order_arrived(self, data: Dict):
-        """Handle order arrival event from scheduler."""        
-        order_id = data["order_id"]
-        self.latency_tracker.order_arrived(order_id)
-        
-    def _handle_order_process(self, data: Dict):
+    def _handle_order_arrived(self, command: ProcessOrderCommand):
+        """Handle order arrival event from scheduler."""
+        self.latency_tracker.order_arrived(command.order_id)
+
+    def _handle_order_process(self, command: ProcessOrderCommand):
         """Handle order processing event from scheduler."""
-        order_id = data["order_id"]
+        order_id = command.order_id
 
         # Mark processing start
         self.latency_tracker.order_processing_start(order_id)
 
-        self.engine.process_order(order_id)
+        self.engine.process_order(command)
 
         # Mark processing complete
         self.latency_tracker.order_processing_end(order_id)
         
-    def _handle_exec_report(self, data: Dict):
+    def _handle_exec_report(self, report: ExecutionReport):
         """Handle execution report event from scheduler."""
-        report = data["report"]
-
         # Clean up completed orders
-        if report.order.status in [OrderStatus.FILLED, OrderStatus.REJECTED, OrderStatus.CANCELLED]:
-            order_id = report.order.id
-            self.latency_tracker.cleanup_order(order_id)
+        if report.ord_status in TERMINAL_ORDER_STATUSES:
+            self.latency_tracker.cleanup_order(report.order_id)
             
         # Send report via FIX
         if self.fix_gateway:
             self.fix_gateway.process_execution_report(report)
 
-    def _on_execution_report(self, report):
+    def _on_execution_report(self, report: ExecutionReport):
         """Callback when engine generates execution report."""
-        self.metrics.record_order(report.order, report.timestamp)
+        self.metrics.record_order(report)
             
     def _on_market_data_update(self, update: MarketDataUpdate):
         """Callback when market data is updated."""
@@ -162,6 +166,9 @@ class MockExchange:
                 if self.scheduler.get_pending_count() == 0:
                     await asyncio.sleep(0.01)
                 
+            except InvalidOrderTransition:
+                logger.exception("Order lifecycle programming error in scheduler")
+                raise
             except Exception as e:
                 logger.error(f"Scheduler error: {e}", exc_info=True)
                 
