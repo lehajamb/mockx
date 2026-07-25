@@ -181,12 +181,13 @@ class ExecutionReport:
 class ScheduledEvent:
     """Event scheduled for future execution."""
     timestamp: datetime
+    sequence: int
     event_type: str
     data: Dict
-    
-    def __lt__(self, other):
-        """For heap ordering."""
-        return self.timestamp < other.timestamp
+
+    def __lt__(self, other: "ScheduledEvent") -> bool:
+        """Order events by timestamp, preserving scheduling order for ties."""
+        return (self.timestamp, self.sequence) < (other.timestamp, other.sequence)
     
 @dataclass(frozen=True, slots=True)
 class DualTimestamp:

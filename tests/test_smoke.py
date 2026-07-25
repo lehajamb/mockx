@@ -4,7 +4,7 @@ import pytest
 import asyncio
 from src.mockx.main import MockExchange
 from src.mockx.models import Order, OrderStatus, Side, TimeInForce
-from datetime import datetime
+from datetime import datetime, timezone
 
 @pytest.fixture
 def test_config():
@@ -59,7 +59,7 @@ async def test_engine_smoke():
         qty=5,
         price=100,
         tif=TimeInForce.GTC,
-        ts_submitted=datetime.utcnow()
+        ts_submitted=datetime.now(timezone.utc)
     )
     sell_order = Order(
         id=None,
@@ -69,7 +69,7 @@ async def test_engine_smoke():
         qty=10,
         price=100,
         tif=TimeInForce.GTC,
-        ts_submitted=datetime.utcnow()
+        ts_submitted=datetime.now(timezone.utc)
     )
 
     # Submit passive order first, then aggressive
@@ -176,7 +176,7 @@ def test_order_book_operations():
             qty=10,
             price=100 - i,
             tif=TimeInForce.GTC,
-            ts_submitted=datetime.utcnow()
+            ts_submitted=datetime.now(timezone.utc)
         )
         book.add_bid(buy_order)
         
@@ -188,7 +188,7 @@ def test_order_book_operations():
             qty=10,
             price=101 + i,
             tif=TimeInForce.GTC,
-            ts_submitted=datetime.utcnow()
+            ts_submitted=datetime.now(timezone.utc)
         )
         book.add_ask(sell_order)
     

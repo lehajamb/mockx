@@ -4,7 +4,7 @@
 import quickfix as fix
 import time
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class FIXClient(fix.Application):
@@ -95,7 +95,7 @@ class FIXClient(fix.Application):
         header.setField(fix.MsgType(fix.MsgType_NewOrderSingle))
         
         # Order fields
-        message.setField(fix.ClOrdID(f"ORD{datetime.now().strftime('%Y%m%d%H%M%S%f')}"))
+        message.setField(fix.ClOrdID(f"ORD{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"))
         message.setField(fix.Symbol(symbol))
         message.setField(fix.Side(side))
         message.setField(fix.OrderQty(qty))
