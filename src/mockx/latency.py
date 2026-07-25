@@ -28,6 +28,7 @@ class LatencyScheduler:
         self.event_handlers: Dict[str, Callable] = {}
         self.running = False
         self.session_delays = session_delays or {}
+        self._next_sequence = 0
     
     def current_time_ns(self) -> int:
         """Get current simulated time in nanoseconds."""
@@ -42,9 +43,11 @@ class LatencyScheduler:
         event_time = self.current_time + timedelta(milliseconds=delay_ms)
         event = ScheduledEvent(
             timestamp=event_time,
+            sequence=self._next_sequence,
             event_type=event_type,
             data=data
         )
+        self._next_sequence += 1
         heapq.heappush(self.event_queue, event)
         logger.debug(f"Scheduled {event_type} at {event_time} (in {delay_ms}ms)")
         
@@ -135,20 +138,18 @@ class LatencyScheduler:
         self.current_time += timedelta(milliseconds=delta_ms)
         
     async def run_until(self, target_time: datetime) -> None:
-        """Run scheduler until specified time is reached."""
-        while self.current_time < target_time:
-            # Process events at current time
-            await self.process_events()
-            
-            # Find next event time
-            if self.event_queue:
-                next_time = min(self.event_queue[0].timestamp, target_time)
-            else:
-                next_time = target_time
-                
-            # Advance to next event or target
+        """Run all events through the target time without moving backward."""
+        if target_time < self.current_time:
+            return
+
+        while self.event_queue and self.event_queue[0].timestamp <= target_time:
+            next_time = self.event_queue[0].timestamp
             if next_time > self.current_time:
                 self.current_time = next_time
+
+            await self.process_events()
+
+        self.current_time = target_time
                 
     async def run_until_idle(self) -> None:
         """Process all scheduled events."""
@@ -179,6 +180,7 @@ class LatencyScheduler:
         """Resets the scheduler's event queue and clock."""
         self.event_queue.clear()
         self.current_time = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        self._next_sequence = 0
         logger.info(f"Latency scheduler reset. Time set to {self.current_time}.")
 
 

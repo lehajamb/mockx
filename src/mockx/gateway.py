@@ -3,7 +3,7 @@
 import quickfix as fix
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 import json
 import time
@@ -360,11 +360,11 @@ class FIXApplication(fix.Application):
             
     def generate_exec_id(self) -> str:
         """Generate unique execution ID."""
-        return f"EXEC{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}"
+        return f"EXEC{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
         
     def generate_order_id(self) -> str:
         """Generate unique order ID."""
-        return f"ORD{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}"
+        return f"ORD{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
 
     def _get_field(self, message, field):
         """

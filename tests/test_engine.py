@@ -1,7 +1,7 @@
 """Tests for the matching engine."""
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.mockx.models import (
     Order, Side, TimeInForce, OrderStatus, ExecutionParams, OrderBook
@@ -35,13 +35,13 @@ def create_order(side: Side, qty: float, price: float = None) -> Order:
     """Helper to create test orders."""
     return Order(
         id=0,
-        cl_ord_id=f"TEST_{datetime.utcnow().timestamp()}",
+        cl_ord_id=f"TEST_{datetime.now(timezone.utc).timestamp()}",
         symbol="TEST",
         side=side,
         qty=qty,
         price=price,
         tif=TimeInForce.GTC,
-        ts_submitted=datetime.utcnow()
+        ts_submitted=datetime.now(timezone.utc)
     )
 
 
@@ -197,7 +197,7 @@ class TestMatchingEngine:
             qty=10.0,
             price=100.0,
             tif=TimeInForce.IOC,
-            ts_submitted=datetime.utcnow()
+            ts_submitted=datetime.now(timezone.utc)
         )
         buy_id = engine.submit_order(buy)
         engine.process_order(buy_id)

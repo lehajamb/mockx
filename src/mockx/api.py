@@ -11,7 +11,7 @@ import asyncio
 import json
 import logging
 import itertools
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 import time
 
@@ -170,7 +170,7 @@ class ExchangeAPI:
                     snapshot = {
                         "type": "snapshot",
                         "symbol": symbol,
-                        "timestamp": datetime.utcnow().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                         "bids": [
                             {"price": float(level.price), "qty": float(level.qty)}
                             for level in itertools.islice(book.bids, 10)
