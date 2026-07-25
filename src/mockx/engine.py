@@ -80,28 +80,14 @@ class MatchingEngine:
             self.books[symbol] = OrderBook(symbol=symbol)
             logger.info(f"Added symbol: {symbol}")
             
-    def submit_order(self, command: NewOrderCommand | Order) -> int:
+    def submit_order(self, command: NewOrderCommand) -> int:
         """
         Create and submit an engine-owned order for processing.
 
-        ``Order`` input remains as a compatibility adapter for existing local
-        callers, but it is copied into an immutable command and is never stored
-        or scheduled directly.
-
         Returns the assigned order ID.
         """
-        if isinstance(command, Order):
-            command = NewOrderCommand(
-                cl_ord_id=command.cl_ord_id,
-                symbol=command.symbol,
-                side=command.side,
-                qty=command.qty,
-                price=command.price,
-                tif=command.tif,
-                submitted_at=command.ts_submitted,
-                session_id=command.session_id,
-                session_alias=command.session_alias,
-            )
+        if not isinstance(command, NewOrderCommand):
+            raise TypeError("submit_order requires NewOrderCommand")
 
         order = Order(
             id=self.next_order_id,
@@ -132,14 +118,10 @@ class MatchingEngine:
         logger.debug(f"Order submitted: {order.cl_ord_id} ({order.side.value} {order.qty} @ {order.price})")
         return order.id
 
-    def process_order(self, command: ProcessOrderCommand | int) -> None:
+    def process_order(self, command: ProcessOrderCommand) -> None:
         """Process one current, not-yet-consumed initial-order command."""
-        if isinstance(command, int):
-            order = self.orders.get(command)
-            command = ProcessOrderCommand(
-                order_id=command,
-                expected_version=order.version if order else 0,
-            )
+        if not isinstance(command, ProcessOrderCommand):
+            raise TypeError("process_order requires ProcessOrderCommand")
 
         order = self.orders.get(command.order_id)
         if not order:
@@ -441,24 +423,10 @@ class MatchingEngine:
         """Get current order book snapshot."""
         return self.books.get(symbol)
         
-    def cancel_order(self, command: CancelOrderCommand | int) -> Optional[str]:
-        """
-        Cancel an order and return a rejection reason when it cannot be done.
-
-        Integer input is retained as a compatibility adapter. Gateway callers
-        provide the immutable command explicitly.
-        """
-        if isinstance(command, int):
-            order = self.orders.get(command)
-            command = CancelOrderCommand(
-                order_id=command,
-                expected_version=order.version if order else 0,
-                cancel_cl_ord_id=None,
-                orig_cl_ord_id=order.cl_ord_id if order else None,
-                requested_at=self.scheduler.current_time,
-                session_id=order.session_id if order else None,
-                session_alias=order.session_alias if order else None,
-            )
+    def cancel_order(self, command: CancelOrderCommand) -> Optional[str]:
+        """Cancel an order and return a rejection reason when it cannot be done."""
+        if not isinstance(command, CancelOrderCommand):
+            raise TypeError("cancel_order requires CancelOrderCommand")
 
         order = self.orders.get(command.order_id)
         if not order:

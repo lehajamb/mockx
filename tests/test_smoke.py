@@ -4,7 +4,7 @@ import pytest
 import asyncio
 from pathlib import Path
 from src.mockx.main import MockExchange
-from src.mockx.models import Order, OrderStatus, Side, TimeInForce
+from src.mockx.models import NewOrderCommand, Order, OrderStatus, Side, TimeInForce
 from datetime import datetime, timezone
 
 
@@ -55,25 +55,23 @@ async def test_engine_smoke():
     ex.fix_gateway.application.loop = asyncio.get_event_loop()
 
     # Create a passive buy order and an aggressive sell order
-    buy_order = Order(
-        id=None,
+    buy_order = NewOrderCommand(
         cl_ord_id="BUY1",
         symbol="TEST",
         side=Side.BUY,
         qty=5,
         price=100,
         tif=TimeInForce.GTC,
-        ts_submitted=datetime.now(timezone.utc)
+        submitted_at=datetime.now(timezone.utc),
     )
-    sell_order = Order(
-        id=None,
+    sell_order = NewOrderCommand(
         cl_ord_id="SELL1",
         symbol="TEST",
         side=Side.SELL,
         qty=10,
         price=100,
         tif=TimeInForce.GTC,
-        ts_submitted=datetime.now(timezone.utc)
+        submitted_at=datetime.now(timezone.utc),
     )
 
     # Submit passive order first, then aggressive
