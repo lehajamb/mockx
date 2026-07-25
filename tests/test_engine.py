@@ -4,7 +4,15 @@ import pytest
 from datetime import datetime, timezone
 
 from src.mockx.models import (
-    Order, Side, TimeInForce, OrderStatus, ExecutionParams, OrderBook
+    CancelOrderCommand,
+    ExecutionParams,
+    NewOrderCommand,
+    Order,
+    OrderBook,
+    OrderStatus,
+    ProcessOrderCommand,
+    Side,
+    TimeInForce,
 )
 from src.mockx.engine import MatchingEngine
 from src.mockx.latency import LatencyScheduler
@@ -42,6 +50,44 @@ def create_order(side: Side, qty: float, price: float = None) -> Order:
         price=price,
         tif=TimeInForce.GTC,
         ts_submitted=datetime.now(timezone.utc)
+    )
+
+
+def create_order_command(
+    side: Side,
+    qty: float,
+    price: float = None,
+    tif: TimeInForce = TimeInForce.GTC,
+) -> NewOrderCommand:
+    """Create an immutable order command for engine tests."""
+    return NewOrderCommand(
+        cl_ord_id=f"TEST_{datetime.now(timezone.utc).timestamp()}",
+        symbol="TEST",
+        side=side,
+        qty=qty,
+        price=price,
+        tif=tif,
+        submitted_at=datetime.now(timezone.utc),
+    )
+
+
+def process_command(order_id: int, expected_version: int = 0) -> ProcessOrderCommand:
+    return ProcessOrderCommand(
+        order_id=order_id,
+        expected_version=expected_version,
+    )
+
+
+def cancel_command(engine: MatchingEngine, order_id: int) -> CancelOrderCommand:
+    order = engine.orders[order_id]
+    return CancelOrderCommand(
+        order_id=order_id,
+        expected_version=order.version,
+        cancel_cl_ord_id=f"CANCEL_{order.cl_ord_id}",
+        orig_cl_ord_id=order.cl_ord_id,
+        requested_at=engine.scheduler.current_time,
+        session_id=order.session_id,
+        session_alias=order.session_alias,
     )
 
 
@@ -110,18 +156,28 @@ class TestOrderBook:
 
 class TestMatchingEngine:
     """Test matching engine functionality."""
-    
+
+    def test_engine_entrypoints_require_command_objects(self, engine):
+        order = create_order(Side.BUY, 10, 100)
+
+        with pytest.raises(TypeError, match="NewOrderCommand"):
+            engine.submit_order(order)
+        with pytest.raises(TypeError, match="ProcessOrderCommand"):
+            engine.process_order(1)
+        with pytest.raises(TypeError, match="CancelOrderCommand"):
+            engine.cancel_order(1)
+
     def test_limit_order_matching(self, engine):
         """Test basic limit order matching."""
         # Add resting sell order
-        sell_order = create_order(Side.SELL, 10, 100)
+        sell_order = create_order_command(Side.SELL, 10, 100)
         sell_id = engine.submit_order(sell_order)
-        engine.process_order(sell_id)
+        engine.process_order(process_command(sell_id))
         
         # Add aggressive buy order
-        buy_order = create_order(Side.BUY, 5, 100)
+        buy_order = create_order_command(Side.BUY, 5, 100)
         buy_id = engine.submit_order(buy_order)
-        engine.process_order(buy_id)
+        engine.process_order(process_command(buy_id))
         
         # Check orders are matched
         assert engine.orders[sell_id].filled_qty == 5
@@ -132,22 +188,22 @@ class TestMatchingEngine:
     def test_price_time_priority(self, engine):
         """Test price-time priority matching."""
         # Add multiple sell orders
-        sell1 = create_order(Side.SELL, 10, 100)
-        sell2 = create_order(Side.SELL, 10, 99)  # Better price
-        sell3 = create_order(Side.SELL, 10, 100)  # Same price as sell1
+        sell1 = create_order_command(Side.SELL, 10, 100)
+        sell2 = create_order_command(Side.SELL, 10, 99)  # Better price
+        sell3 = create_order_command(Side.SELL, 10, 100)  # Same price as sell1
         
         id1 = engine.submit_order(sell1)
         id2 = engine.submit_order(sell2)
         id3 = engine.submit_order(sell3)
         
-        engine.process_order(id1)
-        engine.process_order(id2)
-        engine.process_order(id3)
+        engine.process_order(process_command(id1))
+        engine.process_order(process_command(id2))
+        engine.process_order(process_command(id3))
         
         # Add aggressive buy order
-        buy = create_order(Side.BUY, 25, 100)
+        buy = create_order_command(Side.BUY, 25, 100)
         buy_id = engine.submit_order(buy)
-        engine.process_order(buy_id)
+        engine.process_order(process_command(buy_id))
         
         # Check matching order
         assert engine.orders[id2].status == OrderStatus.FILLED  # Best price
@@ -157,15 +213,17 @@ class TestMatchingEngine:
     def test_market_order(self, engine):
         """Test market order execution and resulting slippage from walking the book."""
         # Add liquidity at two different price levels
-        sell_100 = create_order(Side.SELL, 10, 100) # Best price
-        sell_101 = create_order(Side.SELL, 10, 101) # Second best price
-        engine.process_order(engine.submit_order(sell_100))
-        engine.process_order(engine.submit_order(sell_101))
+        sell_100 = create_order_command(Side.SELL, 10, 100) # Best price
+        sell_101 = create_order_command(Side.SELL, 10, 101) # Second best price
+        sell_100_id = engine.submit_order(sell_100)
+        sell_101_id = engine.submit_order(sell_101)
+        engine.process_order(process_command(sell_100_id))
+        engine.process_order(process_command(sell_101_id))
         
         # A market buy large enough to consume the first level and part of the second
-        market_buy = create_order(Side.BUY, 15, None)
+        market_buy = create_order_command(Side.BUY, 15, None)
         buy_id = engine.submit_order(market_buy)
-        engine.process_order(buy_id)
+        engine.process_order(process_command(buy_id))
         
         buy_order = engine.orders[buy_id]
         
@@ -184,23 +242,22 @@ class TestMatchingEngine:
     def test_ioc_order(self, engine):
         """Test immediate-or-cancel orders."""
         # Add small liquidity
-        sell = create_order(Side.SELL, 5, 100)
+        sell = create_order_command(Side.SELL, 5, 100)
         sell_id = engine.submit_order(sell)
-        engine.process_order(sell_id)
+        engine.process_order(process_command(sell_id))
         
         # IOC buy for more than available
-        buy = Order(
-            id=0,
+        buy = NewOrderCommand(
             cl_ord_id="IOC_TEST",
             symbol="TEST",
             side=Side.BUY,
             qty=10.0,
             price=100.0,
             tif=TimeInForce.IOC,
-            ts_submitted=datetime.now(timezone.utc)
+            submitted_at=datetime.now(timezone.utc),
         )
         buy_id = engine.submit_order(buy)
-        engine.process_order(buy_id)
+        engine.process_order(process_command(buy_id))
         
         # Check partial fill and cancellation
         assert engine.orders[buy_id].filled_qty == 5
@@ -220,9 +277,9 @@ class TestMatchingEngine:
         engine = MatchingEngine(exec_params, scheduler)
         engine.add_symbol("TEST")
         
-        order = create_order(Side.BUY, 10, 100)
+        order = create_order_command(Side.BUY, 10, 100)
         order_id = engine.submit_order(order)
-        engine.process_order(order_id)
+        engine.process_order(process_command(order_id))
         
         assert engine.orders[order_id].status == OrderStatus.REJECTED
         
@@ -243,14 +300,14 @@ class TestMatchingEngine:
         engine.on_execution_report = lambda report: None
         
         # Add liquidity
-        sell = create_order(Side.SELL, 10, 100)
+        sell = create_order_command(Side.SELL, 10, 100)
         sell_id = engine.submit_order(sell)
-        engine.process_order(sell_id)
+        engine.process_order(process_command(sell_id))
         
         # Try to buy all
-        buy = create_order(Side.BUY, 10, 100)
+        buy = create_order_command(Side.BUY, 10, 100)
         buy_id = engine.submit_order(buy)
-        engine.process_order(buy_id)
+        engine.process_order(process_command(buy_id))
         
         # Check that a partial fill occurred and the order status is correct
         buy_order = engine.orders[buy_id]
@@ -261,35 +318,35 @@ class TestMatchingEngine:
     def test_cancel_order(self, engine):
         """Test order cancellation."""
         # Add resting order
-        order = create_order(Side.BUY, 10, 99)
+        order = create_order_command(Side.BUY, 10, 99)
         order_id = engine.submit_order(order)
-        engine.process_order(order_id)
+        engine.process_order(process_command(order_id))
         
         # Cancel it
-        engine.cancel_order(order_id)
+        engine.cancel_order(cancel_command(engine, order_id))
         assert engine.orders[order_id].status == OrderStatus.CANCELLED
         
         # Can't cancel filled order
-        sell = create_order(Side.SELL, 5, 99)
+        sell = create_order_command(Side.SELL, 5, 99)
         sell_id = engine.submit_order(sell)
-        engine.process_order(sell_id)
+        engine.process_order(process_command(sell_id))
         
-        buy = create_order(Side.BUY, 5, 99)
+        buy = create_order_command(Side.BUY, 5, 99)
         buy_id = engine.submit_order(buy)
-        engine.process_order(buy_id)
+        engine.process_order(process_command(buy_id))
         
-        engine.cancel_order(buy_id)
+        engine.cancel_order(cancel_command(engine, buy_id))
         # The status should NOT change from FILLED
         assert engine.orders[buy_id].status == OrderStatus.FILLED
 
     def test_cancel_order_sends_execution_report(self, engine):
         """Test that cancelling an order generates a correct ExecutionReport."""
         # Add a resting order
-        order = create_order(Side.BUY, 10, 99)
+        order = create_order_command(Side.BUY, 10, 99)
         order_id = engine.submit_order(order)
         
         # Process the NEW order report
-        engine.process_order(order_id)
+        engine.process_order(process_command(order_id))
         
         # Find the NEW execution report in the queue
         new_reports = [
@@ -302,7 +359,7 @@ class TestMatchingEngine:
 
         # Clear the queue and cancel the order
         engine.scheduler.clear()
-        engine.cancel_order(order_id)
+        engine.cancel_order(cancel_command(engine, order_id))
 
         # Check that a CANCELLED ExecutionReport was scheduled
         assert engine.scheduler.get_pending_count() == 1
