@@ -16,10 +16,11 @@ execution:
   random_seed: 42
 admin_api:
   port: 8000
-# prometheus:
-#   port: 9100
+prometheus:
+  enabled: true
 tsdb:
   url: "http://influxdb:8086"
   token: "mockx-token"
   org: "mockx-org"
   bucket: "mockx"
+  batch_size: 1000

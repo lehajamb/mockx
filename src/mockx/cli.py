@@ -37,7 +37,23 @@ def load_config(config_path: str) -> dict:
     for field in required_fields:
         if field not in config:
             raise ValueError(f"Missing required configuration field: {field}")
-            
+
+    latency = config["latency"]
+    if "engine_ms" not in latency:
+        raise ValueError("Missing required configuration field: latency.engine_ms")
+    if (
+        "network_ms" not in latency
+        and "inbound_ms" not in latency
+        and "outbound_ms" not in latency
+    ):
+        raise ValueError(
+            "Configure latency.network_ms or explicit inbound_ms/outbound_ms"
+        )
+    config.setdefault("prometheus", {"enabled": True})
+    config["prometheus"].setdefault("enabled", True)
+    if config.get("tsdb"):
+        config["tsdb"].setdefault("batch_size", 1000)
+
     return config
 
 

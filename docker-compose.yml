@@ -47,7 +47,6 @@ services:
     ports:
       - "4002:4002"     # FIX
       - "8002:8000"     # REST / WebSocket
-      - "9102:9100"     # Prometheus
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 10s

@@ -11,5 +11,5 @@ execution:
   random_seed: 84
 admin_api:
   port: 8000
-# prometheus:
-#   port: 9100
+prometheus:
+  enabled: true
