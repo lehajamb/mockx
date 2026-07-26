@@ -13,6 +13,7 @@ from src.mockx.latency import LatencyScheduler
 from src.mockx.metrics import MetricsCollector
 from src.mockx.models import (
     ExecutionParams,
+    ExecutionType,
     NewOrderCommand,
     Order,
     OrderStatus,
@@ -169,8 +170,11 @@ def test_report_factory_rejects_inconsistent_state_and_quantities():
     fill_order(order)
     filled_report = create_execution_report(
         order,
-        exec_type="FILLED",
+        exec_type=ExecutionType.TRADE,
         timestamp=NOW,
+        last_px=order.price,
+        last_qty=order.qty,
+        trade_id=1,
     )
 
     invalid_reports = [
@@ -210,8 +214,11 @@ def test_terminal_cleanup_uses_report_snapshot_status():
     fill_order(order)
     terminal_report = create_execution_report(
         order,
-        exec_type="FILLED",
+        exec_type=ExecutionType.TRADE,
         timestamp=NOW,
+        last_px=order.price,
+        last_qty=order.qty,
+        trade_id=1,
     )
     fake_exchange = SimpleNamespace(
         latency_tracker=Mock(),

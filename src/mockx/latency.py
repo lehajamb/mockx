@@ -87,7 +87,7 @@ class LatencyScheduler:
             logger.debug(f"Applied {session_delay_ms}ms session delay for {session_alias}")
 
     def schedule_execution_report(self, report: ExecutionReport, network_ms: int) -> None:
-        """Schedule execution report delivery back to client."""
+        """Schedule delivery; equal-time reports retain engine insertion order."""
         self.schedule_event(
             "exec_report",
             report,

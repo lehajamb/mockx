@@ -93,6 +93,8 @@ class MetricsCollector:
                 "order_id": report.order_id,
                 "qty": report.order_qty,
                 "filled_qty": report.cum_qty,
+                "canceled_qty": report.canceled_qty,
+                "leaves_qty": report.leaves_qty,
                 "avg_fill_price": report.avg_px,
                 "ts_submitted": int(report.submitted_at.timestamp() * 1_000_000_000),
             }
@@ -115,6 +117,7 @@ class MetricsCollector:
                 "symbol": trade.symbol,
                 "buyer_session_alias": trade.buyer_session_alias,
                 "seller_session_alias": trade.seller_session_alias,
+                "aggressor_side": trade.aggressor_side.value,
             }
             
             # Add strategy involvement tags for faster querying
@@ -141,6 +144,8 @@ class MetricsCollector:
                 "volume": trade.volume,
                 "buyer_order_id": trade.buyer_order_id,
                 "seller_order_id": trade.seller_order_id,
+                "aggressor_order_id": trade.aggressor_order_id,
+                "passive_order_id": trade.passive_order_id,
                 "level": trade.level,
             }
             self._create_point(

@@ -134,7 +134,7 @@ class MockExchange:
             self.fix_gateway.process_execution_report(report)
 
     def _on_execution_report(self, report: ExecutionReport):
-        """Callback when engine generates execution report."""
+        """Record each order-specific report; trade volume is recorded separately."""
         self.metrics.record_order(report)
             
     def _on_market_data_update(self, update: MarketDataUpdate):

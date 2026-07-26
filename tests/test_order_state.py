@@ -139,6 +139,14 @@ def test_terminal_order_transitions_are_invalid(terminal, target):
         order.transition_to(target)
 
 
+def test_partial_order_cannot_regress_to_new():
+    order = make_order()
+    order.transition_to(OrderStatus.PARTIAL)
+
+    with pytest.raises(InvalidOrderTransition):
+        order.transition_to(OrderStatus.NEW)
+
+
 @pytest.mark.asyncio
 async def test_cancelled_order_ignores_stale_processing_command(caplog):
     engine = make_engine()

@@ -553,8 +553,8 @@ def test_reports_observe_only_complete_book_and_lifecycle_state():
     )
 
     assert ("PASSIVE", "NEW", True, 10) in observations
-    assert ("PASSIVE", "PARTIAL", True, 6) in observations
-    assert ("AGGRESSOR", "FILLED", False, 0) in observations
+    assert ("PASSIVE", "TRADE", True, 6) in observations
+    assert ("AGGRESSOR", "TRADE", False, 0) in observations
     assert resting.remaining_qty == 6
 
 
