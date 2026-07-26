@@ -753,10 +753,21 @@ class FIXApplication(_FIX_APPLICATION_BASE):
 
 class FIXGateway:
     """Manages FIX protocol connectivity."""
-    
-    def __init__(self, fix_cfg: str, engine, metrics: MetricsCollector, latency_tracker: LatencyTracker):
-        #TODO: maybe pass FIXApplication as a parameter instead of creating it here
-        self.application = FIXApplication(engine, metrics, latency_tracker)
+
+    def __init__(
+        self,
+        fix_cfg: str,
+        engine,
+        metrics: MetricsCollector,
+        latency_tracker: LatencyTracker,
+        *,
+        application: Optional[FIXApplication] = None,
+    ):
+        self.application = application or FIXApplication(
+            engine,
+            metrics,
+            latency_tracker,
+        )
 
         # FIX components
         self.fix_cfg = fix_cfg
@@ -765,12 +776,19 @@ class FIXGateway:
         self.fix_store_factory = None
         self.fix_log_factory = None
         self.accept_port = None
-        
+        self.started = False
+
     def start(self):
         """Start FIX acceptor."""
+        if self.started:
+            return
         if fix is None:
             raise RuntimeError(
                 "QuickFIX is unavailable; install the native quickfix module to start the FIX gateway"
+            )
+        if self.application.loop is None:
+            raise RuntimeError(
+                "FIX event-loop handoff must be configured before acceptor start"
             )
         try:
             logger.info(f"Using FIX configuration: {self.fix_cfg}")
@@ -793,9 +811,21 @@ class FIXGateway:
             
             # Start acceptor
             self.fix_acceptor.start()
+            self.started = True
 
-            # logger.info(f"FIX acceptor started on port {self.accept_port}")
-            logger.info(f"FIX acceptor started on port 4001")
+            try:
+                self.accept_port = self.get_session_setting(
+                    "SocketAcceptPort"
+                )
+            except Exception:
+                logger.debug(
+                    "FIX accept port was not available from session settings",
+                    exc_info=True,
+                )
+            logger.info(
+                "FIX acceptor started%s",
+                f" on port {self.accept_port}" if self.accept_port else "",
+            )
             
         except Exception as e:
             logger.error(f"Failed to start FIX gateway: {e}")
@@ -803,8 +833,9 @@ class FIXGateway:
             
     def stop(self):
         """Stop FIX acceptor."""
-        if self.fix_acceptor:
+        if self.fix_acceptor and self.started:
             self.fix_acceptor.stop()
+            self.started = False
             logger.info("FIX acceptor stopped")
             
     def process_execution_report(self, report: ExecutionReport):

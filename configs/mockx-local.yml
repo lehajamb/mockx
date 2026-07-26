@@ -1,0 +1,28 @@
+exchange_name: "MockX-Local"
+symbols:
+  - BTC-USDT
+  - ETH-USDT
+latency:
+  network_ms: 0
+  engine_ms: 1
+execution:
+  partial_fill_prob: 0.0
+  reject_prob: 0.0
+  random_seed: 42
+admin_api:
+  host: "127.0.0.1"
+  port: 8001
+  enabled: true
+fix:
+  enabled: true
+scheduler:
+  mode: "external"
+  interval_ms: 10
+  max_advance_ms: 86400000
+websocket:
+  heartbeat_interval_seconds: 10
+  market_data_stale_seconds: 30
+  fallback_poll_seconds: 2
+cors_origins: []
+prometheus:
+  enabled: true

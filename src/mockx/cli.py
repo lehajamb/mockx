@@ -49,10 +49,87 @@ def load_config(config_path: str) -> dict:
         raise ValueError(
             "Configure latency.network_ms or explicit inbound_ms/outbound_ms"
         )
+    symbols = config["symbols"]
+    if not isinstance(symbols, list) or not symbols:
+        raise ValueError("symbols must be a non-empty list")
+    normalized_symbols = [str(symbol).strip().upper() for symbol in symbols]
+    if any(not symbol for symbol in normalized_symbols):
+        raise ValueError("symbols cannot contain empty values")
+    if len(normalized_symbols) != len(set(normalized_symbols)):
+        raise ValueError("symbols must not contain duplicates")
+    config["symbols"] = normalized_symbols
+
+    admin_api = config["admin_api"]
+    admin_api.setdefault("host", "127.0.0.1")
+    admin_api.setdefault("enabled", True)
+    if not isinstance(admin_api["host"], str) or not admin_api["host"].strip():
+        raise ValueError("admin_api.host must be a non-empty string")
+    port = admin_api.get("port")
+    if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
+        raise ValueError("admin_api.port must be between 1 and 65535")
+    if not isinstance(admin_api["enabled"], bool):
+        raise ValueError("admin_api.enabled must be true or false")
+
+    scheduler = config.setdefault("scheduler", {})
+    scheduler.setdefault("mode", "external")
+    scheduler.setdefault("interval_ms", 10)
+    scheduler.setdefault("max_advance_ms", 86_400_000)
+    if scheduler["mode"] not in {"external", "realtime"}:
+        raise ValueError("scheduler.mode must be 'external' or 'realtime'")
+    if (
+        not isinstance(scheduler["interval_ms"], int)
+        or scheduler["interval_ms"] <= 0
+    ):
+        raise ValueError("scheduler.interval_ms must be a positive integer")
+    if (
+        not isinstance(scheduler["max_advance_ms"], int)
+        or scheduler["max_advance_ms"] <= 0
+    ):
+        raise ValueError(
+            "scheduler.max_advance_ms must be a positive integer"
+        )
+
+    websocket = config.setdefault("websocket", {})
+    websocket.setdefault("heartbeat_interval_seconds", 10)
+    websocket.setdefault("market_data_stale_seconds", 30)
+    websocket.setdefault("fallback_poll_seconds", 2)
+    heartbeat = websocket["heartbeat_interval_seconds"]
+    stale = websocket["market_data_stale_seconds"]
+    fallback = websocket["fallback_poll_seconds"]
+    if not isinstance(heartbeat, (int, float)) or heartbeat <= 0:
+        raise ValueError(
+            "websocket.heartbeat_interval_seconds must be positive"
+        )
+    if not isinstance(stale, (int, float)) or stale <= heartbeat:
+        raise ValueError(
+            "websocket.market_data_stale_seconds must exceed heartbeat cadence"
+        )
+    if not isinstance(fallback, (int, float)) or fallback <= 0:
+        raise ValueError("websocket.fallback_poll_seconds must be positive")
+
+    cors_origins = config.setdefault("cors_origins", [])
+    if not isinstance(cors_origins, list):
+        raise ValueError("cors_origins must be a list")
+    if "*" in cors_origins:
+        raise ValueError("Permissive '*' CORS is not enabled by default")
+
     config.setdefault("prometheus", {"enabled": True})
     config["prometheus"].setdefault("enabled", True)
+    if not isinstance(config["prometheus"]["enabled"], bool):
+        raise ValueError("prometheus.enabled must be true or false")
     if config.get("tsdb"):
         config["tsdb"].setdefault("batch_size", 1000)
+        if config["tsdb"].get("enabled", True):
+            missing = [
+                field
+                for field in ("url", "token", "org", "bucket")
+                if not config["tsdb"].get(field)
+            ]
+            if missing:
+                raise ValueError(
+                    "Missing TSDB configuration fields: "
+                    + ", ".join(f"tsdb.{field}" for field in missing)
+                )
 
     return config
 

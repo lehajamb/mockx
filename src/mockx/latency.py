@@ -133,8 +133,8 @@ class LatencyScheduler:
             network_ms // 2 if outbound_ms is None else outbound_ms,
         )
         
-    async def process_events(self) -> None:
-        """Process all events up to current time."""
+    async def process_events(self) -> int:
+        """Process all events up to current time and return the handled count."""
         processed = 0
         
         while self.event_queue:
@@ -170,31 +170,36 @@ class LatencyScheduler:
                 
         if processed > 0:
             logger.debug(f"Processed {processed} events at {self.current_time}")
+        return processed
             
     def advance_time(self, delta_ms: int) -> None:
         """Advance simulated time by specified milliseconds."""
         self.current_time += timedelta(milliseconds=delta_ms)
         
-    async def run_until(self, target_time: datetime) -> None:
-        """Run all events through the target time without moving backward."""
+    async def run_until(self, target_time: datetime) -> int:
+        """Run events inclusively through target and return the handled count."""
         if target_time < self.current_time:
-            return
+            return 0
 
+        processed = 0
         while self.event_queue and self.event_queue[0].timestamp <= target_time:
             next_time = self.event_queue[0].timestamp
             if next_time > self.current_time:
                 self.current_time = next_time
 
-            await self.process_events()
+            processed += await self.process_events()
 
         self.current_time = target_time
-                
-    async def run_until_idle(self) -> None:
-        """Process all scheduled events."""
+        return processed
+
+    async def run_until_idle(self) -> int:
+        """Process all scheduled events and return the handled count."""
+        processed = 0
         while self.event_queue:
             # Jump to next event time
             self.current_time = self.event_queue[0].timestamp
-            await self.process_events()
+            processed += await self.process_events()
+        return processed
             
     def clear(self) -> None:
         """Clear all scheduled events."""
