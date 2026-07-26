@@ -13,15 +13,19 @@ import math
 import time
 
 from .models import (
+    CancelReject,
+    CancelRejectReason,
     CancelOrderCommand,
     ExecutionReport,
+    ExecutionType,
     InvalidOrderTransition,
     NewOrderCommand,
     OrderStatus,
     Side,
     TimeInForce,
+    create_cancel_reject,
 )
-from .fix_fields import execution_report_fields
+from .fix_fields import cancel_reject_fields, execution_report_fields
 from .metrics import MetricsCollector, LatencyTracker
 from .engine import MatchingEngine
 
@@ -50,12 +54,14 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         self.sessions = {}
         # ClOrdID is scoped by FIX session; it is not globally unique.
         self.order_map: Dict[tuple[str, str], int] = {}
+        self._next_gateway_exec_id = 1
         self.loop = None  # <-- Add this line to store the event loop
 
     def reset(self):
         """Resets the FIX application's session state."""
         logger.info("Resetting FIX application state.")
         self.order_map.clear()
+        self._next_gateway_exec_id = 1
         # Note: We do not clear self.sessions as the FIX sessions themselves persist.
         # We only clear the mapping of orders to those sessions.
 
@@ -147,26 +153,46 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 tif_value = self._get_field(message, fix.TimeInForce())
                 if tif_value == fix.TimeInForce_IMMEDIATE_OR_CANCEL:
                     tif = TimeInForce.IOC
-                                
+                elif tif_value != fix.TimeInForce_GOOD_TILL_CANCEL:
+                    raise ValueError(f"Unsupported TimeInForce: {tif_value}")
+
+            command = NewOrderCommand(
+                cl_ord_id=cl_ord_id,
+                symbol=symbol,
+                side=order_side,
+                qty=float(order_qty),
+                price=price,
+                tif=tif,
+                submitted_at=self.engine.scheduler.current_time,
+                session_id=session_id,
+                session_alias=session_alias,
+            )
+
             # Submit to engine on the event loop thread
             def _submit():
-                command = NewOrderCommand(
-                    cl_ord_id=cl_ord_id,
-                    symbol=symbol,
-                    side=order_side,
-                    qty=float(order_qty),
-                    price=price,
-                    tif=tif,
-                    submitted_at=self.engine.scheduler.current_time,
-                    session_id=session_id,
-                    session_alias=session_alias,
-                )
-
-                order_id = self.engine.submit_order(command)
-                self.latency_tracker.order_submitted(order_id)
-
-                self.order_map[(session_id, cl_ord_id)] = order_id
-                logger.debug(f"Order submitted: {cl_ord_id} -> {order_id}")
+                try:
+                    order_id = self.engine.submit_order(command)
+                    self.latency_tracker.order_submitted(order_id)
+                    self.order_map[(session_id, cl_ord_id)] = order_id
+                    logger.debug(
+                        "Order submitted: %s -> %s",
+                        cl_ord_id,
+                        order_id,
+                    )
+                except Exception as exc:
+                    logger.error("Order submission rejected: %s", exc)
+                    self._send_input_rejection(
+                        sessionID,
+                        cl_ord_id=command.cl_ord_id,
+                        symbol=command.symbol,
+                        side=command.side,
+                        qty=command.qty,
+                        price=command.price,
+                        tif=command.tif,
+                        session_id=command.session_id,
+                        session_alias=command.session_alias,
+                        text=str(exc),
+                    )
 
             self.loop.call_soon_threadsafe(_submit)
             
@@ -186,33 +212,70 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             _error_text = str(e)
 
             def _reject():
-                simulated_time = self.engine.scheduler.current_time
-                safe_qty = _qty if math.isfinite(_qty) and _qty >= 0 else 0.0
-                report = ExecutionReport(
-                    order_id=0,
+                self._send_input_rejection(
+                    sessionID,
                     cl_ord_id=_cl_ord_id,
                     symbol=_symbol,
                     side=_side,
-                    order_qty=safe_qty,
-                    order_price=_price,
+                    qty=_qty,
+                    price=_price,
                     tif=_tif,
-                    ord_status=OrderStatus.REJECTED,
-                    exec_type="REJECTED",
-                    leaves_qty=safe_qty,
-                    cum_qty=0.0,
-                    avg_px=0.0,
-                    reject_reason=_error_text,
-                    text=_error_text,
                     session_id=_session_id,
                     session_alias=_session_alias,
-                    submitted_at=simulated_time,
-                    timestamp=simulated_time,
-                    order_version=0,
+                    text=_error_text,
                 )
-                self.send_execution_report(sessionID, report)
-            
+
             self.loop.call_soon_threadsafe(_reject)
-            
+
+    def _send_input_rejection(
+        self,
+        sessionID,
+        *,
+        cl_ord_id: str,
+        symbol: str,
+        side: Side,
+        qty: float,
+        price: Optional[float],
+        tif: TimeInForce,
+        session_id: Optional[str],
+        session_alias: Optional[str],
+        text: str,
+    ) -> None:
+        """Build a terminal immutable snapshot for a malformed new order."""
+        simulated_time = self.engine.scheduler.current_time
+        safe_qty = qty if math.isfinite(qty) and qty >= 0 else 0.0
+        safe_price = (
+            price
+            if price is not None and math.isfinite(price) and price > 0.0
+            else None
+        )
+        exec_id = f"GATEWAY-REJECT-{self._next_gateway_exec_id}"
+        self._next_gateway_exec_id += 1
+        report = ExecutionReport(
+            exec_id=exec_id,
+            order_id=0,
+            cl_ord_id=cl_ord_id,
+            symbol=symbol,
+            side=side,
+            order_qty=safe_qty,
+            order_price=safe_price,
+            tif=tif,
+            ord_status=OrderStatus.REJECTED,
+            exec_type=ExecutionType.REJECTED,
+            leaves_qty=0.0,
+            cum_qty=0.0,
+            canceled_qty=safe_qty,
+            avg_px=0.0,
+            reject_reason=text,
+            text=text,
+            session_id=session_id,
+            session_alias=session_alias,
+            submitted_at=simulated_time,
+            timestamp=simulated_time,
+            order_version=0,
+        )
+        self.send_execution_report(sessionID, report)
+
     def handle_order_cancel_request(self, message, sessionID):
         """Handle OrderCancelRequest (35=F) message."""
         try:
@@ -236,15 +299,9 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                         session_alias=session_alias,
                     )
 
-                    rejection_reason = self.engine.cancel_order(command)
-                    if rejection_reason:
-                        self.send_cancel_reject(
-                            sessionID,
-                            command.cancel_cl_ord_id or "UNKNOWN",
-                            command.orig_cl_ord_id or "UNKNOWN",
-                            command.order_id or None,
-                            rejection_reason,
-                        )
+                    rejection = self.engine.cancel_order(command)
+                    if rejection:
+                        self.send_cancel_reject(sessionID, rejection)
 
                 except InvalidOrderTransition:
                     logger.exception("Invalid order transition while cancelling %s", orig_cl_ord_id)
@@ -252,12 +309,31 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 except Exception as exc:
                     logger.error(f"Error handling OrderCancelRequest: {exc}")
                     order_id_for_reject = self.order_map.get((session_id, orig_cl_ord_id))
+                    order_for_reject = self.engine.orders.get(
+                        order_id_for_reject or 0
+                    )
+                    command = CancelOrderCommand(
+                        order_id=order_id_for_reject or 0,
+                        expected_version=(
+                            order_for_reject.version
+                            if order_for_reject
+                            else 0
+                        ),
+                        cancel_cl_ord_id=cl_ord_id,
+                        orig_cl_ord_id=orig_cl_ord_id,
+                        requested_at=self.engine.scheduler.current_time,
+                        session_id=session_id,
+                        session_alias=session_alias,
+                    )
                     self.send_cancel_reject(
                         sessionID,
-                        cl_ord_id,
-                        orig_cl_ord_id,
-                        order_id_for_reject,
-                        str(exc),
+                        create_cancel_reject(
+                            command,
+                            reason=CancelRejectReason.INVALID_REQUEST,
+                            text=str(exc),
+                            timestamp=self.engine.scheduler.current_time,
+                            order=order_for_reject,
+                        ),
                     )
 
             # Schedule the cancellation logic to run on the event loop
@@ -266,12 +342,29 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         except Exception as e:
             # This outer try-except now only catches errors in parsing the FIX message itself
             logger.error(f"Error parsing OrderCancelRequest: {e}")
+            invalid_command = CancelOrderCommand(
+                order_id=0,
+                expected_version=0,
+                cancel_cl_ord_id=(
+                    cl_ord_id if 'cl_ord_id' in locals() else "UNKNOWN"
+                ),
+                orig_cl_ord_id=(
+                    orig_cl_ord_id
+                    if 'orig_cl_ord_id' in locals()
+                    else "UNKNOWN"
+                ),
+                requested_at=self.engine.scheduler.current_time,
+                session_id=sessionID.toString(),
+                session_alias=sessionID.getTargetCompID().getValue(),
+            )
             self.send_cancel_reject(
-                sessionID, 
-                cl_ord_id if 'cl_ord_id' in locals() else "UNKNOWN",
-                orig_cl_ord_id if 'orig_cl_ord_id' in locals() else "UNKNOWN",
-                None, # We don't have the order_id at this stage
-                str(e)
+                sessionID,
+                create_cancel_reject(
+                    invalid_command,
+                    reason=CancelRejectReason.INVALID_REQUEST,
+                    text=str(e),
+                    timestamp=self.engine.scheduler.current_time,
+                ),
             )
             
     def handle_market_data_request(self, message, sessionID):
@@ -290,9 +383,8 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         msg.setField(fix.ClOrdID(str(fields["ClOrdID"])))
         msg.setField(fix.ExecType(str(fields["ExecType"])))
         msg.setField(fix.OrdStatus(str(fields["OrdStatus"])))
-        msg.setField(fix.ExecID(self.generate_exec_id()))
-        order_id = fields["OrderID"] if report.order_id else self.generate_order_id()
-        msg.setField(fix.OrderID(str(order_id)))
+        msg.setField(fix.ExecID(str(fields["ExecID"])))
+        msg.setField(fix.OrderID(str(fields["OrderID"])))
         msg.setField(fix.Symbol(str(fields["Symbol"])))
         msg.setField(fix.Side(str(fields["Side"])))
         msg.setField(fix.LeavesQty(float(fields["LeavesQty"])))
@@ -302,12 +394,16 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         msg.setField(fix.TimeInForce(str(fields["TimeInForce"])))
 
         # Optional fields
+        if "OrigClOrdID" in fields:
+            msg.setField(fix.OrigClOrdID(str(fields["OrigClOrdID"])))
         if "Price" in fields:
             msg.setField(fix.Price(float(fields["Price"])))
         if "LastPx" in fields:
             msg.setField(fix.LastPx(float(fields["LastPx"])))
         if "LastQty" in fields:
             msg.setField(fix.LastQty(float(fields["LastQty"])))
+        if "TradeID" in fields:
+            msg.setField(fix.StringField(1003, str(fields["TradeID"])))
         if "Text" in fields:
             msg.setField(fix.Text(str(fields["Text"])))
 
@@ -317,24 +413,32 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         # Record E2E latency now that the message is sent
         self.latency_tracker.record_e2e_latency(report.order_id)
         
-    def send_cancel_reject(self, sessionID, cl_ord_id: str, orig_cl_ord_id: str, order_id: Optional[str], text: str):
+    def send_cancel_reject(
+        self,
+        sessionID,
+        cancel_reject: CancelReject,
+    ):
         """Send OrderCancelReject (35=9) message."""
+        fields = cancel_reject_fields(cancel_reject)
         reject = fix.Message()
         reject.getHeader().setField(fix.MsgType(fix.MsgType_OrderCancelReject))
-        
+
         # Required fields
-        reject.setField(fix.ClOrdID(cl_ord_id))
-        reject.setField(fix.OrigClOrdID(orig_cl_ord_id))
-        reject.setField(fix.OrdStatus('8'))  # Rejected
-        
+        reject.setField(fix.ClOrdID(str(fields["ClOrdID"])))
+        reject.setField(fix.OrigClOrdID(str(fields["OrigClOrdID"])))
+        reject.setField(fix.OrdStatus(str(fields["OrdStatus"])))
+        reject.setField(
+            fix.CxlRejResponseTo(str(fields["CxlRejResponseTo"]))
+        )
+
         # The OrderID is conditionally required. If the cancel request is rejected and the order exists,
         # it should be included.
-        if order_id:
-            reject.setField(fix.OrderID(str(order_id)))
+        if "OrderID" in fields:
+            reject.setField(fix.OrderID(str(fields["OrderID"])))
 
         # Optional fields
-        reject.setField(fix.CxlRejReason(99))  # Other
-        reject.setField(fix.Text(f"Cancel failed: {text}"))
+        reject.setField(fix.CxlRejReason(int(fields["CxlRejReason"])))
+        reject.setField(fix.Text(str(fields["Text"])))
         
         fix.Session.sendToTarget(reject, sessionID)
         

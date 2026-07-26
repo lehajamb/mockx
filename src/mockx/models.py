@@ -3,7 +3,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, FrozenSet, Mapping, Tuple
+from typing import Optional, List, Dict, FrozenSet, Mapping, Tuple, Union
 from enum import Enum
 from types import MappingProxyType
 import math
@@ -25,6 +25,25 @@ class OrderStatus(Enum):
 class TimeInForce(Enum):
     GTC = "GTC"  # Good Till Cancel
     IOC = "IOC"  # Immediate Or Cancel
+
+
+class ExecutionType(str, Enum):
+    """Business event represented by an execution report."""
+
+    NEW = "NEW"
+    TRADE = "TRADE"
+    CANCELED = "CANCELED"
+    REJECTED = "REJECTED"
+
+
+class CancelRejectReason(str, Enum):
+    """Stable domain reasons for rejecting an order-cancel request."""
+
+    UNKNOWN_ORDER = "UNKNOWN_ORDER"
+    TOO_LATE_TO_CANCEL = "TOO_LATE_TO_CANCEL"
+    ALREADY_CANCELED = "ALREADY_CANCELED"
+    SESSION_MISMATCH = "SESSION_MISMATCH"
+    INVALID_REQUEST = "INVALID_REQUEST"
 
 
 class InvalidOrderTransition(RuntimeError):
@@ -90,12 +109,16 @@ ORDER_STATE_TRANSITIONS: Mapping[OrderStatus, FrozenSet[OrderStatus]] = MappingP
 })
 
 
-EXECUTION_STATUS_BY_TYPE: Mapping[str, OrderStatus] = MappingProxyType({
-    "NEW": OrderStatus.NEW,
-    "PARTIAL": OrderStatus.PARTIAL,
-    "FILLED": OrderStatus.FILLED,
-    "CANCELLED": OrderStatus.CANCELLED,
-    "REJECTED": OrderStatus.REJECTED,
+ORDER_STATUSES_BY_EXECUTION_TYPE: Mapping[
+    ExecutionType, FrozenSet[OrderStatus]
+] = MappingProxyType({
+    ExecutionType.NEW: frozenset({OrderStatus.NEW}),
+    ExecutionType.TRADE: frozenset({
+        OrderStatus.PARTIAL,
+        OrderStatus.FILLED,
+    }),
+    ExecutionType.CANCELED: frozenset({OrderStatus.CANCELLED}),
+    ExecutionType.REJECTED: frozenset({OrderStatus.REJECTED}),
 })
 
 
@@ -132,6 +155,20 @@ class NewOrderCommand:
     session_id: Optional[str] = None
     session_alias: Optional[str] = None
 
+    def __post_init__(self) -> None:
+        if not self.cl_ord_id:
+            raise ValueError("ClOrdID is required")
+        if not self.symbol:
+            raise ValueError("Symbol is required")
+        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
+            raise ValueError("Order quantity must be positive and finite")
+        if self.price is not None and (
+            not math.isfinite(self.price) or self.price <= 0.0
+        ):
+            raise ValueError("Limit price must be positive and finite")
+        if not isinstance(self.tif, TimeInForce):
+            raise ValueError(f"Unsupported TimeInForce: {self.tif}")
+
 
 @dataclass(frozen=True, slots=True)
 class ProcessOrderCommand:
@@ -154,6 +191,28 @@ class CancelOrderCommand:
     session_alias: Optional[str] = None
 
 
+@dataclass(frozen=True, slots=True)
+class CancelReject:
+    """Immutable cancel-rejection snapshot without live order/FIX objects."""
+
+    cancel_cl_ord_id: str
+    orig_cl_ord_id: str
+    order_id: Optional[int]
+    ord_status: Optional[OrderStatus]
+    reason: CancelRejectReason
+    text: str
+    session_id: Optional[str]
+    session_alias: Optional[str]
+    timestamp: datetime
+
+    def __contains__(self, value: str) -> bool:
+        """Keep legacy ``"text" in result`` callers source-compatible."""
+        return value in self.text
+
+    def __str__(self) -> str:
+        return self.text
+
+
 @dataclass(slots=True)
 class Order:
     """Mutable engine-owned order aggregate.
@@ -173,6 +232,7 @@ class Order:
     ts_submitted: datetime  # Exchange timestamp
     status: OrderStatus = OrderStatus.PENDING_NEW
     filled_qty: float = 0.0
+    canceled_qty: float = 0.0
     avg_fill_price: Optional[float] = None
     reject_reason: Optional[str] = None
     session_id: Optional[str] = None
@@ -182,6 +242,19 @@ class Order:
     _liquidity_category: LiquidityCategory = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        if not self.cl_ord_id:
+            raise ValueError("ClOrdID is required")
+        if not self.symbol:
+            raise ValueError("Symbol is required")
+        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
+            raise ValueError("Order quantity must be positive and finite")
+        if self.price is not None and (
+            not math.isfinite(self.price) or self.price <= 0.0
+        ):
+            raise ValueError("Limit price must be positive and finite")
+        if not isinstance(self.tif, TimeInForce):
+            raise ValueError(f"Unsupported TimeInForce: {self.tif}")
+
         # Capture the origin once. Execution status and later alias changes must
         # never move resting quantity between accounting categories.
         self._liquidity_category = liquidity_category_for_session(
@@ -198,27 +271,40 @@ class Order:
 
     @property
     def remaining_qty(self) -> float:
-        """Return live quantity, rejecting material underfills or overfills."""
-        if not math.isfinite(self.qty) or not math.isfinite(self.filled_qty):
+        """Return live working quantity after fills and terminal cancellation."""
+        if not all(
+            math.isfinite(value)
+            for value in (self.qty, self.filled_qty, self.canceled_qty)
+        ):
             raise OrderBookInvariantError(
                 f"Order {self.id} has non-finite quantities: "
-                f"qty={self.qty}, filled_qty={self.filled_qty}"
+                f"qty={self.qty}, filled_qty={self.filled_qty}, "
+                f"canceled_qty={self.canceled_qty}"
             )
-        if self.qty < -QUANTITY_EPSILON:
+        if self.qty <= QUANTITY_EPSILON:
             raise OrderBookInvariantError(
-                f"Order {self.id} has negative quantity: {self.qty}"
+                f"Order {self.id} has non-positive quantity: {self.qty}"
             )
         if self.filled_qty < -QUANTITY_EPSILON:
             raise OrderBookInvariantError(
                 f"Order {self.id} has negative filled quantity: "
                 f"{self.filled_qty}"
             )
-        if self.filled_qty > self.qty + QUANTITY_EPSILON:
+        if self.canceled_qty < -QUANTITY_EPSILON:
             raise OrderBookInvariantError(
-                f"Order {self.id} is overfilled: qty={self.qty}, "
-                f"filled_qty={self.filled_qty}"
+                f"Order {self.id} has negative canceled quantity: "
+                f"{self.canceled_qty}"
             )
-        remaining = self.qty - self.filled_qty
+        if (
+            self.filled_qty + self.canceled_qty
+            > self.qty + QUANTITY_EPSILON
+        ):
+            raise OrderBookInvariantError(
+                f"Order {self.id} is over-allocated: qty={self.qty}, "
+                f"filled_qty={self.filled_qty}, "
+                f"canceled_qty={self.canceled_qty}"
+            )
+        remaining = self.qty - self.filled_qty - self.canceled_qty
         return _normalize_quantity(
             remaining,
             context=f"Order {self.id} remaining quantity",
@@ -251,7 +337,7 @@ class Order:
         if _quantities_equal(new_filled_qty, self.qty):
             new_filled_qty = self.qty
         new_remaining_qty = _normalize_quantity(
-            self.qty - new_filled_qty,
+            self.qty - new_filled_qty - self.canceled_qty,
             context=f"Order {self.id} post-fill remaining quantity",
         )
 
@@ -279,6 +365,19 @@ class Order:
         self.avg_fill_price = new_avg_fill_price
         return old_remaining - new_remaining_qty
 
+    def cancel_remaining(self) -> float:
+        """Move the complete live remainder into terminal canceled quantity."""
+        canceled = self.remaining_qty
+        if canceled <= QUANTITY_EPSILON:
+            return 0.0
+        self.canceled_qty += canceled
+        if _quantities_equal(
+            self.filled_qty + self.canceled_qty,
+            self.qty,
+        ):
+            self.canceled_qty = self.qty - self.filled_qty
+        return canceled
+
     def transition_to(self, new_status: OrderStatus) -> None:
         """Apply one explicitly supported order lifecycle transition."""
         if new_status not in ORDER_STATE_TRANSITIONS[self.status]:
@@ -298,6 +397,36 @@ class ExecutionParams:
     rand_seed: int  # For deterministic replay
 
 @dataclass(frozen=True, slots=True)
+class Fill:
+    """One immutable interaction between an aggressor and a passive order."""
+
+    trade_id: int
+    symbol: str
+    price: float
+    qty: float
+    aggressor_order_id: int
+    passive_order_id: int
+    aggressor_side: Side
+    timestamp: datetime
+
+    def __post_init__(self) -> None:
+        if self.trade_id <= 0:
+            raise ValueError("Fill TradeID must be positive")
+        if not self.symbol:
+            raise ValueError("Fill symbol is required")
+        if not math.isfinite(self.price) or self.price <= 0.0:
+            raise ValueError("Fill price must be positive and finite")
+        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
+            raise ValueError("Fill quantity must be positive and finite")
+        if (
+            self.aggressor_order_id <= 0
+            or self.passive_order_id <= 0
+            or self.aggressor_order_id == self.passive_order_id
+        ):
+            raise ValueError("Fill requires two distinct positive order IDs")
+
+
+@dataclass(frozen=True, slots=True)
 class Trade:
     """Represents an executed trade."""
     id: int
@@ -311,6 +440,9 @@ class Trade:
     level: int
     buyer_session_alias: str
     seller_session_alias: str
+    aggressor_order_id: int
+    passive_order_id: int
+    aggressor_side: Side
 
 @dataclass(frozen=True, slots=True)
 class BookFillResult:
@@ -670,6 +802,10 @@ class OrderBook:
                 f"Duplicate order id {order.id}: already resting at "
                 f"{side.value} {level.price}"
             )
+        if order.tif != TimeInForce.GTC:
+            raise InvalidBookMutation(
+                f"IOC order {order.id} cannot rest in book {self.symbol}"
+            )
         if order.price is None or not math.isfinite(order.price):
             raise InvalidBookMutation(
                 f"Resting order {order.id} must have a finite limit price"
@@ -944,6 +1080,7 @@ class MarketDataUpdate:
 class ExecutionReport:
     """Immutable, self-contained execution report captured at creation time."""
 
+    exec_id: str
     order_id: int
     cl_ord_id: str
     symbol: str
@@ -952,15 +1089,18 @@ class ExecutionReport:
     order_price: Optional[float]
     tif: TimeInForce
     ord_status: OrderStatus
-    exec_type: str
+    exec_type: ExecutionType
     leaves_qty: float
     cum_qty: float
+    canceled_qty: float
     avg_px: float
     submitted_at: datetime
     timestamp: datetime
     order_version: int
     last_px: Optional[float] = None
     last_qty: Optional[float] = None
+    trade_id: Optional[int] = None
+    orig_cl_ord_id: Optional[str] = None
     reject_reason: Optional[str] = None
     text: Optional[str] = None
     session_id: Optional[str] = None
@@ -968,54 +1108,169 @@ class ExecutionReport:
 
     def __post_init__(self) -> None:
         """Reject inconsistent status, execution type, and quantity snapshots."""
-        expected_status = EXECUTION_STATUS_BY_TYPE.get(self.exec_type)
-        if expected_status is None:
+        legacy_exec_types = {
+            "PARTIAL": ExecutionType.TRADE,
+            "FILLED": ExecutionType.TRADE,
+            "CANCELLED": ExecutionType.CANCELED,
+        }
+        raw_exec_type = self.exec_type
+        try:
+            resolved_exec_type = ExecutionType(raw_exec_type)
+        except ValueError:
+            resolved_exec_type = legacy_exec_types.get(str(raw_exec_type))
+        if resolved_exec_type is None:
             raise ValueError(f"Unsupported execution type: {self.exec_type}")
-        if self.ord_status != expected_status:
+        object.__setattr__(self, "exec_type", resolved_exec_type)
+
+        allowed_statuses = ORDER_STATUSES_BY_EXECUTION_TYPE[
+            resolved_exec_type
+        ]
+        if self.ord_status not in allowed_statuses:
             raise ValueError(
                 f"Inconsistent execution report: exec_type={self.exec_type}, "
                 f"ord_status={self.ord_status.value}"
             )
 
-        quantities = (self.order_qty, self.cum_qty, self.leaves_qty)
+        quantities = (
+            self.order_qty,
+            self.cum_qty,
+            self.leaves_qty,
+            self.canceled_qty,
+            self.avg_px,
+        )
         if not all(math.isfinite(value) for value in quantities):
             raise ValueError("Execution report quantities must be finite")
-        if self.order_qty < 0 or self.cum_qty < 0 or self.leaves_qty < 0:
+        if self.order_qty < 0:
+            raise ValueError("Execution report OrderQty cannot be negative")
+        if (
+            self.cum_qty < 0
+            or self.leaves_qty < 0
+            or self.canceled_qty < 0
+            or self.avg_px < 0
+        ):
             raise ValueError("Execution report quantities cannot be negative")
-        if self.cum_qty > self.order_qty or self.leaves_qty > self.order_qty:
+        if (
+            self.cum_qty > self.order_qty + QUANTITY_EPSILON
+            or self.leaves_qty > self.order_qty + QUANTITY_EPSILON
+            or self.canceled_qty > self.order_qty + QUANTITY_EPSILON
+        ):
             raise ValueError("Execution report quantities cannot exceed order quantity")
         if not math.isclose(
-            self.cum_qty + self.leaves_qty,
+            self.cum_qty + self.leaves_qty + self.canceled_qty,
             self.order_qty,
-            rel_tol=1e-9,
-            abs_tol=1e-9,
+            rel_tol=0.0,
+            abs_tol=QUANTITY_EPSILON,
         ):
-            raise ValueError("CumQty plus LeavesQty must equal OrderQty")
-        if self.ord_status == OrderStatus.FILLED and not math.isclose(
-            self.leaves_qty, 0.0, abs_tol=1e-9
-        ):
-            raise ValueError("FILLED execution reports must have zero LeavesQty")
-        if self.ord_status == OrderStatus.NEW and not math.isclose(
-            self.cum_qty, 0.0, abs_tol=1e-9
-        ):
-            raise ValueError("NEW execution reports must have zero CumQty")
+            raise ValueError(
+                "CumQty plus LeavesQty plus CanceledQty must equal OrderQty"
+            )
+        if not self.exec_id:
+            raise ValueError("ExecID is required")
+
+        if resolved_exec_type == ExecutionType.TRADE:
+            if (
+                self.last_qty is None
+                or not math.isfinite(self.last_qty)
+                or self.last_qty <= 0.0
+            ):
+                raise ValueError("TRADE reports require positive LastQty")
+            if self.last_qty > self.cum_qty + QUANTITY_EPSILON:
+                raise ValueError("LastQty cannot exceed CumQty")
+            if (
+                self.last_px is None
+                or not math.isfinite(self.last_px)
+                or self.last_px <= 0.0
+            ):
+                raise ValueError("TRADE reports require positive LastPx")
+            if self.trade_id is None:
+                raise ValueError("TRADE reports require a TradeID")
+        elif self.last_qty is not None or self.last_px is not None:
+            raise ValueError(
+                "Only TRADE reports may contain LastQty or LastPx"
+            )
+
+        if self.ord_status == OrderStatus.NEW:
+            if not _quantities_equal(self.cum_qty, 0.0):
+                raise ValueError("NEW execution reports must have zero CumQty")
+            if not _quantities_equal(self.canceled_qty, 0.0):
+                raise ValueError(
+                    "NEW execution reports must have zero CanceledQty"
+                )
+        elif self.ord_status == OrderStatus.PARTIAL:
+            if self.cum_qty <= QUANTITY_EPSILON:
+                raise ValueError("PARTIAL reports require positive CumQty")
+            if self.leaves_qty <= QUANTITY_EPSILON:
+                raise ValueError("PARTIAL reports require positive LeavesQty")
+            if not _quantities_equal(self.canceled_qty, 0.0):
+                raise ValueError(
+                    "PARTIAL reports must have zero CanceledQty"
+                )
+        elif self.ord_status == OrderStatus.FILLED:
+            if not _quantities_equal(self.cum_qty, self.order_qty):
+                raise ValueError("FILLED reports require CumQty equal OrderQty")
+            if not _quantities_equal(self.leaves_qty, 0.0):
+                raise ValueError("FILLED execution reports require zero LeavesQty")
+            if not _quantities_equal(self.canceled_qty, 0.0):
+                raise ValueError(
+                    "FILLED execution reports require zero CanceledQty"
+                )
+        elif self.ord_status in {
+            OrderStatus.CANCELLED,
+            OrderStatus.REJECTED,
+        }:
+            if not _quantities_equal(self.leaves_qty, 0.0):
+                raise ValueError(
+                    "Terminal non-fill reports require zero LeavesQty"
+                )
+            if (
+                self.ord_status == OrderStatus.CANCELLED
+                and self.canceled_qty <= QUANTITY_EPSILON
+            ):
+                raise ValueError(
+                    "CANCELLED reports require positive CanceledQty"
+                )
+
+        if self.cum_qty <= QUANTITY_EPSILON:
+            if not _quantities_equal(self.avg_px, 0.0):
+                raise ValueError("Unfilled reports require zero AvgPx")
+        elif self.avg_px <= 0.0:
+            raise ValueError("Filled reports require positive AvgPx")
 
 
 def create_execution_report(
     order: Order,
     *,
-    exec_type: str,
+    exec_type: Union[ExecutionType, str],
     timestamp: datetime,
+    exec_id: Optional[str] = None,
     last_px: Optional[float] = None,
     last_qty: Optional[float] = None,
+    trade_id: Optional[int] = None,
+    cl_ord_id: Optional[str] = None,
+    orig_cl_ord_id: Optional[str] = None,
     text: Optional[str] = None,
 ) -> ExecutionReport:
     """Capture and validate every execution-report value from ``order`` now."""
     cum_qty = order.filled_qty
     leaves_qty = order.remaining_qty
+    resolved_exec_type = {
+        "PARTIAL": ExecutionType.TRADE,
+        "FILLED": ExecutionType.TRADE,
+        "CANCELLED": ExecutionType.CANCELED,
+    }.get(str(exec_type), exec_type)
+    try:
+        execution_type = ExecutionType(resolved_exec_type)
+    except ValueError as exc:
+        raise ValueError(f"Unsupported execution type: {exec_type}") from exc
+
+    resolved_exec_id = exec_id or (
+        f"{order.id}:{order.version}:{execution_type.value}:"
+        f"{timestamp.isoformat()}"
+    )
     return ExecutionReport(
+        exec_id=resolved_exec_id,
         order_id=order.id,
-        cl_ord_id=order.cl_ord_id,
+        cl_ord_id=cl_ord_id or order.cl_ord_id,
         symbol=order.symbol,
         side=order.side,
         order_qty=order.qty,
@@ -1025,9 +1280,12 @@ def create_execution_report(
         exec_type=exec_type,
         leaves_qty=leaves_qty,
         cum_qty=cum_qty,
+        canceled_qty=order.canceled_qty,
         avg_px=order.avg_fill_price or 0.0,
         last_px=last_px,
         last_qty=last_qty,
+        trade_id=trade_id,
+        orig_cl_ord_id=orig_cl_ord_id,
         reject_reason=order.reject_reason,
         text=text,
         session_id=order.session_id,
@@ -1035,6 +1293,28 @@ def create_execution_report(
         submitted_at=order.ts_submitted,
         timestamp=timestamp,
         order_version=order.version,
+    )
+
+
+def create_cancel_reject(
+    command: CancelOrderCommand,
+    *,
+    reason: CancelRejectReason,
+    text: str,
+    timestamp: datetime,
+    order: Optional[Order] = None,
+) -> CancelReject:
+    """Capture a cancel rejection from immutable command/current scalar state."""
+    return CancelReject(
+        cancel_cl_ord_id=command.cancel_cl_ord_id or "",
+        orig_cl_ord_id=command.orig_cl_ord_id or "",
+        order_id=order.id if order else None,
+        ord_status=order.status if order else None,
+        reason=reason,
+        text=text,
+        session_id=command.session_id,
+        session_alias=command.session_alias,
+        timestamp=timestamp,
     )
 
 @dataclass(frozen=True, slots=True)

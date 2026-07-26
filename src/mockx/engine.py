@@ -6,10 +6,11 @@ from typing import Dict, List, Optional
 from random import Random
 
 from .models import (
-    Order, OrderBook, Trade, Side, OrderStatus, TimeInForce,
+    CancelReject, CancelRejectReason, ExecutionType, Fill, Order, OrderBook,
+    Trade, Side, OrderStatus, TimeInForce,
     ExecutionParams, ExecutionReport, MarketDataUpdate, NewOrderCommand,
     ProcessOrderCommand, CancelOrderCommand, TERMINAL_ORDER_STATUSES,
-    QUANTITY_EPSILON, create_execution_report,
+    QUANTITY_EPSILON, create_cancel_reject, create_execution_report,
 )
 from .latency import LatencyScheduler
 
@@ -42,8 +43,10 @@ class MatchingEngine:
         
         # Order tracking
         self.orders: Dict[int, Order] = {}
+        self.client_order_index: Dict[tuple[str, str], int] = {}
         self.next_order_id = 1
         self.next_trade_id = 1
+        self.next_exec_id = 1
         
         # Callbacks
         self.on_execution_report = None
@@ -65,10 +68,12 @@ class MatchingEngine:
             
         # Clear order tracking
         self.orders.clear()
+        self.client_order_index.clear()
         
         # Reset ID counters
         self.next_order_id = 1
         self.next_trade_id = 1
+        self.next_exec_id = 1
         
         # Reset the scheduler
         self.scheduler.reset()
@@ -88,6 +93,15 @@ class MatchingEngine:
         if not isinstance(command, NewOrderCommand):
             raise TypeError("submit_order requires NewOrderCommand")
 
+        client_key = None
+        if command.session_id is not None:
+            client_key = (command.session_id, command.cl_ord_id)
+            if client_key in self.client_order_index:
+                raise ValueError(
+                    "Duplicate ClOrdID in FIX session: "
+                    f"{command.cl_ord_id}"
+                )
+
         order = Order(
             id=self.next_order_id,
             cl_ord_id=command.cl_ord_id,
@@ -102,6 +116,8 @@ class MatchingEngine:
         )
         self.next_order_id += 1
         self.orders[order.id] = order
+        if client_key is not None:
+            self.client_order_index[client_key] = order.id
 
         process_command = ProcessOrderCommand(
             order_id=order.id,
@@ -172,7 +188,9 @@ class MatchingEngine:
             self._process_market_order(order, book)
         else:
             self._process_limit_order(order, book)
-            
+
+        book.assert_invariants()
+
         # Send market data update
         self._send_market_data_update(order.symbol)
         
@@ -182,101 +200,44 @@ class MatchingEngine:
         
     def _reject_order(self, order: Order, reason: str) -> None:
         """Reject an order."""
+        order.cancel_remaining()
         order.transition_to(OrderStatus.REJECTED)
         order.reject_reason = reason
 
-        report = create_execution_report(
+        report = self._create_execution_report(
             order,
-            exec_type="REJECTED",
+            exec_type=ExecutionType.REJECTED,
             text=reason,
-            timestamp=self.scheduler.current_time,
         )
         self._send_execution_report(report)
-        
+
         logger.info(f"Order rejected: {order.cl_ord_id} - {reason}")
-    
-    # [CHANGED] Method simplified due to bug fix
+
     def _process_market_order(self, order: Order, book: OrderBook) -> None:
-        """Process a market order by walking the book."""
-        # A market order cannot execute if the opposite side of the book is empty.
-        if (order.side == Side.BUY and not book.asks) or (order.side == Side.SELL and not book.bids):
-            self._reject_order(order, "No liquidity available")
-            return
+        """Execute immediately; market orders never rest, regardless of TIF."""
+        self._match_aggressive_order(order, book)
+        self._finalize_unfilled_remainder(order, book)
 
-        self._match_and_report(order, book, rest_remainder=False)
-
-    # [CHANGED] Method simplified due to bug fix and refactoring
     def _process_limit_order(self, order: Order, book: OrderBook) -> None:
-        """Process a limit order."""
-        if self._match_and_report(order, book, rest_remainder=True):
-            return
+        """Match a limit order and apply its GTC/IOC remainder rule once."""
+        self._match_aggressive_order(order, book)
+        self._finalize_unfilled_remainder(order, book)
 
-        # With no executions, put the accepted limit order on the book before
-        # publishing its NEW snapshot. The existing IOC/no-fill semantics are
-        # intentionally unchanged by this accounting remediation.
-        book.add_order(order)
-        order.transition_to(OrderStatus.NEW)
-        report = create_execution_report(
-            order,
-            exec_type="NEW",
-            timestamp=self.scheduler.current_time,
-        )
-        self._send_execution_report(report)
-
-    # [NEW] Helper method created from refactoring
-    def _match_and_report(
+    def _match_aggressive_order(
         self,
         aggressor: Order,
         book: OrderBook,
-        *,
-        rest_remainder: bool,
-    ) -> bool:
-        """Match, reach a final observable state, then publish its report."""
-        trades = self._match_aggressive_order(aggressor, book)
-
-        # If no trades occurred, there's nothing more to do for the aggressor
-        if not trades:
-            return False
-
-        last_trade = trades[-1]
-
-        # Determine the final status and send the correct execution report
-        if aggressor.remaining_qty == 0.0:
-            aggressor.transition_to(OrderStatus.FILLED)
-            exec_type = "FILLED"
-            text = None
-        elif aggressor.tif == TimeInForce.IOC:
-            aggressor.transition_to(OrderStatus.CANCELLED)
-            exec_type = "CANCELLED"
-            text = "IOC order cancelled - unfilled portion"
-        else: # Partially filled GTC order
-            if rest_remainder:
-                # Queue and aggregates become authoritative before any callback
-                # can observe the PARTIAL execution report.
-                book.add_order(aggressor)
-            aggressor.transition_to(OrderStatus.PARTIAL)
-            exec_type = "PARTIAL"
-            text = None
-
-        report = create_execution_report(
-            aggressor,
-            exec_type=exec_type,
-            last_px=last_trade.price,
-            last_qty=last_trade.qty,
-            timestamp=self.scheduler.current_time,
-            text=text,
-        )
-        self._send_execution_report(report)
-        return True
-
-    def _match_aggressive_order(self, aggressor: Order, book: OrderBook) -> List[Trade]:
+    ) -> List[Fill]:
         """
-        Match an aggressive order against the book, returning a list of trades.
-        This version is optimized to avoid creating list copies in hot paths.
+        Match an aggressive order and return one immutable result per match.
+
+        Each fill is committed to both orders and the book before reports are
+        captured. Reports are then scheduled passive-first, aggressor-second;
+        the scheduler sequence number preserves that order at equal timestamps.
         """
-        trades: List[Trade] = []
+        fills: List[Fill] = []
         remaining_qty = aggressor.remaining_qty
-        
+
         # Determine max fill for partial fill simulation
         max_fill_qty = remaining_qty
         if self._should_partial_fill(aggressor):
@@ -336,49 +297,102 @@ class MatchingEngine:
                 )
                 remaining_qty = aggressor.remaining_qty
 
+                fill = Fill(
+                    trade_id=self.next_trade_id,
+                    symbol=aggressor.symbol,
+                    price=exec_price,
+                    qty=fill_result.fill_qty,
+                    aggressor_order_id=aggressor.id,
+                    passive_order_id=passive_order.id,
+                    aggressor_side=aggressor.side,
+                    timestamp=self.scheduler.current_time,
+                )
+                self.next_trade_id += 1
+                fills.append(fill)
+
+                passive_order.transition_to(
+                    OrderStatus.FILLED
+                    if passive_order.remaining_qty == 0.0
+                    else OrderStatus.PARTIAL
+                )
+                aggressor.transition_to(
+                    OrderStatus.FILLED
+                    if aggressor.remaining_qty == 0.0
+                    else OrderStatus.PARTIAL
+                )
+
                 trade = self._create_trade(
+                    fill,
                     aggressor,
                     passive_order,
-                    exec_price,
-                    fill_result.fill_qty,
                     level_idx,
                 )
-                trades.append(trade)
+                if self.on_trade:
+                    self.on_trade(trade)
 
-                self._report_passive_fill(
-                    passive_order,
-                    exec_price,
-                    fill_result.fill_qty,
+                self._send_execution_report(
+                    self._create_execution_report(
+                        passive_order,
+                        exec_type=ExecutionType.TRADE,
+                        last_px=fill.price,
+                        last_qty=fill.qty,
+                        trade_id=fill.trade_id,
+                    )
+                )
+                self._send_execution_report(
+                    self._create_execution_report(
+                        aggressor,
+                        exec_type=ExecutionType.TRADE,
+                        last_px=fill.price,
+                        last_qty=fill.qty,
+                        trade_id=fill.trade_id,
+                    )
                 )
 
                 if fill_result.level_removed:
                     level_idx += 1
                     break
 
-        for trade in trades:
-            if self.on_trade:
-                self.on_trade(trade)
+        return fills
 
-        return trades
-        
-    # [NEW] Helper method for DRY code
-    def _report_passive_fill(self, passive_order: Order, price: float, qty: float):
-        """Send an execution report for a passive order that was hit."""
-        if passive_order.remaining_qty == 0.0:
-            passive_order.transition_to(OrderStatus.FILLED)
-            exec_type = "FILLED"
-        else:
-            passive_order.transition_to(OrderStatus.PARTIAL)
-            exec_type = "PARTIAL"
+    def _finalize_unfilled_remainder(
+        self,
+        order: Order,
+        book: OrderBook,
+    ) -> None:
+        """Apply the one post-match rule for every supported order variant."""
+        if order.remaining_qty <= QUANTITY_EPSILON:
+            return
 
-        report = create_execution_report(
-            passive_order,
-            exec_type=exec_type,
-            last_px=price,
-            last_qty=qty,
-            timestamp=self.scheduler.current_time,
+        immediate_only = (
+            order.price is None or order.tif == TimeInForce.IOC
         )
-        self._send_execution_report(report)
+        if immediate_only:
+            canceled_qty = order.cancel_remaining()
+            order.transition_to(OrderStatus.CANCELLED)
+            order_kind = "Market" if order.price is None else "IOC"
+            report = self._create_execution_report(
+                order,
+                exec_type=ExecutionType.CANCELED,
+                text=(
+                    f"{order_kind} unexecuted remainder canceled: "
+                    f"{canceled_qty}"
+                ),
+            )
+            self._send_execution_report(report)
+            return
+
+        # Model A acknowledgement: publish NEW only for a wholly unfilled GTC
+        # limit. A partially filled aggressor already emitted TRADE/PARTIAL and
+        # rests without regressing to a NEW state or report.
+        book.add_order(order)
+        if order.filled_qty <= QUANTITY_EPSILON:
+            order.transition_to(OrderStatus.NEW)
+            report = self._create_execution_report(
+                order,
+                exec_type=ExecutionType.NEW,
+            )
+            self._send_execution_report(report)
 
     def _should_partial_fill(self, order: Order) -> bool:
         """
@@ -390,25 +404,67 @@ class MatchingEngine:
              return self.rng.random() < self.exec_params.partial_fill_prob
         return False
         
-    def _create_trade(self, aggressor: Order, passive: Order,
-                      price: float, qty: float, level: int) -> Trade:
+    def _create_trade(
+        self,
+        fill: Fill,
+        aggressor: Order,
+        passive: Order,
+        level: int,
+    ) -> Trade:
         """Create a trade record."""
         trade = Trade(
-            id=self.next_trade_id,
-            symbol=aggressor.symbol,
-            price=price,
-            qty=qty,
-            volume=qty * price,
+            id=fill.trade_id,
+            symbol=fill.symbol,
+            price=fill.price,
+            qty=fill.qty,
+            volume=fill.qty * fill.price,
             buyer_order_id=aggressor.id if aggressor.side == Side.BUY else passive.id,
             seller_order_id=passive.id if passive.side == Side.SELL else aggressor.id,
-            timestamp=self.scheduler.current_time,
+            timestamp=fill.timestamp,
             level=level,
             buyer_session_alias=aggressor.session_alias if aggressor.side == Side.BUY else passive.session_alias,
-            seller_session_alias=passive.session_alias if passive.side == Side.SELL else aggressor.session_alias
+            seller_session_alias=passive.session_alias if passive.side == Side.SELL else aggressor.session_alias,
+            aggressor_order_id=fill.aggressor_order_id,
+            passive_order_id=fill.passive_order_id,
+            aggressor_side=fill.aggressor_side,
         )
-        logger.debug(f"Trade: {qty} @ {price} ({aggressor.cl_ord_id} x {passive.cl_ord_id}) at level {level}")
-        self.next_trade_id += 1
+        logger.debug(
+            "Trade: %s @ %s (%s x %s) at level %s",
+            fill.qty,
+            fill.price,
+            aggressor.cl_ord_id,
+            passive.cl_ord_id,
+            level,
+        )
         return trade
+
+    def _create_execution_report(
+        self,
+        order: Order,
+        *,
+        exec_type: ExecutionType,
+        last_px: Optional[float] = None,
+        last_qty: Optional[float] = None,
+        trade_id: Optional[int] = None,
+        cl_ord_id: Optional[str] = None,
+        orig_cl_ord_id: Optional[str] = None,
+        text: Optional[str] = None,
+    ) -> ExecutionReport:
+        """Capture a report with a deterministic, engine-owned ExecID."""
+        exec_id = f"EXEC{self.next_exec_id}"
+        self.next_exec_id += 1
+        return create_execution_report(
+            order,
+            exec_type=exec_type,
+            timestamp=self.scheduler.current_time,
+            exec_id=exec_id,
+            last_px=last_px,
+            last_qty=last_qty,
+            trade_id=trade_id,
+            cl_ord_id=cl_ord_id,
+            orig_cl_ord_id=orig_cl_ord_id,
+            text=text,
+        )
         
     def _send_execution_report(self, report: ExecutionReport) -> None:
         """Send execution report with network latency."""
@@ -443,46 +499,141 @@ class MatchingEngine:
         """Get current order book snapshot."""
         return self.books.get(symbol)
         
-    def cancel_order(self, command: CancelOrderCommand) -> Optional[str]:
-        """Cancel an order and return a rejection reason when it cannot be done."""
+    def cancel_order(
+        self,
+        command: CancelOrderCommand,
+    ) -> Optional[CancelReject]:
+        """Cancel one live remainder or return an immutable rejection snapshot."""
         if not isinstance(command, CancelOrderCommand):
             raise TypeError("cancel_order requires CancelOrderCommand")
 
         order = self.orders.get(command.order_id)
-        if not order:
-            reason = f"Order not found: {command.orig_cl_ord_id or command.order_id}"
-            logger.warning(reason)
-            return reason
+        if order is None:
+            return self._cancel_reject(
+                command,
+                reason=CancelRejectReason.UNKNOWN_ORDER,
+                text=(
+                    "Order not found: "
+                    f"{command.orig_cl_ord_id or command.order_id}"
+                ),
+            )
+
+        if (
+            command.session_id is not None
+            and command.session_id != order.session_id
+        ):
+            return self._cancel_reject(
+                command,
+                order=order,
+                reason=CancelRejectReason.SESSION_MISMATCH,
+                text=(
+                    f"Order {order.id} belongs to a different FIX session"
+                ),
+            )
+
+        if (
+            command.orig_cl_ord_id is not None
+            and command.orig_cl_ord_id != order.cl_ord_id
+        ):
+            return self._cancel_reject(
+                command,
+                order=order,
+                reason=CancelRejectReason.INVALID_REQUEST,
+                text=(
+                    f"OrigClOrdID {command.orig_cl_ord_id} does not identify "
+                    f"order {order.id}"
+                ),
+            )
+
+        if order.status == OrderStatus.CANCELLED:
+            return self._cancel_reject(
+                command,
+                order=order,
+                reason=CancelRejectReason.ALREADY_CANCELED,
+                text=(
+                    f"Stale cancel command: order {order.id} is already canceled"
+                ),
+            )
+        if order.status in {OrderStatus.FILLED, OrderStatus.REJECTED}:
+            return self._cancel_reject(
+                command,
+                order=order,
+                reason=CancelRejectReason.TOO_LATE_TO_CANCEL,
+                text=(
+                    f"Order already in terminal state: {order.status.value}"
+                ),
+            )
 
         if command.expected_version != order.version:
-            reason = (
-                f"Stale cancel command for order {order.id}: expected version "
-                f"{command.expected_version}, current version {order.version}"
+            return self._cancel_reject(
+                command,
+                order=order,
+                reason=CancelRejectReason.INVALID_REQUEST,
+                text=(
+                    f"Stale cancel command for order {order.id}: expected "
+                    f"version {command.expected_version}, current version "
+                    f"{order.version}"
+                ),
             )
-            logger.info(reason)
-            return reason
 
-        # If order is already terminated, reject the cancel request
-        if order.status in TERMINAL_ORDER_STATUSES:
-            reason = f"Order already in terminal state: {order.status.value}"
-            logger.info(reason)
-            return reason
+        book = self.books.get(order.symbol)
+        is_pending = (
+            order.status == OrderStatus.PENDING_NEW and not order.processed
+        )
+        is_resting = book is not None and book.is_resting(order.id)
+        if not is_pending and not is_resting:
+            return self._cancel_reject(
+                command,
+                order=order,
+                reason=CancelRejectReason.TOO_LATE_TO_CANCEL,
+                text=f"Order {order.id} has no live cancellable remainder",
+            )
+        if order.remaining_qty <= QUANTITY_EPSILON:
+            return self._cancel_reject(
+                command,
+                order=order,
+                reason=CancelRejectReason.TOO_LATE_TO_CANCEL,
+                text=f"Order {order.id} has no live quantity",
+            )
 
-        # Remove from book if it's there
-        if order.symbol in self.books:
-            book = self.books[order.symbol]
-            book.remove_order(order)
+        if is_resting:
+            if not book.remove_order(order):
+                raise RuntimeError(
+                    f"Resting order {order.id} could not be removed"
+                )
+            book.assert_invariants()
 
-        # A successful cancel invalidates any queued initial-processing command.
+        # Invalidate any queued initial-processing command before publishing.
         order.version += 1
+        order.cancel_remaining()
         order.transition_to(OrderStatus.CANCELLED)
 
-        # Send cancellation report
-        report = create_execution_report(
+        report = self._create_execution_report(
             order,
-            exec_type="CANCELLED",
+            exec_type=ExecutionType.CANCELED,
+            cl_ord_id=command.cancel_cl_ord_id or order.cl_ord_id,
+            orig_cl_ord_id=order.cl_ord_id,
             text="Order cancelled by request",
-            timestamp=self.scheduler.current_time,
         )
         self._send_execution_report(report)
+        if is_resting:
+            self._send_market_data_update(order.symbol)
         return None
+
+    def _cancel_reject(
+        self,
+        command: CancelOrderCommand,
+        *,
+        reason: CancelRejectReason,
+        text: str,
+        order: Optional[Order] = None,
+    ) -> CancelReject:
+        reject = create_cancel_reject(
+            command,
+            reason=reason,
+            text=text,
+            timestamp=self.scheduler.current_time,
+            order=order,
+        )
+        logger.info("Cancel rejected: %s", reject.text)
+        return reject

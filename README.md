@@ -181,9 +181,55 @@ Writes all exchange events to InfluxDB:
 
 ### Matching Engine (`engine.py`)
 - Price-time priority matching
-- Supports limit orders
+- Supports GTC/IOC limit orders and immediately executable market orders
 - Configurable execution parameters (slippage, partial fills, rejections)
-- Generates execution reports and market data updates
+- Generates one trade record and two order-specific reports per fill
+
+#### Order lifecycle and execution reports
+
+MockX uses an execution-result acknowledgement model:
+
+| Order | No fill | Partial fill | Full fill |
+| --- | --- | --- | --- |
+| Limit + GTC | Rest as `NEW` | Rest the remainder as `PARTIAL` | `FILLED` |
+| Limit + IOC | `CANCELLED` | Preserve fills, cancel the remainder | `FILLED` |
+| Market | `CANCELLED` | Preserve fills, cancel the remainder | `FILLED` |
+
+IOC and market orders never rest. A market order supplied with GTC is accepted
+but still executes immediately because a market order has no restable limit
+price. Its `Price` field is absent from FIX execution reports; `LastPx` and
+`AvgPx` contain actual execution prices.
+
+Each passive interaction creates one immutable fill and one trade record.
+MockX then creates a passive-side `TRADE` report followed by an
+aggressor-side `TRADE` report. Equal-time report deliveries retain this order
+through scheduler sequence numbers. A multi-fill aggressor receives one report
+per fill, with fill-specific `LastQty`/`LastPx` and monotonically updated
+`CumQty`, `LeavesQty`, and `AvgPx`. A partially filled GTC aggressor does not
+receive a later `NEW` report.
+
+Execution events and order states are distinct:
+
+| Event | FIX `ExecType` | Allowed `OrdStatus` |
+| --- | --- | --- |
+| New resting acknowledgement | `0` (New) | `0` (New) |
+| Fill | `F` (Trade) | `1` (Partially filled) or `2` (Filled) |
+| Cancellation | `4` (Canceled) | `4` (Canceled) |
+| Rejection | `8` (Rejected) | `8` (Rejected) |
+
+Report snapshots enforce
+`CumQty + LeavesQty + CanceledQty == OrderQty`. Terminal IOC, market, and
+client-requested cancellations have zero `LeavesQty`; their unexecuted
+remainder is retained as `CanceledQty`.
+
+Cancel requests resolve `OrigClOrdID` within the requesting FIX session.
+Pending-new and resting orders with a live remainder can be canceled. A
+successful cancellation removes only the live remainder, preserves prior
+fills and average price, uses the cancel request ID as `ClOrdID`, and uses the
+original order ID as `OrigClOrdID`. Unknown, filled, rejected, already
+canceled, cross-session, mismatched, and stale requests produce an immutable
+`OrderCancelReject`. Duplicate cancels follow the reject policy and cannot
+mutate the book twice.
 
 ### FIX Gateway (`gateway.py`)
 - QuickFIX-based implementation

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from src.mockx.models import (
     CancelOrderCommand,
     ExecutionParams,
+    ExecutionType,
     NewOrderCommand,
     Order,
     OrderBook,
@@ -372,5 +373,5 @@ class TestMatchingEngine:
         # Verify the cancellation report
         report_cancel = engine.scheduler.event_queue[0].data
         assert report_cancel.order_id == order_id
-        assert report_cancel.exec_type == "CANCELLED"
+        assert report_cancel.exec_type == ExecutionType.CANCELED
         assert report_cancel.ord_status == OrderStatus.CANCELLED
