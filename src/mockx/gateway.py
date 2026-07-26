@@ -7,20 +7,21 @@ except ModuleNotFoundError:  # Pure report mapping and non-FIX tests remain impo
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Optional
-import json
+from typing import Callable, Dict, Optional, Union
 import math
-import time
+import threading
 
 from .models import (
     CancelReject,
     CancelRejectReason,
     CancelOrderCommand,
+    ClientOrderKey,
     ExecutionReport,
     ExecutionType,
     InvalidOrderTransition,
     NewOrderCommand,
     OrderStatus,
+    SessionIdentity,
     Side,
     TimeInForce,
     create_cancel_reject,
@@ -28,10 +29,89 @@ from .models import (
 from .fix_fields import cancel_reject_fields, execution_report_fields
 from .metrics import MetricsCollector, LatencyTracker
 from .engine import MatchingEngine
+from .latency import MonotonicClock, PerfCounterClock, monotonic_duration_ns
 
 logger = logging.getLogger(__name__)
 
 _FIX_APPLICATION_BASE = fix.Application if fix is not None else object
+
+
+RoutableReport = Union[ExecutionReport, CancelReject]
+
+
+def report_destination_id(report: RoutableReport) -> Optional[str]:
+    """Return the immutable destination captured on a domain report."""
+    return report.session_id
+
+
+class SessionRegistry:
+    """Thread-safe owner of live transport objects at the gateway boundary."""
+
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._identities: Dict[str, SessionIdentity] = {}
+        self._transports: Dict[str, object] = {}
+
+    def register(
+        self,
+        identity: SessionIdentity,
+        transport_session: object,
+    ) -> None:
+        with self._lock:
+            replaced = identity.session_id in self._transports
+            self._identities[identity.session_id] = identity
+            self._transports[identity.session_id] = transport_session
+        logger.info(
+            "FIX session registered",
+            extra={
+                "session_id": identity.session_id,
+                "session_alias": identity.alias,
+                "session_replaced": replaced,
+            },
+        )
+
+    def unregister(
+        self,
+        session_id: str,
+        transport_session: Optional[object] = None,
+    ) -> bool:
+        with self._lock:
+            current = self._transports.get(session_id)
+            if current is None:
+                return False
+            if (
+                transport_session is not None
+                and current is not transport_session
+            ):
+                logger.warning(
+                    "Ignored stale FIX session unregistration",
+                    extra={"session_id": session_id},
+                )
+                return False
+            self._transports.pop(session_id, None)
+            self._identities.pop(session_id, None)
+        logger.info(
+            "FIX session unregistered",
+            extra={"session_id": session_id},
+        )
+        return True
+
+    def resolve_transport(self, session_id: str) -> Optional[object]:
+        with self._lock:
+            return self._transports.get(session_id)
+
+    def resolve_identity(self, session_id: str) -> Optional[SessionIdentity]:
+        with self._lock:
+            return self._identities.get(session_id)
+
+    def is_connected(self, session_id: str) -> bool:
+        with self._lock:
+            return session_id in self._transports
+
+    @property
+    def connected_count(self) -> int:
+        with self._lock:
+            return len(self._transports)
 
 
 class FIXApplication(_FIX_APPLICATION_BASE):
@@ -45,15 +125,27 @@ class FIXApplication(_FIX_APPLICATION_BASE):
     asyncio event loop running in the main thread.
     """
 
-    def __init__(self, engine: MatchingEngine, metrics: MetricsCollector, latency_tracker: LatencyTracker):
+    def __init__(
+        self,
+        engine: MatchingEngine,
+        metrics: MetricsCollector,
+        latency_tracker: LatencyTracker,
+        *,
+        session_registry: Optional[SessionRegistry] = None,
+        transport_sender: Optional[
+            Callable[[object, RoutableReport], None]
+        ] = None,
+        monotonic_clock: Optional[MonotonicClock] = None,
+    ):
         super().__init__()
         self.engine = engine
         self.metrics = metrics
         self.latency_tracker = latency_tracker
-
-        self.sessions = {}
+        self.session_registry = session_registry or SessionRegistry()
+        self.transport_sender = transport_sender or self._send_to_quickfix
+        self.monotonic_clock = monotonic_clock or PerfCounterClock()
         # ClOrdID is scoped by FIX session; it is not globally unique.
-        self.order_map: Dict[tuple[str, str], int] = {}
+        self.order_map: Dict[ClientOrderKey, int] = {}
         self._next_gateway_exec_id = 1
         self.loop = None  # <-- Add this line to store the event loop
 
@@ -62,23 +154,55 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         logger.info("Resetting FIX application state.")
         self.order_map.clear()
         self._next_gateway_exec_id = 1
-        # Note: We do not clear self.sessions as the FIX sessions themselves persist.
-        # We only clear the mapping of orders to those sessions.
+        # Connected transports persist; only per-run order keys are reset.
 
     def onCreate(self, sessionID):
         """Called when a new session is created."""
         logger.info(f"FIX session created: {sessionID}")
-        self.sessions[sessionID.toString()] = sessionID
-        
+
     def onLogon(self, sessionID):
         """Called when a session logs on."""
-        logger.info(f"FIX session logon: {sessionID}")
-        self.metrics.record_fix_connection(1, self.engine.scheduler.current_time_ns())
-        
+        identity = self._session_identity(sessionID)
+        self.register_session(identity, sessionID)
+        logger.info(
+            "FIX session logon",
+            extra={"session_id": identity.session_id},
+        )
+
     def onLogout(self, sessionID):
         """Called when a session logs out."""
-        logger.info(f"FIX session logout: {sessionID}")
-        self.metrics.record_fix_connection(-1, self.engine.scheduler.current_time_ns())
+        session_id = sessionID.toString()
+        self.unregister_session(session_id, sessionID)
+        logger.info(
+            "FIX session logout",
+            extra={"session_id": session_id},
+        )
+
+    def register_session(
+        self,
+        identity: SessionIdentity,
+        transport_session: object,
+    ) -> None:
+        """Register or atomically replace a connected transport."""
+        self.session_registry.register(identity, transport_session)
+        self.metrics.set_connected_sessions(
+            self.session_registry.connected_count
+        )
+
+    def unregister_session(
+        self,
+        session_id: str,
+        transport_session: Optional[object] = None,
+    ) -> bool:
+        """Disconnect one stable session without affecting any peer."""
+        removed = self.session_registry.unregister(
+            session_id,
+            transport_session,
+        )
+        self.metrics.set_connected_sessions(
+            self.session_registry.connected_count
+        )
+        return removed
         
     def toAdmin(self, message, sessionID):
         """Called for outgoing admin messages."""
@@ -172,8 +296,9 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             def _submit():
                 try:
                     order_id = self.engine.submit_order(command)
-                    self.latency_tracker.order_submitted(order_id)
-                    self.order_map[(session_id, cl_ord_id)] = order_id
+                    self.order_map[
+                        ClientOrderKey(session_id, cl_ord_id)
+                    ] = order_id
                     logger.debug(
                         "Order submitted: %s -> %s",
                         cl_ord_id,
@@ -274,7 +399,8 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             timestamp=simulated_time,
             order_version=0,
         )
-        self.send_execution_report(sessionID, report)
+        self.metrics.record_order(report)
+        self.process_execution_report(report)
 
     def handle_order_cancel_request(self, message, sessionID):
         """Handle OrderCancelRequest (35=F) message."""
@@ -287,7 +413,10 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             def _cancel_logic():
                 """This function will run on the main asyncio event loop."""
                 try:
-                    order_id = self.order_map.get((session_id, orig_cl_ord_id), 0)
+                    order_id = self.order_map.get(
+                        ClientOrderKey(session_id, orig_cl_ord_id),
+                        0,
+                    )
                     order = self.engine.orders.get(order_id)
                     command = CancelOrderCommand(
                         order_id=order_id,
@@ -301,14 +430,16 @@ class FIXApplication(_FIX_APPLICATION_BASE):
 
                     rejection = self.engine.cancel_order(command)
                     if rejection:
-                        self.send_cancel_reject(sessionID, rejection)
+                        self.process_cancel_reject(rejection)
 
                 except InvalidOrderTransition:
                     logger.exception("Invalid order transition while cancelling %s", orig_cl_ord_id)
                     raise
                 except Exception as exc:
                     logger.error(f"Error handling OrderCancelRequest: {exc}")
-                    order_id_for_reject = self.order_map.get((session_id, orig_cl_ord_id))
+                    order_id_for_reject = self.order_map.get(
+                        ClientOrderKey(session_id, orig_cl_ord_id)
+                    )
                     order_for_reject = self.engine.orders.get(
                         order_id_for_reject or 0
                     )
@@ -325,16 +456,17 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                         session_id=session_id,
                         session_alias=session_alias,
                     )
-                    self.send_cancel_reject(
-                        sessionID,
+                    rejection = (
                         create_cancel_reject(
                             command,
                             reason=CancelRejectReason.INVALID_REQUEST,
                             text=str(exc),
                             timestamp=self.engine.scheduler.current_time,
                             order=order_for_reject,
-                        ),
+                        )
                     )
+                    self.metrics.record_cancel_reject(rejection)
+                    self.process_cancel_reject(rejection)
 
             # Schedule the cancellation logic to run on the event loop
             self.loop.call_soon_threadsafe(_cancel_logic)
@@ -357,15 +489,14 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 session_id=sessionID.toString(),
                 session_alias=sessionID.getTargetCompID().getValue(),
             )
-            self.send_cancel_reject(
-                sessionID,
-                create_cancel_reject(
+            rejection = create_cancel_reject(
                     invalid_command,
                     reason=CancelRejectReason.INVALID_REQUEST,
                     text=str(e),
                     timestamp=self.engine.scheduler.current_time,
-                ),
-            )
+                )
+            self.metrics.record_cancel_reject(rejection)
+            self.process_cancel_reject(rejection)
             
     def handle_market_data_request(self, message, sessionID):
         """Handle MarketDataRequest (35=V) message."""
@@ -373,8 +504,32 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         req_id = self._get_field(message, fix.MDReqID())
         self.send_market_data_reject(sessionID, req_id, "Market data available via REST API")
         
-    def send_execution_report(self, sessionID, report: ExecutionReport):
-        """Send ExecutionReport (35=8) message."""
+    def _send_to_quickfix(
+        self,
+        transport_session: object,
+        report: RoutableReport,
+    ) -> None:
+        """Serialize and send through QuickFIX at the adapter boundary."""
+        if fix is None:
+            raise RuntimeError("QuickFIX is unavailable")
+        if isinstance(report, ExecutionReport):
+            self._send_quickfix_execution_report(
+                transport_session,
+                report,
+            )
+        else:
+            self._send_quickfix_cancel_reject(
+                transport_session,
+                report,
+            )
+
+    def _send_quickfix_execution_report(
+        self,
+        transport_session: object,
+        report: ExecutionReport,
+    ) -> None:
+        """Serialize one immutable execution report and send it."""
+        serialize_start_ns = self.monotonic_clock.now_ns()
         fields = execution_report_fields(report)
         msg = fix.Message()
         msg.getHeader().setField(fix.MsgType(fix.MsgType_ExecutionReport))
@@ -407,18 +562,43 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         if "Text" in fields:
             msg.setField(fix.Text(str(fields["Text"])))
 
-        # Send message
-        fix.Session.sendToTarget(msg, sessionID)
+        serialize_end_ns = self.monotonic_clock.now_ns()
+        try:
+            duration_ns = monotonic_duration_ns(
+                serialize_start_ns,
+                serialize_end_ns,
+                context=f"execution report {report.exec_id} serialization",
+            )
+        except ValueError:
+            self.metrics.record_invalid_latency(
+                metric="mockx_real_report_serialization_duration_seconds",
+                order_id=report.order_id,
+                session_id=report.session_id,
+            )
+        else:
+            try:
+                self.latency_tracker.record_real_report_serialization_duration(
+                    report,
+                    duration_ns,
+                )
+            except Exception:
+                logger.exception(
+                    "FIX serialization metric observer failed",
+                    extra={
+                        "order_id": report.order_id,
+                        "session_id": report.session_id,
+                        "report_type": type(report).__name__,
+                    },
+                )
 
-        # Record E2E latency now that the message is sent
-        self.latency_tracker.record_e2e_latency(report.order_id)
-        
-    def send_cancel_reject(
+        fix.Session.sendToTarget(msg, transport_session)
+
+    def _send_quickfix_cancel_reject(
         self,
-        sessionID,
+        transport_session: object,
         cancel_reject: CancelReject,
-    ):
-        """Send OrderCancelReject (35=9) message."""
+    ) -> None:
+        """Serialize and send one immutable OrderCancelReject."""
         fields = cancel_reject_fields(cancel_reject)
         reject = fix.Message()
         reject.getHeader().setField(fix.MsgType(fix.MsgType_OrderCancelReject))
@@ -439,9 +619,9 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         # Optional fields
         reject.setField(fix.CxlRejReason(int(fields["CxlRejReason"])))
         reject.setField(fix.Text(str(fields["Text"])))
-        
-        fix.Session.sendToTarget(reject, sessionID)
-        
+
+        fix.Session.sendToTarget(reject, transport_session)
+
     def send_market_data_reject(self, sessionID, md_req_id: str, text: str):
         """Send MarketDataRequestReject (35=Y) message."""
         reject = fix.Message()
@@ -461,29 +641,80 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         
         fix.Session.sendToTarget(reject, sessionID)
         
-    def process_execution_report(self, report: ExecutionReport):
-        """Process execution report from engine and send via FIX."""
-        session_obj = self.sessions.get(report.session_id) if report.session_id else None
+    def process_execution_report(self, report: ExecutionReport) -> bool:
+        """Deliver strictly to the immutable report destination."""
+        delivered = self._deliver_report(report)
+        if delivered:
+            try:
+                self.latency_tracker.report_delivered(
+                    report,
+                    self.engine.scheduler.current_time,
+                )
+            except Exception:
+                logger.exception(
+                    "Report delivery latency observer failed",
+                    extra={
+                        "order_id": report.order_id,
+                        "session_id": report.session_id,
+                        "report_type": type(report).__name__,
+                    },
+                )
+        return delivered
 
-        # Backward-compatible fallback for snapshots that predate session routing:
-        # route only when ClOrdID identifies exactly one known FIX session.
-        if session_obj is None and report.session_id is None:
-            matching_session_ids = {
-                session_id
-                for session_id, cl_ord_id in self.order_map
-                if cl_ord_id == report.cl_ord_id
-            }
-            if len(matching_session_ids) == 1:
-                session_obj = self.sessions.get(matching_session_ids.pop())
+    def process_cancel_reject(self, cancel_reject: CancelReject) -> bool:
+        """Deliver a cancel reject strictly to its immutable destination."""
+        return self._deliver_report(cancel_reject)
 
-        if session_obj:
-            self.send_execution_report(session_obj, report)
-        else:
+    def send_execution_report(self, report: ExecutionReport) -> bool:
+        """Compatibility alias for immutable execution-report delivery."""
+        return self.process_execution_report(report)
+
+    def send_cancel_reject(self, cancel_reject: CancelReject) -> bool:
+        """Compatibility alias for immutable cancel-reject delivery."""
+        return self.process_cancel_reject(cancel_reject)
+
+    def _deliver_report(self, report: RoutableReport) -> bool:
+        session_id = report_destination_id(report)
+        transport = (
+            self.session_registry.resolve_transport(session_id)
+            if session_id
+            else None
+        )
+        if transport is None:
+            self.metrics.record_report_delivery_failure(report)
             logger.warning(
-                "Session not found for order %s (session_id=%s)",
-                report.cl_ord_id,
-                report.session_id,
+                "FIX report destination is unknown or disconnected",
+                extra={
+                    "order_id": report.order_id,
+                    "session_id": session_id,
+                    "cl_ord_id": (
+                        report.cl_ord_id
+                        if isinstance(report, ExecutionReport)
+                        else report.cancel_cl_ord_id
+                    ),
+                    "report_type": type(report).__name__,
+                },
             )
+            return False
+        try:
+            self.transport_sender(transport, report)
+        except Exception:
+            self.metrics.record_report_delivery_failure(report)
+            logger.exception(
+                "FIX report delivery failed",
+                extra={
+                    "order_id": report.order_id,
+                    "session_id": session_id,
+                    "cl_ord_id": (
+                        report.cl_ord_id
+                        if isinstance(report, ExecutionReport)
+                        else report.cancel_cl_ord_id
+                    ),
+                    "report_type": type(report).__name__,
+                },
+            )
+            return False
+        return True
             
     def generate_exec_id(self) -> str:
         """Generate unique execution ID."""
@@ -509,6 +740,16 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         
         message.getField(field)
         return field.getValue()
+
+    @staticmethod
+    def _session_identity(sessionID) -> SessionIdentity:
+        """Convert a live QuickFIX SessionID to a domain-safe identity."""
+        return SessionIdentity(
+            session_id=sessionID.toString(),
+            sender_comp_id=sessionID.getSenderCompID().getValue(),
+            target_comp_id=sessionID.getTargetCompID().getValue(),
+            alias=sessionID.getTargetCompID().getValue(),
+        )
 
 class FIXGateway:
     """Manages FIX protocol connectivity."""
@@ -568,7 +809,7 @@ class FIXGateway:
             
     def process_execution_report(self, report: ExecutionReport):
         """Process execution report from scheduler."""
-        self.application.process_execution_report(report)
+        return self.application.process_execution_report(report)
 
     def get_session_setting(self, key: str) -> Optional[str]:
         """Get a specific setting value from the FIX session configuration."""

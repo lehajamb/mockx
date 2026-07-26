@@ -4,10 +4,11 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST
 from starlette.responses import Response
 from typing import Dict, List, Optional, Set
 import asyncio
+from contextlib import asynccontextmanager
 import json
 import logging
 import itertools
@@ -46,7 +47,19 @@ class ExchangeAPI:
         self.metrics = metrics
         self.config = config
         self.fix_app = fix_app
-        self.app = FastAPI(title="MockX Exchange API", version="1.0.0")
+
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            try:
+                yield
+            finally:
+                await self.metrics.close()
+
+        self.app = FastAPI(
+            title="MockX Exchange API",
+            version="1.0.0",
+            lifespan=lifespan,
+        )
         self.templates = Jinja2Templates(directory="templates")
         
         # WebSocket connections
@@ -118,13 +131,22 @@ class ExchangeAPI:
             
         @self.app.get("/stats")
         async def get_stats():
-            """Get exchange statistics."""
-            return {
-                "orders": self.metrics.get_orders_total(),
-                "trades": self.metrics.get_trades_total(),
-                "volume": self.metrics.get_volume_total(),
-                "run_id": self.metrics.tsdb_writer.run_id if self.metrics.tsdb_writer else None,
-            }
+            """Get a stable JSON-safe process metrics snapshot."""
+            return self.metrics.snapshot().to_dict(
+                run_id=self.metrics.run_id,
+            )
+
+        @self.app.get("/metrics")
+        async def get_prometheus_metrics():
+            """Expose this application instance's Prometheus registry."""
+            try:
+                payload = self.metrics.prometheus_payload()
+            except RuntimeError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            return Response(
+                content=payload,
+                media_type=CONTENT_TYPE_LATEST,
+            )
             
         @self.app.get("/ui/{symbol}", response_class=HTMLResponse)
         async def book_ui(symbol: str):
@@ -206,13 +228,19 @@ class ExchangeAPI:
             Starts a new session for a backtest run.
             This will first reset the entire exchange state to ensure a clean slate.
             """
-            # 1. Reset the state of the matching engine and FIX gateway.
+            if not await self.metrics.set_run_id_async(session.run_id):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Buffered metrics could not be flushed",
+                )
+
+            # Reset engine-owned state only after the previous run is flushed.
             logger.info("--- RESETTING EXCHANGE STATE FOR NEW SESSION ---")
             self.engine.reset()
-            self.fix_app.reset() # Assuming wiring change from previous plan
-
-            # 2. Set the new run_id for the TSDB writer.
-            self.metrics.set_run_id(session.run_id)
+            self.fix_app.reset()
+            self.fix_app.latency_tracker.reset()
+            self.metrics.start_new_engine_generation()
+            self.metrics.refresh_engine_gauges()
             
             logger.info(f"Session started with run_id: {session.run_id}")
             return {"status": "session_started_and_reset", "run_id": session.run_id}
@@ -222,10 +250,11 @@ class ExchangeAPI:
             """
             Ends the current session and flushes all buffered data.
             """
-            # 1. Flush all buffered data for the current run_id.
-            self.metrics.flush_tsdb()
-
-            # 2. Clear the run_id to stop tagging new data.
+            if not await self.metrics.flush():
+                raise HTTPException(
+                    status_code=503,
+                    detail="Buffered metrics could not be flushed",
+                )
             self.metrics.set_run_id(None)
             
             logger.info("Session ended and data flushed.")
@@ -292,7 +321,7 @@ class ExchangeAPI:
         for websocket in self.websocket_connections[update.symbol]:
             try:
                 await websocket.send_json(message)
-            except:
+            except Exception:
                 disconnected.append(websocket)
                 
         # Clean up disconnected clients

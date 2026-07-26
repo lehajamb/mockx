@@ -1,8 +1,9 @@
 """Deterministic latency scheduler for simulated trading."""
 
 import heapq
+import time
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Callable, Any, Optional
+from typing import Dict, List, Callable, Any, Optional, Protocol
 from dataclasses import dataclass
 import asyncio
 import logging
@@ -16,6 +17,35 @@ from .models import (
 
 
 logger = logging.getLogger(__name__)
+
+
+class MonotonicClock(Protocol):
+    """Clock used only for real elapsed-duration measurements."""
+
+    def now_ns(self) -> int:
+        ...
+
+
+class PerfCounterClock:
+    """Production monotonic clock backed by ``perf_counter_ns``."""
+
+    def now_ns(self) -> int:
+        return time.perf_counter_ns()
+
+
+def monotonic_duration_ns(
+    start_ns: int,
+    end_ns: int,
+    *,
+    context: str,
+) -> int:
+    """Return a validated monotonic duration without masking clock errors."""
+    if end_ns < start_ns:
+        raise ValueError(
+            f"Invalid monotonic timestamp order for {context}: "
+            f"start_ns={start_ns}, end_ns={end_ns}"
+        )
+    return end_ns - start_ns
 
 
 class LatencyScheduler:
@@ -63,12 +93,15 @@ class LatencyScheduler:
         engine_ms: int,
         *,
         session_alias: Optional[str] = None,
+        inbound_ms: Optional[int] = None,
     ) -> None:
         """Schedule order processing with network, engine, and session-specific latencies."""
         session_delay_ms = self.session_delays.get(session_alias or "", 0)
 
         # First, simulate network latency + session delay to reach the exchange
-        arrival_delay = (network_ms // 2) + session_delay_ms
+        arrival_delay = (
+            network_ms // 2 if inbound_ms is None else inbound_ms
+        ) + session_delay_ms
         self.schedule_event(
             "order_arrived",
             command,
@@ -86,12 +119,18 @@ class LatencyScheduler:
         if session_delay_ms > 0:
             logger.debug(f"Applied {session_delay_ms}ms session delay for {session_alias}")
 
-    def schedule_execution_report(self, report: ExecutionReport, network_ms: int) -> None:
+    def schedule_execution_report(
+        self,
+        report: ExecutionReport,
+        network_ms: int,
+        *,
+        outbound_ms: Optional[int] = None,
+    ) -> None:
         """Schedule delivery; equal-time reports retain engine insertion order."""
         self.schedule_event(
             "exec_report",
             report,
-            network_ms // 2  # Half of round-trip
+            network_ms // 2 if outbound_ms is None else outbound_ms,
         )
         
     async def process_events(self) -> None:

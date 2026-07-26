@@ -6,13 +6,18 @@ from typing import Dict, List, Optional
 from random import Random
 
 from .models import (
-    CancelReject, CancelRejectReason, ExecutionType, Fill, Order, OrderBook,
-    Trade, Side, OrderStatus, TimeInForce,
+    CancelReject, CancelRejectReason, ClientOrderKey, ExecutionType, Fill,
+    Order, OrderBook, Trade, Side, OrderStatus, TimeInForce,
     ExecutionParams, ExecutionReport, MarketDataUpdate, NewOrderCommand,
     ProcessOrderCommand, CancelOrderCommand, TERMINAL_ORDER_STATUSES,
     QUANTITY_EPSILON, create_cancel_reject, create_execution_report,
 )
-from .latency import LatencyScheduler
+from .latency import (
+    LatencyScheduler,
+    MonotonicClock,
+    PerfCounterClock,
+    monotonic_duration_ns,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +34,19 @@ class MatchingEngine:
     - Deterministic randomness via seeded PRNG
     """    
     
-    def __init__(self, exec_params: ExecutionParams, scheduler: LatencyScheduler):
+    def __init__(
+        self,
+        exec_params: ExecutionParams,
+        scheduler: LatencyScheduler,
+        monotonic_clock: Optional[MonotonicClock] = None,
+    ):
         """
         Initializes the engine with its dependencies.
         """
         # --- Dependencies (don't change on reset) ---
         self.exec_params = exec_params
         self.scheduler = scheduler
+        self.monotonic_clock = monotonic_clock or PerfCounterClock()
         self.rng = Random(exec_params.rand_seed)
         
         # Order books by symbol
@@ -43,7 +54,7 @@ class MatchingEngine:
         
         # Order tracking
         self.orders: Dict[int, Order] = {}
-        self.client_order_index: Dict[tuple[str, str], int] = {}
+        self.client_order_index: Dict[ClientOrderKey, int] = {}
         self.next_order_id = 1
         self.next_trade_id = 1
         self.next_exec_id = 1
@@ -52,6 +63,10 @@ class MatchingEngine:
         self.on_execution_report = None
         self.on_market_data_update = None
         self.on_trade = None
+        self.on_order_submitted = None
+        self.on_cancel_request = None
+        self.on_cancel_reject = None
+        self.on_matching_duration = None
         
     def reset(self):
         """
@@ -95,7 +110,10 @@ class MatchingEngine:
 
         client_key = None
         if command.session_id is not None:
-            client_key = (command.session_id, command.cl_ord_id)
+            client_key = ClientOrderKey(
+                session_id=command.session_id,
+                cl_ord_id=command.cl_ord_id,
+            )
             if client_key in self.client_order_index:
                 raise ValueError(
                     "Duplicate ClOrdID in FIX session: "
@@ -119,6 +137,13 @@ class MatchingEngine:
         if client_key is not None:
             self.client_order_index[client_key] = order.id
 
+        self._notify_observer(
+            "order submission",
+            self.on_order_submitted,
+            order.id,
+            command,
+        )
+
         process_command = ProcessOrderCommand(
             order_id=order.id,
             expected_version=order.version,
@@ -128,6 +153,7 @@ class MatchingEngine:
             self.exec_params.network_latency_ms,
             self.exec_params.engine_latency_ms,
             session_alias=order.session_alias,
+            inbound_ms=self.exec_params.simulated_inbound_latency_ms,
         )
 
         logger.debug(f"Order submitted: {order.cl_ord_id} ({order.side.value} {order.qty} @ {order.price})")
@@ -215,13 +241,40 @@ class MatchingEngine:
 
     def _process_market_order(self, order: Order, book: OrderBook) -> None:
         """Execute immediately; market orders never rest, regardless of TIF."""
-        self._match_aggressive_order(order, book)
+        self._run_matching(order, book)
         self._finalize_unfilled_remainder(order, book)
 
     def _process_limit_order(self, order: Order, book: OrderBook) -> None:
         """Match a limit order and apply its GTC/IOC remainder rule once."""
-        self._match_aggressive_order(order, book)
+        self._run_matching(order, book)
         self._finalize_unfilled_remainder(order, book)
+
+    def _run_matching(self, order: Order, book: OrderBook) -> List[Fill]:
+        """Measure only the real duration of the matching function."""
+        start_ns = self.monotonic_clock.now_ns()
+        fills = self._match_aggressive_order(order, book)
+        end_ns = self.monotonic_clock.now_ns()
+        try:
+            duration_ns = monotonic_duration_ns(
+                start_ns,
+                end_ns,
+                context=f"matching order {order.id}",
+            )
+        except ValueError:
+            logger.exception(
+                "Invalid real matching timestamps",
+                extra={"order_id": order.id, "session_id": order.session_id},
+            )
+        else:
+            self._notify_observer(
+                "matching duration",
+                self.on_matching_duration,
+                order.id,
+                order.session_id,
+                duration_ns,
+                self.scheduler.current_time,
+            )
+        return fills
 
     def _match_aggressive_order(
         self,
@@ -327,8 +380,11 @@ class MatchingEngine:
                     passive_order,
                     level_idx,
                 )
-                if self.on_trade:
-                    self.on_trade(trade)
+                self._notify_observer(
+                    "trade",
+                    self.on_trade,
+                    trade,
+                )
 
                 self._send_execution_report(
                     self._create_execution_report(
@@ -468,12 +524,16 @@ class MatchingEngine:
         
     def _send_execution_report(self, report: ExecutionReport) -> None:
         """Send execution report with network latency."""
-        if self.on_execution_report:
-            self.on_execution_report(report)
+        self._notify_observer(
+            "execution report",
+            self.on_execution_report,
+            report,
+        )
 
         self.scheduler.schedule_execution_report(
             report,
             self.exec_params.network_latency_ms,
+            outbound_ms=self.exec_params.simulated_outbound_latency_ms,
         )
             
     def _send_market_data_update(self, symbol: str) -> None:
@@ -491,9 +551,11 @@ class MatchingEngine:
             ask_levels=list(book.asks)
         )
         
-        if self.on_market_data_update:
-            # The timestamp is already in the update object
-            self.on_market_data_update(update)
+        self._notify_observer(
+            "market data",
+            self.on_market_data_update,
+            update,
+        )
             
     def get_order_book_snapshot(self, symbol: str) -> Optional[OrderBook]:
         """Get current order book snapshot."""
@@ -506,6 +568,12 @@ class MatchingEngine:
         """Cancel one live remainder or return an immutable rejection snapshot."""
         if not isinstance(command, CancelOrderCommand):
             raise TypeError("cancel_order requires CancelOrderCommand")
+
+        self._notify_observer(
+            "cancel request",
+            self.on_cancel_request,
+            command,
+        )
 
         order = self.orders.get(command.order_id)
         if order is None:
@@ -635,5 +703,42 @@ class MatchingEngine:
             timestamp=self.scheduler.current_time,
             order=order,
         )
+        self._notify_observer(
+            "cancel reject",
+            self.on_cancel_reject,
+            reject,
+        )
         logger.info("Cancel rejected: %s", reject.text)
         return reject
+
+    def active_order_count(self) -> int:
+        """Return active orders from authoritative lifecycle state."""
+        return sum(
+            order.status not in TERMINAL_ORDER_STATUSES
+            for order in self.orders.values()
+        )
+
+    def resting_order_count(self) -> int:
+        """Return the number of orders physically resting in all books."""
+        return sum(
+            len(level.orders)
+            for book in self.books.values()
+            for level in (*book.bids, *book.asks)
+        )
+
+    def order_book_level_count(self) -> int:
+        """Return the number of non-empty price levels in all books."""
+        return sum(
+            len(book.bids) + len(book.asks)
+            for book in self.books.values()
+        )
+
+    @staticmethod
+    def _notify_observer(name: str, callback, *args) -> None:
+        """Keep an observability failure outside authoritative engine state."""
+        if callback is None:
+            return
+        try:
+            callback(*args)
+        except Exception:
+            logger.exception("%s observer failed", name)

@@ -1,6 +1,6 @@
 # MockX - FIX-Speaking Mock Exchange with Time Control
 
-A Python-based mock exchange with FIX protocol support, deterministic latency simulation, time-series database integration, and full observability. This exchange simulates realistic trading conditions including network latency, slippage, partial fills, and order rejections. It features a unique time-control API that allows external systems (like backtesting engines) to control the exchange's clock for deterministic simulations.
+A Python-based mock exchange with FIX protocol support, deterministic latency simulation, optional time-series persistence, and process-local observability. This exchange simulates realistic trading conditions including network latency, partial fills, and order rejections. Its time-control API allows external systems such as backtesting engines to control the exchange clock for deterministic simulations.
 
 ## Features
 
@@ -14,7 +14,7 @@ A Python-based mock exchange with FIX protocol support, deterministic latency si
 - **REST API**: Real-time order book snapshots and statistics
 - **WebSocket Support**: Live market data streaming
 - **InfluxDB Integration**: Time-series data storage for metrics and analysis
-- **Prometheus Metrics**: Complete observability with pre-built Grafana dashboards
+- **Prometheus Metrics**: Per-process metrics on the admin API
 - **Multi-Exchange**: Run multiple exchanges with different configurations
 - **Docker Ready**: Fully containerized with docker-compose
 
@@ -44,8 +44,12 @@ python examples/submit_orders.py --host localhost --port 4001
 
 ### 4. View Metrics
 
-- Prometheus: http://localhost:9090
-- Grafana Dashboard: http://localhost:3000 (admin/admin)
+- MockX-1 Prometheus exposition: http://localhost:8001/metrics
+- MockX-2 Prometheus exposition: http://localhost:8002/metrics
+
+The Prometheus and Grafana services in `docker-compose.yml` are examples and
+remain commented out until a deployment supplies scrape and dashboard
+configuration.
 
 ## Project Structure
 
@@ -101,8 +105,10 @@ symbols:
   - ETH-USDT
   
 latency:
-  network_ms: 50      # Round-trip network latency
-  engine_ms: 10       # Engine processing latency
+  inbound_ms: 25      # Submit to engine-receive simulated delay
+  engine_ms: 10       # Engine receive to first-report simulated delay
+  outbound_ms: 25     # Report creation to delivery simulated delay
+  # network_ms: 50    # Legacy symmetric fallback: half in, half out
   
 execution:
   partial_fill_prob: 0.25   # Probability of partial fills (0-1)
@@ -113,7 +119,7 @@ admin_api:
   port: 8000          # REST API and WebSocket port
   
 prometheus:
-  port: 9100          # Metrics endpoint
+  enabled: true       # Exposed at /metrics on the admin API port
 
 # Optional TSDB configuration (can be overridden by environment variables)
 tsdb:
@@ -121,6 +127,7 @@ tsdb:
   token: "mockx-token"
   org: "mockx-org"
   bucket: "mockx"
+  batch_size: 1000
 ```
 
 ## API Endpoints
@@ -131,11 +138,55 @@ tsdb:
 - `GET /` - Exchange status
 - `GET /healthz` - Health check
 - `GET /readyz` - Readiness check
-- `GET /metrics` - Prometheus metrics
+- `GET /metrics` - Prometheus text exposition (`prometheus_client` required)
 - `GET /symbols` - List available symbols
 - `GET /book/{symbol}` - Order book snapshot
-- `GET /stats` - Trading statistics (includes current run_id)
+- `GET /stats` - Immutable JSON statistics snapshot (includes current run_id)
 - `GET /ui/{symbol}` - Order book web UI
+
+`GET /stats` returns this stable shape; empty averages are `null`:
+
+```json
+{
+  "generated_at": "2026-07-26T12:00:00+00:00",
+  "run_id": null,
+  "orders": {
+    "submitted": 3,
+    "accepted": 3,
+    "rejected": 0,
+    "canceled": 1,
+    "filled": 2,
+    "partial_fill_events": 0,
+    "cancel_requests": 1,
+    "cancel_rejects": 0,
+    "active": 0,
+    "resting": 0
+  },
+  "trades": {
+    "count": 1,
+    "quantity": 5.0,
+    "notional": 500.0,
+    "canceled_quantity": 3.0
+  },
+  "reports": {"created": 5, "delivery_failures": 0},
+  "sessions": {"connected": 1},
+  "book": {"levels": 0},
+  "latency": {
+    "average_real_matching_duration_us": 14.2,
+    "average_real_report_serialization_duration_us": 8.1,
+    "average_sim_inbound_latency_ms": 5.0,
+    "average_sim_engine_latency_ms": 3.0,
+    "average_sim_outbound_latency_ms": 7.0,
+    "average_sim_end_to_end_latency_ms": 15.0,
+    "invalid_measurements": 0
+  },
+  "persistence": {"failures": 0, "buffered_records": 0}
+}
+```
+
+Snapshot reads do not reset counters. Active orders, resting orders, and book
+levels are derived from the current engine and order books rather than report
+delivery state.
 
 #### Session Management (for Backtesting)
 - `POST /api/v1/session/start` - Start a new session with a run_id
@@ -167,17 +218,84 @@ tsdb:
 The heart of the deterministic simulation. The scheduler:
 - Maintains an event queue sorted by timestamp
 - Can be controlled externally via the time control API
-- Processes FIX order arrivals with configured network latency
-- Schedules engine processing with configured engine latency
+- Processes FIX order arrivals with configured simulated inbound latency
+- Schedules engine processing with configured simulated engine latency
+- Schedules report delivery with configured simulated outbound latency
 - Ensures deterministic order of events
 
+#### Latency definitions
+
+Simulated timestamps always come from `LatencyScheduler`. Real code durations
+always come from the injected monotonic `perf_counter_ns` clock. The two clocks
+are never subtracted from one another.
+
+| Metric | Exact interval | Published unit |
+| --- | --- | --- |
+| `mockx_sim_inbound_latency_seconds` | simulated engine receive minus simulated client submit | seconds |
+| `mockx_sim_engine_latency_seconds` | simulated first report creation minus simulated engine receive | seconds |
+| `mockx_sim_outbound_latency_seconds` | simulated report delivery minus that report's creation | seconds |
+| `mockx_sim_end_to_end_latency_seconds` | simulated report delivery minus simulated client submit | seconds |
+| `mockx_real_matching_duration_seconds` | monotonic end minus start of `_match_aggressive_order` | seconds |
+| `mockx_real_report_serialization_duration_seconds` | monotonic end minus start of FIX execution-report serialization | seconds |
+
+Inbound includes any configured session delay. Outbound and end-to-end samples
+exist only for successfully delivered reports. Impossible timestamp ordering is
+logged and counted; it is never converted with `abs()`. `/stats` converts the
+same samples to milliseconds or microseconds only in explicitly named fields.
+
 ### TSDB Writer (`tsdb_writer.py`)
-Writes all exchange events to InfluxDB:
+The optional InfluxDB adapter writes eligible metric event records:
 - Order events (new, filled, cancelled, rejected)
 - Trade executions
 - Market data updates
 - System metrics
 - All data is tagged with run_id for session tracking
+
+`BufferedMetricsWriter` flushes when `tsdb.batch_size` is reached, on explicit
+session end, on application shutdown, on `close()`, and on async context-manager
+exit. A batch is removed from memory only after the sink acknowledges its
+write. On failure it is restored ahead of records produced during the failed
+write, the failure is logged and counted, and a later `flush()` retries it.
+Concurrent flushes are serialized, empty flushes are safe, and successful
+repeated closes are idempotent. If a final shutdown write fails, `close()`
+returns failure and leaves the writer open and buffered for an explicit retry;
+MockX does not claim durable offline delivery.
+
+InfluxDB uses synchronous acknowledgements behind an async thread boundary so a
+successful buffer flush has a defined persistence result. Metric persistence
+failures do not roll back trades or book mutations.
+
+### Metric ownership and Prometheus
+
+Metrics are updated from immutable command, trade, report, or rejection
+snapshots at one lifecycle point:
+
+| Metric | Owning event |
+| --- | --- |
+| `mockx_orders_submitted_total` | engine accepts ownership of a new command |
+| `mockx_orders_accepted_total` | first non-rejection report for a unique order |
+| `mockx_orders_rejected_total` | rejection report creation |
+| `mockx_orders_canceled_total`, `mockx_canceled_quantity_total` | terminal cancellation report creation |
+| `mockx_orders_filled_total` | first terminal filled report for a unique order |
+| `mockx_partial_fill_events_total` | each order-specific `PARTIAL` trade report |
+| `mockx_cancel_requests_total` | engine receives a cancel command |
+| `mockx_cancel_rejects_total` | immutable cancel reject creation |
+| `mockx_trades_total`, `mockx_traded_quantity_total`, `mockx_traded_notional_total` | one immutable trade record per fill |
+| `mockx_execution_reports_total` | each order-specific report creation |
+| `mockx_execution_report_delivery_failures_total` | a report destination is absent or its transport send fails |
+
+One fill therefore increments `mockx_trades_total` once and
+`mockx_execution_reports_total` twice. The two order-specific reports never
+double-count quantity or notional, and an IOC/market canceled remainder is not
+trade volume.
+
+The application owns a separate Prometheus `CollectorRegistry`, so repeated app
+creation in tests cannot duplicate globally registered time series. `/metrics`
+exposes the counters above with the `mockx_` prefix; gauges are
+`mockx_active_orders`, `mockx_resting_orders`, `mockx_connected_sessions`, and
+`mockx_order_book_levels`. The six latency metrics in the preceding table are
+histograms. Labels are bounded business dimensions only; raw session IDs,
+order IDs, `ClOrdID`, trade IDs, and exception text are not Prometheus labels.
 
 ### Matching Engine (`engine.py`)
 - Price-time priority matching
@@ -222,7 +340,12 @@ Report snapshots enforce
 client-requested cancellations have zero `LeavesQty`; their unexecuted
 remainder is retained as `CanceledQty`.
 
-Cancel requests resolve `OrigClOrdID` within the requesting FIX session.
+`ClOrdID` is unique within a stable FIX session, not process-wide. MockX allows
+different sessions to use the same value. Reuse within one session is rejected
+for the lifetime of the current engine generation, including after terminal
+completion; the explicit backtest-session reset starts a new generation.
+Cancel requests resolve `OrigClOrdID` with the immutable
+`(session_id, ClOrdID)` key.
 Pending-new and resting orders with a live remainder can be canceled. A
 successful cancellation removes only the live remainder, preserves prior
 fills and average price, uses the cancel request ID as `ClOrdID`, and uses the
@@ -234,8 +357,24 @@ mutate the book twice.
 ### FIX Gateway (`gateway.py`)
 - QuickFIX-based implementation
 - Handles NewOrderSingle and OrderCancelRequest
-- Sends ExecutionReports back to clients
+- Converts QuickFIX `SessionID` at the adapter boundary into an immutable,
+  serializable `SessionIdentity`
+- Routes ExecutionReports and OrderCancelRejects only by the report snapshot's
+  stable `session_id`
 - Thread-safe integration with async event loop
+
+QuickFIX objects live only in the gateway's locked `SessionRegistry`. Reconnect
+registration atomically replaces the transport for the same stable session ID.
+Aliases are display/low-cardinality metric metadata and are never routing keys;
+two sessions may use the same alias.
+
+If a report's stable destination is disconnected or unknown, MockX logs the
+report context, increments
+`mockx_execution_report_delivery_failures_total`, and drops that delivery
+attempt. It does not mutate or regenerate the report, change the order, queue
+offline delivery, or fall back to another session. A delayed report retains its
+original stable destination and will use the replacement transport if that
+session has reconnected before delivery.
 
 ## FIX Connection
 
@@ -331,6 +470,11 @@ python -m mockx.cli --config configs/mockx1.yml --fix-config configs/mockx1.cfg
 
 `FIXApplication` callbacks may run on background threads created by QuickFIX. The matching engine and latency scheduler operate on the main asyncio event loop and should not be accessed directly from other threads. Use `asyncio.get_event_loop().call_soon_threadsafe` to schedule engine or scheduler operations from these callbacks.
 
+The session registry, metric counters/snapshots, and persistence buffer each
+have isolated locks. No registry or buffer lock is held while calling QuickFIX,
+the matching engine, or an external sink. Engine state remains single-threaded
+on the asyncio loop, avoiding an engine/metrics/session lock-order dependency.
+
 ## Integration with Backtesting
 
 MockX is designed to work seamlessly with backtesting frameworks:
@@ -338,7 +482,8 @@ MockX is designed to work seamlessly with backtesting frameworks:
 1. **Session Management**: Start a session with a unique run_id before backtesting
 2. **Time Control**: The backtester controls the exchange's clock via the advance-time API
 3. **Deterministic Execution**: All events are processed in exact time order
-4. **Data Persistence**: All events are written to InfluxDB tagged with the run_id
+4. **Data Persistence**: Eligible metric records are buffered for InfluxDB and
+   tagged with the run_id when that optional sink is configured
 
 Example backtesting flow:
 ```python
@@ -392,7 +537,7 @@ docker compose restart mockx1
 - Adjust `latency` values in config for faster/slower simulation
 - Modify `execution.random_seed` for different deterministic scenarios
 - Scale horizontally by adding more exchange instances in docker-compose.yml
-- Batch TSDB writes by adjusting batch_size in tsdb_writer
+- Batch TSDB writes with `tsdb.batch_size` in the YAML configuration
 
 ## License
 

@@ -3,11 +3,10 @@
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, FrozenSet, Mapping, Tuple, Union
+from typing import Any, Optional, List, Dict, FrozenSet, Mapping, Tuple, Union
 from enum import Enum
 from types import MappingProxyType
 import math
-import time
 
 
 class Side(Enum):
@@ -130,6 +129,39 @@ class LiquidityCategory(Enum):
 
 
 STRATEGY_SESSION_ALIAS = "strategy_bot"
+
+
+@dataclass(frozen=True, slots=True)
+class SessionIdentity:
+    """Serializable identity for one FIX session.
+
+    Transport-specific objects are deliberately excluded.  The stable
+    ``session_id`` is the only routing key; component IDs and aliases are
+    descriptive metadata.
+    """
+
+    session_id: str
+    sender_comp_id: Optional[str] = None
+    target_comp_id: Optional[str] = None
+    alias: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if not self.session_id:
+            raise ValueError("Session identity requires a stable session_id")
+
+
+@dataclass(frozen=True, slots=True)
+class ClientOrderKey:
+    """A client order identifier scoped to its owning FIX session."""
+
+    session_id: str
+    cl_ord_id: str
+
+    def __post_init__(self) -> None:
+        if not self.session_id:
+            raise ValueError("ClientOrderKey requires session_id")
+        if not self.cl_ord_id:
+            raise ValueError("ClientOrderKey requires ClOrdID")
 
 
 def liquidity_category_for_session(
@@ -395,6 +427,30 @@ class ExecutionParams:
     partial_fill_prob: float  # 0..1
     reject_prob: float  # 0..1
     rand_seed: int  # For deterministic replay
+    inbound_network_latency_ms: Optional[int] = None
+    outbound_network_latency_ms: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        delays = (
+            self.network_latency_ms,
+            self.engine_latency_ms,
+            self.inbound_network_latency_ms,
+            self.outbound_network_latency_ms,
+        )
+        if any(value is not None and value < 0 for value in delays):
+            raise ValueError("Configured latencies cannot be negative")
+
+    @property
+    def simulated_inbound_latency_ms(self) -> int:
+        if self.inbound_network_latency_ms is not None:
+            return self.inbound_network_latency_ms
+        return self.network_latency_ms // 2
+
+    @property
+    def simulated_outbound_latency_ms(self) -> int:
+        if self.outbound_network_latency_ms is not None:
+            return self.outbound_network_latency_ms
+        return self.network_latency_ms // 2
 
 @dataclass(frozen=True, slots=True)
 class Fill:
@@ -438,8 +494,8 @@ class Trade:
     seller_order_id: int
     timestamp: datetime
     level: int
-    buyer_session_alias: str
-    seller_session_alias: str
+    buyer_session_alias: Optional[str]
+    seller_session_alias: Optional[str]
     aggressor_order_id: int
     passive_order_id: int
     aggressor_side: Side
@@ -1329,20 +1385,126 @@ class ScheduledEvent:
         """Order events by timestamp, preserving scheduling order for ties."""
         return (self.timestamp, self.sequence) < (other.timestamp, other.sequence)
     
-@dataclass(frozen=True, slots=True)
-class DualTimestamp:
-    """Captures both simulated and wall-clock time."""
-    simulated: datetime
-    real: float = field(default_factory=time.perf_counter)
-
 @dataclass(slots=True)
-class OrderTimingData:
-    """Complete timing information for an order."""
-    submitted: Optional[DualTimestamp] = None
-    arrived: Optional[DualTimestamp] = None
-    processing_start: Optional[DualTimestamp] = None
-    processing_end: Optional[DualTimestamp] = None
-    response_sent: Optional[DualTimestamp] = None
+class OrderLatencyTrace:
+    """Latency tracker-owned mutable state for one accepted order."""
+
+    order_id: int
+    session_id: Optional[str]
+    sim_submitted_at: datetime
+    sim_received_at: Optional[datetime] = None
+    sim_processed_at: Optional[datetime] = None
+    sim_report_created_at: Optional[datetime] = None
+    sim_report_delivered_at: Optional[datetime] = None
+    real_matching_duration_ns: Optional[int] = None
+
+
+@dataclass(frozen=True, slots=True)
+class LatencyMeasurement:
+    """Immutable latency sample emitted at a well-defined clock boundary."""
+
+    order_id: int
+    session_id: Optional[str]
+    metric: str
+    value: float
+    unit: str
+    timestamp: datetime
+    report_exec_id: Optional[str] = None
+
+
+@dataclass(frozen=True, slots=True)
+class MetricsSnapshot:
+    """Immutable process-local observability snapshot used by ``/stats``."""
+
+    generated_at: datetime
+    orders_submitted: int
+    orders_accepted: int
+    orders_rejected: int
+    orders_canceled: int
+    orders_filled: int
+    partial_fill_events: int
+    cancel_requests: int
+    cancel_rejects: int
+    execution_reports: int
+    trades: int
+    traded_quantity: float
+    traded_notional: float
+    canceled_quantity: float
+    active_orders: int
+    resting_orders: int
+    order_book_levels: int
+    connected_sessions: int
+    average_real_matching_duration_us: Optional[float]
+    average_real_report_serialization_duration_us: Optional[float]
+    average_sim_inbound_latency_ms: Optional[float]
+    average_sim_engine_latency_ms: Optional[float]
+    average_sim_outbound_latency_ms: Optional[float]
+    average_sim_end_to_end_latency_ms: Optional[float]
+    report_delivery_failures: int
+    invalid_latency_measurements: int
+    metric_sink_failures: int
+    buffered_metric_records: int
+
+    def to_dict(self, *, run_id: Optional[str] = None) -> Dict[str, object]:
+        """Return the stable, JSON-safe public ``/stats`` representation."""
+        return {
+            "generated_at": self.generated_at.isoformat(),
+            "run_id": run_id,
+            "orders": {
+                "submitted": self.orders_submitted,
+                "accepted": self.orders_accepted,
+                "rejected": self.orders_rejected,
+                "canceled": self.orders_canceled,
+                "filled": self.orders_filled,
+                "partial_fill_events": self.partial_fill_events,
+                "cancel_requests": self.cancel_requests,
+                "cancel_rejects": self.cancel_rejects,
+                "active": self.active_orders,
+                "resting": self.resting_orders,
+            },
+            "trades": {
+                "count": self.trades,
+                "quantity": self.traded_quantity,
+                "notional": self.traded_notional,
+                "canceled_quantity": self.canceled_quantity,
+            },
+            "reports": {
+                "created": self.execution_reports,
+                "delivery_failures": self.report_delivery_failures,
+            },
+            "sessions": {
+                "connected": self.connected_sessions,
+            },
+            "book": {
+                "levels": self.order_book_levels,
+            },
+            "latency": {
+                "average_real_matching_duration_us": (
+                    self.average_real_matching_duration_us
+                ),
+                "average_real_report_serialization_duration_us": (
+                    self.average_real_report_serialization_duration_us
+                ),
+                "average_sim_inbound_latency_ms": (
+                    self.average_sim_inbound_latency_ms
+                ),
+                "average_sim_engine_latency_ms": (
+                    self.average_sim_engine_latency_ms
+                ),
+                "average_sim_outbound_latency_ms": (
+                    self.average_sim_outbound_latency_ms
+                ),
+                "average_sim_end_to_end_latency_ms": (
+                    self.average_sim_end_to_end_latency_ms
+                ),
+                "invalid_measurements": self.invalid_latency_measurements,
+            },
+            "persistence": {
+                "failures": self.metric_sink_failures,
+                "buffered_records": self.buffered_metric_records,
+            },
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class ExchangeConfig:
@@ -1351,6 +1513,7 @@ class ExchangeConfig:
     symbols: List[str]
     latency: Dict[str, int]
     execution: Dict[str, float]
-    fix: Dict[str, any]
+    fix: Dict[str, Any]
     admin_api: Dict[str, int]
-    prometheus: Dict[str, int]
+    prometheus: Dict[str, Any]
+    tsdb: Optional[Dict[str, Any]] = None
