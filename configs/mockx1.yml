@@ -6,19 +6,33 @@ latency:
   network_ms: 0
   engine_ms: 1
   session_delays:
-    liquidity_bot: 1_000      # 0.1 seconds - goes first to establish liquidity
-    strategy_bot: 5_000       # 0.5 seconds - reacts to established liquidity
-    taker_bot: 10_000         # 1.0 seconds - random traders
-    noise_bot: 10_000         # 1.0 seconds - random traders
+    liquidity_bot: 1_000      # 1 second - establishes liquidity first
+    strategy_bot: 5_000       # 5 seconds - reacts to established liquidity
+    taker_bot: 10_000         # 10 seconds - random traders
+    noise_bot: 10_000         # 10 seconds - random traders
 execution:
   partial_fill_prob: 0.0
   reject_prob: 0.0
   random_seed: 42
 admin_api:
+  host: "0.0.0.0"
   port: 8000
+  enabled: true
+fix:
+  enabled: true
+scheduler:
+  mode: "external"
+  interval_ms: 10
+  max_advance_ms: 86400000
+websocket:
+  heartbeat_interval_seconds: 10
+  market_data_stale_seconds: 30
+  fallback_poll_seconds: 2
+cors_origins: []
 prometheus:
   enabled: true
 tsdb:
+  enabled: true
   url: "http://influxdb:8086"
   token: "mockx-token"
   org: "mockx-org"

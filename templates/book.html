@@ -193,9 +193,34 @@
     
     <script>
         const symbol = "{{ symbol }}";
-        const wsPort = {{ ws_port }};
-        let ws = null;
-        let reconnectInterval = null;
+        const MARKET_DATA_STALE_MS = 5000;
+        const HEARTBEAT_STALE_MS = 15000;
+        const FALLBACK_POLL_MS = 2000;
+        const MAX_RECONNECT_MS = 30000;
+        const state = {
+            socket: null,
+            lastHeartbeatAt: 0,
+            lastMarketDataAt: 0,
+            lastSequence: null,
+            fallbackTimer: null,
+            reconnectTimer: null,
+            reconnectAttempt: 0
+        };
+
+        function buildWebSocketUrl(locationValue, symbolValue) {
+            const wsScheme =
+                locationValue.protocol === "https:" ? "wss" : "ws";
+            return `${wsScheme}://${locationValue.host}` +
+                `/ws/${encodeURIComponent(symbolValue)}`;
+        }
+
+        function shouldUseHttpFallback(now) {
+            const socketOpen = state.socket &&
+                state.socket.readyState === WebSocket.OPEN;
+            const marketDataFresh = state.lastMarketDataAt > 0 &&
+                now - state.lastMarketDataAt <= MARKET_DATA_STALE_MS;
+            return !socketOpen || !marketDataFresh;
+        }
         
         function updateBook(data) {
             // Update bids
@@ -207,7 +232,7 @@
                 row.innerHTML = `
                     <td>${bid.price.toFixed(2)}</td>
                     <td>${bid.qty.toFixed(4)}</td>
-                    <td>${bid.orders || ''}</td>
+                    <td>${bid.order_count ?? bid.orders ?? ''}</td>
                 `;
                 bidsBody.appendChild(row);
             });
@@ -221,7 +246,7 @@
                 row.innerHTML = `
                     <td>${ask.price.toFixed(2)}</td>
                     <td>${ask.qty.toFixed(4)}</td>
-                    <td>${ask.orders || ''}</td>
+                    <td>${ask.order_count ?? ask.orders ?? ''}</td>
                 `;
                 asksBody.appendChild(row);
             });
@@ -240,66 +265,155 @@
             }
             
             // Update timestamp
-            document.getElementById('timestamp').textContent = 
-                `Last Update: ${new Date().toLocaleTimeString()}`;
+            document.getElementById('timestamp').textContent =
+                `Last Update: ${data.timestamp} · Sequence ${data.sequence}`;
         }
-        
-        function connect() {
-            const wsUrl = `ws://localhost:${wsPort}/ws/${symbol}`;
-            ws = new WebSocket(wsUrl);
-            
-            ws.onopen = function() {
-                console.log('WebSocket connected');
-                document.getElementById('connection-status').className = 'connection-status connected';
-                document.getElementById('connection-status').textContent = 'Connected';
-                
-                if (reconnectInterval) {
-                    clearInterval(reconnectInterval);
-                    reconnectInterval = null;
-                }
-            };
-            
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                
-                if (data.type === 'snapshot' || data.type === 'update') {
-                    updateBook(data);
-                } else if (data.type === 'heartbeat') {
-                    console.log('Heartbeat received');
-                }
-            };
-            
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-            };
-            
-            ws.onclose = function() {
-                console.log('WebSocket disconnected');
-                document.getElementById('connection-status').className = 'connection-status disconnected';
-                document.getElementById('connection-status').textContent = 'Disconnected';
-                
-                // Reconnect after 5 seconds
-                if (!reconnectInterval) {
-                    reconnectInterval = setInterval(connect, 5000);
-                }
-            };
+
+        function updateConnectionStatus(text, connected) {
+            const element = document.getElementById('connection-status');
+            element.className =
+                `connection-status ${connected ? 'connected' : 'disconnected'}`;
+            element.textContent = text;
         }
-        
-        // Connect on page load
-        connect();
-        
-        // Also refresh via HTTP every 2 seconds as fallback
-        setInterval(async function() {
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                try {
-                    const response = await fetch(`/book/${symbol}`);
-                    const data = await response.json();
+
+        async function refreshFromRest() {
+            try {
+                const response = await fetch(
+                    `/book/${encodeURIComponent(symbol)}`
+                );
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                if (
+                    state.lastSequence === null ||
+                    data.sequence >= state.lastSequence
+                ) {
+                    state.lastSequence = data.sequence;
                     updateBook(data);
-                } catch (error) {
-                    console.error('Failed to fetch book:', error);
+                }
+            } catch (error) {
+                console.error('Failed to fetch book:', error);
+            }
+        }
+
+        function enableFallback() {
+            if (state.fallbackTimer !== null) {
+                return;
+            }
+            updateConnectionStatus('HTTP fallback', false);
+            refreshFromRest();
+            state.fallbackTimer = window.setInterval(
+                refreshFromRest,
+                FALLBACK_POLL_MS
+            );
+        }
+
+        function disableFallback() {
+            if (state.fallbackTimer !== null) {
+                window.clearInterval(state.fallbackTimer);
+                state.fallbackTimer = null;
+            }
+            updateConnectionStatus('Live', true);
+        }
+
+        async function handleMarketData(data) {
+            if (state.lastSequence !== null) {
+                if (data.sequence <= state.lastSequence) {
+                    return;
+                }
+                if (data.sequence > state.lastSequence + 1) {
+                    await refreshFromRest();
+                    return;
                 }
             }
-        }, 2000);
+            state.lastSequence = data.sequence;
+            state.lastMarketDataAt = Date.now();
+            disableFallback();
+            updateBook(data);
+        }
+
+        function scheduleReconnect() {
+            if (state.reconnectTimer !== null) {
+                return;
+            }
+            const delay = Math.min(
+                1000 * (2 ** state.reconnectAttempt),
+                MAX_RECONNECT_MS
+            );
+            state.reconnectAttempt += 1;
+            state.reconnectTimer = window.setTimeout(() => {
+                state.reconnectTimer = null;
+                connect();
+            }, delay);
+        }
+
+        function connect() {
+            if (state.socket) {
+                state.socket.onopen = null;
+                state.socket.onmessage = null;
+                state.socket.onerror = null;
+                state.socket.onclose = null;
+                state.socket.close();
+            }
+
+            const socket = new WebSocket(
+                buildWebSocketUrl(window.location, symbol)
+            );
+            state.socket = socket;
+
+            socket.onopen = function() {
+                state.reconnectAttempt = 0;
+                state.lastHeartbeatAt = Date.now();
+                // The server's first message is an authoritative current
+                // snapshot, so a prior connection's sequence is no longer
+                // needed for gap detection.
+                state.lastSequence = null;
+                updateConnectionStatus('Connected, awaiting data', true);
+            };
+
+            socket.onmessage = async function(event) {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'market_data') {
+                    await handleMarketData(data);
+                } else if (data.type === 'heartbeat') {
+                    state.lastHeartbeatAt = Date.now();
+                } else if (data.type === 'error') {
+                    console.error(`${data.code}: ${data.message}`);
+                }
+            };
+
+            socket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+
+            socket.onclose = function() {
+                if (state.socket === socket) {
+                    state.socket = null;
+                }
+                enableFallback();
+                scheduleReconnect();
+            };
+        }
+
+        function checkStaleness() {
+            const now = Date.now();
+            if (shouldUseHttpFallback(now)) {
+                enableFallback();
+            }
+            if (
+                state.socket &&
+                state.socket.readyState === WebSocket.OPEN &&
+                state.lastHeartbeatAt > 0 &&
+                now - state.lastHeartbeatAt > HEARTBEAT_STALE_MS
+            ) {
+                state.socket.close();
+            }
+        }
+
+        connect();
+        window.setInterval(checkStaleness, 1000);
     </script>
 </body>
 </html>

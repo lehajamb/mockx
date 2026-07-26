@@ -2,7 +2,7 @@
 
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional, List, Dict, FrozenSet, Mapping, Tuple, Union
 from enum import Enum
 from types import MappingProxyType
@@ -1124,13 +1124,106 @@ class OrderBook:
         # be invalid for the current matching semantics.
 
 @dataclass(frozen=True, slots=True)
-class MarketDataUpdate:
-    """Market data update event."""
-    symbol: str
+class PriceLevelSnapshot:
+    """Immutable public view of one non-empty order-book price level."""
+
+    price: float
+    qty: float
+    strategy_qty: float
+    market_qty: float
+    order_count: int
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.price) or self.price <= 0.0:
+            raise ValueError("Snapshot price must be positive and finite")
+        for name, value in (
+            ("qty", self.qty),
+            ("strategy_qty", self.strategy_qty),
+            ("market_qty", self.market_qty),
+        ):
+            if not math.isfinite(value) or value < 0.0:
+                raise ValueError(
+                    f"Snapshot {name} must be non-negative and finite"
+                )
+        if self.qty <= QUANTITY_EPSILON:
+            raise ValueError("Empty price levels cannot be published")
+        if not _quantities_equal(
+            self.qty,
+            self.strategy_qty + self.market_qty,
+        ):
+            raise ValueError(
+                "Snapshot category quantities must sum to total quantity"
+            )
+        if self.order_count <= 0:
+            raise ValueError("Snapshot order_count must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class TradeSnapshot:
+    """Immutable trade payload published exactly with its committed action."""
+
+    trade_id: str
+    price: float
+    qty: float
+    aggressor_side: Side
     timestamp: datetime
-    bid_levels: List[BookLevel]
-    ask_levels: List[BookLevel]
-    trades: List[Trade] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.trade_id:
+            raise ValueError("Trade snapshot requires a trade_id")
+        if not math.isfinite(self.price) or self.price <= 0.0:
+            raise ValueError("Trade snapshot price must be positive and finite")
+        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
+            raise ValueError("Trade snapshot quantity must be positive and finite")
+        if self.timestamp.tzinfo is None:
+            raise ValueError("Trade snapshot timestamp must be timezone-aware")
+        if self.timestamp.utcoffset() != timedelta(0):
+            raise ValueError("Trade snapshot timestamp must be UTC")
+
+
+@dataclass(frozen=True, slots=True)
+class MarketDataSnapshot:
+    """Immutable, globally sequenced view of committed exchange state."""
+
+    symbol: str
+    sequence: int
+    timestamp: datetime
+    bids: Tuple[PriceLevelSnapshot, ...]
+    asks: Tuple[PriceLevelSnapshot, ...]
+    trades: Tuple[TradeSnapshot, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.symbol:
+            raise ValueError("Market-data snapshot requires a symbol")
+        if self.sequence < 0:
+            raise ValueError("Market-data sequence cannot be negative")
+        if self.timestamp.tzinfo is None:
+            raise ValueError(
+                "Market-data snapshot timestamp must be timezone-aware"
+            )
+        if self.timestamp.utcoffset() != timedelta(0):
+            raise ValueError("Market-data snapshot timestamp must be UTC")
+        bid_prices = tuple(level.price for level in self.bids)
+        ask_prices = tuple(level.price for level in self.asks)
+        if bid_prices != tuple(sorted(bid_prices, reverse=True)):
+            raise ValueError("Snapshot bids must be sorted best to worst")
+        if ask_prices != tuple(sorted(ask_prices)):
+            raise ValueError("Snapshot asks must be sorted best to worst")
+
+    @property
+    def bid_levels(self) -> Tuple[PriceLevelSnapshot, ...]:
+        """Compatibility name for pre-remediation metrics integrations."""
+        return self.bids
+
+    @property
+    def ask_levels(self) -> Tuple[PriceLevelSnapshot, ...]:
+        """Compatibility name for pre-remediation metrics integrations."""
+        return self.asks
+
+
+# Compatibility alias retained for integrations that imported the old name.
+# The aliased model is now a deeply immutable snapshot, not a live-book event.
+MarketDataUpdate = MarketDataSnapshot
 
 @dataclass(frozen=True, slots=True)
 class ExecutionReport:

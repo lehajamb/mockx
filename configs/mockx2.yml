@@ -10,6 +10,26 @@ execution:
   reject_prob: 0.02
   random_seed: 84
 admin_api:
+  host: "0.0.0.0"
   port: 8000
+  enabled: true
+fix:
+  enabled: true
+scheduler:
+  mode: "external"
+  interval_ms: 10
+  max_advance_ms: 86400000
+websocket:
+  heartbeat_interval_seconds: 10
+  market_data_stale_seconds: 30
+  fallback_poll_seconds: 2
+cors_origins: []
 prometheus:
   enabled: true
+tsdb:
+  enabled: true
+  url: "http://influxdb:8086"
+  token: "mockx-token"
+  org: "mockx-org"
+  bucket: "mockx"
+  batch_size: 1000

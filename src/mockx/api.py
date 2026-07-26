@@ -1,335 +1,887 @@
-"""REST API and WebSocket endpoints for the mock exchange."""
+"""Typed REST API and reliable WebSocket delivery for MockX."""
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from prometheus_client import CONTENT_TYPE_LATEST
-from starlette.responses import Response
-from typing import Dict, List, Optional, Set
+from __future__ import annotations
+
 import asyncio
 from contextlib import asynccontextmanager
-import json
+from datetime import datetime, timedelta, timezone
 import logging
-import itertools
-from datetime import datetime, timezone
-from decimal import Decimal
-import time
+from pathlib import Path
+from typing import Any, Dict, Literal, Optional
 
-from .models import OrderBook, MarketDataUpdate
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from prometheus_client import CONTENT_TYPE_LATEST
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
+from starlette.responses import Response
+
 from .engine import MatchingEngine
-from .metrics import MetricsCollector
 from .gateway import FIXApplication
-from pydantic import BaseModel
+from .metrics import MetricsCollector
+from .models import MarketDataSnapshot
 
 
 logger = logging.getLogger(__name__)
 
 
-class DecimalEncoder(json.JSONEncoder):
-    """JSON encoder that handles Decimal values."""
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return super().default(obj)
+class ErrorDetail(BaseModel):
+    code: str
+    message: str
 
-class SessionBody(BaseModel):
-    run_id: str
 
-class TimeSyncBody(BaseModel):
+class ErrorResponse(BaseModel):
+    detail: ErrorDetail
+
+
+class RootResponse(BaseModel):
+    exchange: str
+    status: str
+
+
+class HealthResponse(BaseModel):
+    status: Literal["healthy"]
+
+
+class ReadinessResponse(BaseModel):
+    status: Literal["ready", "degraded", "not_ready"]
+    components: Dict[str, str]
+
+
+class SymbolsResponse(BaseModel):
+    symbols: list[str]
+
+
+class PriceLevelResponse(BaseModel):
+    price: float = Field(description="Price for this level")
+    qty: float = Field(description="Total remaining quantity at this price")
+    strategy_qty: float = Field(
+        description="Quantity attributed to the strategy session category"
+    )
+    market_qty: float = Field(
+        description="Quantity attributed to all other session categories"
+    )
+    order_count: int = Field(
+        description="Number of live FIFO orders at this price"
+    )
+
+
+class TradeResponse(BaseModel):
+    trade_id: str
+    price: float
+    qty: float
+    aggressor_side: Literal["BUY", "SELL"]
     timestamp: datetime
 
+
+class BookSnapshotResponse(BaseModel):
+    symbol: str
+    sequence: int = Field(
+        description="Global per-exchange market-data sequence"
+    )
+    timestamp: datetime = Field(description="Timezone-aware simulated UTC")
+    bids: list[PriceLevelResponse]
+    asks: list[PriceLevelResponse]
+
+
+class MarketDataMessage(BookSnapshotResponse):
+    type: Literal["market_data"] = "market_data"
+    trades: list[TradeResponse] = Field(default_factory=list)
+
+
+class HeartbeatMessage(BaseModel):
+    type: Literal["heartbeat"] = "heartbeat"
+    symbol: str
+    timestamp: datetime
+    last_sequence: int
+
+
+class WebSocketErrorMessage(BaseModel):
+    type: Literal["error"] = "error"
+    code: str
+    message: str
+
+
+class OrdersStats(BaseModel):
+    submitted: int
+    accepted: int
+    rejected: int
+    canceled: int
+    filled: int
+    partial_fill_events: int
+    cancel_requests: int
+    cancel_rejects: int
+    active: int
+    resting: int
+
+
+class TradesStats(BaseModel):
+    count: int
+    quantity: float
+    notional: float
+    canceled_quantity: float
+
+
+class ReportsStats(BaseModel):
+    created: int
+    delivery_failures: int
+
+
+class SessionsStats(BaseModel):
+    connected: int
+
+
+class BookStats(BaseModel):
+    levels: int
+
+
+class LatencyStats(BaseModel):
+    average_real_matching_duration_us: Optional[float] = Field(
+        description="Mean wall-clock matching duration in microseconds"
+    )
+    average_real_report_serialization_duration_us: Optional[float] = Field(
+        description="Mean wall-clock FIX serialization duration in microseconds"
+    )
+    average_sim_inbound_latency_ms: Optional[float] = Field(
+        description="Mean configured simulated inbound latency in milliseconds"
+    )
+    average_sim_engine_latency_ms: Optional[float] = Field(
+        description="Mean configured simulated engine latency in milliseconds"
+    )
+    average_sim_outbound_latency_ms: Optional[float] = Field(
+        description="Mean configured simulated outbound latency in milliseconds"
+    )
+    average_sim_end_to_end_latency_ms: Optional[float] = Field(
+        description="Mean simulated submit-to-delivery latency in milliseconds"
+    )
+    invalid_measurements: int
+
+
+class PersistenceStats(BaseModel):
+    failures: int
+    buffered_records: int
+
+
+class StatsResponse(BaseModel):
+    generated_at: datetime
+    run_id: Optional[str]
+    orders: OrdersStats
+    trades: TradesStats
+    reports: ReportsStats
+    sessions: SessionsStats
+    book: BookStats
+    latency: LatencyStats
+    persistence: PersistenceStats
+
+
+class SessionBody(BaseModel):
+    """Start one explicitly named simulation session."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    run_id: str = Field(
+        min_length=1,
+        max_length=128,
+        validation_alias=AliasChoices("run_id", "session_id"),
+    )
+
+
+class SessionStartResponse(BaseModel):
+    status: Literal["session_started"]
+    session_id: str
+    starting_time: datetime
+
+
+class SessionEndResponse(BaseModel):
+    status: Literal["session_ended", "no_active_session"]
+    session_id: Optional[str]
+    final_stats: StatsResponse
+
+
+class AdvanceTimeRequest(BaseModel):
+    """Advance to an absolute timestamp or by a positive millisecond delta."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    target_time: Optional[datetime] = Field(
+        default=None,
+        validation_alias=AliasChoices("target_time", "timestamp"),
+        description="Timezone-aware absolute simulated timestamp",
+    )
+    milliseconds: Optional[int] = Field(
+        default=None,
+        gt=0,
+        le=86_400_000,
+        description="Positive relative advancement in milliseconds",
+    )
+
+    @field_validator("target_time")
+    @classmethod
+    def normalize_target_time(
+        cls,
+        value: Optional[datetime],
+    ) -> Optional[datetime]:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("target_time must include a timezone offset")
+        return value.astimezone(timezone.utc)
+
+    @model_validator(mode="after")
+    def exactly_one_target(self) -> "AdvanceTimeRequest":
+        if (self.target_time is None) == (self.milliseconds is None):
+            raise ValueError(
+                "Provide exactly one of target_time or milliseconds"
+            )
+        return self
+
+
+# Compatibility name used by older callers.
+TimeSyncBody = AdvanceTimeRequest
+
+
+class AdvanceTimeResponse(BaseModel):
+    previous_time: datetime
+    current_time: datetime
+    events_processed: int
+    pending_events: int
+
+
+def _api_error(status_code: int, code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status_code,
+        detail={"code": code, "message": message},
+    )
+
+
+def _book_payload(snapshot: MarketDataSnapshot) -> dict[str, Any]:
+    return {
+        "symbol": snapshot.symbol,
+        "sequence": snapshot.sequence,
+        "timestamp": snapshot.timestamp,
+        "bids": [
+            {
+                "price": level.price,
+                "qty": level.qty,
+                "strategy_qty": level.strategy_qty,
+                "market_qty": level.market_qty,
+                "order_count": level.order_count,
+            }
+            for level in snapshot.bids
+        ],
+        "asks": [
+            {
+                "price": level.price,
+                "qty": level.qty,
+                "strategy_qty": level.strategy_qty,
+                "market_qty": level.market_qty,
+                "order_count": level.order_count,
+            }
+            for level in snapshot.asks
+        ],
+    }
+
+
+def market_data_message(
+    snapshot: MarketDataSnapshot,
+) -> MarketDataMessage:
+    """Build the testable public WebSocket envelope from one snapshot."""
+    return MarketDataMessage(
+        type="market_data",
+        **_book_payload(snapshot),
+        trades=[
+            {
+                "trade_id": trade.trade_id,
+                "price": trade.price,
+                "qty": trade.qty,
+                "aggressor_side": trade.aggressor_side.value,
+                "timestamp": trade.timestamp,
+            }
+            for trade in snapshot.trades
+        ],
+    )
+
+
+class WebSocketRegistry:
+    """Coroutine-safe ownership of WebSocket connections by symbol."""
+
+    def __init__(self) -> None:
+        self._connections: dict[str, set[WebSocket]] = {}
+        self._lock = asyncio.Lock()
+
+    async def add(self, symbol: str, websocket: WebSocket) -> None:
+        async with self._lock:
+            self._connections.setdefault(symbol, set()).add(websocket)
+
+    async def remove(self, symbol: str, websocket: WebSocket) -> None:
+        async with self._lock:
+            clients = self._connections.get(symbol)
+            if clients is None:
+                return
+            clients.discard(websocket)
+            if not clients:
+                self._connections.pop(symbol, None)
+
+    async def snapshot(self, symbol: str) -> tuple[WebSocket, ...]:
+        async with self._lock:
+            return tuple(self._connections.get(symbol, ()))
+
+    async def connection_count(
+        self,
+        symbol: Optional[str] = None,
+    ) -> int:
+        async with self._lock:
+            if symbol is not None:
+                return len(self._connections.get(symbol, ()))
+            return sum(len(clients) for clients in self._connections.values())
+
+    async def close_all(self) -> None:
+        async with self._lock:
+            clients = tuple(
+                websocket
+                for symbol_clients in self._connections.values()
+                for websocket in symbol_clients
+            )
+            self._connections.clear()
+
+        for websocket in clients:
+            try:
+                await websocket.close(code=1001)
+            except (WebSocketDisconnect, RuntimeError, ConnectionError, OSError):
+                logger.debug("WebSocket already closed during shutdown")
+
+
 class ExchangeAPI:
-    """FastAPI application for the exchange."""
-    
-    def __init__(self, engine: MatchingEngine, metrics: MetricsCollector, config: Dict, fix_app: FIXApplication):
+    """One explicitly owned FastAPI service for one exchange instance."""
+
+    def __init__(
+        self,
+        engine: MatchingEngine,
+        metrics: MetricsCollector,
+        config: Dict[str, Any],
+        fix_app: FIXApplication,
+        *,
+        lifecycle_manager: Optional[Any] = None,
+    ) -> None:
         self.engine = engine
+        self.scheduler = engine.scheduler
         self.metrics = metrics
         self.config = config
         self.fix_app = fix_app
+        self.lifecycle_manager = lifecycle_manager
+        self.registry = WebSocketRegistry()
+        self._broadcast_lock = asyncio.Lock()
+        self.simulation_session_id: Optional[str] = None
+
+        websocket_config = config.get("websocket", {})
+        self.heartbeat_interval_seconds = float(
+            websocket_config.get("heartbeat_interval_seconds", 10.0)
+        )
+        if self.heartbeat_interval_seconds <= 0:
+            raise ValueError(
+                "websocket.heartbeat_interval_seconds must be positive"
+            )
 
         @asynccontextmanager
         async def lifespan(app: FastAPI):
+            app.state.lifecycle_started = True
+            app.state.component_status["api"] = "starting"
             try:
+                if self.lifecycle_manager is not None:
+                    await self.lifecycle_manager.start_components()
+                else:
+                    self.fix_app.loop = asyncio.get_running_loop()
+                    app.state.component_status.update(
+                        {
+                            "engine": "ready",
+                            "scheduler": "waiting_external",
+                            "api": "ready",
+                            "fix_gateway": "disabled",
+                            "metrics": "ready",
+                            "persistence": (
+                                "ready"
+                                if self.metrics.persistence is not None
+                                else "disabled"
+                            ),
+                        }
+                    )
+                    app.state.accepting_admin = True
+                    app.state.ready = True
                 yield
             finally:
-                await self.metrics.close()
+                app.state.ready = False
+                app.state.accepting_admin = False
+                app.state.component_status["api"] = "stopping"
+                if self.lifecycle_manager is not None:
+                    await self.lifecycle_manager.stop_components()
+                else:
+                    await self.registry.close_all()
+                    try:
+                        if not await self.metrics.close():
+                            logger.error("Metrics close reported a failure")
+                    except Exception:
+                        logger.exception("Metrics close failed during shutdown")
+                    self.fix_app.loop = None
+                app.state.component_status["api"] = "stopped"
+                app.state.lifecycle_started = False
 
         self.app = FastAPI(
             title="MockX Exchange API",
-            version="1.0.0",
+            description=(
+                "Deterministic simulation control and immutable market data. "
+                "Administrative routes are intended for trusted development "
+                "networks."
+            ),
+            version="2.0.0",
             lifespan=lifespan,
         )
-        self.templates = Jinja2Templates(directory="templates")
-        
-        # WebSocket connections
-        self.websocket_connections: Dict[str, Set[WebSocket]] = {}
-        
-        # Setup routes
-        self._setup_routes()
-        
-    def _setup_routes(self):
-        """Setup all API routes."""
-        
-        @self.app.get("/")
-        async def root():
-            return {"exchange": self.config["exchange_name"], "status": "running"}
-            
-        @self.app.get("/healthz")
-        async def health_check():
-            """Liveness check."""
-            return {"status": "healthy"}
-            
-        @self.app.get("/readyz")
-        async def readiness_check():
-            """Readiness check."""
-            # Check if engine has symbols loaded
-            if not self.engine.books:
-                return JSONResponse(
-                    status_code=503,
-                    content={"status": "not ready", "reason": "No symbols loaded"}
-                )
-            return {"status": "ready"}
-                        
-        @self.app.get("/book/{symbol}")
-        async def get_order_book(symbol: str):
-            """Get order book snapshot with order details."""
-            book = self.engine.get_order_book_snapshot(symbol)
-            if not book:
-                raise HTTPException(status_code=404, detail=f"Symbol {symbol} not found")
+        self.app.state.exchange_api = self
+        self.app.state.engine = self.engine
+        self.app.state.scheduler = self.scheduler
+        self.app.state.metrics = self.metrics
+        self.app.state.fix_app = self.fix_app
+        self.app.state.session_registry = self.fix_app.session_registry
+        self.app.state.ready = False
+        self.app.state.accepting_admin = False
+        self.app.state.lifecycle_started = False
+        self.app.state.component_status = {
+            "engine": "not_ready",
+            "scheduler": "not_ready",
+            "api": "not_ready",
+            "fix_gateway": "not_ready",
+            "metrics": "not_ready",
+            "persistence": (
+                "not_ready"
+                if self.metrics.persistence is not None
+                else "disabled"
+            ),
+        }
 
-            bids = list(book.bids)
-            asks = list(book.asks)
-            
-            # Convert to JSON-serializable format with order details
-            return {
-                "symbol": symbol,
-                "timestamp": self.engine.scheduler.current_time,
-                "bids": [
-                    {
-                        "price": float(level.price), 
-                        "qty": float(level.qty), 
-                    }
-                    for level in bids
-                ],
-                "asks": [
-                    {
-                        "price": float(level.price), 
-                        "qty": float(level.qty), 
-                    }
-                    for level in asks
-                ],
-                "best_bid": float(book.get_best_bid()) if book.get_best_bid() else None,
-                "best_ask": float(book.get_best_ask()) if book.get_best_ask() else None,
-                "mid_price": float(book.get_mid_price()) if book.get_mid_price() else None
-            }            
-        
-        @self.app.get("/symbols")
-        async def get_symbols():
-            """Get list of available symbols."""
-            return {"symbols": list(self.engine.books.keys())}
-            
-        @self.app.get("/stats")
-        async def get_stats():
-            """Get a stable JSON-safe process metrics snapshot."""
-            return self.metrics.snapshot().to_dict(
-                run_id=self.metrics.run_id,
+        origins = config.get("cors_origins", [])
+        if origins:
+            self.app.add_middleware(
+                CORSMiddleware,
+                allow_origins=list(origins),
+                allow_credentials=False,
+                allow_methods=["GET", "POST"],
+                allow_headers=["Content-Type"],
+            )
+
+        template_dir = Path(__file__).resolve().parents[2] / "templates"
+        self.templates = Jinja2Templates(directory=str(template_dir))
+        self._setup_routes()
+
+    def _normalized_symbol(self, symbol: str) -> str:
+        return symbol.strip().upper()
+
+    def _snapshot_or_404(self, symbol: str) -> MarketDataSnapshot:
+        normalized = self._normalized_symbol(symbol)
+        snapshot = self.engine.get_market_data_snapshot(normalized)
+        if snapshot is None:
+            raise _api_error(
+                404,
+                "UNKNOWN_SYMBOL",
+                f"Unknown symbol: {normalized}",
+            )
+        return snapshot
+
+    def _readiness(self) -> tuple[int, ReadinessResponse]:
+        components = dict(self.app.state.component_status)
+        persistence_failures = (
+            self.metrics.snapshot().metric_sink_failures
+        )
+        if persistence_failures:
+            components["persistence"] = "degraded"
+
+        critical_names = ["engine", "scheduler", "api", "metrics"]
+        if getattr(self.lifecycle_manager, "fix_enabled", False):
+            critical_names.append("fix_gateway")
+        ready_values = {"ready", "waiting_external"}
+        critical_ready = all(
+            components.get(name) in ready_values
+            for name in critical_names
+        )
+        if not self.app.state.ready or not critical_ready:
+            return 503, ReadinessResponse(
+                status="not_ready",
+                components=components,
+            )
+        if "degraded" in components.values():
+            return 200, ReadinessResponse(
+                status="degraded",
+                components=components,
+            )
+        return 200, ReadinessResponse(
+            status="ready",
+            components=components,
+        )
+
+    def _require_admin(self) -> None:
+        if not self.app.state.accepting_admin:
+            raise _api_error(
+                503,
+                "ADMIN_UNAVAILABLE",
+                "Administrative actions are unavailable during startup or shutdown",
+            )
+
+    def _setup_routes(self) -> None:
+        @self.app.get("/", response_model=RootResponse)
+        async def root() -> RootResponse:
+            return RootResponse(
+                exchange=self.config["exchange_name"],
+                status="running",
+            )
+
+        @self.app.get("/healthz", response_model=HealthResponse)
+        async def health_check() -> HealthResponse:
+            return HealthResponse(status="healthy")
+
+        @self.app.get(
+            "/readyz",
+            response_model=ReadinessResponse,
+            responses={503: {"model": ReadinessResponse}},
+        )
+        async def readiness_check():
+            status_code, body = self._readiness()
+            if status_code == 200:
+                return body
+            return JSONResponse(
+                status_code=status_code,
+                content=body.model_dump(mode="json"),
+            )
+
+        @self.app.get(
+            "/book/{symbol}",
+            response_model=BookSnapshotResponse,
+            responses={404: {"model": ErrorResponse}},
+        )
+        async def get_order_book(symbol: str) -> BookSnapshotResponse:
+            return BookSnapshotResponse.model_validate(
+                _book_payload(self._snapshot_or_404(symbol))
+            )
+
+        @self.app.get("/symbols", response_model=SymbolsResponse)
+        async def get_symbols() -> SymbolsResponse:
+            return SymbolsResponse(symbols=list(self.engine.books))
+
+        @self.app.get("/stats", response_model=StatsResponse)
+        async def get_stats() -> StatsResponse:
+            return StatsResponse.model_validate(
+                self.metrics.snapshot().to_dict(run_id=self.metrics.run_id)
             )
 
         @self.app.get("/metrics")
-        async def get_prometheus_metrics():
-            """Expose this application instance's Prometheus registry."""
+        async def get_prometheus_metrics() -> Response:
             try:
                 payload = self.metrics.prometheus_payload()
             except RuntimeError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
+                raise _api_error(
+                    404,
+                    "METRICS_DISABLED",
+                    str(exc),
+                ) from exc
             return Response(
                 content=payload,
                 media_type=CONTENT_TYPE_LATEST,
             )
-            
-        @self.app.get("/ui/{symbol}", response_class=HTMLResponse)
-        async def book_ui(symbol: str):
-            """Order book UI."""
-            book = self.engine.get_order_book_snapshot(symbol)
-            if not book:
-                raise HTTPException(status_code=404, detail=f"Symbol {symbol} not found")
-                
-            # Prepare data for template
-            context = {
-                "request": {"url": {"path": f"/ui/{symbol}"}},  # Mock request object
-                "symbol": symbol,
-                "bids": [
-                    {"price": float(level.price), "qty": float(level.qty), "orders": len(level.orders)}
-                    for level in itertools.islice(book.bids, 10)
-                ],
-                "asks": [
-                    {"price": float(level.price), "qty": float(level.qty), "orders": len(level.orders)}
-                    for level in itertools.islice(book.asks, 10)
-                ],
-                "best_bid": float(book.get_best_bid()) if book.get_best_bid() else None,
-                "best_ask": float(book.get_best_ask()) if book.get_best_ask() else None,
-                "mid_price": float(book.get_mid_price()) if book.get_mid_price() else None,
-                "ws_port": self.config["admin_api"]["port"]
-            }
-            
-            return self.templates.TemplateResponse("book.html", context)
-            
-        @self.app.websocket("/ws/{symbol}")
-        async def websocket_endpoint(websocket: WebSocket, symbol: str):
-            """WebSocket endpoint for real-time market data."""
-            await websocket.accept()
-            
-            # Add to connection pool
-            if symbol not in self.websocket_connections:
-                self.websocket_connections[symbol] = set()
-            self.websocket_connections[symbol].add(websocket)
-            
-            try:
-                # Send initial snapshot
-                book = self.engine.get_order_book_snapshot(symbol)
-                if book:
-                    snapshot = {
-                        "type": "snapshot",
-                        "symbol": symbol,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                        "bids": [
-                            {"price": float(level.price), "qty": float(level.qty)}
-                            for level in itertools.islice(book.bids, 10)
-                        ],
-                        "asks": [
-                            {"price": float(level.price), "qty": float(level.qty)}
-                            for level in itertools.islice(book.asks, 10)
-                        ]
-                    }
-                    await websocket.send_json(snapshot)
-                    
-                # Keep connection alive
-                while True:
-                    # Heartbeat
-                    await asyncio.sleep(30)
-                    await websocket.send_json({"type": "heartbeat"})
-                    
-            except WebSocketDisconnect:
-                # Remove from connection pool
-                self.websocket_connections[symbol].discard(websocket)
-                if not self.websocket_connections[symbol]:
-                    del self.websocket_connections[symbol]
-                    
-        @self.app.post("/admin/reload-config")
-        async def reload_config():
-            """Reload configuration (placeholder)."""
-            # In a real implementation, this would reload config from file
-            return {"status": "Configuration reload not implemented"}
 
-        @self.app.post("/api/v1/session/start")
-        async def start_session(session: SessionBody):
-            """
-            Starts a new session for a backtest run.
-            This will first reset the entire exchange state to ensure a clean slate.
-            """
-            if not await self.metrics.set_run_id_async(session.run_id):
-                raise HTTPException(
-                    status_code=503,
-                    detail="Buffered metrics could not be flushed",
+        @self.app.get("/ui/{symbol}", response_class=HTMLResponse)
+        async def book_ui(request: Request, symbol: str):
+            snapshot = self._snapshot_or_404(symbol)
+            best_bid = snapshot.bids[0].price if snapshot.bids else None
+            best_ask = snapshot.asks[0].price if snapshot.asks else None
+            mid_price = (
+                (best_bid + best_ask) / 2
+                if best_bid is not None and best_ask is not None
+                else None
+            )
+            return self.templates.TemplateResponse(
+                request=request,
+                name="book.html",
+                context={
+                    "symbol": snapshot.symbol,
+                    "bids": [
+                        {
+                            "price": level.price,
+                            "qty": level.qty,
+                            "orders": level.order_count,
+                        }
+                        for level in snapshot.bids[:10]
+                    ],
+                    "asks": [
+                        {
+                            "price": level.price,
+                            "qty": level.qty,
+                            "orders": level.order_count,
+                        }
+                        for level in snapshot.asks[:10]
+                    ],
+                    "best_bid": best_bid,
+                    "best_ask": best_ask,
+                    "mid_price": mid_price,
+                },
+            )
+
+        @self.app.websocket("/ws/{symbol}")
+        async def websocket_endpoint(
+            websocket: WebSocket,
+            symbol: str,
+        ) -> None:
+            normalized = self._normalized_symbol(symbol)
+            if normalized not in self.engine.books:
+                await websocket.accept()
+                await websocket.send_json(
+                    WebSocketErrorMessage(
+                        code="UNKNOWN_SYMBOL",
+                        message=f"Unknown symbol: {normalized}",
+                    ).model_dump(mode="json")
+                )
+                await websocket.close(code=1008)
+                return
+
+            await websocket.accept()
+            await self.registry.add(normalized, websocket)
+            try:
+                snapshot = self.engine.get_market_data_snapshot(normalized)
+                if snapshot is None:
+                    raise RuntimeError(
+                        f"Symbol vanished after validation: {normalized}"
+                    )
+                await websocket.send_json(
+                    market_data_message(snapshot).model_dump(mode="json")
                 )
 
-            # Reset engine-owned state only after the previous run is flushed.
-            logger.info("--- RESETTING EXCHANGE STATE FOR NEW SESSION ---")
+                while True:
+                    try:
+                        await asyncio.wait_for(
+                            websocket.receive_text(),
+                            timeout=self.heartbeat_interval_seconds,
+                        )
+                    except asyncio.TimeoutError:
+                        heartbeat = HeartbeatMessage(
+                            symbol=normalized,
+                            timestamp=self.scheduler.current_time,
+                            last_sequence=self.engine.market_data_sequence,
+                        )
+                        try:
+                            await websocket.send_json(
+                                heartbeat.model_dump(mode="json")
+                            )
+                        except (
+                            WebSocketDisconnect,
+                            RuntimeError,
+                            ConnectionError,
+                            OSError,
+                        ):
+                            break
+                    except WebSocketDisconnect:
+                        break
+            finally:
+                await self.registry.remove(normalized, websocket)
+
+        if self.config.get("admin_api", {}).get("enabled", True):
+            self._setup_admin_routes()
+
+    def _setup_admin_routes(self) -> None:
+        @self.app.post(
+            "/api/v1/session/start",
+            response_model=SessionStartResponse,
+            responses={
+                409: {"model": ErrorResponse},
+                503: {"model": ErrorResponse},
+            },
+        )
+        async def start_session(
+            session: SessionBody,
+        ) -> SessionStartResponse:
+            self._require_admin()
+            if self.simulation_session_id is not None:
+                raise _api_error(
+                    409,
+                    "SESSION_ALREADY_ACTIVE",
+                    "A simulation session is already active",
+                )
+            if not await self.metrics.set_run_id_async(session.run_id):
+                raise _api_error(
+                    503,
+                    "METRICS_FLUSH_FAILED",
+                    "Buffered metrics could not be flushed",
+                )
+
+            # Sequence zero is a session boundary; existing clients reconnect
+            # so their previous-session sequence cannot mask new data.
+            await self.registry.close_all()
             self.engine.reset()
             self.fix_app.reset()
             self.fix_app.latency_tracker.reset()
             self.metrics.start_new_engine_generation()
             self.metrics.refresh_engine_gauges()
-            
-            logger.info(f"Session started with run_id: {session.run_id}")
-            return {"status": "session_started_and_reset", "run_id": session.run_id}
+            self.simulation_session_id = session.run_id
+            logger.info(
+                "Simulation session started",
+                extra={"simulation_session_id": session.run_id},
+            )
+            return SessionStartResponse(
+                status="session_started",
+                session_id=session.run_id,
+                starting_time=self.scheduler.current_time,
+            )
 
-        @self.app.post("/api/v1/session/end")
-        async def end_session():
-            """
-            Ends the current session and flushes all buffered data.
-            """
-            if not await self.metrics.flush():
-                raise HTTPException(
-                    status_code=503,
-                    detail="Buffered metrics could not be flushed",
+        @self.app.post(
+            "/api/v1/session/end",
+            response_model=SessionEndResponse,
+            responses={503: {"model": ErrorResponse}},
+        )
+        async def end_session() -> SessionEndResponse:
+            self._require_admin()
+            session_id = self.simulation_session_id
+            if session_id is not None and not await self.metrics.flush():
+                raise _api_error(
+                    503,
+                    "METRICS_FLUSH_FAILED",
+                    "Buffered metrics could not be flushed",
                 )
-            self.metrics.set_run_id(None)
-            
-            logger.info("Session ended and data flushed.")
-            return {"status": "session_ended_and_flushed"}
-
-        @self.app.post("/admin/advance-time")
-        async def advance_time(body: TimeSyncBody):
-            """Advances the scheduler's clock to a specific time and processes events."""
-            logger.info(f"scheduler current time: {self.engine.scheduler.current_time}")
-            target_time = body.timestamp
-            if target_time < self.engine.scheduler.current_time:
-                return JSONResponse(
-                    status_code=400,
-                    content={"status": "error", "reason": "Cannot move time backwards"}
+            final_stats = StatsResponse.model_validate(
+                self.metrics.snapshot().to_dict(run_id=self.metrics.run_id)
+            )
+            if session_id is not None:
+                self.metrics.set_run_id(None)
+                self.simulation_session_id = None
+                logger.info(
+                    "Simulation session ended",
+                    extra={"simulation_session_id": session_id},
                 )
-            
-            # # This is the key: run the scheduler until it reaches the target time
-            # # --- SIMPLIFIED LOGIC ---
-            # # 1. Set the clock to the target time.
-            # self.engine.scheduler.set_time(target_time)
-            # logger.info(f"scheduler time set to {self.engine.scheduler.current_time}")
+            return SessionEndResponse(
+                status=(
+                    "session_ended"
+                    if session_id is not None
+                    else "no_active_session"
+                ),
+                session_id=session_id,
+                final_stats=final_stats,
+            )
 
-            # # 2. Run until the event queue is empty. This will process all orders
-            # #    sent by the backtester, including their latent responses.
-            # await self.engine.scheduler.run_until_idle()
-            # self.engine.scheduler.run_until()
+        @self.app.post(
+            "/admin/advance-time",
+            response_model=AdvanceTimeResponse,
+            responses={409: {"model": ErrorResponse}},
+        )
+        async def advance_time(
+            body: AdvanceTimeRequest,
+        ) -> AdvanceTimeResponse:
+            self._require_admin()
+            scheduler_config = self.config.get("scheduler", {})
+            if scheduler_config.get("mode", "external") != "external":
+                raise _api_error(
+                    409,
+                    "CLOCK_MODE_CONFLICT",
+                    "Manual time advancement requires external scheduler mode",
+                )
 
-            await self.engine.scheduler.run_until(target_time)
-            logger.info(f"scheduler current time: {self.engine.scheduler.current_time}")
-            return {"status": "time_advanced", "current_time": self.engine.scheduler.current_time}
+            previous_time = self.scheduler.current_time
+            if body.target_time is not None:
+                target_time = body.target_time
+            else:
+                max_advance = int(
+                    scheduler_config.get(
+                        "max_advance_ms",
+                        86_400_000,
+                    )
+                )
+                milliseconds = int(body.milliseconds or 0)
+                if milliseconds > max_advance:
+                    raise _api_error(
+                        422,
+                        "ADVANCE_TOO_LARGE",
+                        f"milliseconds exceeds configured limit {max_advance}",
+                    )
+                target_time = previous_time + timedelta(
+                    milliseconds=milliseconds
+                )
 
-    async def broadcast_market_data(self, update: MarketDataUpdate):
-        """Broadcast market data update to WebSocket clients."""
-        if update.symbol not in self.websocket_connections:
-            return
-            
-        # Prepare update message
-        message = {
-            "type": "update",
-            "symbol": update.symbol,
-            "timestamp": update.timestamp.isoformat(),
-            "bids": [
-                {"price": level.price, "qty": level.qty}
-                for level in update.bid_levels[:10]
-            ],
-            "asks": [
-                {"price": level.price, "qty": level.qty}
-                for level in update.ask_levels[:10]
-            ]
-        }
-        
-        if update.trades:
-            message["trades"] = [
-                {
-                    "price": float(trade.price),
-                    "qty": float(trade.qty),
-                    "timestamp": trade.timestamp.isoformat()
-                }
-                for trade in update.trades
-            ]
-            
-        # Send to all connected clients
-        disconnected = []
-        for websocket in self.websocket_connections[update.symbol]:
-            try:
-                await websocket.send_json(message)
-            except Exception:
-                disconnected.append(websocket)
-                
-        # Clean up disconnected clients
-        for websocket in disconnected:
-            self.websocket_connections[update.symbol].discard(websocket)
+            if target_time < previous_time:
+                raise _api_error(
+                    409,
+                    "TIME_REVERSAL",
+                    "Target time is before current simulated time",
+                )
+            events_processed = await self.scheduler.run_until(target_time)
+            return AdvanceTimeResponse(
+                previous_time=previous_time,
+                current_time=self.scheduler.current_time,
+                events_processed=events_processed,
+                pending_events=self.scheduler.get_pending_count(),
+            )
+
+    async def broadcast_market_data(
+        self,
+        snapshot: MarketDataSnapshot,
+    ) -> None:
+        """Deliver one immutable payload once to each current subscriber."""
+        message = market_data_message(snapshot).model_dump(mode="json")
+        async with self._broadcast_lock:
+            clients = await self.registry.snapshot(snapshot.symbol)
+            failed: list[WebSocket] = []
+            for websocket in clients:
+                try:
+                    await websocket.send_json(message)
+                except (
+                    WebSocketDisconnect,
+                    RuntimeError,
+                    ConnectionError,
+                    OSError,
+                ):
+                    failed.append(websocket)
+            for websocket in failed:
+                await self.registry.remove(snapshot.symbol, websocket)
+
+    async def close_websockets(self) -> None:
+        await self.registry.close_all()
 
 
-def create_app(engine: MatchingEngine, metrics: MetricsCollector, config: Dict, fix_app: FIXApplication) -> FastAPI:
-    """Create FastAPI application."""
+def create_app(
+    engine: MatchingEngine,
+    metrics: MetricsCollector,
+    config: Dict[str, Any],
+    fix_app: FIXApplication,
+) -> FastAPI:
+    """Compatibility factory for already initialized in-process components.
+
+    Production ownership uses ``MockExchange.api`` and the ASGI lifespan.
+    Historical callers of this factory supplied already-live components and
+    used transports that do not run lifespan events, so this compatibility
+    path marks only that standalone API facade ready.
+    """
     api = ExchangeAPI(engine, metrics, config, fix_app)
+    api.app.state.component_status.update(
+        {
+            "engine": "ready",
+            "scheduler": "waiting_external",
+            "api": "ready",
+            "fix_gateway": "disabled",
+            "metrics": "ready",
+            "persistence": (
+                "ready"
+                if metrics.persistence is not None
+                else "disabled"
+            ),
+        }
+    )
+    api.app.state.lifecycle_started = True
+    api.app.state.accepting_admin = True
+    api.app.state.ready = True
     return api.app

@@ -7,8 +7,9 @@ from random import Random
 
 from .models import (
     CancelReject, CancelRejectReason, ClientOrderKey, ExecutionType, Fill,
-    Order, OrderBook, Trade, Side, OrderStatus, TimeInForce,
-    ExecutionParams, ExecutionReport, MarketDataUpdate, NewOrderCommand,
+    MarketDataSnapshot, Order, OrderBook, PriceLevelSnapshot, Trade,
+    TradeSnapshot, Side, OrderStatus, TimeInForce,
+    ExecutionParams, ExecutionReport, NewOrderCommand,
     ProcessOrderCommand, CancelOrderCommand, TERMINAL_ORDER_STATUSES,
     QUANTITY_EPSILON, create_cancel_reject, create_execution_report,
 )
@@ -58,6 +59,9 @@ class MatchingEngine:
         self.next_order_id = 1
         self.next_trade_id = 1
         self.next_exec_id = 1
+        # One deterministic sequence spans all symbols in this exchange.
+        # It resets only when ``reset`` starts a new simulation session.
+        self.market_data_sequence = 0
         
         # Callbacks
         self.on_execution_report = None
@@ -89,6 +93,7 @@ class MatchingEngine:
         self.next_order_id = 1
         self.next_trade_id = 1
         self.next_exec_id = 1
+        self.market_data_sequence = 0
         
         # Reset the scheduler
         self.scheduler.reset()
@@ -211,14 +216,14 @@ class MatchingEngine:
         
         # Dispatch to the correct processor
         if order.price is None:
-            self._process_market_order(order, book)
+            fills = self._process_market_order(order, book)
         else:
-            self._process_limit_order(order, book)
+            fills = self._process_limit_order(order, book)
 
         book.assert_invariants()
 
         # Send market data update
-        self._send_market_data_update(order.symbol)
+        self._send_market_data_update(order.symbol, fills)
         
     def _should_reject(self, order: Order) -> bool:
         """Determine if order should be rejected based on probability."""
@@ -239,15 +244,25 @@ class MatchingEngine:
 
         logger.info(f"Order rejected: {order.cl_ord_id} - {reason}")
 
-    def _process_market_order(self, order: Order, book: OrderBook) -> None:
+    def _process_market_order(
+        self,
+        order: Order,
+        book: OrderBook,
+    ) -> List[Fill]:
         """Execute immediately; market orders never rest, regardless of TIF."""
-        self._run_matching(order, book)
+        fills = self._run_matching(order, book)
         self._finalize_unfilled_remainder(order, book)
+        return fills
 
-    def _process_limit_order(self, order: Order, book: OrderBook) -> None:
+    def _process_limit_order(
+        self,
+        order: Order,
+        book: OrderBook,
+    ) -> List[Fill]:
         """Match a limit order and apply its GTC/IOC remainder rule once."""
-        self._run_matching(order, book)
+        fills = self._run_matching(order, book)
         self._finalize_unfilled_remainder(order, book)
+        return fills
 
     def _run_matching(self, order: Order, book: OrderBook) -> List[Fill]:
         """Measure only the real duration of the matching function."""
@@ -536,25 +551,90 @@ class MatchingEngine:
             outbound_ms=self.exec_params.simulated_outbound_latency_ms,
         )
             
-    def _send_market_data_update(self, symbol: str) -> None:
-        """Send market data update for a symbol."""
+    @staticmethod
+    def _snapshot_levels(book: OrderBook, side: Side):
+        levels = book.bids if side == Side.BUY else book.asks
+        snapshots = [
+            PriceLevelSnapshot(
+                price=float(level.price),
+                qty=float(level.qty),
+                strategy_qty=float(level.strategy_qty),
+                market_qty=float(level.market_qty),
+                order_count=len(level.orders),
+            )
+            for level in levels
+            if level.qty > QUANTITY_EPSILON and level.orders
+        ]
+        return tuple(
+            sorted(
+                snapshots,
+                key=lambda level: level.price,
+                reverse=side == Side.BUY,
+            )
+        )
+
+    def _create_market_data_snapshot(
+        self,
+        symbol: str,
+        *,
+        sequence: int,
+        fills: tuple[Fill, ...] = (),
+    ) -> MarketDataSnapshot:
+        """Copy authoritative scalar state into a deeply immutable DTO."""
+        if symbol not in self.books:
+            raise KeyError(f"Unknown symbol: {symbol}")
+
+        book = self.books[symbol]
+        return MarketDataSnapshot(
+            symbol=symbol,
+            sequence=sequence,
+            timestamp=self.scheduler.current_time,
+            bids=self._snapshot_levels(book, Side.BUY),
+            asks=self._snapshot_levels(book, Side.SELL),
+            trades=tuple(
+                TradeSnapshot(
+                    trade_id=str(fill.trade_id),
+                    price=float(fill.price),
+                    qty=float(fill.qty),
+                    aggressor_side=fill.aggressor_side,
+                    timestamp=fill.timestamp,
+                )
+                for fill in fills
+            ),
+        )
+
+    def _send_market_data_update(
+        self,
+        symbol: str,
+        fills: List[Fill] | tuple[Fill, ...] = (),
+    ) -> None:
+        """Publish one sequenced snapshot for one committed book action."""
         if symbol not in self.books:
             return
-            
-        book = self.books[symbol]
-        
-        # Create snapshot
-        update = MarketDataUpdate(
-            symbol=symbol,
-            timestamp=self.scheduler.current_time,
-            bid_levels=list(book.bids),
-            ask_levels=list(book.asks)
+
+        self.market_data_sequence += 1
+        update = self._create_market_data_snapshot(
+            symbol,
+            sequence=self.market_data_sequence,
+            fills=tuple(fills),
         )
-        
+
         self._notify_observer(
             "market data",
             self.on_market_data_update,
             update,
+        )
+
+    def get_market_data_snapshot(
+        self,
+        symbol: str,
+    ) -> Optional[MarketDataSnapshot]:
+        """Return an immutable current snapshot without advancing sequence."""
+        if symbol not in self.books:
+            return None
+        return self._create_market_data_snapshot(
+            symbol,
+            sequence=self.market_data_sequence,
         )
             
     def get_order_book_snapshot(self, symbol: str) -> Optional[OrderBook]:
