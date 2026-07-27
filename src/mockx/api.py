@@ -32,8 +32,9 @@ from starlette.responses import Response
 
 from .engine import MatchingEngine
 from .gateway import FIXApplication
+from .latency import SchedulerFailedError
 from .metrics import MetricsCollector
-from .models import MarketDataSnapshot
+from .models import MarketDataSnapshot, SchedulerState
 
 
 logger = logging.getLogger(__name__)
@@ -176,6 +177,34 @@ class PersistenceStats(BaseModel):
     buffered_records: int
 
 
+SchedulerMetadataValue = str | int | float | bool | None
+
+
+class SchedulerFailureResponse(BaseModel):
+    event_id: str
+    event_type: str
+    scheduled_timestamp: datetime
+    scheduler_sequence: int
+    failure_timestamp: datetime
+    exception_type: str
+    exception_message: str
+    retry_attempted: bool
+    status: Literal[
+        "HANDLER_EXCEPTION",
+        "HANDLER_NOT_REGISTERED",
+        "EVENT_PROCESSING_LIMIT_EXCEEDED",
+    ]
+    event_metadata: Dict[str, SchedulerMetadataValue]
+
+
+class SchedulerStats(BaseModel):
+    state: Literal["RUNNING", "FAILED", "STOPPED"]
+    pending_events: int
+    failure_count: int
+    max_events_per_advance: int
+    dead_letter: Optional[SchedulerFailureResponse]
+
+
 class StatsResponse(BaseModel):
     generated_at: datetime
     run_id: Optional[str]
@@ -186,6 +215,7 @@ class StatsResponse(BaseModel):
     book: BookStats
     latency: LatencyStats
     persistence: PersistenceStats
+    scheduler: SchedulerStats
 
 
 class SessionBody(BaseModel):
@@ -501,6 +531,10 @@ class ExchangeAPI:
 
     def _readiness(self) -> tuple[int, ReadinessResponse]:
         components = dict(self.app.state.component_status)
+        if self.scheduler.state == SchedulerState.FAILED:
+            components["scheduler"] = "failed"
+        elif self.scheduler.state == SchedulerState.STOPPED:
+            components["scheduler"] = "stopped"
         persistence_failures = (
             self.metrics.snapshot().metric_sink_failures
         )
@@ -529,6 +563,13 @@ class ExchangeAPI:
             status="ready",
             components=components,
         )
+
+    def _stats_response(self) -> StatsResponse:
+        payload = self.metrics.snapshot().to_dict(
+            run_id=self.metrics.run_id
+        )
+        payload["scheduler"] = self.scheduler.diagnostics()
+        return StatsResponse.model_validate(payload)
 
     def _require_admin(self) -> None:
         if not self.app.state.accepting_admin:
@@ -580,9 +621,7 @@ class ExchangeAPI:
 
         @self.app.get("/stats", response_model=StatsResponse)
         async def get_stats() -> StatsResponse:
-            return StatsResponse.model_validate(
-                self.metrics.snapshot().to_dict(run_id=self.metrics.run_id)
-            )
+            return self._stats_response()
 
         @self.app.get("/metrics")
         async def get_prometheus_metrics() -> Response:
@@ -726,6 +765,15 @@ class ExchangeAPI:
             # so their previous-session sequence cannot mask new data.
             await self.registry.close_all()
             self.engine.reset()
+            self.app.state.component_status["scheduler"] = (
+                "waiting_external"
+                if self.config.get("scheduler", {}).get(
+                    "mode",
+                    "external",
+                )
+                == "external"
+                else "ready"
+            )
             self.fix_app.reset()
             self.fix_app.latency_tracker.reset()
             self.metrics.start_new_engine_generation()
@@ -755,9 +803,7 @@ class ExchangeAPI:
                     "METRICS_FLUSH_FAILED",
                     "Buffered metrics could not be flushed",
                 )
-            final_stats = StatsResponse.model_validate(
-                self.metrics.snapshot().to_dict(run_id=self.metrics.run_id)
-            )
+            final_stats = self._stats_response()
             if session_id is not None:
                 self.metrics.set_run_id(None)
                 self.simulation_session_id = None
@@ -778,7 +824,10 @@ class ExchangeAPI:
         @self.app.post(
             "/admin/advance-time",
             response_model=AdvanceTimeResponse,
-            responses={409: {"model": ErrorResponse}},
+            responses={
+                409: {"model": ErrorResponse},
+                503: {"model": ErrorResponse},
+            },
         )
         async def advance_time(
             body: AdvanceTimeRequest,
@@ -791,6 +840,18 @@ class ExchangeAPI:
                     "CLOCK_MODE_CONFLICT",
                     "Manual time advancement requires external scheduler mode",
                 )
+
+            try:
+                self.scheduler.ensure_running()
+            except SchedulerFailedError as exc:
+                raise _api_error(
+                    503,
+                    "SCHEDULER_FAILED",
+                    (
+                        "Scheduler is failed; end the current simulation "
+                        "session and start a new session to reset it"
+                    ),
+                ) from exc
 
             previous_time = self.scheduler.current_time
             if body.target_time is not None:
@@ -819,7 +880,17 @@ class ExchangeAPI:
                     "TIME_REVERSAL",
                     "Target time is before current simulated time",
                 )
-            events_processed = await self.scheduler.run_until(target_time)
+            try:
+                events_processed = await self.scheduler.run_until(target_time)
+            except SchedulerFailedError as exc:
+                raise _api_error(
+                    503,
+                    "SCHEDULER_FAILED",
+                    (
+                        "Scheduler is failed; end the current simulation "
+                        "session and start a new session to reset it"
+                    ),
+                ) from exc
             return AdvanceTimeResponse(
                 previous_time=previous_time,
                 current_time=self.scheduler.current_time,

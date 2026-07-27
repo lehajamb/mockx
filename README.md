@@ -112,6 +112,30 @@ machine scheduling is necessarily nondeterministic. Manual advancement returns
 Market-data timestamps, fills, reports, and scheduler targets are always
 timezone-aware simulated UTC. Wall-clock time is not used as simulated time.
 
+### Fail-stop scheduler failures
+
+Each scheduler generation is explicitly `RUNNING`, `FAILED`, or `STOPPED`.
+An unexpected event-handler exception is fatal to the active simulation run:
+the responsible event is removed from the live queue into one immutable
+dead-letter record, the original exception is retained and chained for local
+diagnostics, and later events remain queued but are not processed. Missing
+handlers are treated the same way. Arbitrary events are never retried because
+a handler may have failed after partially mutating engine state.
+
+Once failed, scheduling new events, processing the queue, or moving simulated
+time is rejected. `POST /admin/advance-time` returns HTTP 503 with
+`SCHEDULER_FAILED`, `/readyz` returns HTTP 503 with
+`components.scheduler="failed"`, and `/stats` remains available for
+inspection. Engine state is not transactionally rolled back: an order, book,
+trade, metric, or report may show a partial mutation, but the failed run can
+never return a normal advancement response or remain traffic-ready.
+
+Every advancement has a shared event budget. The default limit is 100,000
+successfully handled events across the whole call, including zero-delay work
+scheduled by handlers. If another eligible event exists, it is dead-lettered
+with `EVENT_PROCESSING_LIMIT_EXCEEDED`; this prevents infinite same-time
+self-rescheduling.
+
 ## 5. Local quick start
 
 QuickFIX includes native code, so install its platform build prerequisites
@@ -256,9 +280,13 @@ Unknown symbols return HTTP 404:
 }
 ```
 
-`/stats` separates orders, trades, reports, sessions, book gauges, latency, and
-persistence. Latency field names include `_us` or `_ms`; REST reads do not
-mutate counters.
+`/stats` separates orders, trades, reports, sessions, book gauges, latency,
+persistence, and scheduler state. Scheduler diagnostics contain `state`,
+`pending_events`, the current-generation `failure_count`, the configured
+`max_events_per_advance`, and an optional `dead_letter`. The dead letter
+contains only deterministic scalar metadata captured when the event was
+scheduled; it never exposes the live command object. Latency field names
+include `_us` or `_ms`; REST reads do not mutate counters.
 
 ## 8. WebSocket protocol
 
@@ -350,8 +378,11 @@ isolated network. CORS defaults to no allowed cross-origin callers.
 Starting while a session is active returns `409 SESSION_ALREADY_ACTIVE`.
 Ending with no active session is idempotent and returns
 `status="no_active_session"`. Session end does not drain pending scheduler
-events; it preserves them for inspection until the next session start resets
-the queue.
+events or clear a failure; its `final_stats` preserves the failed state and
+dead-letter diagnostic. To recover, end the failed active session and start a
+new named session. Session start resets the engine, queue, clock, event
+sequence, failure count, retained exception, and dead letter, returning the
+scheduler to `RUNNING`.
 
 Absolute advancement accepts any aware offset and normalizes it to UTC:
 
@@ -378,6 +409,17 @@ Response:
 
 Naive datetimes, zero/negative deltas, and ambiguous requests return HTTP 422.
 Backward targets return `409 TIME_REVERSAL` without changing scheduler state.
+If an eligible event fails, advancement stops at that event's simulated
+timestamp and returns:
+
+```json
+{
+  "detail": {
+    "code": "SCHEDULER_FAILED",
+    "message": "Scheduler is failed; end the current simulation session and start a new session to reset it"
+  }
+}
+```
 
 ## 10. Metrics and observability
 
@@ -438,6 +480,7 @@ scheduler:
   mode: external
   interval_ms: 10
   max_advance_ms: 86400000
+  max_events_per_advance: 100000
 websocket:
   heartbeat_interval_seconds: 10
   market_data_stale_seconds: 30
@@ -452,8 +495,8 @@ naturally only when the book cannot fill the complete order.
 
 Startup validation rejects missing fields, duplicate/empty symbols, invalid
 ports, unsupported scheduler modes, nonpositive intervals, stale timeouts not
-greater than heartbeat cadence, wildcard CORS, and incomplete enabled TSDB
-configuration.
+greater than heartbeat cadence, nonpositive event-processing limits, wildcard
+CORS, and incomplete enabled TSDB configuration.
 
 `CFG_PATH` and `FIX_CONFIG_FILE` select the YAML and QuickFIX files.
 `INFLUXDB_URL`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET`
@@ -500,6 +543,9 @@ python -m pytest -q tests/test_readme_examples.py
 - Inspect `components` in the readiness response.
 - Confirm the QuickFIX loop handoff and acceptor startup.
 - Validate symbols, scheduler mode, and configuration paths.
+- If `components.scheduler` is `failed`, inspect
+  `/stats.scheduler.dead_letter`, end the active simulation session, and start
+  a new session. Do not retry the dead-lettered event.
 
 FIX client logs on but receives no reports:
 

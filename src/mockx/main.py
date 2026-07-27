@@ -13,7 +13,11 @@ import uvicorn
 from .api import ExchangeAPI
 from .engine import MatchingEngine
 from .gateway import FIXApplication, FIXGateway, SessionRegistry
-from .latency import LatencyScheduler, PerfCounterClock
+from .latency import (
+    LatencyScheduler,
+    PerfCounterClock,
+    SchedulerFailedError,
+)
 from .metrics import (
     BufferedMetricsWriter,
     LatencyTracker,
@@ -22,9 +26,9 @@ from .metrics import (
 from .models import (
     ExecutionParams,
     ExecutionReport,
-    InvalidOrderTransition,
     MarketDataSnapshot,
     ProcessOrderCommand,
+    SchedulerState,
     TERMINAL_ORDER_STATUSES,
     Trade,
 )
@@ -111,7 +115,14 @@ class MockExchange:
         )
 
         session_delays = latency_config.get("session_delays", {})
-        self.scheduler = LatencyScheduler(session_delays=session_delays)
+        scheduler_config = self.config.get("scheduler", {})
+        self.scheduler = LatencyScheduler(
+            session_delays=session_delays,
+            max_events_per_advance=scheduler_config.get(
+                "max_events_per_advance",
+                100_000,
+            ),
+        )
         self.monotonic_clock = PerfCounterClock()
 
         self.tsdb_writer = None
@@ -305,6 +316,7 @@ class MockExchange:
                     pass
                 finally:
                     self._scheduler_task = None
+            self.scheduler.stop()
             state.component_status["scheduler"] = "stopped"
 
             try:
@@ -351,15 +363,13 @@ class MockExchange:
         self.latency_tracker.order_processing_end(order_id)
 
     def _handle_exec_report(self, report: ExecutionReport) -> None:
-        try:
-            if self.fix_gateway is not None:
-                self.fix_gateway.process_execution_report(report)
-        finally:
-            if (
-                report.ord_status in TERMINAL_ORDER_STATUSES
-                and self.latency_tracker.complete_order(report)
-            ):
-                self.latency_tracker.cleanup_order(report.order_id)
+        if self.fix_gateway is not None:
+            self.fix_gateway.process_execution_report(report)
+        if (
+            report.ord_status in TERMINAL_ORDER_STATUSES
+            and self.latency_tracker.complete_order(report)
+        ):
+            self.latency_tracker.cleanup_order(report.order_id)
 
     def _on_execution_report(self, report: ExecutionReport) -> None:
         self.metrics.record_order(report)
@@ -412,6 +422,11 @@ class MockExchange:
         if interval_ms <= 0:
             raise ValueError("scheduler.interval_ms must be positive")
         while self.running:
+            if self.scheduler.state == SchedulerState.FAILED:
+                await asyncio.sleep(interval_ms / 1000)
+                continue
+            if self.scheduler.state == SchedulerState.STOPPED:
+                return
             try:
                 await asyncio.sleep(interval_ms / 1000)
                 target = self.scheduler.current_time + timedelta(
@@ -420,13 +435,11 @@ class MockExchange:
                 await self.scheduler.run_until(target)
             except asyncio.CancelledError:
                 raise
-            except InvalidOrderTransition:
+            except SchedulerFailedError:
+                self.app.state.component_status["scheduler"] = "failed"
                 logger.exception(
-                    "Order lifecycle programming error in scheduler"
+                    "Realtime scheduler entered fail-stop state"
                 )
-                raise
-            except Exception:
-                logger.exception("Realtime scheduler iteration failed")
 
     async def _run_api(self) -> None:
         admin_config = self.config.get("admin_api", {})
