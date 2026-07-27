@@ -57,6 +57,22 @@ class InvalidBookMutation(OrderBookInvariantError):
     """Raised when a requested order-book mutation is invalid."""
 
 
+class SchedulerState(str, Enum):
+    """Explicit lifecycle state for one scheduler generation."""
+
+    RUNNING = "RUNNING"
+    FAILED = "FAILED"
+    STOPPED = "STOPPED"
+
+
+class SchedulerFailureStatus(str, Enum):
+    """Stable reason describing why a scheduled event was dead-lettered."""
+
+    HANDLER_EXCEPTION = "HANDLER_EXCEPTION"
+    HANDLER_NOT_REGISTERED = "HANDLER_NOT_REGISTERED"
+    EVENT_PROCESSING_LIMIT_EXCEEDED = "EVENT_PROCESSING_LIMIT_EXCEEDED"
+
+
 QUANTITY_EPSILON = 1e-9
 """Tolerance for float quantity comparisons.
 
@@ -410,13 +426,17 @@ class Order:
             self.canceled_qty = self.qty - self.filled_qty
         return canceled
 
-    def transition_to(self, new_status: OrderStatus) -> None:
-        """Apply one explicitly supported order lifecycle transition."""
+    def validate_transition_to(self, new_status: OrderStatus) -> None:
+        """Validate one lifecycle transition without changing the order."""
         if new_status not in ORDER_STATE_TRANSITIONS[self.status]:
             raise InvalidOrderTransition(
                 f"Invalid order transition for order {self.id}: "
                 f"{self.status.value} -> {new_status.value}"
             )
+
+    def transition_to(self, new_status: OrderStatus) -> None:
+        """Apply one explicitly supported order lifecycle transition."""
+        self.validate_transition_to(new_status)
         self.status = new_status
 
 @dataclass(frozen=True, slots=True)
@@ -1470,13 +1490,51 @@ def create_cancel_reject(
         timestamp=timestamp,
     )
 
+SchedulerMetadataScalar = Optional[Union[str, int, float, bool]]
+SchedulerEventMetadata = Tuple[Tuple[str, SchedulerMetadataScalar], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SchedulerFailure:
+    """Immutable scalar diagnostic for one terminal scheduler failure."""
+
+    event_id: str
+    event_type: str
+    scheduled_timestamp: datetime
+    scheduler_sequence: int
+    failure_timestamp: datetime
+    exception_type: str
+    exception_message: str
+    retry_attempted: bool
+    status: SchedulerFailureStatus
+    event_metadata: SchedulerEventMetadata
+
+    def to_dict(self) -> Dict[str, object]:
+        """Return the stable JSON-safe representation used by diagnostics."""
+        return {
+            "event_id": self.event_id,
+            "event_type": self.event_type,
+            "scheduled_timestamp": self.scheduled_timestamp.isoformat(),
+            "scheduler_sequence": self.scheduler_sequence,
+            "failure_timestamp": self.failure_timestamp.isoformat(),
+            "exception_type": self.exception_type,
+            "exception_message": self.exception_message,
+            "retry_attempted": self.retry_attempted,
+            "status": self.status.value,
+            "event_metadata": dict(self.event_metadata),
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class ScheduledEvent:
-    """Event scheduled for future execution."""
+    """Event scheduled for future execution with immutable diagnostics."""
+
+    event_id: str
     timestamp: datetime
     sequence: int
     event_type: str
     data: object
+    metadata: SchedulerEventMetadata
 
     def __lt__(self, other: "ScheduledEvent") -> bool:
         """Order events by timestamp, preserving scheduling order for ties."""

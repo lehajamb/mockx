@@ -112,6 +112,7 @@ class MatchingEngine:
         """
         if not isinstance(command, NewOrderCommand):
             raise TypeError("submit_order requires NewOrderCommand")
+        self.scheduler.ensure_running()
 
         client_key = None
         if command.session_id is not None:
@@ -168,6 +169,7 @@ class MatchingEngine:
         """Process one current, not-yet-consumed initial-order command."""
         if not isinstance(command, ProcessOrderCommand):
             raise TypeError("process_order requires ProcessOrderCommand")
+        self.scheduler.ensure_running()
 
         order = self.orders.get(command.order_id)
         if not order:
@@ -199,11 +201,13 @@ class MatchingEngine:
             )
             return
 
-        # Claim the command before any matching or report side effects.
+        # Calculate the deterministic rejection decision before claiming the
+        # command. Any remaining exception after the claim is fail-stop at the
+        # scheduler boundary; the engine does not claim transactional rollback.
+        should_reject = self._should_reject(order)
         order.processed = True
 
-        # Check for rejection
-        if self._should_reject(order):
+        if should_reject:
             self._reject_order(order, "Simulated rejection")
             return
             
@@ -231,6 +235,7 @@ class MatchingEngine:
         
     def _reject_order(self, order: Order, reason: str) -> None:
         """Reject an order."""
+        order.validate_transition_to(OrderStatus.REJECTED)
         order.cancel_remaining()
         order.transition_to(OrderStatus.REJECTED)
         order.reject_reason = reason
@@ -346,6 +351,31 @@ class MatchingEngine:
                 # is then committed solely through the book mutation layer.
                 aggressor.validate_fill(match_qty, exec_price)
                 book.validate_fill(passive_order, match_qty, exec_price)
+
+                aggressor_target = (
+                    OrderStatus.FILLED
+                    if aggressor.remaining_qty - match_qty
+                    <= QUANTITY_EPSILON
+                    else OrderStatus.PARTIAL
+                )
+                passive_target = (
+                    OrderStatus.FILLED
+                    if passive_remaining - match_qty <= QUANTITY_EPSILON
+                    else OrderStatus.PARTIAL
+                )
+                aggressor.validate_transition_to(aggressor_target)
+                passive_order.validate_transition_to(passive_target)
+                fill = Fill(
+                    trade_id=self.next_trade_id,
+                    symbol=aggressor.symbol,
+                    price=exec_price,
+                    qty=match_qty,
+                    aggressor_order_id=aggressor.id,
+                    passive_order_id=passive_order.id,
+                    aggressor_side=aggressor.side,
+                    timestamp=self.scheduler.current_time,
+                )
+
                 aggressor.apply_fill(match_qty, exec_price)
                 fill_result = book.apply_fill(
                     passive_order,
@@ -354,29 +384,11 @@ class MatchingEngine:
                 )
                 remaining_qty = aggressor.remaining_qty
 
-                fill = Fill(
-                    trade_id=self.next_trade_id,
-                    symbol=aggressor.symbol,
-                    price=exec_price,
-                    qty=fill_result.fill_qty,
-                    aggressor_order_id=aggressor.id,
-                    passive_order_id=passive_order.id,
-                    aggressor_side=aggressor.side,
-                    timestamp=self.scheduler.current_time,
-                )
                 self.next_trade_id += 1
                 fills.append(fill)
 
-                passive_order.transition_to(
-                    OrderStatus.FILLED
-                    if passive_order.remaining_qty == 0.0
-                    else OrderStatus.PARTIAL
-                )
-                aggressor.transition_to(
-                    OrderStatus.FILLED
-                    if aggressor.remaining_qty == 0.0
-                    else OrderStatus.PARTIAL
-                )
+                passive_order.transition_to(passive_target)
+                aggressor.transition_to(aggressor_target)
 
                 trade = self._create_trade(
                     fill,
@@ -428,6 +440,7 @@ class MatchingEngine:
             order.price is None or order.tif == TimeInForce.IOC
         )
         if immediate_only:
+            order.validate_transition_to(OrderStatus.CANCELLED)
             canceled_qty = order.cancel_remaining()
             order.transition_to(OrderStatus.CANCELLED)
             order_kind = "Market" if order.price is None else "IOC"
@@ -445,6 +458,8 @@ class MatchingEngine:
         # Model A acknowledgement: publish NEW only for a wholly unfilled GTC
         # limit. A partially filled aggressor already emitted TRADE/PARTIAL and
         # rests without regressing to a NEW state or report.
+        if order.filled_qty <= QUANTITY_EPSILON:
+            order.validate_transition_to(OrderStatus.NEW)
         book.add_order(order)
         if order.filled_qty <= QUANTITY_EPSILON:
             order.transition_to(OrderStatus.NEW)
@@ -591,12 +606,13 @@ class MatchingEngine:
         if symbol not in self.books:
             return
 
-        self.market_data_sequence += 1
+        next_sequence = self.market_data_sequence + 1
         update = self._create_market_data_snapshot(
             symbol,
-            sequence=self.market_data_sequence,
+            sequence=next_sequence,
             fills=tuple(fills),
         )
+        self.market_data_sequence = next_sequence
 
         self._notify_observer(
             "market data",
@@ -627,6 +643,7 @@ class MatchingEngine:
         """Cancel one live remainder or return an immutable rejection snapshot."""
         if not isinstance(command, CancelOrderCommand):
             raise TypeError("cancel_order requires CancelOrderCommand")
+        self.scheduler.ensure_running()
 
         self._notify_observer(
             "cancel request",
@@ -723,6 +740,7 @@ class MatchingEngine:
                 text=f"Order {order.id} has no live quantity",
             )
 
+        order.validate_transition_to(OrderStatus.CANCELLED)
         if is_resting:
             if not book.remove_order(order):
                 raise RuntimeError(

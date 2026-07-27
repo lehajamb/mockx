@@ -74,6 +74,7 @@ def load_config(config_path: str) -> dict:
     scheduler.setdefault("mode", "external")
     scheduler.setdefault("interval_ms", 10)
     scheduler.setdefault("max_advance_ms", 86_400_000)
+    scheduler.setdefault("max_events_per_advance", 100_000)
     if scheduler["mode"] not in {"external", "realtime"}:
         raise ValueError("scheduler.mode must be 'external' or 'realtime'")
     if (
@@ -83,10 +84,19 @@ def load_config(config_path: str) -> dict:
         raise ValueError("scheduler.interval_ms must be a positive integer")
     if (
         not isinstance(scheduler["max_advance_ms"], int)
+        or isinstance(scheduler["max_advance_ms"], bool)
         or scheduler["max_advance_ms"] <= 0
     ):
         raise ValueError(
             "scheduler.max_advance_ms must be a positive integer"
+        )
+    if (
+        not isinstance(scheduler["max_events_per_advance"], int)
+        or isinstance(scheduler["max_events_per_advance"], bool)
+        or scheduler["max_events_per_advance"] <= 0
+    ):
+        raise ValueError(
+            "scheduler.max_events_per_advance must be a positive integer"
         )
 
     websocket = config.setdefault("websocket", {})

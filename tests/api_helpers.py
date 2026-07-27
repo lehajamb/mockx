@@ -39,6 +39,7 @@ def api_config(
             "mode": "external",
             "interval_ms": 10,
             "max_advance_ms": 86_400_000,
+            "max_events_per_advance": 100_000,
         },
         "websocket": {
             "heartbeat_interval_seconds": heartbeat_seconds,

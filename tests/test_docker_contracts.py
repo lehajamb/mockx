@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 from src.mockx.cli import load_config
@@ -66,7 +67,34 @@ def test_instance_yaml_contracts_load_and_match_internal_api_port():
     assert second["admin_api"]["host"] == "0.0.0.0"
     assert first["scheduler"]["mode"] == "external"
     assert second["scheduler"]["mode"] == "external"
+    assert first["scheduler"]["max_events_per_advance"] == 100_000
+    assert second["scheduler"]["max_events_per_advance"] == 100_000
     assert first["tsdb"]["bucket"] == second["tsdb"]["bucket"]
+
+
+def test_scheduler_processing_limit_defaults_and_validates(tmp_path):
+    source = yaml.safe_load(
+        (ROOT / "configs" / "mockx-local.yml").read_text(encoding="utf-8")
+    )
+    source["scheduler"].pop("max_events_per_advance")
+    default_path = tmp_path / "default.yml"
+    default_path.write_text(yaml.safe_dump(source), encoding="utf-8")
+
+    assert (
+        load_config(str(default_path))["scheduler"][
+            "max_events_per_advance"
+        ]
+        == 100_000
+    )
+
+    source["scheduler"]["max_events_per_advance"] = 0
+    invalid_path = tmp_path / "invalid.yml"
+    invalid_path.write_text(yaml.safe_dump(source), encoding="utf-8")
+    with pytest.raises(
+        ValueError,
+        match="max_events_per_advance must be a positive integer",
+    ):
+        load_config(str(invalid_path))
 
 
 def test_monitoring_documentation_matches_deployed_assets():
