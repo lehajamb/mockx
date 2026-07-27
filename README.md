@@ -448,6 +448,11 @@ prometheus:
   enabled: true
 ```
 
+`execution.partial_fill_prob` is retained as a deprecated compatibility
+field and should be `0.0`. Non-zero values are ignored with a startup warning.
+The engine consumes all immediately executable liquidity; partial fills occur
+naturally only when the book cannot fill the complete order.
+
 Startup validation rejects missing fields, duplicate/empty symbols, invalid
 ports, unsupported scheduler modes, nonpositive intervals, stale timeouts not
 greater than heartbeat cadence, wildcard CORS, and incomplete enabled TSDB

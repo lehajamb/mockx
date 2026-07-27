@@ -4,6 +4,7 @@ from collections import deque
 from datetime import datetime, timezone
 import random
 
+from hypothesis import given, settings, strategies as st
 import pytest
 
 from src.mockx.engine import MatchingEngine
@@ -26,6 +27,22 @@ from src.mockx.models import (
 NOW = datetime(2026, 7, 25, tzinfo=timezone.utc)
 RANDOM_SEED = 12345
 RANDOM_OPERATION_COUNT = 500
+COMMAND_OPERATION = st.one_of(
+    st.tuples(
+        st.just("submit"),
+        st.sampled_from((Side.BUY, Side.SELL)),
+        st.integers(min_value=1, max_value=20),
+        st.one_of(
+            st.none(),
+            st.integers(min_value=95, max_value=105),
+        ),
+        st.sampled_from((TimeInForce.GTC, TimeInForce.IOC)),
+    ),
+    st.tuples(
+        st.just("cancel"),
+        st.integers(min_value=0, max_value=100),
+    ),
+)
 
 
 def make_order(
@@ -125,6 +142,31 @@ def test_invariant_checker_detects_retained_empty_level():
     with pytest.raises(
         OrderBookInvariantError,
         match="Empty price level retained",
+    ):
+        book.assert_invariants()
+
+
+@pytest.mark.parametrize(
+    ("best_bid", "best_ask"),
+    (
+        (101.0, 100.0),
+        (100.0, 100.0),
+    ),
+)
+def test_invariant_checker_detects_crossed_or_locked_book(
+    best_bid,
+    best_ask,
+):
+    book = OrderBook("TEST")
+    book.add_order(make_order(1, side=Side.BUY, price=best_bid))
+    book.add_order(make_order(2, side=Side.SELL, price=best_ask))
+
+    with pytest.raises(
+        OrderBookInvariantError,
+        match=(
+            rf"Crossed or locked book in TEST: "
+            rf"best_bid={best_bid}, best_ask={best_ask}"
+        ),
     ):
         book.assert_invariants()
 
@@ -252,3 +294,85 @@ def test_fixed_seed_randomized_operations_preserve_all_invariants():
                 f"step={step}, operations={RANDOM_OPERATION_COUNT}, "
                 f"recent_history={recent_history}"
             ) from exc
+
+
+@settings(max_examples=75, deadline=None)
+@given(st.lists(COMMAND_OPERATION, min_size=1, max_size=50))
+def test_command_sequences_never_leave_crossed_or_locked_book(operations):
+    engine = MatchingEngine(
+        ExecutionParams(
+            network_latency_ms=0,
+            engine_latency_ms=0,
+            partial_fill_prob=0.0,
+            reject_prob=0.0,
+            rand_seed=777,
+        ),
+        LatencyScheduler(),
+    )
+    engine.add_symbol("TEST")
+
+    for step, operation in enumerate(operations):
+        if operation[0] == "submit":
+            _, side, qty, price, tif = operation
+            order_id = engine.submit_order(
+                NewOrderCommand(
+                    cl_ord_id=f"PROPERTY-{step}",
+                    symbol="TEST",
+                    side=side,
+                    qty=float(qty),
+                    price=None if price is None else float(price),
+                    tif=tif,
+                    submitted_at=NOW,
+                    session_alias="property_test",
+                )
+            )
+            engine.process_order(
+                ProcessOrderCommand(order_id, expected_version=0)
+            )
+        else:
+            _, selector = operation
+            book = engine.books["TEST"]
+            resting_ids = sorted(
+                order.id
+                for order in engine.orders.values()
+                if book.is_resting(order.id)
+            )
+            if resting_ids:
+                order_id = resting_ids[selector % len(resting_ids)]
+                order = engine.orders[order_id]
+                engine.cancel_order(
+                    CancelOrderCommand(
+                        order_id=order_id,
+                        expected_version=order.version,
+                        cancel_cl_ord_id=f"PROPERTY-CXL-{step}",
+                        orig_cl_ord_id=order.cl_ord_id,
+                        requested_at=NOW,
+                        session_alias=order.session_alias,
+                    )
+                )
+
+        book = engine.books["TEST"]
+        book.assert_invariants()
+        assert_independent_reference(book)
+
+        best_bid = book.get_best_bid()
+        best_ask = book.get_best_ask()
+        if best_bid is not None and best_ask is not None:
+            assert best_bid < best_ask
+
+        for level in (*book.bids, *book.asks):
+            for order in level.orders:
+                assert order.status in {
+                    OrderStatus.NEW,
+                    OrderStatus.PARTIAL,
+                }
+
+        for order in engine.orders.values():
+            if order.status in {
+                OrderStatus.FILLED,
+                OrderStatus.CANCELLED,
+                OrderStatus.REJECTED,
+            }:
+                assert not book.is_resting(order.id)
+            if order.price is None or order.tif == TimeInForce.IOC:
+                assert not book.is_resting(order.id)

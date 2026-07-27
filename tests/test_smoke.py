@@ -21,7 +21,7 @@ def test_config():
             "engine_ms": 5
         },
         "execution": {
-            "partial_fill_prob": 0.1,
+            "partial_fill_prob": 0.0,
             "reject_prob": 0.01,
             "random_seed": 42
         },

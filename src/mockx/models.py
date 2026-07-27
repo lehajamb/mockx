@@ -424,7 +424,7 @@ class ExecutionParams:
     """Configuration for execution behavior."""
     network_latency_ms: int  # Round-trip
     engine_latency_ms: int
-    partial_fill_prob: float  # 0..1
+    partial_fill_prob: float  # Deprecated compatibility field; ignored
     reject_prob: float  # 0..1
     rand_seed: int  # For deterministic replay
     inbound_network_latency_ms: Optional[int] = None
@@ -1100,6 +1100,15 @@ class OrderBook:
                     f"cached={self.get_best_ask()}, actual={actual_best_ask}"
                 )
 
+        if self.bids and self.asks:
+            best_bid = self.bids[0].price
+            best_ask = self.asks[0].price
+            if best_bid >= best_ask:
+                raise OrderBookInvariantError(
+                    f"Crossed or locked book in {self.symbol}: "
+                    f"best_bid={best_bid}, best_ask={best_ask}"
+                )
+
         if set(self._order_index) != set(seen_orders):
             raise OrderBookInvariantError(
                 f"Order index mismatch in {self.symbol}: "
@@ -1118,10 +1127,6 @@ class OrderBook:
                     f"indexed_side={indexed_side.value}, "
                     f"queued_side={side.value}, queued_price={price}"
                 )
-
-        # The partial-fill simulator may intentionally stop an aggressor before
-        # all crossing liquidity is consumed, so a non-crossed assertion would
-        # be invalid for the current matching semantics.
 
 @dataclass(frozen=True, slots=True)
 class PriceLevelSnapshot:

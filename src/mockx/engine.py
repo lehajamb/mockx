@@ -30,7 +30,7 @@ class MatchingEngine:
     Features:
     - Price-time priority matching
     - Configurable slippage
-    - Partial fill simulation
+    - Natural partial fills from available liquidity
     - Order rejection simulation
     - Deterministic randomness via seeded PRNG
     """    
@@ -49,6 +49,11 @@ class MatchingEngine:
         self.scheduler = scheduler
         self.monotonic_clock = monotonic_clock or PerfCounterClock()
         self.rng = Random(exec_params.rand_seed)
+        if exec_params.partial_fill_prob != 0.0:
+            logger.warning(
+                "partial_fill_prob is deprecated and ignored; matching now "
+                "consumes all immediately executable liquidity"
+            )
         
         # Order books by symbol
         self.books: Dict[str, OrderBook] = {}
@@ -306,12 +311,8 @@ class MatchingEngine:
         fills: List[Fill] = []
         remaining_qty = aggressor.remaining_qty
 
-        # Determine max fill for partial fill simulation
-        max_fill_qty = remaining_qty
-        if self._should_partial_fill(aggressor):
-            fill_fraction = self.rng.uniform(0.3, 0.9)  # Fill 30-90% of order
-            max_fill_qty = round(remaining_qty * fill_fraction, 8)
-        
+        self._consume_deprecated_partial_fill_randomness(aggressor)
+
         passive_levels = book.asks if aggressor.side == Side.BUY else book.bids
 
         # Continue as long as there's quantity and available levels
@@ -319,7 +320,6 @@ class MatchingEngine:
         while (
             remaining_qty > QUANTITY_EPSILON
             and passive_levels
-            and aggressor.filled_qty < max_fill_qty - QUANTITY_EPSILON
         ):
             best_level = passive_levels[0]
 
@@ -334,16 +334,12 @@ class MatchingEngine:
             while (
                 remaining_qty > QUANTITY_EPSILON
                 and best_level.orders
-                and aggressor.filled_qty < max_fill_qty - QUANTITY_EPSILON
             ):
                 passive_order = best_level.orders[0]
 
                 passive_remaining = passive_order.remaining_qty
                 match_qty = min(remaining_qty, passive_remaining)
-                
-                # Ensure we don't exceed max fill
-                match_qty = min(match_qty, max_fill_qty - aggressor.filled_qty)
-                
+
                 if match_qty <= 0:
                     break
 
@@ -465,15 +461,15 @@ class MatchingEngine:
             )
             self._send_execution_report(report)
 
-    def _should_partial_fill(self, order: Order) -> bool:
-        """
-        Determine if a partial fill should be simulated.
-        This is now only checked once per aggressive order to reduce overhead.
-        """
-        # Only apply to aggressive orders, not every single passive match
-        if order.status == OrderStatus.PENDING_NEW:
-             return self.rng.random() < self.exec_params.partial_fill_prob
-        return False
+    def _consume_deprecated_partial_fill_randomness(
+        self,
+        order: Order,
+    ) -> None:
+        """Keep the legacy seeded RNG sequence without capping execution."""
+        if order.status != OrderStatus.PENDING_NEW:
+            return
+        if self.rng.random() < self.exec_params.partial_fill_prob:
+            self.rng.uniform(0.3, 0.9)
         
     def _create_trade(
         self,
