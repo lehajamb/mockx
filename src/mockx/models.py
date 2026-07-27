@@ -424,7 +424,6 @@ class ExecutionParams:
     """Configuration for execution behavior."""
     network_latency_ms: int  # Round-trip
     engine_latency_ms: int
-    partial_fill_prob: float  # Deprecated compatibility field; ignored
     reject_prob: float  # 0..1
     rand_seed: int  # For deterministic replay
     inbound_network_latency_ms: Optional[int] = None

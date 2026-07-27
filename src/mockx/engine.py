@@ -49,12 +49,7 @@ class MatchingEngine:
         self.scheduler = scheduler
         self.monotonic_clock = monotonic_clock or PerfCounterClock()
         self.rng = Random(exec_params.rand_seed)
-        if exec_params.partial_fill_prob != 0.0:
-            logger.warning(
-                "partial_fill_prob is deprecated and ignored; matching now "
-                "consumes all immediately executable liquidity"
-            )
-        
+
         # Order books by symbol
         self.books: Dict[str, OrderBook] = {}
         
@@ -311,8 +306,6 @@ class MatchingEngine:
         fills: List[Fill] = []
         remaining_qty = aggressor.remaining_qty
 
-        self._consume_deprecated_partial_fill_randomness(aggressor)
-
         passive_levels = book.asks if aggressor.side == Side.BUY else book.bids
 
         # Continue as long as there's quantity and available levels
@@ -461,16 +454,6 @@ class MatchingEngine:
             )
             self._send_execution_report(report)
 
-    def _consume_deprecated_partial_fill_randomness(
-        self,
-        order: Order,
-    ) -> None:
-        """Keep the legacy seeded RNG sequence without capping execution."""
-        if order.status != OrderStatus.PENDING_NEW:
-            return
-        if self.rng.random() < self.exec_params.partial_fill_prob:
-            self.rng.uniform(0.3, 0.9)
-        
     def _create_trade(
         self,
         fill: Fill,

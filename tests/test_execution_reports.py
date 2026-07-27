@@ -100,7 +100,6 @@ async def test_delayed_new_report_remains_new_when_delivered_after_fill():
         ExecutionParams(
             network_latency_ms=10,
             engine_latency_ms=5,
-            partial_fill_prob=0.0,
             reject_prob=0.0,
             rand_seed=42,
         ),

@@ -176,7 +176,6 @@ def make_random_engine() -> MatchingEngine:
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
-            partial_fill_prob=0.0,
             reject_prob=0.0,
             rand_seed=777,
         ),
@@ -303,7 +302,6 @@ def test_command_sequences_never_leave_crossed_or_locked_book(operations):
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
-            partial_fill_prob=0.0,
             reject_prob=0.0,
             rand_seed=777,
         ),

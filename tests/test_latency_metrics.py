@@ -47,7 +47,6 @@ def wire_stack(*, inbound_ms=5, engine_ms=3, outbound_ms=7, clock=None):
         ExecutionParams(
             network_latency_ms=inbound_ms + outbound_ms,
             engine_latency_ms=engine_ms,
-            partial_fill_prob=0.0,
             reject_prob=0.0,
             rand_seed=42,
             inbound_network_latency_ms=inbound_ms,

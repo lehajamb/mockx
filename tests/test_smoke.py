@@ -21,7 +21,6 @@ def test_config():
             "engine_ms": 5
         },
         "execution": {
-            "partial_fill_prob": 0.0,
             "reject_prob": 0.01,
             "random_seed": 42
         },
@@ -42,7 +41,6 @@ async def test_engine_smoke():
         "symbols": ["TEST"],
         "latency": {"network_ms": 0, "engine_ms": 0},
         "execution": {
-            "partial_fill_prob": 0.0,
             "reject_prob": 0.0,
             "random_seed": 42
         },
@@ -111,7 +109,6 @@ def test_config_loading():
         "symbols": ["TEST"],
         "latency": {"network_ms": 10, "engine_ms": 5},
         "execution": {
-            "partial_fill_prob": 0.0,
             "reject_prob": 0.0,
             "random_seed": 42
         },

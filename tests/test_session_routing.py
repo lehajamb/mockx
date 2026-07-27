@@ -32,7 +32,6 @@ def make_stack():
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
-            partial_fill_prob=0.0,
             reject_prob=0.0,
             rand_seed=42,
         ),

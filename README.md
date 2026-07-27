@@ -426,7 +426,6 @@ latency:
   network_ms: 0
   engine_ms: 1
 execution:
-  partial_fill_prob: 0.0
   reject_prob: 0.0
   random_seed: 42
 admin_api:
@@ -448,9 +447,7 @@ prometheus:
   enabled: true
 ```
 
-`execution.partial_fill_prob` is retained as a deprecated compatibility
-field and should be `0.0`. Non-zero values are ignored with a startup warning.
-The engine consumes all immediately executable liquidity; partial fills occur
+Matching consumes all immediately executable liquidity. Partial fills occur
 naturally only when the book cannot fill the complete order.
 
 Startup validation rejects missing fields, duplicate/empty symbols, invalid

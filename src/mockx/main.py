@@ -104,9 +104,6 @@ class MockExchange:
         self.exec_params = ExecutionParams(
             network_latency_ms=network_ms,
             engine_latency_ms=latency_config["engine_ms"],
-            partial_fill_prob=self.config["execution"][
-                "partial_fill_prob"
-            ],
             reject_prob=self.config["execution"]["reject_prob"],
             rand_seed=self.config["execution"]["random_seed"],
             inbound_network_latency_ms=latency_config.get("inbound_ms"),
