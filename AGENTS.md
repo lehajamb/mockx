@@ -24,6 +24,13 @@
 
 - When running several commands in a fresh PowerShell process, initialize and activate Conda in the same command session before invoking Python or pytest.
 
+## Compatibility and consumers
+
+- MockX has no external or production clients. The only client code that consumes MockX is contained in the repository test suite.
+- When making intentional changes, do not preserve legacy code solely for compatibility. Remove obsolete paths, adapters, aliases, and deprecated behavior rather than maintaining them in parallel.
+- Backward compatibility is not required unless a task explicitly asks for it. Update the tests, examples, README, and configuration together when a contract intentionally changes.
+- Prefer a clean, internally consistent design over compatibility shims or transitional APIs.
+
 ## Core correctness invariants
 
 After every completed engine command:
