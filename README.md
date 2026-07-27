@@ -426,7 +426,6 @@ latency:
   network_ms: 0
   engine_ms: 1
 execution:
-  partial_fill_prob: 0.0
   reject_prob: 0.0
   random_seed: 42
 admin_api:
@@ -447,6 +446,9 @@ cors_origins: []
 prometheus:
   enabled: true
 ```
+
+Matching consumes all immediately executable liquidity. Partial fills occur
+naturally only when the book cannot fill the complete order.
 
 Startup validation rejects missing fields, duplicate/empty symbols, invalid
 ports, unsupported scheduler modes, nonpositive intervals, stale timeouts not

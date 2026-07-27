@@ -6,7 +6,6 @@ latency:
   network_ms: 0
   engine_ms: 1
 execution:
-  partial_fill_prob: 0.0
   reject_prob: 0.0
   random_seed: 42
 admin_api:

@@ -27,7 +27,6 @@ def make_engine(
         ExecutionParams(
             network_latency_ms=network_latency_ms,
             engine_latency_ms=engine_latency_ms,
-            partial_fill_prob=0.0,
             reject_prob=0.0,
             rand_seed=42,
         ),

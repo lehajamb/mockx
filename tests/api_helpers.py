@@ -26,7 +26,6 @@ def api_config(
         "symbols": ["TEST"],
         "latency": {"network_ms": 0, "engine_ms": 0},
         "execution": {
-            "partial_fill_prob": 0.0,
             "reject_prob": 0.0,
             "random_seed": 42,
         },

@@ -29,7 +29,6 @@ def exec_params():
     return ExecutionParams(
         network_latency_ms=10,
         engine_latency_ms=5,
-        partial_fill_prob=0.0,
         reject_prob=0.0,
         rand_seed=42
     )
@@ -274,7 +273,6 @@ class TestMatchingEngine:
         exec_params = ExecutionParams(
             network_latency_ms=10,
             engine_latency_ms=5,
-            partial_fill_prob=0.0,
             reject_prob=1.0,  # Always reject
             rand_seed=42
         )
@@ -289,38 +287,70 @@ class TestMatchingEngine:
         
         assert engine.orders[order_id].status == OrderStatus.REJECTED
         
-    def test_partial_fill(self):
-        """Test partial fill simulation."""
+    def test_matching_consumes_all_crossing_liquidity(self):
         exec_params = ExecutionParams(
             network_latency_ms=10,
             engine_latency_ms=5,
-            partial_fill_prob=1.0,  # Always partial fill
             reject_prob=0.0,
-            rand_seed=42
+            rand_seed=42,
         )
-        
+
         scheduler = LatencyScheduler()
         engine = MatchingEngine(exec_params, scheduler)
         engine.add_symbol("TEST")
         # Set a dummy handler so that execution reports are generated
         engine.on_execution_report = lambda report: None
-        
+
         # Add liquidity
         sell = create_order_command(Side.SELL, 10, 100)
         sell_id = engine.submit_order(sell)
         engine.process_order(process_command(sell_id))
-        
+
         # Try to buy all
-        buy = create_order_command(Side.BUY, 10, 100)
+        buy = create_order_command(Side.BUY, 10, 101)
         buy_id = engine.submit_order(buy)
         engine.process_order(process_command(buy_id))
-        
-        # Check that a partial fill occurred and the order status is correct
+
+        sell_order = engine.orders[sell_id]
         buy_order = engine.orders[buy_id]
+        book = engine.books["TEST"]
+
+        assert sell_order.status == OrderStatus.FILLED
+        assert sell_order.filled_qty == 10
+        assert buy_order.status == OrderStatus.FILLED
+        assert buy_order.filled_qty == 10
+        assert book.get_best_bid() is None
+        assert book.get_best_ask() is None
+        book.assert_invariants()
+
+    def test_gtc_partial_fill_rests_after_crossing_liquidity_is_exhausted(
+        self,
+        engine,
+    ):
+        sell_id = engine.submit_order(
+            create_order_command(Side.SELL, 10, 100)
+        )
+        engine.process_order(process_command(sell_id))
+
+        buy_id = engine.submit_order(
+            create_order_command(Side.BUY, 15, 101)
+        )
+        engine.process_order(process_command(buy_id))
+
+        sell_order = engine.orders[sell_id]
+        buy_order = engine.orders[buy_id]
+        book = engine.books["TEST"]
+
+        assert sell_order.status == OrderStatus.FILLED
+        assert sell_order.filled_qty == 10
         assert buy_order.status == OrderStatus.PARTIAL
-        assert buy_order.filled_qty > 0
-        assert buy_order.filled_qty < buy_order.qty
-        
+        assert buy_order.filled_qty == 10
+        assert buy_order.remaining_qty == 5
+        assert book.get_best_bid() == 101
+        assert book.get_best_ask() is None
+        assert book.is_resting(buy_id)
+        book.assert_invariants()
+
     def test_cancel_order(self, engine):
         """Test order cancellation."""
         # Add resting order

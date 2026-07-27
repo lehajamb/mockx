@@ -31,7 +31,6 @@ def config():
         "symbols": ["TEST"],
         "latency": {"network_ms": 0, "engine_ms": 0},
         "execution": {
-            "partial_fill_prob": 0.0,
             "reject_prob": 0.0,
             "random_seed": 42,
         },
@@ -46,7 +45,6 @@ def bare_app():
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
-            partial_fill_prob=0.0,
             reject_prob=0.0,
             rand_seed=42,
         ),

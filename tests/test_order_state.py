@@ -48,7 +48,6 @@ def make_engine() -> MatchingEngine:
         ExecutionParams(
             network_latency_ms=10,
             engine_latency_ms=5,
-            partial_fill_prob=0.0,
             reject_prob=0.0,
             rand_seed=42,
         ),

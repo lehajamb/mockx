@@ -185,7 +185,6 @@ async def test_sink_failure_does_not_roll_back_valid_trade(caplog):
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
-            partial_fill_prob=0.0,
             reject_prob=0.0,
             rand_seed=42,
         ),
