@@ -1,12 +1,15 @@
 """Actual WebSocket delivery plus registry and browser policy tests."""
 
 import asyncio
+from dataclasses import replace
 from pathlib import Path
+import re
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.mockx.models import NewOrderCommand, Side, TimeInForce
+from src.mockx.api import market_data_message
 
 from .api_helpers import make_exchange, process_order
 
@@ -130,24 +133,56 @@ async def test_failed_client_is_removed_without_blocking_healthy_client():
     await exchange.lifecycle.start_session("websocket-failure")
     healthy = FakeWebSocket()
     failed = FakeWebSocket(fail=True)
-    await exchange.api.registry.add("TEST", healthy)
-    await exchange.api.registry.add("TEST", failed)
     snapshot = exchange.engine.get_market_data_snapshot("TEST")
+    initial_message = market_data_message(snapshot).model_dump(mode="json")
+    healthy_connection = await exchange.api.registry.register(
+        "TEST",
+        healthy,
+        initial_message,
+        initial_sequence=snapshot.sequence,
+    )
+    await exchange.api.registry.register(
+        "TEST",
+        failed,
+        initial_message,
+        initial_sequence=snapshot.sequence,
+    )
+    for _ in range(100):
+        if len(healthy.messages) == 1:
+            break
+        await asyncio.sleep(0)
+    update = replace(snapshot, sequence=snapshot.sequence + 1)
 
-    await exchange.api.broadcast_market_data(snapshot)
+    await exchange.api.broadcast_market_data(update)
+    for _ in range(100):
+        if (
+            len(healthy.messages) == 2
+            and await exchange.api.registry.connection_count("TEST") == 1
+        ):
+            break
+        await asyncio.sleep(0)
 
-    assert len(healthy.messages) == 1
+    assert len(healthy.messages) == 2
     assert await exchange.api.registry.connection_count("TEST") == 1
-    assert await exchange.api.registry.snapshot("TEST") == (healthy,)
+    assert await exchange.api.registry.snapshot("TEST") == (
+        healthy_connection,
+    )
+    await exchange.api.registry.disconnect(healthy_connection)
 
 
 @pytest.mark.asyncio
 async def test_disconnect_cleanup_is_idempotent_and_removes_empty_symbol():
     exchange = make_exchange()
     websocket = FakeWebSocket()
-    await exchange.api.registry.add("TEST", websocket)
-    await exchange.api.registry.remove("TEST", websocket)
-    await exchange.api.registry.remove("TEST", websocket)
+    snapshot = exchange.engine.get_market_data_snapshot("TEST")
+    connection = await exchange.api.registry.register(
+        "TEST",
+        websocket,
+        market_data_message(snapshot).model_dump(mode="json"),
+        initial_sequence=snapshot.sequence,
+    )
+    await exchange.api.registry.disconnect(connection)
+    await exchange.api.registry.disconnect(connection)
 
     assert await exchange.api.registry.connection_count("TEST") == 0
     assert await exchange.api.registry.snapshot("TEST") == ()
@@ -189,7 +224,54 @@ def test_browser_uses_current_origin_and_market_data_freshness_policy():
     assert "localhost" not in script
     assert "lastMarketDataAt" in script
     assert "lastHeartbeatAt" in script
-    assert "data.sequence > state.lastSequence + 1" in script
     assert "data.sequence <= state.lastSequence" in script
     assert "enableFallback()" in script
     assert "disableFallback()" in script
+
+    market_data_handler = script.split(
+        "async function handleMarketData(data)",
+        1,
+    )[1].split("function scheduleReconnect()", 1)[0]
+    assert "refreshFromRest" not in market_data_handler
+    assert "state.lastSequence = data.sequence" in market_data_handler
+
+
+def test_browser_clears_missing_side_and_derived_statistics():
+    template = (
+        Path(__file__).resolve().parents[1] / "templates" / "book.html"
+    ).read_text(encoding="utf-8")
+    script = template.split("<script>", 1)[1]
+
+    assert "bestBid === null ? '-' : bestBid.toFixed(2)" in script
+    assert "bestAsk === null ? '-' : bestAsk.toFixed(2)" in script
+    assert "spreadElement.textContent = '-'" in script
+    assert "midElement.textContent = '-'" in script
+
+
+def test_browser_timing_values_are_rendered_from_server_configuration():
+    exchange = make_exchange(
+        heartbeat_seconds=2.0,
+        heartbeat_stale_seconds=7.0,
+        market_data_stale_seconds=11.0,
+        fallback_poll_seconds=0.25,
+        reconnect_initial_seconds=0.5,
+        reconnect_max_seconds=9.0,
+        staleness_check_seconds=0.2,
+    )
+
+    with TestClient(exchange.app) as client:
+        response = client.get("/ui/TEST")
+
+    assert response.status_code == 200
+    html = response.text
+    expected = {
+        "heartbeatIntervalMs": 2000,
+        "heartbeatStaleMs": 7000,
+        "marketDataStaleMs": 11000,
+        "fallbackPollMs": 250,
+        "reconnectInitialMs": 500,
+        "reconnectMaxMs": 9000,
+        "stalenessCheckMs": 200,
+    }
+    for key, value in expected.items():
+        assert re.search(rf'"{key}"\s*:\s*{value}(?:\.0)?', html)

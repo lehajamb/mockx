@@ -193,10 +193,13 @@
     
     <script>
         const symbol = "{{ symbol }}";
-        const MARKET_DATA_STALE_MS = 5000;
-        const HEARTBEAT_STALE_MS = 15000;
-        const FALLBACK_POLL_MS = 2000;
-        const MAX_RECONNECT_MS = 30000;
+        const WS_TIMING = {{ websocket_timing | tojson }};
+        const MARKET_DATA_STALE_MS = WS_TIMING.marketDataStaleMs;
+        const HEARTBEAT_STALE_MS = WS_TIMING.heartbeatStaleMs;
+        const FALLBACK_POLL_MS = WS_TIMING.fallbackPollMs;
+        const RECONNECT_INITIAL_MS = WS_TIMING.reconnectInitialMs;
+        const MAX_RECONNECT_MS = WS_TIMING.reconnectMaxMs;
+        const STALENESS_CHECK_MS = WS_TIMING.stalenessCheckMs;
         const state = {
             socket: null,
             lastHeartbeatAt: 0,
@@ -251,17 +254,27 @@
                 asksBody.appendChild(row);
             });
             
-            // Update stats
-            if (data.bids.length > 0 && data.asks.length > 0) {
-                const bestBid = data.bids[0].price;
-                const bestAsk = data.asks[0].price;
+            // Update stats without retaining values from a disappeared side.
+            const bestBid = data.bids.length > 0 ? data.bids[0].price : null;
+            const bestAsk = data.asks.length > 0 ? data.asks[0].price : null;
+            const bestBidElement = document.getElementById('best-bid');
+            const bestAskElement = document.getElementById('best-ask');
+            const spreadElement = document.getElementById('spread');
+            const midElement = document.getElementById('mid-price');
+
+            bestBidElement.textContent =
+                bestBid === null ? '-' : bestBid.toFixed(2);
+            bestAskElement.textContent =
+                bestAsk === null ? '-' : bestAsk.toFixed(2);
+            if (bestBid !== null && bestAsk !== null) {
                 const spread = bestAsk - bestBid;
                 const mid = (bestBid + bestAsk) / 2;
-                
-                document.getElementById('best-bid').textContent = bestBid.toFixed(2);
-                document.getElementById('best-ask').textContent = bestAsk.toFixed(2);
-                document.getElementById('spread').textContent = spread.toFixed(2);
-                document.getElementById('mid-price').textContent = mid.toFixed(2);
+
+                spreadElement.textContent = spread.toFixed(2);
+                midElement.textContent = mid.toFixed(2);
+            } else {
+                spreadElement.textContent = '-';
+                midElement.textContent = '-';
             }
             
             // Update timestamp
@@ -322,10 +335,6 @@
                 if (data.sequence <= state.lastSequence) {
                     return;
                 }
-                if (data.sequence > state.lastSequence + 1) {
-                    await refreshFromRest();
-                    return;
-                }
             }
             state.lastSequence = data.sequence;
             state.lastMarketDataAt = Date.now();
@@ -338,7 +347,7 @@
                 return;
             }
             const delay = Math.min(
-                1000 * (2 ** state.reconnectAttempt),
+                RECONNECT_INITIAL_MS * (2 ** state.reconnectAttempt),
                 MAX_RECONNECT_MS
             );
             state.reconnectAttempt += 1;
@@ -413,7 +422,7 @@
         }
 
         connect();
-        window.setInterval(checkStaleness, 1000);
+        window.setInterval(checkStaleness, STALENESS_CHECK_MS);
     </script>
 </body>
 </html>

@@ -9,6 +9,7 @@ import re
 from httpx import ASGITransport, AsyncClient
 import pytest
 
+from src.mockx.api import market_data_message
 from src.mockx.gateway import fix
 from src.mockx.lifecycle import (
     LifecycleError,
@@ -645,20 +646,52 @@ class _FakeWebSocket:
 async def test_start_closes_websockets_and_stale_generation_is_not_broadcast():
     exchange = make_exchange()
     old_client = _FakeWebSocket()
-    await exchange.api.registry.add("TEST", old_client)
+    second_old_client = _FakeWebSocket()
+    initial = exchange.engine.get_market_data_snapshot("TEST")
+    old_connection = await exchange.api.registry.register(
+        "TEST",
+        old_client,
+        market_data_message(initial).model_dump(mode="json"),
+        initial_sequence=initial.sequence,
+    )
+    second_old_connection = await exchange.api.registry.register(
+        "TEST",
+        second_old_client,
+        market_data_message(initial).model_dump(mode="json"),
+        initial_sequence=initial.sequence,
+    )
     await exchange.lifecycle.start_session("ws-one")
     old_snapshot = exchange.engine.get_market_data_snapshot("TEST")
 
     assert old_client.closed
+    assert second_old_client.closed
+    assert old_connection.sender_task is not None
+    assert old_connection.sender_task.done()
+    assert second_old_connection.sender_task is not None
+    assert second_old_connection.sender_task.done()
     assert await exchange.api.registry.connection_count() == 0
+    assert exchange.metrics.websocket_metrics_snapshot()["active_clients"] == 0
+    assert exchange.metrics.websocket_metrics_snapshot()["queue_depth"] == 0
 
     await exchange.lifecycle.end_session()
     await exchange.lifecycle.start_session("ws-two")
     new_client = _FakeWebSocket()
-    await exchange.api.registry.add("TEST", new_client)
+    current = exchange.engine.get_market_data_snapshot("TEST")
+    new_connection = await exchange.api.registry.register(
+        "TEST",
+        new_client,
+        market_data_message(current).model_dump(mode="json"),
+        initial_sequence=current.sequence,
+    )
+    for _ in range(100):
+        if new_client.messages:
+            break
+        await asyncio.sleep(0)
+    messages_before = list(new_client.messages)
     await exchange.api.broadcast_market_data(old_snapshot)
 
-    assert new_client.messages == []
+    assert new_client.messages == messages_before
+    await exchange.api.registry.disconnect(new_connection)
 
 
 @pytest.mark.asyncio

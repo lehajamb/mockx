@@ -479,17 +479,36 @@ WebSocket registration is lifecycle-gated. A connection attempted during
 snapshots from an older run generation are discarded, so they cannot reach
 clients registered after a reset.
 
-Broadcasting copies the connection registry to a tuple before sending, holds no
-registry lock across network awaits, removes failed clients afterward, and
-does not let one client block another. Serialization uses the already-created
-snapshot and never rereads a live book.
+Each valid subscription owns a stable internal connection ID, one bounded
+outbound queue, and one sender task. The current immutable snapshot is pinned
+into that queue before the connection becomes visible to broadcasts, so it is
+always the first application message. Every later message for that socket uses
+the same sender; the registry lock is never held across network I/O.
+
+The default queue capacity is eight pending frames, excluding the frame
+currently being sent. Market-data messages are complete latest-state
+snapshots, so at most one later unsent snapshot is retained: a newer sequence
+replaces it, while duplicate or older snapshots are dropped. At most one
+heartbeat is pending; it is coalesced or dropped under congestion and cannot
+overtake the initial snapshot. Snapshots may displace heartbeats, while fatal
+error and close control traffic retains priority.
+
+Broadcasting only performs bounded in-memory enqueues. A blocked socket
+therefore cannot delay another symbol or client, REST work, scheduler
+progression, or market-data publication. Each network send has a five-second
+default timeout. A timed-out client is removed, its sender is terminated, and
+a bounded close with code 1013 is attempted. Session reset concurrently
+cancels all sender tasks and closes their sockets with code 1001.
 
 The browser derives `ws://` or `wss://` and host/port from
 `window.location`. It never hardcodes a container port. It tracks heartbeat and
 market-data freshness separately. Heartbeats alone do not suppress REST
 fallback; stale data enables polling, a newer WebSocket snapshot disables it,
-gaps trigger `/book/{symbol}`, and duplicate or old sequences are ignored.
-Reconnect uses bounded exponential backoff with one timer.
+and duplicate or old sequences are ignored. Because sequence is global while
+each message is a complete symbol snapshot, gaps may represent activity on
+other symbols and do not themselves trigger REST polling. Reconnect uses
+bounded exponential backoff with one timer. All browser heartbeat, freshness,
+polling, reconnect, and staleness-check timings are rendered from server YAML.
 
 ## 9. Simulation session control
 
@@ -639,6 +658,23 @@ with HTTP 200 for retry-pending or permanently failed records, and `disabled`
 when FIX is disabled. A delivery backlog alone never makes core matching
 unavailable.
 
+WebSocket delivery collectors are process-lifetime and intentionally have no
+connection-ID labels:
+
+```text
+mockx_websocket_active_clients
+mockx_websocket_outbound_queue_depth
+mockx_websocket_snapshots_conflated_total
+mockx_websocket_snapshots_dropped_total
+mockx_websocket_slow_client_disconnects_total
+mockx_websocket_send_failures_total
+mockx_websocket_send_successes_total
+```
+
+The two gauges report current valid-symbol subscriptions and aggregate pending
+frames; they return to zero after disconnect or session reset. These delivery
+values are not added to the run-local `/stats` response.
+
 Compose does not deploy a Prometheus server, Grafana, provisioning, or
 prebuilt dashboards. Scrape `mockx1:8000/metrics` and
 `mockx2:8000/metrics` from an independently deployed Prometheus if desired.
@@ -751,8 +787,14 @@ scheduler:
   max_events_per_advance: 100000
 websocket:
   heartbeat_interval_seconds: 10
+  outbound_queue_capacity: 8
+  send_timeout_seconds: 5
+  heartbeat_stale_seconds: 30
   market_data_stale_seconds: 30
   fallback_poll_seconds: 2
+  reconnect_initial_seconds: 1
+  reconnect_max_seconds: 30
+  staleness_check_seconds: 1
 cors_origins: []
 prometheus:
   enabled: true
@@ -771,8 +813,9 @@ latency measurements are not part of deterministic replay.
 Startup validation rejects missing fields, duplicate/empty symbols, invalid
 ports, noninteger random seeds, unsupported scheduler modes, nonpositive
 intervals or FIX delivery retry settings, stale timeouts not greater than
-heartbeat cadence, nonpositive event-processing limits, wildcard CORS, and
-incomplete enabled TSDB configuration.
+heartbeat cadence, invalid WebSocket queue/send/browser timing values,
+nonpositive event-processing limits, wildcard CORS, and incomplete enabled
+TSDB configuration.
 
 `CFG_PATH` and `FIX_CONFIG_FILE` select the YAML and QuickFIX files.
 `INFLUXDB_URL`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET`
@@ -804,8 +847,8 @@ python -m pytest -q tests/test_readme_examples.py
 - No production authentication, TLS termination, or reverse-proxy config is
   included. Disable admin routes or bind them to a trusted interface.
 - No guaranteed WebSocket replay or sequence persistence across restarts.
-- No distributed WebSocket fan-out, WebSocket delivery queue, or message
-  broker.
+- WebSocket delivery queues are process-local; there is no distributed fan-out
+  or message broker.
 - The reliable outbound FIX queue is process-local; a process or host failure
   loses it. QuickFIX still owns FIX sequence numbers, message stores, resend
   requests, and protocol-level duplicate behavior. This is not
@@ -843,6 +886,8 @@ The browser says `HTTP fallback` while heartbeats continue:
 - This is expected when no valid market-data message arrived within the stale
   timeout.
 - REST polling keeps the book current until a newer WebSocket sequence arrives.
+- A global sequence gap alone does not enable fallback because updates on other
+  symbols and intentional snapshot conflation can both create such gaps.
 
 Session end returns `METRICS_FLUSH_FAILED`:
 
