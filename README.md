@@ -501,6 +501,60 @@ flush before closing. InfluxDB is optional to core matching readiness:
 observed sink failure makes persistence `degraded` while the core service can
 remain ready.
 
+Every logical Influx record has a deterministic identity. Influx identifies a
+point by its measurement, complete tag set, and timestamp, so domain IDs stored
+as fields are not sufficient when several records occur at the same simulated
+time. MockX assigns the following metadata centrally before a record enters the
+asynchronous buffer:
+
+| Influx value | Meaning |
+|---|---|
+| `run_id` tag | Stable caller-provided identity for the simulation run |
+| `event_type` tag | Bounded logical type, equal to the measurement name |
+| `metric_event_bucket` tag | Low-cardinality overflow bucket for dense timestamps |
+| `metric_event_sequence` field | One-based, contiguous persistence order within the run |
+| `event_timestamp_ns` field | Exact original simulated Unix timestamp in nanoseconds |
+| `_time` | Collision-free persistence identity timestamp |
+
+Python simulated timestamps have microsecond resolution. For the zero-based
+occurrence `ordinal` at one exact simulated timestamp, MockX derives:
+
+```text
+_time = event_timestamp_ns + (ordinal % 1000)
+metric_event_bucket = ordinal // 1000
+```
+
+The nanosecond tie-break therefore never crosses into the next representable
+simulated timestamp. The first 1,000 records use bucket `0`; another bucket is
+introduced only for each additional block of 1,000 records at that same
+timestamp. `metric_event_sequence` remains a field rather than a per-event tag,
+avoiding one Influx series per event. The bucket values are reused across
+timestamps, so ordinary workloads add only the constant bucket value `0`.
+
+Queries that need simulated time must use `event_timestamp_ns`, while `_time`
+is the persistence identity timestamp. Queries that need authoritative
+cross-measurement event order should pivot fields and sort by
+`metric_event_sequence`, for example:
+
+```flux
+from(bucket: "mockx")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r.run_id == "quickstart")
+  |> pivot(
+      rowKey: ["_time", "_measurement", "metric_event_bucket"],
+      columnKey: ["_field"],
+      valueColumn: "_value",
+  )
+  |> sort(columns: ["metric_event_sequence"])
+```
+
+Failed writes retain the same immutable records in the buffer. Retrying a
+flush does not allocate new sequences, timestamps, or buckets. Replaying the
+same logical run with the same `run_id` and inputs intentionally reproduces
+the same identities; use a distinct `run_id` for a distinct logical run.
+Order, trade, and latency points also retain their available domain IDs, such
+as order, execution, and exchange trade IDs, as fields.
+
 Prometheus collectors are per application instance, so multiple exchanges in
 one Python process do not register duplicate global collectors.
 

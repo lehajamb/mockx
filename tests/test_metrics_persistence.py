@@ -27,7 +27,12 @@ def record(number):
         "test",
         {"sequence": number},
         {"value": float(number)},
-        number,
+        run_id="buffer-test",
+        event_type="test",
+        metric_event_sequence=number,
+        event_timestamp_ns=number * 1_000,
+        persistence_timestamp_ns=number * 1_000,
+        metric_event_bucket=0,
     )
 
 
@@ -87,11 +92,12 @@ async def test_collector_shutdown_flushes_attached_writer():
     sink = InMemoryMetricsSink()
     writer = BufferedMetricsWriter(sink, batch_size=3)
     metrics = MetricsCollector("TEST", persistence=writer)
+    metrics.start_run("shutdown")
     metrics._create_point(
         "shutdown",
         {"exchange": "TEST"},
         {"value": 1.0},
-        1,
+        1_000,
     )
 
     assert await metrics.close()
@@ -180,6 +186,7 @@ async def test_sink_failure_does_not_roll_back_valid_trade(caplog):
     sink = FailOnceSink()
     writer = BufferedMetricsWriter(sink, batch_size=100)
     metrics = MetricsCollector("TEST", persistence=writer)
+    metrics.start_run("sink-failure")
     scheduler = LatencyScheduler()
     engine = MatchingEngine(
         ExecutionParams(

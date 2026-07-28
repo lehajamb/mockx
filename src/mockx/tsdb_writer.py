@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Dict, Optional, Sequence
+from typing import Sequence
 
 try:
     from influxdb_client import InfluxDBClient, Point
@@ -83,45 +83,5 @@ class InfluxDBMetricsSink:
             point.tag(key, value)
         for key, value in record.fields:
             point.field(key, value)
-        point.time(record.timestamp_ns, write_precision="ns")
+        point.time(record.persistence_timestamp_ns, write_precision="ns")
         return point
-
-
-class TSDBWriter(InfluxDBMetricsSink):
-    """Compatibility name for the InfluxDB sink used by older callers."""
-
-    def __init__(
-        self,
-        url: str,
-        token: str,
-        org: str,
-        bucket: str,
-        batch_size: int = 1000,
-    ) -> None:
-        super().__init__(url=url, token=token, org=org, bucket=bucket)
-        self.batch_size = batch_size
-        self.run_id: Optional[str] = None
-
-    async def write_records(self, records: Sequence[MetricRecord]) -> None:
-        await self.write(records)
-
-    async def write_metric(
-        self,
-        measurement: str,
-        tags: Dict[str, str],
-        fields: Dict[str, Any],
-        timestamp: int,
-    ) -> None:
-        record_tags = dict(tags)
-        if self.run_id:
-            record_tags["run_id"] = self.run_id
-        await self.write(
-            (
-                MetricRecord.create(
-                    measurement,
-                    record_tags,
-                    fields,
-                    timestamp,
-                ),
-            )
-        )

@@ -36,6 +36,7 @@ except ModuleNotFoundError:  # pragma: no cover - dependency is optional at impo
 from .latency import (
     MonotonicClock,
     PerfCounterClock,
+    datetime_to_ns,
     monotonic_duration_ns,
 )
 from .models import (
@@ -78,6 +79,14 @@ LATENCY_METRICS = frozenset(
     }
 )
 
+METRIC_IDENTITY_TAGS = frozenset(
+    {"run_id", "event_type", "metric_event_bucket"}
+)
+METRIC_IDENTITY_FIELDS = frozenset(
+    {"metric_event_sequence", "event_timestamp_ns"}
+)
+MAX_INFLUX_INTEGER = (1 << 63) - 1
+
 
 @dataclass(frozen=True, slots=True)
 class MetricRecord:
@@ -86,7 +95,8 @@ class MetricRecord:
     measurement: str
     tags: Tuple[Tuple[str, str], ...]
     fields: Tuple[Tuple[str, Any], ...]
-    timestamp_ns: int
+    event_timestamp_ns: int
+    persistence_timestamp_ns: int
 
     @classmethod
     def create(
@@ -94,15 +104,90 @@ class MetricRecord:
         measurement: str,
         tags: Mapping[str, object],
         fields: Mapping[str, object],
-        timestamp_ns: int,
+        *,
+        run_id: str,
+        event_type: str,
+        metric_event_sequence: int,
+        event_timestamp_ns: int,
+        persistence_timestamp_ns: int,
+        metric_event_bucket: int,
     ) -> "MetricRecord":
         if not measurement:
             raise ValueError("Metric measurement is required")
+        if not run_id:
+            raise ValueError("Metric run_id is required")
+        if not event_type:
+            raise ValueError("Metric event_type is required")
+        if (
+            not isinstance(metric_event_sequence, int)
+            or isinstance(metric_event_sequence, bool)
+            or not 1 <= metric_event_sequence <= MAX_INFLUX_INTEGER
+        ):
+            raise ValueError(
+                "metric_event_sequence must be a positive Influx integer"
+            )
+        if (
+            not isinstance(metric_event_bucket, int)
+            or isinstance(metric_event_bucket, bool)
+            or metric_event_bucket < 0
+        ):
+            raise ValueError("metric_event_bucket cannot be negative")
+
+        event_timestamp_ns = int(event_timestamp_ns)
+        persistence_timestamp_ns = int(persistence_timestamp_ns)
+        if (
+            event_timestamp_ns < 0
+            or persistence_timestamp_ns > MAX_INFLUX_INTEGER
+        ):
+            raise ValueError(
+                "Metric timestamps must fit the non-negative Influx range"
+            )
+        if event_timestamp_ns % 1_000:
+            raise ValueError(
+                "Metric event timestamps must be microsecond-aligned"
+            )
+        timestamp_offset = persistence_timestamp_ns - event_timestamp_ns
+        if not 0 <= timestamp_offset < 1_000:
+            raise ValueError(
+                "Metric persistence timestamp must remain within the "
+                "original simulated microsecond"
+            )
+
+        reserved_tags = METRIC_IDENTITY_TAGS.intersection(tags)
+        if reserved_tags:
+            raise ValueError(
+                "Metric domain tags use reserved identity names: "
+                + ", ".join(sorted(reserved_tags))
+            )
+        reserved_fields = METRIC_IDENTITY_FIELDS.intersection(fields)
+        if reserved_fields:
+            raise ValueError(
+                "Metric domain fields use reserved identity names: "
+                + ", ".join(sorted(reserved_fields))
+            )
+
+        record_tags = dict(tags)
+        record_tags.update(
+            run_id=run_id,
+            event_type=event_type,
+            metric_event_bucket=metric_event_bucket,
+        )
+        record_fields = dict(fields)
+        record_fields.update(
+            metric_event_sequence=metric_event_sequence,
+            event_timestamp_ns=event_timestamp_ns,
+        )
         return cls(
             measurement=measurement,
-            tags=tuple(sorted((key, str(value)) for key, value in tags.items())),
-            fields=tuple(sorted(fields.items())),
-            timestamp_ns=int(timestamp_ns),
+            tags=tuple(
+                sorted(
+                    (key, str(value))
+                    for key, value in record_tags.items()
+                )
+            ),
+            fields=tuple(sorted(record_fields.items())),
+            event_timestamp_ns=event_timestamp_ns,
+            persistence_timestamp_ns=persistence_timestamp_ns,
         )
 
     @property
@@ -112,6 +197,14 @@ class MetricRecord:
     @property
     def field_map(self) -> Dict[str, Any]:
         return dict(self.fields)
+
+    @property
+    def metric_event_sequence(self) -> int:
+        return int(self.field_map["metric_event_sequence"])
+
+    @property
+    def run_id(self) -> str:
+        return self.tag_map["run_id"]
 
 
 class MetricsSinkError(RuntimeError):
@@ -353,16 +446,16 @@ class MetricsCollector:
     def __init__(
         self,
         exchange_name: str,
-        tsdb_writer: Optional[object] = None,
         *,
         persistence: Optional[BufferedMetricsWriter] = None,
         prometheus_enabled: bool = True,
     ) -> None:
         self.exchange_name = exchange_name
-        self.tsdb_writer = tsdb_writer  # Compatibility for existing integrations.
         self.persistence = persistence
-        self.metrics_buffer: list[MetricRecord] = []
         self._run_id: Optional[str] = None
+        self._metric_event_sequence = 0
+        self._last_event_timestamp_ns: Optional[int] = None
+        self._same_timestamp_ordinal = 0
         self._lock = threading.RLock()
         self._engine = None
         self._counts: Dict[str, int] = {
@@ -408,6 +501,23 @@ class MetricsCollector:
     def run_id(self) -> Optional[str]:
         with self._lock:
             return self._run_id
+
+    def start_run(self, run_id: str) -> None:
+        """Start one persistence identity scope and reset its sequence."""
+        if not run_id:
+            raise ValueError("Metric run_id is required")
+        with self._lock:
+            if self._run_id is not None:
+                raise RuntimeError("A metric persistence run is already active")
+            self._run_id = run_id
+            self._metric_event_sequence = 0
+            self._last_event_timestamp_ns = None
+            self._same_timestamp_ordinal = 0
+
+    def end_run(self) -> None:
+        """Clear the active run after its immutable records have flushed."""
+        with self._lock:
+            self._run_id = None
 
     def bind_engine(self, engine: object) -> None:
         """Bind authoritative gauge derivation without making metrics stateful."""
@@ -553,22 +663,27 @@ class MetricsCollector:
             tags["session_alias"] = report.session_alias
         fields: Dict[str, object] = {
             "order_id": report.order_id,
+            "exec_id": report.exec_id,
             "qty": report.order_qty,
             "filled_qty": report.cum_qty,
             "canceled_qty": report.canceled_qty,
             "leaves_qty": report.leaves_qty,
             "avg_fill_price": report.avg_px,
-            "ts_submitted": int(
-                report.submitted_at.timestamp() * 1_000_000_000
-            ),
+            "ts_submitted": datetime_to_ns(report.submitted_at),
         }
+        if report.exchange_order_id is not None:
+            fields["exchange_order_id"] = report.exchange_order_id
+        if report.trade_id is not None:
+            fields["trade_id"] = report.trade_id
+        if report.exchange_trade_id is not None:
+            fields["exchange_trade_id"] = report.exchange_trade_id
         if report.order_price is not None:
             fields["price"] = report.order_price
         self._create_point(
             "orders",
             tags,
             fields,
-            int(report.timestamp.timestamp() * 1_000_000_000),
+            datetime_to_ns(report.timestamp),
         )
         return True
 
@@ -651,6 +766,7 @@ class MetricsCollector:
             tags,
             {
                 "trade_id": trade.id,
+                "exchange_trade_id": identity,
                 "price": trade.price,
                 "qty": trade.qty,
                 "volume": trade.volume,
@@ -660,7 +776,7 @@ class MetricsCollector:
                 "passive_order_id": trade.passive_order_id,
                 "level": trade.level,
             },
-            int(trade.timestamp.timestamp() * 1_000_000_000),
+            datetime_to_ns(trade.timestamp),
         )
         self.refresh_engine_gauges()
         return True
@@ -729,14 +845,22 @@ class MetricsCollector:
             histogram = self._prom_histograms.get(measurement.metric)
             if histogram is not None:
                 histogram.observe(measurement.value)
+        fields: Dict[str, object] = {
+            "duration_seconds": measurement.value,
+            "order_id": measurement.order_id,
+        }
+        if measurement.session_id is not None:
+            fields["session_id"] = measurement.session_id
+        if measurement.report_exec_id is not None:
+            fields["report_exec_id"] = measurement.report_exec_id
         self._create_point(
             "latency",
             {
                 "exchange": self.exchange_name,
                 "type": measurement.metric,
             },
-            {"duration_seconds": measurement.value},
-            int(measurement.timestamp.timestamp() * 1_000_000_000),
+            fields,
+            datetime_to_ns(measurement.timestamp),
         )
         return True
 
@@ -795,7 +919,7 @@ class MetricsCollector:
         if not update.bid_levels or not update.ask_levels:
             self.refresh_engine_gauges()
             return
-        timestamp_ns = int(update.timestamp.timestamp() * 1_000_000_000)
+        timestamp_ns = datetime_to_ns(update.timestamp)
         best_bid = update.bid_levels[0].price
         best_ask = update.ask_levels[0].price
         fields: Dict[str, object] = {
@@ -857,7 +981,7 @@ class MetricsCollector:
         buffered = (
             self.persistence.buffered_count
             if self.persistence is not None
-            else len(self.metrics_buffer)
+            else 0
         )
 
         def average(metric: str, multiplier: float) -> Optional[float]:
@@ -947,71 +1071,76 @@ class MetricsCollector:
         fields: Dict[str, object],
         timestamp_ns: int,
     ) -> None:
-        if self.persistence is None and self.tsdb_writer is None:
+        if self.persistence is None:
             return
-        record_tags = dict(tags)
+        if (
+            not isinstance(timestamp_ns, int)
+            or isinstance(timestamp_ns, bool)
+            or timestamp_ns < 0
+        ):
+            raise ValueError(
+                "Metric event timestamp must be a non-negative integer"
+            )
+        if timestamp_ns % 1_000:
+            raise ValueError(
+                "Metric event timestamp must be microsecond-aligned"
+            )
+
         with self._lock:
             run_id = self._run_id
-        if run_id:
-            record_tags["run_id"] = run_id
-        record = MetricRecord.create(
-            measurement,
-            record_tags,
-            fields,
-            timestamp_ns,
-        )
-        if self.persistence is not None:
-            self.persistence.add_nowait(record)
-        else:
-            self.metrics_buffer.append(record)
+            if run_id is None:
+                raise RuntimeError(
+                    "Cannot persist metrics without an active simulation run"
+                )
+
+            if self._last_event_timestamp_ns is None:
+                same_timestamp_ordinal = 0
+            elif timestamp_ns < self._last_event_timestamp_ns:
+                raise ValueError(
+                    "Metric event timestamp is backdated relative to the "
+                    "persistence sequence"
+                )
+            elif timestamp_ns == self._last_event_timestamp_ns:
+                same_timestamp_ordinal = self._same_timestamp_ordinal + 1
+            else:
+                same_timestamp_ordinal = 0
+
+            metric_event_sequence = self._metric_event_sequence + 1
+            if metric_event_sequence > MAX_INFLUX_INTEGER:
+                raise OverflowError("Metric event sequence exhausted")
+            metric_event_bucket, timestamp_offset = divmod(
+                same_timestamp_ordinal,
+                1_000,
+            )
+            record = MetricRecord.create(
+                measurement,
+                tags,
+                fields,
+                run_id=run_id,
+                event_type=measurement,
+                metric_event_sequence=metric_event_sequence,
+                event_timestamp_ns=timestamp_ns,
+                persistence_timestamp_ns=timestamp_ns + timestamp_offset,
+                metric_event_bucket=metric_event_bucket,
+            )
+            if not self.persistence.add_nowait(record):
+                raise MetricsSinkError(
+                    "Metric persistence writer rejected an active-run record"
+                )
+
+            self._metric_event_sequence = metric_event_sequence
+            self._last_event_timestamp_ns = timestamp_ns
+            self._same_timestamp_ordinal = same_timestamp_ordinal
 
     async def flush(self) -> bool:
         if self.persistence is not None:
             return await self.persistence.flush()
-        if not self.metrics_buffer:
-            return True
-        writer = self.tsdb_writer
-        if writer is None or not hasattr(writer, "write_records"):
-            logger.error(
-                "Legacy TSDB writer cannot persist buffered MetricRecord data",
-                extra={"buffer_size": len(self.metrics_buffer)},
-            )
-            return False
-        batch = tuple(self.metrics_buffer)
-        try:
-            result = writer.write_records(batch)
-            if asyncio.iscoroutine(result):
-                await result
-        except Exception as exc:
-            self.record_sink_failure(exc, len(self.metrics_buffer))
-            return False
-        del self.metrics_buffer[: len(batch)]
         return True
 
     async def close(self) -> bool:
         if self.persistence is not None:
             return await self.persistence.close()
-        return await self.flush()
-
-    async def set_run_id_async(self, run_id: Optional[str]) -> bool:
-        if not await self.flush():
-            return False
-        with self._lock:
-            self._run_id = run_id
         return True
-
-    def set_run_id(self, run_id: Optional[str]) -> None:
-        """Set the tag for new records without discarding existing records."""
-        with self._lock:
-            self._run_id = run_id
-
-    def flush_tsdb(self):
-        """Compatibility shim returning a task when called in an event loop."""
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(self.flush())
-        return loop.create_task(self.flush())
 
 
 class LatencyTracker:
@@ -1169,7 +1298,7 @@ class LatencyTracker:
             session_id=report.session_id,
             metric=REAL_REPORT_SERIALIZATION_DURATION,
             duration_ns=duration_ns,
-            timestamp=report.timestamp,
+            timestamp=self.scheduler.current_time,
             report_exec_id=report.exec_id,
         )
         self._publish(measurement)
