@@ -40,6 +40,7 @@ from .lifecycle import (
 )
 from .metrics import MetricsCollector
 from .models import MarketDataSnapshot, SchedulerState
+from .websocket_delivery import WebSocketConnection, WebSocketRegistry
 
 
 logger = logging.getLogger(__name__)
@@ -392,55 +393,6 @@ def market_data_message(
     )
 
 
-class WebSocketRegistry:
-    """Coroutine-safe ownership of WebSocket connections by symbol."""
-
-    def __init__(self) -> None:
-        self._connections: dict[str, set[WebSocket]] = {}
-        self._lock = asyncio.Lock()
-
-    async def add(self, symbol: str, websocket: WebSocket) -> None:
-        async with self._lock:
-            self._connections.setdefault(symbol, set()).add(websocket)
-
-    async def remove(self, symbol: str, websocket: WebSocket) -> None:
-        async with self._lock:
-            clients = self._connections.get(symbol)
-            if clients is None:
-                return
-            clients.discard(websocket)
-            if not clients:
-                self._connections.pop(symbol, None)
-
-    async def snapshot(self, symbol: str) -> tuple[WebSocket, ...]:
-        async with self._lock:
-            return tuple(self._connections.get(symbol, ()))
-
-    async def connection_count(
-        self,
-        symbol: Optional[str] = None,
-    ) -> int:
-        async with self._lock:
-            if symbol is not None:
-                return len(self._connections.get(symbol, ()))
-            return sum(len(clients) for clients in self._connections.values())
-
-    async def close_all(self) -> None:
-        async with self._lock:
-            clients = tuple(
-                websocket
-                for symbol_clients in self._connections.values()
-                for websocket in symbol_clients
-            )
-            self._connections.clear()
-
-        for websocket in clients:
-            try:
-                await websocket.close(code=1001)
-            except (WebSocketDisconnect, RuntimeError, ConnectionError, OSError):
-                logger.debug("WebSocket already closed during shutdown")
-
-
 class ExchangeAPI:
     """One explicitly owned FastAPI service for one exchange instance."""
 
@@ -461,17 +413,92 @@ class ExchangeAPI:
         self.fix_app = fix_app
         self.lifecycle_manager = lifecycle_manager
         self.lifecycle = session_lifecycle
-        self.registry = WebSocketRegistry()
-        self._broadcast_lock = asyncio.Lock()
 
         websocket_config = config.get("websocket", {})
-        self.heartbeat_interval_seconds = float(
-            websocket_config.get("heartbeat_interval_seconds", 10.0)
+
+        def _positive_seconds(name: str, default: float) -> float:
+            value = websocket_config.get(name, default)
+            if (
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or value <= 0
+            ):
+                raise ValueError(f"websocket.{name} must be positive")
+            return float(value)
+
+        self.heartbeat_interval_seconds = _positive_seconds(
+            "heartbeat_interval_seconds",
+            10.0,
         )
-        if self.heartbeat_interval_seconds <= 0:
+        queue_capacity = websocket_config.get("outbound_queue_capacity", 8)
+        if (
+            not isinstance(queue_capacity, int)
+            or isinstance(queue_capacity, bool)
+            or queue_capacity <= 0
+        ):
             raise ValueError(
-                "websocket.heartbeat_interval_seconds must be positive"
+                "websocket.outbound_queue_capacity must be a positive integer"
             )
+        self.websocket_queue_capacity = queue_capacity
+        self.websocket_send_timeout_seconds = _positive_seconds(
+            "send_timeout_seconds",
+            5.0,
+        )
+        heartbeat_stale_seconds = _positive_seconds(
+            "heartbeat_stale_seconds",
+            30.0,
+        )
+        market_data_stale_seconds = _positive_seconds(
+            "market_data_stale_seconds",
+            30.0,
+        )
+        fallback_poll_seconds = _positive_seconds(
+            "fallback_poll_seconds",
+            2.0,
+        )
+        reconnect_initial_seconds = _positive_seconds(
+            "reconnect_initial_seconds",
+            1.0,
+        )
+        reconnect_max_seconds = _positive_seconds(
+            "reconnect_max_seconds",
+            30.0,
+        )
+        staleness_check_seconds = _positive_seconds(
+            "staleness_check_seconds",
+            1.0,
+        )
+        if heartbeat_stale_seconds <= self.heartbeat_interval_seconds:
+            raise ValueError(
+                "websocket.heartbeat_stale_seconds must exceed "
+                "heartbeat cadence"
+            )
+        if market_data_stale_seconds <= self.heartbeat_interval_seconds:
+            raise ValueError(
+                "websocket.market_data_stale_seconds must exceed "
+                "heartbeat cadence"
+            )
+        if reconnect_max_seconds < reconnect_initial_seconds:
+            raise ValueError(
+                "websocket.reconnect_max_seconds must be at least "
+                "reconnect_initial_seconds"
+            )
+        self.registry = WebSocketRegistry(
+            metrics,
+            queue_capacity=self.websocket_queue_capacity,
+            send_timeout_seconds=self.websocket_send_timeout_seconds,
+        )
+        self.websocket_browser_timing = {
+            "heartbeatIntervalMs": round(
+                self.heartbeat_interval_seconds * 1000
+            ),
+            "heartbeatStaleMs": round(heartbeat_stale_seconds * 1000),
+            "marketDataStaleMs": round(market_data_stale_seconds * 1000),
+            "fallbackPollMs": round(fallback_poll_seconds * 1000),
+            "reconnectInitialMs": round(reconnect_initial_seconds * 1000),
+            "reconnectMaxMs": round(reconnect_max_seconds * 1000),
+            "stalenessCheckMs": round(staleness_check_seconds * 1000),
+        }
 
         @asynccontextmanager
         async def lifespan(app: FastAPI):
@@ -792,6 +819,7 @@ class ExchangeAPI:
                     "best_bid": best_bid,
                     "best_ask": best_ask,
                     "mid_price": mid_price,
+                    "websocket_timing": self.websocket_browser_timing,
                 },
             )
 
@@ -813,14 +841,24 @@ class ExchangeAPI:
                 return
 
             await websocket.accept()
+            connection: Optional[WebSocketConnection] = None
             try:
                 async def _register_and_snapshot():
-                    await self.registry.add(normalized, websocket)
-                    return self.engine.get_market_data_snapshot(normalized)
+                    snapshot = self.engine.get_market_data_snapshot(normalized)
+                    if snapshot is None:
+                        raise RuntimeError(
+                            f"Symbol vanished after validation: {normalized}"
+                        )
+                    return await self.registry.register(
+                        normalized,
+                        websocket,
+                        market_data_message(snapshot).model_dump(mode="json"),
+                        initial_sequence=snapshot.sequence,
+                    )
 
                 if self.lifecycle is not None:
                     try:
-                        snapshot = await self.lifecycle.websocket_snapshot(
+                        connection = await self.lifecycle.websocket_snapshot(
                             _register_and_snapshot
                         )
                     except LifecycleError as exc:
@@ -833,42 +871,62 @@ class ExchangeAPI:
                         await websocket.close(code=1013)
                         return
                 else:
-                    snapshot = await _register_and_snapshot()
-                if snapshot is None:
-                    raise RuntimeError(
-                        f"Symbol vanished after validation: {normalized}"
-                    )
-                await websocket.send_json(
-                    market_data_message(snapshot).model_dump(mode="json")
-                )
+                    connection = await _register_and_snapshot()
 
                 while True:
-                    try:
-                        await asyncio.wait_for(
-                            websocket.receive_text(),
-                            timeout=self.heartbeat_interval_seconds,
-                        )
-                    except asyncio.TimeoutError:
+                    assert connection.sender_task is not None
+                    receive_task = asyncio.create_task(websocket.receive_text())
+                    done, _ = await asyncio.wait(
+                        (receive_task, connection.sender_task),
+                        timeout=self.heartbeat_interval_seconds,
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    if connection.sender_task in done:
+                        if receive_task.done():
+                            try:
+                                await receive_task
+                            except (
+                                WebSocketDisconnect,
+                                RuntimeError,
+                                ConnectionError,
+                                OSError,
+                            ):
+                                pass
+                        else:
+                            receive_task.cancel()
+                            try:
+                                await receive_task
+                            except asyncio.CancelledError:
+                                pass
+                        break
+                    if receive_task not in done:
+                        receive_task.cancel()
+                        try:
+                            await receive_task
+                        except asyncio.CancelledError:
+                            pass
                         heartbeat = HeartbeatMessage(
                             symbol=normalized,
                             timestamp=self.scheduler.current_time,
                             last_sequence=self.engine.market_data_sequence,
                         )
-                        try:
-                            await websocket.send_json(
-                                heartbeat.model_dump(mode="json")
-                            )
-                        except (
-                            WebSocketDisconnect,
-                            RuntimeError,
-                            ConnectionError,
-                            OSError,
-                        ):
-                            break
-                    except WebSocketDisconnect:
+                        self.registry.enqueue_heartbeat(
+                            connection,
+                            heartbeat.model_dump(mode="json"),
+                        )
+                        continue
+                    try:
+                        await receive_task
+                    except (
+                        WebSocketDisconnect,
+                        RuntimeError,
+                        ConnectionError,
+                        OSError,
+                    ):
                         break
             finally:
-                await self.registry.remove(normalized, websocket)
+                if connection is not None:
+                    await self.registry.disconnect(connection)
 
         if self.config.get("admin_api", {}).get("enabled", True):
             self._setup_admin_routes()
@@ -1014,21 +1072,11 @@ class ExchangeAPI:
         """Deliver one immutable payload once to each current subscriber."""
         async def _broadcast() -> None:
             message = market_data_message(snapshot).model_dump(mode="json")
-            async with self._broadcast_lock:
-                clients = await self.registry.snapshot(snapshot.symbol)
-                failed: list[WebSocket] = []
-                for websocket in clients:
-                    try:
-                        await websocket.send_json(message)
-                    except (
-                        WebSocketDisconnect,
-                        RuntimeError,
-                        ConnectionError,
-                        OSError,
-                    ):
-                        failed.append(websocket)
-                for websocket in failed:
-                    await self.registry.remove(snapshot.symbol, websocket)
+            await self.registry.enqueue_market_data(
+                snapshot.symbol,
+                message,
+                sequence=snapshot.sequence,
+            )
 
         if self.lifecycle is not None:
             await self.lifecycle.broadcast_if_current(

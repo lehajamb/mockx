@@ -507,6 +507,15 @@ class MetricsCollector:
         self._seen_report_exec_ids: set[str] = set()
         self._seen_cancel_reject_ids: set[str] = set()
         self._seen_trade_ids: set[str] = set()
+        self._websocket_active_clients = 0
+        self._websocket_queue_depth = 0
+        self._websocket_counts: Dict[str, int] = {
+            "websocket_snapshots_conflated": 0,
+            "websocket_snapshots_dropped": 0,
+            "websocket_slow_client_disconnects": 0,
+            "websocket_send_failures": 0,
+            "websocket_send_successes": 0,
+        }
 
         self.registry = None
         self._prom_counters: Dict[str, Any] = {}
@@ -665,6 +674,48 @@ class MetricsCollector:
             "mockx_fix_delivery_records",
             "Process-lifetime FIX delivery records by state.",
             ("state",),
+            registry=self.registry,
+        )
+        for name, metric_name, help_text in (
+            (
+                "websocket_snapshots_conflated",
+                "mockx_websocket_snapshots_conflated_total",
+                "Queued WebSocket snapshots replaced by a newer full snapshot.",
+            ),
+            (
+                "websocket_snapshots_dropped",
+                "mockx_websocket_snapshots_dropped_total",
+                "Incoming WebSocket snapshots dropped as obsolete or full.",
+            ),
+            (
+                "websocket_slow_client_disconnects",
+                "mockx_websocket_slow_client_disconnects_total",
+                "WebSocket clients disconnected after a send timeout.",
+            ),
+            (
+                "websocket_send_failures",
+                "mockx_websocket_send_failures_total",
+                "WebSocket JSON send attempts that failed or timed out.",
+            ),
+            (
+                "websocket_send_successes",
+                "mockx_websocket_send_successes_total",
+                "WebSocket JSON frames sent successfully.",
+            ),
+        ):
+            self._prom_counters[name] = Counter(
+                metric_name,
+                help_text,
+                registry=self.registry,
+            )
+        self._prom_gauges["websocket_active_clients"] = Gauge(
+            "mockx_websocket_active_clients",
+            "Currently active valid-symbol WebSocket subscriptions.",
+            registry=self.registry,
+        )
+        self._prom_gauges["websocket_outbound_queue_depth"] = Gauge(
+            "mockx_websocket_outbound_queue_depth",
+            "Aggregate queued WebSocket frames, excluding in-flight sends.",
             registry=self.registry,
         )
 
@@ -1045,6 +1096,76 @@ class MetricsCollector:
                 "buffer_size": buffer_size,
             },
         )
+
+    def websocket_client_connected(self) -> None:
+        with self._lock:
+            self._websocket_active_clients += 1
+            gauge = self._prom_gauges.get("websocket_active_clients")
+            if gauge is not None:
+                gauge.set(self._websocket_active_clients)
+
+    def websocket_client_disconnected(self) -> None:
+        with self._lock:
+            self._websocket_active_clients = max(
+                0,
+                self._websocket_active_clients - 1,
+            )
+            gauge = self._prom_gauges.get("websocket_active_clients")
+            if gauge is not None:
+                gauge.set(self._websocket_active_clients)
+
+    def adjust_websocket_queue_depth(self, delta: int) -> None:
+        with self._lock:
+            self._websocket_queue_depth = max(
+                0,
+                self._websocket_queue_depth + delta,
+            )
+            gauge = self._prom_gauges.get("websocket_outbound_queue_depth")
+            if gauge is not None:
+                gauge.set(self._websocket_queue_depth)
+
+    def _record_websocket_count(self, name: str) -> None:
+        with self._lock:
+            self._websocket_counts[name] += 1
+            self._prom_increment(name, 1)
+
+    def record_websocket_snapshot_conflated(self) -> None:
+        self._record_websocket_count("websocket_snapshots_conflated")
+
+    def record_websocket_snapshot_dropped(self) -> None:
+        self._record_websocket_count("websocket_snapshots_dropped")
+
+    def record_websocket_slow_client_disconnect(self) -> None:
+        self._record_websocket_count("websocket_slow_client_disconnects")
+
+    def record_websocket_send_failure(self) -> None:
+        self._record_websocket_count("websocket_send_failures")
+
+    def record_websocket_send_success(self) -> None:
+        self._record_websocket_count("websocket_send_successes")
+
+    def websocket_metrics_snapshot(self) -> Dict[str, int]:
+        """Return internal process-lifetime WebSocket metrics for tests."""
+        with self._lock:
+            return {
+                "active_clients": self._websocket_active_clients,
+                "queue_depth": self._websocket_queue_depth,
+                "snapshots_conflated": self._websocket_counts[
+                    "websocket_snapshots_conflated"
+                ],
+                "snapshots_dropped": self._websocket_counts[
+                    "websocket_snapshots_dropped"
+                ],
+                "slow_client_disconnects": self._websocket_counts[
+                    "websocket_slow_client_disconnects"
+                ],
+                "send_failures": self._websocket_counts[
+                    "websocket_send_failures"
+                ],
+                "send_successes": self._websocket_counts[
+                    "websocket_send_successes"
+                ],
+            }
 
     def record_fix_message(
         self,

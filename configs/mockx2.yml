@@ -23,8 +23,14 @@ scheduler:
   max_events_per_advance: 100000
 websocket:
   heartbeat_interval_seconds: 10
+  outbound_queue_capacity: 8
+  send_timeout_seconds: 5
+  heartbeat_stale_seconds: 30
   market_data_stale_seconds: 30
   fallback_poll_seconds: 2
+  reconnect_initial_seconds: 1
+  reconnect_max_seconds: 30
+  staleness_check_seconds: 1
 cors_origins: []
 prometheus:
   enabled: true

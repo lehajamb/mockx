@@ -19,8 +19,20 @@ def api_config(
     *,
     fix_enabled: bool = False,
     heartbeat_seconds: float = 10.0,
+    queue_capacity: int = 8,
+    send_timeout_seconds: float = 5.0,
+    heartbeat_stale_seconds: float | None = None,
+    market_data_stale_seconds: float | None = None,
+    fallback_poll_seconds: float = 2.0,
+    reconnect_initial_seconds: float = 1.0,
+    reconnect_max_seconds: float = 30.0,
+    staleness_check_seconds: float = 1.0,
     prometheus_enabled: bool = True,
 ) -> dict:
+    if heartbeat_stale_seconds is None:
+        heartbeat_stale_seconds = max(30.0, heartbeat_seconds * 3)
+    if market_data_stale_seconds is None:
+        market_data_stale_seconds = max(30.0, heartbeat_seconds * 3)
     return {
         "exchange_name": "Test-Exchange",
         "symbols": ["TEST"],
@@ -43,8 +55,14 @@ def api_config(
         },
         "websocket": {
             "heartbeat_interval_seconds": heartbeat_seconds,
-            "market_data_stale_seconds": max(5.0, heartbeat_seconds * 3),
-            "fallback_poll_seconds": 2,
+            "outbound_queue_capacity": queue_capacity,
+            "send_timeout_seconds": send_timeout_seconds,
+            "heartbeat_stale_seconds": heartbeat_stale_seconds,
+            "market_data_stale_seconds": market_data_stale_seconds,
+            "fallback_poll_seconds": fallback_poll_seconds,
+            "reconnect_initial_seconds": reconnect_initial_seconds,
+            "reconnect_max_seconds": reconnect_max_seconds,
+            "staleness_check_seconds": staleness_check_seconds,
         },
         "cors_origins": [],
         "prometheus": {"enabled": prometheus_enabled},

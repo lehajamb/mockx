@@ -129,21 +129,92 @@ def load_config(config_path: str) -> dict:
 
     websocket = config.setdefault("websocket", {})
     websocket.setdefault("heartbeat_interval_seconds", 10)
+    websocket.setdefault("outbound_queue_capacity", 8)
+    websocket.setdefault("send_timeout_seconds", 5)
+    websocket.setdefault("heartbeat_stale_seconds", 30)
     websocket.setdefault("market_data_stale_seconds", 30)
     websocket.setdefault("fallback_poll_seconds", 2)
+    websocket.setdefault("reconnect_initial_seconds", 1)
+    websocket.setdefault("reconnect_max_seconds", 30)
+    websocket.setdefault("staleness_check_seconds", 1)
     heartbeat = websocket["heartbeat_interval_seconds"]
+    queue_capacity = websocket["outbound_queue_capacity"]
+    send_timeout = websocket["send_timeout_seconds"]
+    heartbeat_stale = websocket["heartbeat_stale_seconds"]
     stale = websocket["market_data_stale_seconds"]
     fallback = websocket["fallback_poll_seconds"]
-    if not isinstance(heartbeat, (int, float)) or heartbeat <= 0:
+    reconnect_initial = websocket["reconnect_initial_seconds"]
+    reconnect_max = websocket["reconnect_max_seconds"]
+    staleness_check = websocket["staleness_check_seconds"]
+    if (
+        not isinstance(heartbeat, (int, float))
+        or isinstance(heartbeat, bool)
+        or heartbeat <= 0
+    ):
         raise ValueError(
             "websocket.heartbeat_interval_seconds must be positive"
         )
-    if not isinstance(stale, (int, float)) or stale <= heartbeat:
+    if (
+        not isinstance(queue_capacity, int)
+        or isinstance(queue_capacity, bool)
+        or queue_capacity <= 0
+    ):
+        raise ValueError(
+            "websocket.outbound_queue_capacity must be a positive integer"
+        )
+    if (
+        not isinstance(send_timeout, (int, float))
+        or isinstance(send_timeout, bool)
+        or send_timeout <= 0
+    ):
+        raise ValueError("websocket.send_timeout_seconds must be positive")
+    if (
+        not isinstance(heartbeat_stale, (int, float))
+        or isinstance(heartbeat_stale, bool)
+        or heartbeat_stale <= heartbeat
+    ):
+        raise ValueError(
+            "websocket.heartbeat_stale_seconds must exceed heartbeat cadence"
+        )
+    if (
+        not isinstance(stale, (int, float))
+        or isinstance(stale, bool)
+        or stale <= heartbeat
+    ):
         raise ValueError(
             "websocket.market_data_stale_seconds must exceed heartbeat cadence"
         )
-    if not isinstance(fallback, (int, float)) or fallback <= 0:
+    if (
+        not isinstance(fallback, (int, float))
+        or isinstance(fallback, bool)
+        or fallback <= 0
+    ):
         raise ValueError("websocket.fallback_poll_seconds must be positive")
+    if (
+        not isinstance(reconnect_initial, (int, float))
+        or isinstance(reconnect_initial, bool)
+        or reconnect_initial <= 0
+    ):
+        raise ValueError(
+            "websocket.reconnect_initial_seconds must be positive"
+        )
+    if (
+        not isinstance(reconnect_max, (int, float))
+        or isinstance(reconnect_max, bool)
+        or reconnect_max < reconnect_initial
+    ):
+        raise ValueError(
+            "websocket.reconnect_max_seconds must be at least "
+            "reconnect_initial_seconds"
+        )
+    if (
+        not isinstance(staleness_check, (int, float))
+        or isinstance(staleness_check, bool)
+        or staleness_check <= 0
+    ):
+        raise ValueError(
+            "websocket.staleness_check_seconds must be positive"
+        )
 
     cors_origins = config.setdefault("cors_origins", [])
     if not isinstance(cors_origins, list):

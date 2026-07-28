@@ -69,6 +69,13 @@ def test_instance_yaml_contracts_load_and_match_internal_api_port():
     assert second["scheduler"]["mode"] == "external"
     assert first["scheduler"]["max_events_per_advance"] == 100_000
     assert second["scheduler"]["max_events_per_advance"] == 100_000
+    for config in (first, second):
+        assert config["websocket"]["outbound_queue_capacity"] == 8
+        assert config["websocket"]["send_timeout_seconds"] == 5
+        assert config["websocket"]["heartbeat_stale_seconds"] == 30
+        assert config["websocket"]["reconnect_initial_seconds"] == 1
+        assert config["websocket"]["reconnect_max_seconds"] == 30
+        assert config["websocket"]["staleness_check_seconds"] == 1
     assert first["tsdb"]["bucket"] == second["tsdb"]["bucket"]
 
 
@@ -119,6 +126,60 @@ def test_execution_random_seed_is_required_and_must_be_an_integer(tmp_path):
         match="execution.random_seed must be an integer",
     ):
         load_config(str(invalid_path))
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        (
+            "outbound_queue_capacity",
+            0,
+            "websocket.outbound_queue_capacity must be a positive integer",
+        ),
+        (
+            "send_timeout_seconds",
+            0,
+            "websocket.send_timeout_seconds must be positive",
+        ),
+        (
+            "heartbeat_stale_seconds",
+            10,
+            "websocket.heartbeat_stale_seconds must exceed heartbeat cadence",
+        ),
+        (
+            "reconnect_initial_seconds",
+            0,
+            "websocket.reconnect_initial_seconds must be positive",
+        ),
+        (
+            "reconnect_max_seconds",
+            0.5,
+            "websocket.reconnect_max_seconds must be at least reconnect_initial_seconds",
+        ),
+        (
+            "staleness_check_seconds",
+            0,
+            "websocket.staleness_check_seconds must be positive",
+        ),
+    ],
+)
+def test_websocket_delivery_and_browser_timing_validation(
+    tmp_path,
+    field,
+    value,
+    message,
+):
+    source = yaml.safe_load(
+        (ROOT / "configs" / "mockx-local.yml").read_text(encoding="utf-8")
+    )
+    source["websocket"][field] = value
+    if field == "reconnect_max_seconds":
+        source["websocket"]["reconnect_initial_seconds"] = 1
+    config_path = tmp_path / f"invalid-{field}.yml"
+    config_path.write_text(yaml.safe_dump(source), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=message):
+        load_config(str(config_path))
 
 
 def test_monitoring_documentation_matches_deployed_assets():
