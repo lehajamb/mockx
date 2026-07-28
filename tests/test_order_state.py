@@ -10,6 +10,7 @@ from src.mockx.latency import LatencyScheduler
 from src.mockx.models import (
     CancelOrderCommand,
     ExecutionParams,
+    ExecutionReport,
     InvalidOrderTransition,
     NewOrderCommand,
     Order,
@@ -80,13 +81,15 @@ def make_order() -> Order:
         (ProcessOrderCommand(1, 0), "expected_version", 1),
         (
             CancelOrderCommand(
-                order_id=1,
-                expected_version=0,
                 cancel_cl_ord_id="CXL-1",
                 orig_cl_ord_id="IMMUTABLE",
+                symbol="TEST",
+                side=Side.BUY,
+                qty=10,
                 requested_at=NOW,
+                session_id="FIX.4.4:CLIENT->MOCKX",
             ),
-            "order_id",
+            "ingress_sequence",
             2,
         ),
     ],
@@ -172,17 +175,18 @@ async def test_cancelled_order_ignores_stale_processing_command(caplog):
     assert queued_command == ProcessOrderCommand(aggressive_id, expected_version=0)
     rejection_reason = engine.cancel_order(
         CancelOrderCommand(
-            order_id=aggressive_id,
-            expected_version=0,
             cancel_cl_ord_id="CXL-AGGRESSIVE",
             orig_cl_ord_id="AGGRESSIVE",
+            symbol="TEST",
+            side=Side.BUY,
+            qty=10,
             requested_at=engine.scheduler.current_time,
             session_id="FIX.4.4:CLIENT->MOCKX",
             session_alias="CLIENT",
         )
     )
 
-    assert rejection_reason is None
+    assert isinstance(rejection_reason, ExecutionReport)
     assert engine.orders[aggressive_id].version == 1
 
     with caplog.at_level("INFO"):

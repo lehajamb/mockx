@@ -6,6 +6,7 @@ from src.mockx.metrics import LatencyTracker, MetricsCollector
 from src.mockx.models import (
     CancelOrderCommand,
     ExecutionParams,
+    ExecutionReport,
     NewOrderCommand,
     ProcessOrderCommand,
     Side,
@@ -53,6 +54,7 @@ def make_instrumented_engine():
     engine.on_trade = traded
     engine.on_cancel_request = metrics.record_cancel_request
     engine.on_cancel_reject = metrics.record_cancel_reject
+    engine.on_cancel_outcome = metrics.record_cancel_outcome
     engine.on_matching_duration = tracker.record_real_matching_duration
     return engine, metrics, reports, trades
 
@@ -145,10 +147,11 @@ def test_cancel_reject_counts_request_and_reject_not_success():
 
     rejection = engine.cancel_order(
         CancelOrderCommand(
-            order_id=0,
-            expected_version=0,
             cancel_cl_ord_id="CXL-UNKNOWN",
             orig_cl_ord_id="UNKNOWN",
+            symbol="TEST",
+            side=Side.BUY,
+            qty=1,
             requested_at=engine.scheduler.current_time,
             session_id="FIX.4.4:MOCKX->CLIENT",
             session_alias="CLIENT",
@@ -159,6 +162,7 @@ def test_cancel_reject_counts_request_and_reject_not_success():
     assert rejection is not None
     assert after.cancel_requests - before.cancel_requests == 1
     assert after.cancel_rejects - before.cancel_rejects == 1
+    assert after.cancel_unknown_order - before.cancel_unknown_order == 1
     assert after.orders_canceled == before.orders_canceled
     assert after.trades == before.trades
     assert after.traded_quantity == before.traded_quantity
@@ -182,20 +186,90 @@ def test_active_and_resting_gauges_follow_authoritative_engine_state():
     live = metrics.snapshot()
     assert (live.active_orders, live.resting_orders) == (1, 1)
     order = engine.orders[cancel_id]
-    assert engine.cancel_order(
+    assert isinstance(engine.cancel_order(
         CancelOrderCommand(
-            order_id=cancel_id,
-            expected_version=order.version,
             cancel_cl_ord_id="CXL-CANCEL",
             orig_cl_ord_id=order.cl_ord_id,
+            symbol=order.symbol,
+            side=order.side,
+            qty=order.qty,
             requested_at=engine.scheduler.current_time,
-            session_id=order.session_id,
+            session_id=order.session_id or "FIX.4.4:MOCKX->CLIENT",
             session_alias=order.session_alias,
         )
-    ) is None
+    ), ExecutionReport)
     canceled = metrics.snapshot()
     assert (canceled.active_orders, canceled.resting_orders) == (0, 0)
+    assert canceled.cancel_accepted == 1
     assert not engine.books["TEST"].is_resting(resting_id)
+
+
+def test_all_fixed_cancel_outcome_counters_are_distinct():
+    engine, metrics, _, _ = make_instrumented_engine()
+    owner = "FIX.4.4:MOCKX->CLIENT"
+    order_id = submit(engine, "OWNED", Side.BUY, 3.0, 99.0)
+    order = engine.orders[order_id]
+
+    def command(
+        cancel_id,
+        orig_id,
+        *,
+        session_id=owner,
+        run_generation=0,
+        duplicate=False,
+    ):
+        return CancelOrderCommand(
+            cancel_cl_ord_id=cancel_id,
+            orig_cl_ord_id=orig_id,
+            symbol="TEST",
+            side=Side.BUY,
+            qty=3,
+            requested_at=engine.scheduler.current_time,
+            session_id=session_id,
+            run_generation=run_generation,
+            duplicate_request=duplicate,
+        )
+
+    engine.cancel_order(command("C-ACCEPT", order.cl_ord_id))
+    engine.cancel_order(command("C-TERMINAL", order.cl_ord_id))
+    engine.cancel_order(command("C-UNKNOWN", "MISSING"))
+    engine.cancel_order(
+        command("C-DUPLICATE", "MISSING", duplicate=True)
+    )
+    engine.cancel_order(
+        command("C-STALE", "MISSING", run_generation=99)
+    )
+
+    foreign_id = engine.submit_order(
+        NewOrderCommand(
+            cl_ord_id="FOREIGN",
+            symbol="TEST",
+            side=Side.SELL,
+            qty=2,
+            price=101,
+            tif=TimeInForce.GTC,
+            submitted_at=engine.scheduler.current_time,
+            session_id="FIX.4.4:MOCKX->FOREIGN",
+        )
+    )
+    engine.process_order(ProcessOrderCommand(foreign_id, 0))
+    engine.cancel_order(
+        command(
+            "C-WRONG",
+            "FOREIGN",
+            session_id="FIX.4.4:MOCKX->REQUESTER",
+        )
+    )
+
+    snapshot = metrics.snapshot()
+    assert (
+        snapshot.cancel_accepted,
+        snapshot.cancel_unknown_order,
+        snapshot.cancel_already_terminal,
+        snapshot.cancel_wrong_owner,
+        snapshot.cancel_duplicate_request,
+        snapshot.cancel_stale_run_generation,
+    ) == (1, 1, 1, 1, 1, 1)
 
 
 def test_duplicate_trade_report_and_stale_command_are_idempotent():

@@ -52,10 +52,10 @@ def make_stack():
     return engine, metrics, app, reports
 
 
-def submit(engine, session_id, alias, qty, price):
+def submit(engine, session_id, alias, qty, price, cl_ord_id="ABC"):
     order_id = engine.submit_order(
         NewOrderCommand(
-            cl_ord_id="ABC",
+            cl_ord_id=cl_ord_id,
             symbol="TEST",
             side=Side.BUY,
             qty=qty,
@@ -111,16 +111,21 @@ def test_same_cl_ord_id_is_distinct_and_routes_to_own_session():
 def test_cross_session_cancel_cannot_mutate_other_order_and_reject_routes_to_requester():
     engine, _, app, _ = make_stack()
     transport_a, transport_b = register_pair(app)
-    order_a = submit(engine, SESSION_A, "shared", 5.0, 99.0)
-    order_b = submit(engine, SESSION_B, "shared", 7.0, 98.0)
+    order_a = submit(
+        engine, SESSION_A, "shared", 5.0, 99.0, "A-OWN"
+    )
+    order_b = submit(
+        engine, SESSION_B, "shared", 7.0, 98.0, "FOREIGN"
+    )
     before_qty = sum(level.qty for level in engine.books["TEST"].bids)
 
     rejection = engine.cancel_order(
         CancelOrderCommand(
-            order_id=order_b,
-            expected_version=engine.orders[order_b].version,
             cancel_cl_ord_id="CXL-BY-A",
-            orig_cl_ord_id="ABC",
+            orig_cl_ord_id="FOREIGN",
+            symbol="TEST",
+            side=Side.BUY,
+            qty=7,
             requested_at=engine.scheduler.current_time,
             session_id=SESSION_A,
             session_alias="shared",

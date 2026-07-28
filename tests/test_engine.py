@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from src.mockx.models import (
     CancelOrderCommand,
     ExecutionParams,
+    ExecutionReport,
     ExecutionType,
     NewOrderCommand,
     Order,
@@ -73,6 +74,8 @@ def create_order_command(
         price=price,
         tif=tif,
         submitted_at=datetime.now(timezone.utc),
+        session_id="FIX.4.4:CLIENT->MOCKX",
+        session_alias="CLIENT",
     )
 
 
@@ -86,13 +89,15 @@ def process_command(order_id: int, expected_version: int = 0) -> ProcessOrderCom
 def cancel_command(engine: MatchingEngine, order_id: int) -> CancelOrderCommand:
     order = engine.orders[order_id]
     return CancelOrderCommand(
-        order_id=order_id,
-        expected_version=order.version,
         cancel_cl_ord_id=f"CANCEL_{order.cl_ord_id}",
         orig_cl_ord_id=order.cl_ord_id,
+        symbol=order.symbol,
+        side=order.side,
+        qty=order.qty,
         requested_at=engine.scheduler.current_time,
-        session_id=order.session_id,
+        session_id=order.session_id or "FIX.4.4:CLIENT->MOCKX",
         session_alias=order.session_alias,
+        run_generation=engine.identifier_scope.generation,
     )
 
 
@@ -395,13 +400,13 @@ class TestMatchingEngine:
 
         # Clear the queue and cancel the order
         engine.scheduler.clear()
-        engine.cancel_order(cancel_command(engine, order_id))
+        report_cancel = engine.cancel_order(
+            cancel_command(engine, order_id)
+        )
 
-        # Check that a CANCELLED ExecutionReport was scheduled
-        assert engine.scheduler.get_pending_count() == 1
-
-        # Verify the cancellation report
-        report_cancel = engine.scheduler.event_queue[0].data
+        # The cancel pipeline schedules delivery outside the engine.
+        assert engine.scheduler.get_pending_count() == 0
+        assert isinstance(report_cancel, ExecutionReport)
         assert report_cancel.order_id == order_id
         assert report_cancel.exec_type == ExecutionType.CANCELED
         assert report_cancel.ord_status == OrderStatus.CANCELLED

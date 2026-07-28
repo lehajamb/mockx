@@ -9,6 +9,7 @@ from src.mockx.latency import LatencyScheduler
 from src.mockx.models import (
     CancelOrderCommand,
     ExecutionParams,
+    ExecutionReport,
     InvalidBookMutation,
     NewOrderCommand,
     Order,
@@ -55,6 +56,7 @@ def submit(
             price=price,
             tif=TimeInForce.GTC,
             submitted_at=NOW,
+            session_id="TEST-SESSION",
             session_alias=session_alias,
         )
     )
@@ -63,16 +65,19 @@ def submit(
 
 
 def cancel(engine: MatchingEngine, order: Order) -> str | None:
-    return engine.cancel_order(
+    result = engine.cancel_order(
         CancelOrderCommand(
-            order_id=order.id,
-            expected_version=order.version,
             cancel_cl_ord_id=f"CXL-{order.cl_ord_id}",
             orig_cl_ord_id=order.cl_ord_id,
+            symbol=order.symbol,
+            side=order.side,
+            qty=order.qty,
             requested_at=NOW,
+            session_id=order.session_id or "TEST-SESSION",
             session_alias=order.session_alias,
         )
     )
+    return None if isinstance(result, ExecutionReport) else result
 
 
 def level_at(book: OrderBook, side: Side, price: float):
@@ -370,14 +375,16 @@ def test_cancellation_is_idempotent():
         price=100,
     )
     command = CancelOrderCommand(
-        order_id=cancelled.id,
-        expected_version=cancelled.version,
         cancel_cl_ord_id="CXL-TWICE",
         orig_cl_ord_id=cancelled.cl_ord_id,
+        symbol=cancelled.symbol,
+        side=cancelled.side,
+        qty=cancelled.qty,
         requested_at=NOW,
+        session_id=cancelled.session_id or "TEST-SESSION",
     )
 
-    assert engine.cancel_order(command) is None
+    assert isinstance(engine.cancel_order(command), ExecutionReport)
     before = [
         (level.price, level.qty, tuple(order.id for order in level.orders))
         for level in engine.books["TEST"].bids

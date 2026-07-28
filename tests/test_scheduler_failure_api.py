@@ -147,12 +147,13 @@ def test_post_mutation_engine_failure_cannot_look_healthy(
         with pytest.raises(SchedulerFailedError):
             exchange.engine.cancel_order(
                 CancelOrderCommand(
-                    order_id=order_id,
-                    expected_version=order.version,
                     cancel_cl_ord_id="CXL-FAILED",
                     orig_cl_ord_id=order.cl_ord_id,
+                    symbol=order.symbol,
+                    side=order.side,
+                    qty=order.qty,
                     requested_at=exchange.scheduler.current_time,
-                    session_id=order.session_id,
+                    session_id=order.session_id or "TEST-SESSION",
                     session_alias=order.session_alias,
                 )
             )

@@ -40,8 +40,11 @@ from .latency import (
     monotonic_duration_ns,
 )
 from .models import (
+    CancellationOutcome,
+    CancelLatencyTrace,
     CancelOrderCommand,
     CancelReject,
+    CancelReportDelivery,
     ExecutionReport,
     ExecutionType,
     LatencyMeasurement,
@@ -63,6 +66,12 @@ SIM_INBOUND_LATENCY = "mockx_sim_inbound_latency_seconds"
 SIM_ENGINE_LATENCY = "mockx_sim_engine_latency_seconds"
 SIM_OUTBOUND_LATENCY = "mockx_sim_outbound_latency_seconds"
 SIM_END_TO_END_LATENCY = "mockx_sim_end_to_end_latency_seconds"
+SIM_CANCEL_INBOUND_LATENCY = "mockx_sim_cancel_inbound_latency_seconds"
+SIM_CANCEL_ENGINE_LATENCY = "mockx_sim_cancel_engine_latency_seconds"
+SIM_CANCEL_OUTBOUND_LATENCY = "mockx_sim_cancel_outbound_latency_seconds"
+SIM_CANCEL_END_TO_END_LATENCY = (
+    "mockx_sim_cancel_end_to_end_latency_seconds"
+)
 REAL_MATCHING_DURATION = "mockx_real_matching_duration_seconds"
 REAL_REPORT_SERIALIZATION_DURATION = (
     "mockx_real_report_serialization_duration_seconds"
@@ -74,6 +83,10 @@ LATENCY_METRICS = frozenset(
         SIM_ENGINE_LATENCY,
         SIM_OUTBOUND_LATENCY,
         SIM_END_TO_END_LATENCY,
+        SIM_CANCEL_INBOUND_LATENCY,
+        SIM_CANCEL_ENGINE_LATENCY,
+        SIM_CANCEL_OUTBOUND_LATENCY,
+        SIM_CANCEL_END_TO_END_LATENCY,
         REAL_MATCHING_DURATION,
         REAL_REPORT_SERIALIZATION_DURATION,
     }
@@ -467,6 +480,12 @@ class MetricsCollector:
             "partial_fill_events": 0,
             "cancel_requests": 0,
             "cancel_rejects": 0,
+            "cancel_accepted": 0,
+            "cancel_unknown_order": 0,
+            "cancel_already_terminal": 0,
+            "cancel_wrong_owner": 0,
+            "cancel_duplicate_request": 0,
+            "cancel_stale_run_generation": 0,
             "execution_reports": 0,
             "report_delivery_failures": 0,
             "connected_sessions": 0,
@@ -557,6 +576,12 @@ class MetricsCollector:
             "partial_fill_events": "Order-specific PARTIAL trade reports created.",
             "cancel_requests": "Cancel commands received by the engine.",
             "cancel_rejects": "Cancel rejection snapshots created.",
+            "cancel_accepted": "Cancel requests accepted.",
+            "cancel_unknown_order": "Cancels rejected for an unknown order.",
+            "cancel_already_terminal": "Cancels rejected after terminal state.",
+            "cancel_wrong_owner": "Cancels rejected for wrong FIX ownership.",
+            "cancel_duplicate_request": "Duplicate cancel ClOrdIDs rejected.",
+            "cancel_stale_run_generation": "Stale-generation cancels rejected.",
             "execution_reports": "Order-specific execution reports created.",
             "report_delivery_failures": "Reports not delivered to their destination.",
             "trades": "Immutable fills committed by the engine.",
@@ -602,6 +627,18 @@ class MetricsCollector:
             ),
             SIM_END_TO_END_LATENCY: (
                 "Simulated report delivery time minus client submit time."
+            ),
+            SIM_CANCEL_INBOUND_LATENCY: (
+                "Simulated cancel exchange arrival minus FIX receive time."
+            ),
+            SIM_CANCEL_ENGINE_LATENCY: (
+                "Simulated cancel report creation minus exchange arrival time."
+            ),
+            SIM_CANCEL_OUTBOUND_LATENCY: (
+                "Simulated cancel report delivery minus report creation time."
+            ),
+            SIM_CANCEL_END_TO_END_LATENCY: (
+                "Simulated cancel report delivery minus FIX receive time."
             ),
             REAL_MATCHING_DURATION: (
                 "Real monotonic duration of the matching function."
@@ -789,6 +826,25 @@ class MetricsCollector:
         with self._lock:
             self._increment_locked("cancel_rejects")
 
+    def record_cancel_outcome(
+        self,
+        command: CancelOrderCommand,
+        outcome: CancellationOutcome,
+    ) -> None:
+        """Increment exactly one fixed cancel outcome counter."""
+        name = {
+            CancellationOutcome.ACCEPTED: "cancel_accepted",
+            CancellationOutcome.UNKNOWN_ORDER: "cancel_unknown_order",
+            CancellationOutcome.ALREADY_TERMINAL: "cancel_already_terminal",
+            CancellationOutcome.WRONG_OWNER: "cancel_wrong_owner",
+            CancellationOutcome.DUPLICATE_REQUEST: "cancel_duplicate_request",
+            CancellationOutcome.STALE_RUN_GENERATION: (
+                "cancel_stale_run_generation"
+            ),
+        }[outcome]
+        with self._lock:
+            self._increment_locked(name)
+
     def record_report_delivery_failure(
         self,
         report: ExecutionReport | CancelReject,
@@ -809,7 +865,7 @@ class MetricsCollector:
         self,
         *,
         metric: str,
-        order_id: int,
+        order_id: Optional[int],
         session_id: Optional[str],
     ) -> None:
         with self._lock:
@@ -847,12 +903,21 @@ class MetricsCollector:
                 histogram.observe(measurement.value)
         fields: Dict[str, object] = {
             "duration_seconds": measurement.value,
-            "order_id": measurement.order_id,
         }
+        if measurement.order_id is not None:
+            fields["order_id"] = measurement.order_id
         if measurement.session_id is not None:
             fields["session_id"] = measurement.session_id
         if measurement.report_exec_id is not None:
             fields["report_exec_id"] = measurement.report_exec_id
+        if measurement.run_generation is not None:
+            fields["run_generation"] = measurement.run_generation
+        if measurement.ingress_sequence is not None:
+            fields["ingress_sequence"] = measurement.ingress_sequence
+        if measurement.cl_ord_id is not None:
+            fields["cl_ord_id"] = measurement.cl_ord_id
+        if measurement.orig_cl_ord_id is not None:
+            fields["orig_cl_ord_id"] = measurement.orig_cl_ord_id
         self._create_point(
             "latency",
             {
@@ -1000,6 +1065,14 @@ class MetricsCollector:
             partial_fill_events=counts["partial_fill_events"],
             cancel_requests=counts["cancel_requests"],
             cancel_rejects=counts["cancel_rejects"],
+            cancel_accepted=counts["cancel_accepted"],
+            cancel_unknown_order=counts["cancel_unknown_order"],
+            cancel_already_terminal=counts["cancel_already_terminal"],
+            cancel_wrong_owner=counts["cancel_wrong_owner"],
+            cancel_duplicate_request=counts["cancel_duplicate_request"],
+            cancel_stale_run_generation=counts[
+                "cancel_stale_run_generation"
+            ],
             execution_reports=counts["execution_reports"],
             trades=counts["trades"],
             traded_quantity=totals["traded_quantity"],
@@ -1031,6 +1104,22 @@ class MetricsCollector:
             ),
             average_sim_end_to_end_latency_ms=average(
                 SIM_END_TO_END_LATENCY,
+                1_000.0,
+            ),
+            average_sim_cancel_inbound_latency_ms=average(
+                SIM_CANCEL_INBOUND_LATENCY,
+                1_000.0,
+            ),
+            average_sim_cancel_engine_latency_ms=average(
+                SIM_CANCEL_ENGINE_LATENCY,
+                1_000.0,
+            ),
+            average_sim_cancel_outbound_latency_ms=average(
+                SIM_CANCEL_OUTBOUND_LATENCY,
+                1_000.0,
+            ),
+            average_sim_cancel_end_to_end_latency_ms=average(
+                SIM_CANCEL_END_TO_END_LATENCY,
                 1_000.0,
             ),
             report_delivery_failures=counts["report_delivery_failures"],
@@ -1156,6 +1245,7 @@ class LatencyTracker:
         self.metrics = metrics_collector
         self.monotonic_clock = monotonic_clock or PerfCounterClock()
         self.orders: Dict[int, OrderLatencyTrace] = {}
+        self.cancels: Dict[tuple[int, int], CancelLatencyTrace] = {}
         self.measurements: list[LatencyMeasurement] = []
         self._delivered_exec_ids: set[str] = set()
         self._completed_order_ids: set[int] = set()
@@ -1164,6 +1254,7 @@ class LatencyTracker:
     def reset(self) -> None:
         with self._lock:
             self.orders.clear()
+            self.cancels.clear()
             self.measurements.clear()
             self._delivered_exec_ids.clear()
             self._completed_order_ids.clear()
@@ -1262,6 +1353,126 @@ class LatencyTracker:
                 delivered_at,
                 report_exec_id=report.exec_id,
             )
+        self._publish(outbound)
+        self._publish(end_to_end)
+        return True
+
+    @staticmethod
+    def _cancel_key(command: CancelOrderCommand) -> tuple[int, int]:
+        return command.run_generation, command.ingress_sequence
+
+    def cancel_received(self, command: CancelOrderCommand) -> None:
+        """Start a cancel trace keyed independently of client order IDs."""
+        key = self._cancel_key(command)
+        with self._lock:
+            if key in self.cancels:
+                return
+            self.cancels[key] = CancelLatencyTrace(
+                run_generation=command.run_generation,
+                ingress_sequence=command.ingress_sequence,
+                session_id=command.session_id,
+                cancel_cl_ord_id=command.cancel_cl_ord_id,
+                orig_cl_ord_id=command.orig_cl_ord_id,
+                sim_received_at=command.requested_at,
+            )
+
+    def cancel_arrived(self, command: CancelOrderCommand) -> None:
+        key = self._cancel_key(command)
+        with self._lock:
+            trace = self.cancels.get(key)
+            if trace is None:
+                self._missing_cancel_trace(command, "cancel_arrived")
+                return
+            if trace.sim_arrived_at is not None:
+                return
+            trace.sim_arrived_at = self.scheduler.current_time
+            measurement = self._cancel_duration_measurement(
+                trace,
+                SIM_CANCEL_INBOUND_LATENCY,
+                trace.sim_received_at,
+                trace.sim_arrived_at,
+            )
+        self._publish(measurement)
+
+    def cancel_report_created(
+        self,
+        command: CancelOrderCommand,
+        report: ExecutionReport | CancelReject,
+    ) -> None:
+        key = self._cancel_key(command)
+        with self._lock:
+            trace = self.cancels.get(key)
+            if trace is None:
+                self._missing_cancel_trace(command, "cancel_report_created")
+                return
+            if trace.sim_report_created_at is not None:
+                return
+            trace.order_id = report.order_id
+            trace.sim_report_created_at = report.timestamp
+            if trace.sim_arrived_at is None:
+                self._missing_cancel_trace(
+                    command,
+                    "cancel_report_created_without_arrival",
+                )
+                return
+            measurement = self._cancel_duration_measurement(
+                trace,
+                SIM_CANCEL_ENGINE_LATENCY,
+                trace.sim_arrived_at,
+                report.timestamp,
+                report_exec_id=(
+                    report.exec_id
+                    if isinstance(report, ExecutionReport)
+                    else None
+                ),
+            )
+        self._publish(measurement)
+
+    def cancel_report_delivered(
+        self,
+        delivery: CancelReportDelivery,
+        *,
+        delivered: bool,
+    ) -> bool:
+        """Finish a cancel trace only after successful report delivery."""
+        command = delivery.command
+        key = self._cancel_key(command)
+        with self._lock:
+            trace = self.cancels.get(key)
+            if trace is None:
+                self._missing_cancel_trace(command, "cancel_report_delivered")
+                return False
+            if not delivered:
+                self.cancels.pop(key, None)
+                return False
+            if trace.sim_report_delivered_at is not None:
+                return False
+            report = delivery.report
+            delivered_at = self.scheduler.current_time
+            trace.sim_report_delivered_at = delivered_at
+            outbound = self._cancel_duration_measurement(
+                trace,
+                SIM_CANCEL_OUTBOUND_LATENCY,
+                report.timestamp,
+                delivered_at,
+                report_exec_id=(
+                    report.exec_id
+                    if isinstance(report, ExecutionReport)
+                    else None
+                ),
+            )
+            end_to_end = self._cancel_duration_measurement(
+                trace,
+                SIM_CANCEL_END_TO_END_LATENCY,
+                trace.sim_received_at,
+                delivered_at,
+                report_exec_id=(
+                    report.exec_id
+                    if isinstance(report, ExecutionReport)
+                    else None
+                ),
+            )
+            self.cancels.pop(key, None)
         self._publish(outbound)
         self._publish(end_to_end)
         return True
@@ -1388,6 +1599,37 @@ class LatencyTracker:
             report_exec_id=report_exec_id,
         )
 
+    def _cancel_duration_measurement(
+        self,
+        trace: CancelLatencyTrace,
+        metric: str,
+        start: datetime,
+        end: datetime,
+        *,
+        report_exec_id: Optional[str] = None,
+    ) -> Optional[LatencyMeasurement]:
+        seconds = (end - start).total_seconds()
+        if not math.isfinite(seconds) or seconds < 0.0:
+            self.metrics.record_invalid_latency(
+                metric=metric,
+                order_id=trace.order_id,
+                session_id=trace.session_id,
+            )
+            return None
+        return LatencyMeasurement(
+            order_id=trace.order_id,
+            session_id=trace.session_id,
+            metric=metric,
+            value=seconds,
+            unit="seconds",
+            timestamp=end,
+            report_exec_id=report_exec_id,
+            run_generation=trace.run_generation,
+            ingress_sequence=trace.ingress_sequence,
+            cl_ord_id=trace.cancel_cl_ord_id,
+            orig_cl_ord_id=trace.orig_cl_ord_id,
+        )
+
     def _real_measurement(
         self,
         *,
@@ -1430,4 +1672,19 @@ class LatencyTracker:
         logger.warning(
             "Latency trace missing",
             extra={"order_id": order_id, "latency_stage": stage},
+        )
+
+    @staticmethod
+    def _missing_cancel_trace(
+        command: CancelOrderCommand,
+        stage: str,
+    ) -> None:
+        logger.warning(
+            "Cancel latency trace missing",
+            extra={
+                "run_generation": command.run_generation,
+                "ingress_sequence": command.ingress_sequence,
+                "cancel_cl_ord_id": command.cancel_cl_ord_id,
+                "latency_stage": stage,
+            },
         )

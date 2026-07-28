@@ -214,11 +214,13 @@ def test_fixed_seed_randomized_operations_preserve_all_invariants():
             if candidates:
                 order = rng.choice(candidates)
                 command = CancelOrderCommand(
-                    order_id=order.id,
-                    expected_version=order.version,
                     cancel_cl_ord_id=f"RND-CXL-{step}",
                     orig_cl_ord_id=order.cl_ord_id,
+                    symbol=order.symbol,
+                    side=order.side,
+                    qty=order.qty,
                     requested_at=NOW,
+                    session_id=order.session_id or "INVARIANT-SESSION",
                     session_alias=order.session_alias,
                 )
                 first_result = engine.cancel_order(command)
@@ -268,6 +270,7 @@ def test_fixed_seed_randomized_operations_preserve_all_invariants():
                     price=price,
                     tif=TimeInForce.GTC,
                     submitted_at=NOW,
+                    session_id="INVARIANT-SESSION",
                     session_alias=alias,
                 )
             )
@@ -321,6 +324,7 @@ def test_command_sequences_never_leave_crossed_or_locked_book(operations):
                     price=None if price is None else float(price),
                     tif=tif,
                     submitted_at=NOW,
+                    session_id="PROPERTY-SESSION",
                     session_alias="property_test",
                 )
             )
@@ -340,11 +344,13 @@ def test_command_sequences_never_leave_crossed_or_locked_book(operations):
                 order = engine.orders[order_id]
                 engine.cancel_order(
                     CancelOrderCommand(
-                        order_id=order_id,
-                        expected_version=order.version,
                         cancel_cl_ord_id=f"PROPERTY-CXL-{step}",
                         orig_cl_ord_id=order.cl_ord_id,
+                        symbol=order.symbol,
+                        side=order.side,
+                        qty=order.qty,
                         requested_at=NOW,
+                        session_id=order.session_id or "PROPERTY-SESSION",
                         session_alias=order.session_alias,
                     )
                 )

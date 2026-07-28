@@ -170,10 +170,11 @@ def test_cancel_reject_mapping_uses_request_and_known_order_snapshot():
         price=100,
     )
     command = CancelOrderCommand(
-        order_id=order_id,
-        expected_version=engine.orders[order_id].version,
         cancel_cl_ord_id="CXL-TOO-LATE",
         orig_cl_ord_id="FIX-CXL-FILLED-PASSIVE",
+        symbol="TEST",
+        side=Side.SELL,
+        qty=2,
         requested_at=NOW,
         session_id="FIX.4.4:CLIENT->MOCKX",
         session_alias="CLIENT",
@@ -195,10 +196,11 @@ def test_cancel_reject_mapping_uses_request_and_known_order_snapshot():
 def test_unknown_cancel_reject_mapping_has_request_identity():
     engine, _, _, _ = make_engine()
     command = CancelOrderCommand(
-        order_id=0,
-        expected_version=0,
         cancel_cl_ord_id="CXL-UNKNOWN-FIX",
         orig_cl_ord_id="UNKNOWN-FIX",
+        symbol="TEST",
+        side=Side.BUY,
+        qty=1,
         requested_at=NOW,
         session_id="FIX.4.4:CLIENT->MOCKX",
         session_alias="CLIENT",

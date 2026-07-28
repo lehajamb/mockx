@@ -142,6 +142,15 @@ class TradesStats(BaseModel):
     canceled_quantity: float
 
 
+class CancellationStats(BaseModel):
+    accepted: int
+    unknown_order: int
+    already_terminal: int
+    wrong_owner: int
+    duplicate_request: int
+    stale_run_generation: int
+
+
 class ReportsStats(BaseModel):
     created: int
     delivery_failures: int
@@ -173,6 +182,18 @@ class LatencyStats(BaseModel):
     )
     average_sim_end_to_end_latency_ms: Optional[float] = Field(
         description="Mean simulated submit-to-delivery latency in milliseconds"
+    )
+    average_sim_cancel_inbound_latency_ms: Optional[float] = Field(
+        description="Mean simulated cancel receive-to-arrival latency"
+    )
+    average_sim_cancel_engine_latency_ms: Optional[float] = Field(
+        description="Mean simulated cancel arrival-to-report latency"
+    )
+    average_sim_cancel_outbound_latency_ms: Optional[float] = Field(
+        description="Mean simulated cancel report-delivery latency"
+    )
+    average_sim_cancel_end_to_end_latency_ms: Optional[float] = Field(
+        description="Mean simulated cancel receive-to-delivery latency"
     )
     invalid_measurements: int
 
@@ -216,6 +237,7 @@ class StatsResponse(BaseModel):
     run_generation: Optional[int]
     orders: OrdersStats
     trades: TradesStats
+    cancellations: CancellationStats
     reports: ReportsStats
     sessions: SessionsStats
     book: BookStats

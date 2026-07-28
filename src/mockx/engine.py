@@ -7,7 +7,8 @@ from random import Random
 
 from .identifiers import RunIdentifierScope
 from .models import (
-    CancelReject, CancelRejectReason, ClientOrderKey, ExecutionType, Fill,
+    CancellationOutcome, CancelReject, CancelRejectReason, ClientOrderKey,
+    ExecutionType, Fill,
     MarketDataSnapshot, Order, OrderBook, PriceLevelSnapshot, Trade,
     TradeSnapshot, Side, OrderStatus, TimeInForce,
     ExecutionParams, ExecutionReport, NewOrderCommand,
@@ -72,6 +73,7 @@ class MatchingEngine:
         self.on_order_submitted = None
         self.on_cancel_request = None
         self.on_cancel_reject = None
+        self.on_cancel_outcome = None
         self.on_matching_duration = None
         
     def reset_run_state(self) -> None:
@@ -526,6 +528,7 @@ class MatchingEngine:
         cl_ord_id: Optional[str] = None,
         orig_cl_ord_id: Optional[str] = None,
         text: Optional[str] = None,
+        cancel_ingress_sequence: Optional[int] = None,
     ) -> ExecutionReport:
         """Capture a report with a deterministic, engine-owned ExecID."""
         exec_id = self.identifier_scope.next_exec_id()
@@ -541,6 +544,7 @@ class MatchingEngine:
             cl_ord_id=cl_ord_id,
             orig_cl_ord_id=orig_cl_ord_id,
             text=text,
+            cancel_ingress_sequence=cancel_ingress_sequence,
         )
         
     def _send_execution_report(self, report: ExecutionReport) -> None:
@@ -655,8 +659,8 @@ class MatchingEngine:
     def cancel_order(
         self,
         command: CancelOrderCommand,
-    ) -> Optional[CancelReject]:
-        """Cancel one live remainder or return an immutable rejection snapshot."""
+    ) -> ExecutionReport | CancelReject:
+        """Resolve and process one cancel against authoritative execution-time state."""
         if not isinstance(command, CancelOrderCommand):
             raise TypeError("cancel_order requires CancelOrderCommand")
         self.scheduler.ensure_running()
@@ -667,42 +671,66 @@ class MatchingEngine:
             command,
         )
 
-        order = self.orders.get(command.order_id)
+        if command.run_generation != self.identifier_scope.generation:
+            return self._cancel_reject(
+                command,
+                reason=CancelRejectReason.INVALID_REQUEST,
+                text=(
+                    "Stale cancel run generation: "
+                    f"{command.run_generation}; active generation is "
+                    f"{self.identifier_scope.generation}"
+                ),
+                outcome=CancellationOutcome.STALE_RUN_GENERATION,
+            )
+
+        if command.duplicate_request:
+            return self._cancel_reject(
+                command,
+                reason=CancelRejectReason.INVALID_REQUEST,
+                text=(
+                    "Duplicate cancel request ClOrdID in FIX session: "
+                    f"{command.cancel_cl_ord_id}"
+                ),
+                outcome=CancellationOutcome.DUPLICATE_REQUEST,
+            )
+
+        client_key = ClientOrderKey(
+            session_id=command.session_id,
+            cl_ord_id=command.orig_cl_ord_id,
+        )
+        order_id = self.client_order_index.get(client_key)
+        order = self.orders.get(order_id) if order_id is not None else None
         if order is None:
+            foreign_orders = sorted(
+                (
+                    candidate
+                    for candidate in self.orders.values()
+                    if (
+                        candidate.cl_ord_id == command.orig_cl_ord_id
+                        and candidate.session_id != command.session_id
+                    )
+                ),
+                key=lambda candidate: candidate.id,
+            )
+            if foreign_orders:
+                return self._cancel_reject(
+                    command,
+                    order=foreign_orders[0],
+                    reason=CancelRejectReason.SESSION_MISMATCH,
+                    text=(
+                        f"OrigClOrdID {command.orig_cl_ord_id} belongs to a "
+                        "different FIX session"
+                    ),
+                    outcome=CancellationOutcome.WRONG_OWNER,
+                )
             return self._cancel_reject(
                 command,
                 reason=CancelRejectReason.UNKNOWN_ORDER,
                 text=(
                     "Order not found: "
-                    f"{command.orig_cl_ord_id or command.order_id}"
+                    f"{command.orig_cl_ord_id}"
                 ),
-            )
-
-        if (
-            command.session_id is not None
-            and command.session_id != order.session_id
-        ):
-            return self._cancel_reject(
-                command,
-                order=order,
-                reason=CancelRejectReason.SESSION_MISMATCH,
-                text=(
-                    f"Order {order.id} belongs to a different FIX session"
-                ),
-            )
-
-        if (
-            command.orig_cl_ord_id is not None
-            and command.orig_cl_ord_id != order.cl_ord_id
-        ):
-            return self._cancel_reject(
-                command,
-                order=order,
-                reason=CancelRejectReason.INVALID_REQUEST,
-                text=(
-                    f"OrigClOrdID {command.orig_cl_ord_id} does not identify "
-                    f"order {order.id}"
-                ),
+                outcome=CancellationOutcome.UNKNOWN_ORDER,
             )
 
         if order.status == OrderStatus.CANCELLED:
@@ -713,6 +741,7 @@ class MatchingEngine:
                 text=(
                     f"Stale cancel command: order {order.id} is already canceled"
                 ),
+                outcome=CancellationOutcome.ALREADY_TERMINAL,
             )
         if order.status in {OrderStatus.FILLED, OrderStatus.REJECTED}:
             return self._cancel_reject(
@@ -722,18 +751,7 @@ class MatchingEngine:
                 text=(
                     f"Order already in terminal state: {order.status.value}"
                 ),
-            )
-
-        if command.expected_version != order.version:
-            return self._cancel_reject(
-                command,
-                order=order,
-                reason=CancelRejectReason.INVALID_REQUEST,
-                text=(
-                    f"Stale cancel command for order {order.id}: expected "
-                    f"version {command.expected_version}, current version "
-                    f"{order.version}"
-                ),
+                outcome=CancellationOutcome.ALREADY_TERMINAL,
             )
 
         book = self.books.get(order.symbol)
@@ -747,6 +765,7 @@ class MatchingEngine:
                 order=order,
                 reason=CancelRejectReason.TOO_LATE_TO_CANCEL,
                 text=f"Order {order.id} has no live cancellable remainder",
+                outcome=CancellationOutcome.ALREADY_TERMINAL,
             )
         if order.remaining_qty <= QUANTITY_EPSILON:
             return self._cancel_reject(
@@ -754,6 +773,7 @@ class MatchingEngine:
                 order=order,
                 reason=CancelRejectReason.TOO_LATE_TO_CANCEL,
                 text=f"Order {order.id} has no live quantity",
+                outcome=CancellationOutcome.ALREADY_TERMINAL,
             )
 
         order.validate_transition_to(OrderStatus.CANCELLED)
@@ -775,11 +795,22 @@ class MatchingEngine:
             cl_ord_id=command.cancel_cl_ord_id or order.cl_ord_id,
             orig_cl_ord_id=order.cl_ord_id,
             text="Order cancelled by request",
+            cancel_ingress_sequence=command.ingress_sequence,
         )
-        self._send_execution_report(report)
+        self._notify_observer(
+            "execution report",
+            self.on_execution_report,
+            report,
+        )
+        self._notify_observer(
+            "cancel outcome",
+            self.on_cancel_outcome,
+            command,
+            CancellationOutcome.ACCEPTED,
+        )
         if is_resting:
             self._send_market_data_update(order.symbol)
-        return None
+        return report
 
     def _cancel_reject(
         self,
@@ -788,6 +819,7 @@ class MatchingEngine:
         reason: CancelRejectReason,
         text: str,
         order: Optional[Order] = None,
+        outcome: CancellationOutcome,
     ) -> CancelReject:
         reject = create_cancel_reject(
             command,
@@ -800,6 +832,12 @@ class MatchingEngine:
             "cancel reject",
             self.on_cancel_reject,
             reject,
+        )
+        self._notify_observer(
+            "cancel outcome",
+            self.on_cancel_outcome,
+            command,
+            outcome,
         )
         logger.info("Cancel rejected: %s", reject.text)
         return reject

@@ -7,6 +7,7 @@ from src.mockx.latency import LatencyScheduler
 from src.mockx.models import (
     CancelOrderCommand,
     ExecutionParams,
+    ExecutionReport,
     NewOrderCommand,
     ProcessOrderCommand,
     Side,
@@ -86,14 +87,8 @@ def cancel(
     expected_version: int | None = None,
 ):
     order = engine.orders.get(order_id)
-    return engine.cancel_order(
+    result = engine.cancel_order(
         CancelOrderCommand(
-            order_id=order_id,
-            expected_version=(
-                expected_version
-                if expected_version is not None
-                else (order.version if order else 0)
-            ),
             cancel_cl_ord_id=(
                 cancel_cl_ord_id
                 or f"CXL-{orig_cl_ord_id or (order.cl_ord_id if order else 'UNKNOWN')}"
@@ -103,12 +98,21 @@ def cancel(
                 if orig_cl_ord_id is not None
                 else (order.cl_ord_id if order else "UNKNOWN")
             ),
+            symbol=order.symbol if order else "TEST",
+            side=order.side if order else Side.BUY,
+            qty=order.qty if order else 1.0,
             requested_at=engine.scheduler.current_time,
             session_id=(
                 session_id
                 if session_id is not None
-                else (order.session_id if order else None)
+                else (
+                    order.session_id
+                    if order and order.session_id is not None
+                    else "FIX.4.4:CLIENT->MOCKX"
+                )
             ),
             session_alias=order.session_alias if order else None,
+            run_generation=engine.identifier_scope.generation,
         )
     )
+    return None if isinstance(result, ExecutionReport) else result
