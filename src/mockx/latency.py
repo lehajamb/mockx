@@ -20,6 +20,8 @@ from enum import Enum
 import logging
 
 from .models import (
+    CancelOrderCommand,
+    CancelReportDelivery,
     ExecutionReport,
     ProcessOrderCommand,
     SchedulerEventMetadata,
@@ -322,6 +324,35 @@ class LatencyScheduler:
         if session_delay_ms > 0:
             logger.debug(f"Applied {session_delay_ms}ms session delay for {session_alias}")
 
+    def schedule_cancel_processing(
+        self,
+        command: CancelOrderCommand,
+        network_ms: int,
+        engine_ms: int,
+        *,
+        session_alias: Optional[str] = None,
+        inbound_ms: Optional[int] = None,
+    ) -> None:
+        """Schedule cancel arrival and engine processing with order-equivalent latency."""
+        self.ensure_running()
+        session_delay_ms = self.session_delays.get(session_alias or "", 0)
+        arrival_delay = (
+            network_ms // 2 if inbound_ms is None else inbound_ms
+        ) + session_delay_ms
+        total_delay = arrival_delay + engine_ms
+        self._validate_delay(arrival_delay)
+        self._validate_delay(total_delay)
+        self.schedule_event(
+            "cancel_arrived_at_exchange",
+            command,
+            arrival_delay,
+        )
+        self.schedule_event(
+            "cancel_engine_process",
+            command,
+            total_delay,
+        )
+
     def schedule_execution_report(
         self,
         report: ExecutionReport,
@@ -333,6 +364,20 @@ class LatencyScheduler:
         self.schedule_event(
             "exec_report",
             report,
+            network_ms // 2 if outbound_ms is None else outbound_ms,
+        )
+
+    def schedule_cancel_report_delivery(
+        self,
+        delivery: CancelReportDelivery,
+        network_ms: int,
+        *,
+        outbound_ms: Optional[int] = None,
+    ) -> None:
+        """Schedule one immutable cancel success or reject for delivery."""
+        self.schedule_event(
+            "cancel_report_delivery",
+            delivery,
             network_ms // 2 if outbound_ms is None else outbound_ms,
         )
 

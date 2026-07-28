@@ -45,6 +45,24 @@ class CancelRejectReason(str, Enum):
     INVALID_REQUEST = "INVALID_REQUEST"
 
 
+class FixCommandType(str, Enum):
+    """Supported state-mutating FIX application commands."""
+
+    NEW_ORDER = "NEW_ORDER"
+    CANCEL_ORDER = "CANCEL_ORDER"
+
+
+class CancellationOutcome(str, Enum):
+    """Bounded cancellation outcomes used by process metrics."""
+
+    ACCEPTED = "accepted"
+    UNKNOWN_ORDER = "unknown_order"
+    ALREADY_TERMINAL = "already_terminal"
+    WRONG_OWNER = "wrong_owner"
+    DUPLICATE_REQUEST = "duplicate_request"
+    STALE_RUN_GENERATION = "stale_run_generation"
+
+
 class InvalidOrderTransition(RuntimeError):
     """Raised when engine code attempts an unsupported lifecycle transition."""
 
@@ -219,6 +237,90 @@ class NewOrderCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class ParsedFixCommand:
+    """Immutable normalized FIX data captured by a QuickFIX callback."""
+
+    command_type: FixCommandType
+    session: SessionIdentity
+    msg_seq_num: int
+    cl_ord_id: str
+    symbol: str
+    side: Side
+    qty: float
+    price: Optional[float] = None
+    tif: Optional[TimeInForce] = None
+    orig_cl_ord_id: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.msg_seq_num, int)
+            or isinstance(self.msg_seq_num, bool)
+            or self.msg_seq_num <= 0
+        ):
+            raise ValueError("FIX MsgSeqNum must be a positive integer")
+        if not self.cl_ord_id:
+            raise ValueError("ClOrdID is required")
+        if not self.symbol:
+            raise ValueError("Symbol is required")
+        if not isinstance(self.side, Side):
+            raise ValueError(f"Unsupported Side: {self.side}")
+        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
+            raise ValueError("Order quantity must be positive and finite")
+        if self.price is not None and (
+            not math.isfinite(self.price) or self.price <= 0.0
+        ):
+            raise ValueError("Limit price must be positive and finite")
+        if self.command_type == FixCommandType.NEW_ORDER:
+            if self.tif is None:
+                raise ValueError("New orders require TimeInForce")
+            if self.orig_cl_ord_id is not None:
+                raise ValueError("New orders cannot contain OrigClOrdID")
+        elif self.command_type == FixCommandType.CANCEL_ORDER:
+            if not self.orig_cl_ord_id:
+                raise ValueError("Cancel requests require OrigClOrdID")
+            if self.price is not None or self.tif is not None:
+                raise ValueError(
+                    "Cancel requests cannot contain price or TimeInForce"
+                )
+
+
+@dataclass(frozen=True, slots=True)
+class FixIngressEnvelope:
+    """Run-scoped immutable command at the deterministic ingress boundary."""
+
+    command_type: FixCommandType
+    session: SessionIdentity
+    msg_seq_num: int
+    cl_ord_id: str
+    orig_cl_ord_id: Optional[str]
+    symbol: str
+    side: Side
+    qty: float
+    price: Optional[float]
+    tif: Optional[TimeInForce]
+    ingress_sequence: int
+    simulated_receive_timestamp: datetime
+    run_generation: int
+
+    @property
+    def ordering_key(self) -> Tuple[datetime, str, int, int]:
+        return (
+            self.simulated_receive_timestamp,
+            self.session.session_id,
+            self.msg_seq_num,
+            self.ingress_sequence,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class IngressBarrier:
+    """Acknowledged run-local ingress high-water mark."""
+
+    run_generation: int
+    through_sequence: int
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessOrderCommand:
     """Immutable token authorizing one generation of initial order processing."""
 
@@ -228,15 +330,30 @@ class ProcessOrderCommand:
 
 @dataclass(frozen=True, slots=True)
 class CancelOrderCommand:
-    """Immutable, replayable cancel intent without FIX or Order references."""
+    """Immutable cancel intent resolved against authoritative state at execution."""
 
-    order_id: int
-    expected_version: int
-    cancel_cl_ord_id: Optional[str]
-    orig_cl_ord_id: Optional[str]
+    cancel_cl_ord_id: str
+    orig_cl_ord_id: str
+    symbol: str
+    side: Side
+    qty: float
     requested_at: datetime
-    session_id: Optional[str] = None
+    session_id: str
     session_alias: Optional[str] = None
+    run_generation: int = 0
+    ingress_sequence: int = 0
+    msg_seq_num: int = 0
+    duplicate_request: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.cancel_cl_ord_id:
+            raise ValueError("Cancel ClOrdID is required")
+        if not self.orig_cl_ord_id:
+            raise ValueError("OrigClOrdID is required")
+        if not self.symbol:
+            raise ValueError("Cancel Symbol is required")
+        if not self.session_id:
+            raise ValueError("Cancel session_id is required")
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,6 +370,8 @@ class CancelReject:
     session_alias: Optional[str]
     timestamp: datetime
     exchange_order_id: Optional[str] = None
+    run_generation: int = 0
+    ingress_sequence: int = 0
 
     def __contains__(self, value: str) -> bool:
         """Keep legacy ``"text" in result`` callers source-compatible."""
@@ -260,6 +379,14 @@ class CancelReject:
 
     def __str__(self) -> str:
         return self.text
+
+
+@dataclass(frozen=True, slots=True)
+class CancelReportDelivery:
+    """Immutable correlation between a cancel command and its report."""
+
+    command: CancelOrderCommand
+    report: Union["ExecutionReport", CancelReject]
 
 
 @dataclass(slots=True)
@@ -1294,6 +1421,7 @@ class ExecutionReport:
     text: Optional[str] = None
     session_id: Optional[str] = None
     session_alias: Optional[str] = None
+    cancel_ingress_sequence: Optional[int] = None
 
     def __post_init__(self) -> None:
         """Reject inconsistent status, execution type, and quantity snapshots."""
@@ -1439,6 +1567,7 @@ def create_execution_report(
     cl_ord_id: Optional[str] = None,
     orig_cl_ord_id: Optional[str] = None,
     text: Optional[str] = None,
+    cancel_ingress_sequence: Optional[int] = None,
 ) -> ExecutionReport:
     """Capture and validate every execution-report value from ``order`` now."""
     cum_qty = order.filled_qty
@@ -1476,6 +1605,7 @@ def create_execution_report(
         text=text,
         session_id=order.session_id,
         session_alias=order.session_alias,
+        cancel_ingress_sequence=cancel_ingress_sequence,
         submitted_at=order.ts_submitted,
         timestamp=timestamp,
         order_version=order.version,
@@ -1512,6 +1642,8 @@ def create_cancel_reject(
         session_id=command.session_id,
         session_alias=command.session_alias,
         timestamp=timestamp,
+        run_generation=command.run_generation,
+        ingress_sequence=command.ingress_sequence,
         exchange_order_id=(
             (
                 order.exchange_order_id
@@ -1586,17 +1718,37 @@ class OrderLatencyTrace:
     real_matching_duration_ns: Optional[int] = None
 
 
+@dataclass(slots=True)
+class CancelLatencyTrace:
+    """Latency tracker-owned mutable state for one cancel request."""
+
+    run_generation: int
+    ingress_sequence: int
+    session_id: str
+    cancel_cl_ord_id: str
+    orig_cl_ord_id: str
+    sim_received_at: datetime
+    order_id: Optional[int] = None
+    sim_arrived_at: Optional[datetime] = None
+    sim_report_created_at: Optional[datetime] = None
+    sim_report_delivered_at: Optional[datetime] = None
+
+
 @dataclass(frozen=True, slots=True)
 class LatencyMeasurement:
     """Immutable latency sample emitted at a well-defined clock boundary."""
 
-    order_id: int
+    order_id: Optional[int]
     session_id: Optional[str]
     metric: str
     value: float
     unit: str
     timestamp: datetime
     report_exec_id: Optional[str] = None
+    run_generation: Optional[int] = None
+    ingress_sequence: Optional[int] = None
+    cl_ord_id: Optional[str] = None
+    orig_cl_ord_id: Optional[str] = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -1612,6 +1764,12 @@ class MetricsSnapshot:
     partial_fill_events: int
     cancel_requests: int
     cancel_rejects: int
+    cancel_accepted: int
+    cancel_unknown_order: int
+    cancel_already_terminal: int
+    cancel_wrong_owner: int
+    cancel_duplicate_request: int
+    cancel_stale_run_generation: int
     execution_reports: int
     trades: int
     traded_quantity: float
@@ -1627,6 +1785,10 @@ class MetricsSnapshot:
     average_sim_engine_latency_ms: Optional[float]
     average_sim_outbound_latency_ms: Optional[float]
     average_sim_end_to_end_latency_ms: Optional[float]
+    average_sim_cancel_inbound_latency_ms: Optional[float]
+    average_sim_cancel_engine_latency_ms: Optional[float]
+    average_sim_cancel_outbound_latency_ms: Optional[float]
+    average_sim_cancel_end_to_end_latency_ms: Optional[float]
     report_delivery_failures: int
     invalid_latency_measurements: int
     metric_sink_failures: int
@@ -1654,6 +1816,14 @@ class MetricsSnapshot:
                 "quantity": self.traded_quantity,
                 "notional": self.traded_notional,
                 "canceled_quantity": self.canceled_quantity,
+            },
+            "cancellations": {
+                "accepted": self.cancel_accepted,
+                "unknown_order": self.cancel_unknown_order,
+                "already_terminal": self.cancel_already_terminal,
+                "wrong_owner": self.cancel_wrong_owner,
+                "duplicate_request": self.cancel_duplicate_request,
+                "stale_run_generation": self.cancel_stale_run_generation,
             },
             "reports": {
                 "created": self.execution_reports,
@@ -1683,6 +1853,18 @@ class MetricsSnapshot:
                 ),
                 "average_sim_end_to_end_latency_ms": (
                     self.average_sim_end_to_end_latency_ms
+                ),
+                "average_sim_cancel_inbound_latency_ms": (
+                    self.average_sim_cancel_inbound_latency_ms
+                ),
+                "average_sim_cancel_engine_latency_ms": (
+                    self.average_sim_cancel_engine_latency_ms
+                ),
+                "average_sim_cancel_outbound_latency_ms": (
+                    self.average_sim_cancel_outbound_latency_ms
+                ),
+                "average_sim_cancel_end_to_end_latency_ms": (
+                    self.average_sim_cancel_end_to_end_latency_ms
                 ),
                 "invalid_measurements": self.invalid_latency_measurements,
             },

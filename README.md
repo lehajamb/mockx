@@ -43,11 +43,18 @@ Supported orders are limit and market orders with GTC or IOC. Replace
 - A wholly unfilled GTC limit receives `NEW` and rests.
 - Each fill creates passive then aggressor trade reports at the same simulated
   timestamp; scheduler FIFO sequence preserves that order.
-- Accepted `ClOrdID` uniqueness is scoped to the stable QuickFIX `SessionID`.
-  Its history survives transport replacement, logout/relogon, and simulation
-  reset; it is cleared only by process restart. A distinct `SessionID` has an
-  independent scope.
+- Every syntactically valid New Order Single (`D`) and Order Cancel Request
+  (`F`) claims its `ClOrdID` in one namespace scoped to the stable QuickFIX
+  `SessionID`. Its history survives transport replacement, logout/relogon, and
+  simulation reset; it is cleared only by process restart. A distinct
+  `SessionID` has an independent scope.
 - A cancel can affect only the owning session's live order.
+- Cancel targets are resolved from the authoritative engine state when cancel
+  processing executes, not from a gateway snapshot taken in the FIX callback.
+  Pending and resting `NEW`/`PARTIAL` orders can be canceled. Filled or
+  rejected orders return `TOO_LATE_TO_CANCEL`; canceled orders return
+  `ALREADY_CANCELED`; unknown and foreign-session `OrigClOrdID` values remain
+  distinct rejects.
 
 Public exchange identifiers include the successful simulation-run generation:
 
@@ -63,6 +70,47 @@ handles remain internal and are not serialized as FIX or WebSocket IDs.
 Real matching and serialization durations use a monotonic wall clock.
 Configured network, engine, and end-to-end latency values use simulated time.
 The two clock domains are reported with distinct units.
+
+### Deterministic FIX ingress and cancel latency
+
+QuickFIX callbacks for `D` and `F` parse immutable normalized command data
+only. They never mutate the engine. A run-scoped central ingress sequencer
+timestamps and acknowledges each command, then drains acknowledged envelopes
+in this ascending order:
+
+```text
+simulated receive timestamp
+complete QuickFIX SessionID.toString()
+FIX MsgSeqNum
+run-local ingress sequence
+```
+
+The ingress sequence is the final tie-break, never the sole FIFO source, and
+resets to zero on every successful simulation start. Sorted envelopes become
+`new_order_received` or `cancel_received` scheduler events. Scheduler FIFO
+then preserves causal ordering among later equal-time stages.
+
+Cancel requests use four explicit scheduled stages:
+
+```text
+cancel_received
+cancel_arrived_at_exchange
+cancel_engine_process
+cancel_report_delivery
+```
+
+`cancel_arrived_at_exchange` applies configured inbound network latency plus
+the requester's session-alias delay. `cancel_engine_process` additionally
+applies configured engine latency. `cancel_report_delivery` applies configured
+outbound latency to both successful execution reports and order-cancel
+rejects. A successful pending cancel advances the order version, so an older
+queued new-order process command is harmless.
+
+Equal-time events already in the scheduler keep their earlier scheduler
+priority. Consequently, an already-queued match can fill an order before a
+later cancel; the cancel then returns `TOO_LATE_TO_CANCEL`. Conversely, a
+cancel wins only when configured timing and the explicit ingress/scheduler
+ordering place its engine event first.
 
 ## 3. Architecture
 
@@ -121,6 +169,15 @@ In `external` mode, only `POST /admin/advance-time` or direct test calls move
 the simulated clock. The route requires an `ACTIVE` simulation session;
 `STOPPED` returns `409 SESSION_NOT_ACTIVE`. Submitting a FIX order queues
 events; it does not process them until time advances.
+
+In-process backtesters and tests that submit through QuickFIX callbacks should
+first await `exchange.fix_app.wait_for_ingress()`. The returned
+`IngressBarrier` identifies the active run generation and the captured
+run-local high-water sequence. The await guarantees those commands have
+entered the central queue and flushes only through that captured boundary into
+scheduler receive events. Administrative and realtime advancement also
+capture, await, and flush pending ingress before running the scheduler. There
+is intentionally no public HTTP ingress-barrier endpoint.
 
 The optional `realtime` mode advances simulated time only while the lifecycle
 is `ACTIVE`, by
@@ -300,8 +357,10 @@ Unknown symbols return HTTP 404:
 }
 ```
 
-`/stats` separates orders, trades, reports, sessions, book gauges, latency,
-persistence, and scheduler state. Scheduler diagnostics contain `state`,
+`/stats` separates orders, trades, cancellations, reports, sessions, book
+gauges, latency, persistence, and scheduler state. The `cancellations` object
+contains `accepted`, `unknown_order`, `already_terminal`, `wrong_owner`,
+`duplicate_request`, and `stale_run_generation`. Scheduler diagnostics contain `state`,
 `pending_events`, the current-generation `failure_count`, the configured
 `max_events_per_advance`, and an optional `dead_letter`. The dead letter
 contains only deterministic scalar metadata captured when the event was
@@ -488,6 +547,29 @@ start; the connected-session value remains a live gauge. Successful end
 captures the snapshot before clearing the active run tag. `GET /metrics`
 exposes process-lifetime monotonic Prometheus collectors from the same
 process's isolated registry on the API port; there is no separate metrics server or metrics host port.
+
+Cancel latency is not mixed into new-order latency. `/stats.latency` exposes
+`average_sim_cancel_inbound_latency_ms`,
+`average_sim_cancel_engine_latency_ms`,
+`average_sim_cancel_outbound_latency_ms`, and
+`average_sim_cancel_end_to_end_latency_ms`. Prometheus exposes the
+corresponding fixed histograms:
+
+```text
+mockx_sim_cancel_inbound_latency_seconds
+mockx_sim_cancel_engine_latency_seconds
+mockx_sim_cancel_outbound_latency_seconds
+mockx_sim_cancel_end_to_end_latency_seconds
+```
+
+Fixed outcome counters are exposed as
+`mockx_cancel_accepted_total`, `mockx_cancel_unknown_order_total`,
+`mockx_cancel_already_terminal_total`, `mockx_cancel_wrong_owner_total`,
+`mockx_cancel_duplicate_request_total`, and
+`mockx_cancel_stale_run_generation_total`. Persisted cancel latency samples
+include the run generation, ingress sequence, cancel `ClOrdID`,
+`OrigClOrdID`, stable session identity, and resolved internal order ID when
+available. Delivery failure does not trigger a disconnected-report retry.
 
 Compose does not deploy a Prometheus server, Grafana, provisioning, or
 prebuilt dashboards. Scrape `mockx1:8000/metrics` and

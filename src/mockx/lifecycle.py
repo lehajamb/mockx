@@ -275,6 +275,9 @@ class ExchangeLifecycle:
         """Run the complete administrative advancement under the lifecycle lock."""
         observed = self.token
         self.raise_if_transition_or_failed()
+        barrier = await self.fix_app.await_ingress_enqueued(
+            generation=observed.generation,
+        )
         async with self.lock:
             self.raise_if_transition_or_failed()
             if observed != self.token:
@@ -289,6 +292,10 @@ class ExchangeLifecycle:
                     "SESSION_NOT_ACTIVE",
                     "Administrative time advancement requires an active session",
                 )
+            self.fix_app.drain_ingress_locked(
+                barrier.run_generation,
+                barrier.through_sequence,
+            )
             result = action()
             if inspect.isawaitable(result):
                 return await result
@@ -298,9 +305,16 @@ class ExchangeLifecycle:
         observed = self.token
         if observed.state != LifecycleState.ACTIVE:
             return 0
+        barrier = await self.fix_app.await_ingress_enqueued(
+            generation=observed.generation,
+        )
         async with self.lock:
             if self.token != observed:
                 return 0
+            self.fix_app.drain_ingress_locked(
+                barrier.run_generation,
+                barrier.through_sequence,
+            )
             return await self.scheduler.run_until(target_time)
 
     async def advance_realtime_by(self, delta: timedelta) -> int:
@@ -308,9 +322,16 @@ class ExchangeLifecycle:
         observed = self.token
         if observed.state != LifecycleState.ACTIVE:
             return 0
+        barrier = await self.fix_app.await_ingress_enqueued(
+            generation=observed.generation,
+        )
         async with self.lock:
             if self.token != observed:
                 return 0
+            self.fix_app.drain_ingress_locked(
+                barrier.run_generation,
+                barrier.through_sequence,
+            )
             target_time = self.scheduler.current_time + delta
             return await self.scheduler.run_until(target_time)
 

@@ -127,10 +127,11 @@ async def test_cancel_before_processing_invalidates_scheduled_command():
 def test_unknown_cancel_returns_immutable_routable_rejection():
     engine, reports, trades, _ = make_engine()
     command = CancelOrderCommand(
-        order_id=0,
-        expected_version=0,
         cancel_cl_ord_id="CXL-UNKNOWN",
         orig_cl_ord_id="UNKNOWN",
+        symbol="TEST",
+        side=Side.BUY,
+        qty=1,
         requested_at=NOW,
         session_id="FIX.4.4:CLIENT->MOCKX",
         session_alias="CLIENT",

@@ -13,6 +13,7 @@ from src.mockx.metrics import (
     InMemoryMetricsSink,
     MetricsCollector,
     MetricsSinkError,
+    SIM_CANCEL_ENGINE_LATENCY,
     SIM_ENGINE_LATENCY,
 )
 from src.mockx.models import (
@@ -154,6 +155,33 @@ async def test_repeated_latency_points_preserve_domain_ids_and_identity():
         "E2",
     ]
     assert_unique_influx_identities(records)
+
+
+@pytest.mark.asyncio
+async def test_cancel_latency_persists_ingress_and_request_identity():
+    metrics, writer, sink = make_metrics()
+    assert metrics.observe_latency(
+        LatencyMeasurement(
+            order_id=None,
+            session_id="FIX.4.4:MOCKX->CLIENT",
+            metric=SIM_CANCEL_ENGINE_LATENCY,
+            value=0.003,
+            unit="seconds",
+            timestamp=EPOCH,
+            run_generation=7,
+            ingress_sequence=11,
+            cl_ord_id="CXL-11",
+            orig_cl_ord_id="ORDER-7",
+        )
+    )
+
+    record = (await flush_records(writer, sink))[0]
+    assert record.field_map["run_generation"] == 7
+    assert record.field_map["ingress_sequence"] == 11
+    assert record.field_map["cl_ord_id"] == "CXL-11"
+    assert record.field_map["orig_cl_ord_id"] == "ORDER-7"
+    assert record.field_map["session_id"] == "FIX.4.4:MOCKX->CLIENT"
+    assert "order_id" not in record.field_map
 
 
 @pytest.mark.asyncio

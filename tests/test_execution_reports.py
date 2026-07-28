@@ -224,7 +224,7 @@ def test_terminal_cleanup_uses_report_snapshot_status():
     )
     fake_exchange = SimpleNamespace(
         latency_tracker=Mock(),
-        fix_gateway=Mock(),
+        fix_app=Mock(),
     )
 
     MockExchange._handle_exec_report(fake_exchange, report)

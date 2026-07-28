@@ -112,21 +112,25 @@ async def test_stats_populated_state_matches_authoritative_events():
     cancel_order = exchange.engine.orders[cancel_id]
     exchange.engine.cancel_order(
         CancelOrderCommand(
-            order_id=cancel_id,
-            expected_version=cancel_order.version,
             cancel_cl_ord_id="CXL-CANCEL",
             orig_cl_ord_id=cancel_order.cl_ord_id,
+            symbol=cancel_order.symbol,
+            side=cancel_order.side,
+            qty=cancel_order.qty,
             requested_at=exchange.scheduler.current_time,
-            session_id=cancel_order.session_id,
+            session_id=(
+                cancel_order.session_id or "FIX.4.4:MOCKX->CLIENT"
+            ),
             session_alias=cancel_order.session_alias,
         )
     )
     exchange.engine.cancel_order(
         CancelOrderCommand(
-            order_id=0,
-            expected_version=0,
             cancel_cl_ord_id="CXL-UNKNOWN",
             orig_cl_ord_id="UNKNOWN",
+            symbol="TEST",
+            side=Side.BUY,
+            qty=1,
             requested_at=exchange.scheduler.current_time,
             session_id="FIX.4.4:MOCKX->CLIENT",
             session_alias="CLIENT",
@@ -146,6 +150,14 @@ async def test_stats_populated_state_matches_authoritative_events():
     assert data["orders"]["canceled"] == 1
     assert data["orders"]["cancel_requests"] == 2
     assert data["orders"]["cancel_rejects"] == 1
+    assert data["cancellations"] == {
+        "accepted": 1,
+        "unknown_order": 1,
+        "already_terminal": 0,
+        "wrong_owner": 0,
+        "duplicate_request": 0,
+        "stale_run_generation": 0,
+    }
     assert data["orders"]["active"] == 0
     assert data["orders"]["resting"] == 0
     assert data["trades"]["count"] == 1
@@ -176,6 +188,16 @@ async def test_metrics_endpoint_has_expected_names_types_and_values():
     assert "mockx_active_orders 0.0" in body
     assert "mockx_execution_report_delivery_failures_total" in body
     assert "mockx_real_matching_duration_seconds" in body
+    assert "mockx_sim_cancel_inbound_latency_seconds" in body
+    assert "mockx_sim_cancel_engine_latency_seconds" in body
+    assert "mockx_sim_cancel_outbound_latency_seconds" in body
+    assert "mockx_sim_cancel_end_to_end_latency_seconds" in body
+    assert "mockx_cancel_accepted_total" in body
+    assert "mockx_cancel_unknown_order_total" in body
+    assert "mockx_cancel_already_terminal_total" in body
+    assert "mockx_cancel_wrong_owner_total" in body
+    assert "mockx_cancel_duplicate_request_total" in body
+    assert "mockx_cancel_stale_run_generation_total" in body
 
 
 @pytest.mark.asyncio
