@@ -57,7 +57,8 @@ def test_empty_and_one_sided_snapshot_shapes_are_valid():
     assert bid_only.asks == ()
 
 
-def test_global_sequence_is_monotonic_and_resets_with_engine_session():
+@pytest.mark.anyio
+async def test_global_sequence_is_monotonic_and_resets_with_session_start():
     exchange = make_exchange()
     published = []
     exchange.engine.on_market_data_update = published.append
@@ -67,7 +68,7 @@ def test_global_sequence_is_monotonic_and_resets_with_engine_session():
     process_order(exchange, "THREE", Side.BUY, 1.0, 9.0)
 
     assert [snapshot.sequence for snapshot in published] == [1, 2, 3]
-    exchange.engine.reset()
+    await exchange.lifecycle.start_session("sequence-reset")
     assert exchange.engine.get_market_data_snapshot("TEST").sequence == 0
 
 
@@ -86,7 +87,10 @@ def test_multiple_fills_are_included_once_then_not_repeated():
     process_order(exchange, "TAKER", Side.BUY, 3.0, 101.0)
 
     fill_update = published[-1]
-    assert [trade.trade_id for trade in fill_update.trades] == ["1", "2"]
+    assert [trade.trade_id for trade in fill_update.trades] == [
+        "G00000000-T00000001",
+        "G00000000-T00000002",
+    ]
     assert all(trade.aggressor_side is Side.BUY for trade in fill_update.trades)
 
     process_order(exchange, "NONTRADE", Side.BUY, 1.0, 90.0)

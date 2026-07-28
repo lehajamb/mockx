@@ -97,6 +97,30 @@ def test_scheduler_processing_limit_defaults_and_validates(tmp_path):
         load_config(str(invalid_path))
 
 
+def test_execution_random_seed_is_required_and_must_be_an_integer(tmp_path):
+    source = yaml.safe_load(
+        (ROOT / "configs" / "mockx-local.yml").read_text(encoding="utf-8")
+    )
+    source["execution"].pop("random_seed")
+    missing_path = tmp_path / "missing-seed.yml"
+    missing_path.write_text(yaml.safe_dump(source), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="Missing required configuration field: execution.random_seed",
+    ):
+        load_config(str(missing_path))
+
+    source["execution"]["random_seed"] = True
+    invalid_path = tmp_path / "invalid-seed.yml"
+    invalid_path.write_text(yaml.safe_dump(source), encoding="utf-8")
+    with pytest.raises(
+        ValueError,
+        match="execution.random_seed must be an integer",
+    ):
+        load_config(str(invalid_path))
+
+
 def test_monitoring_documentation_matches_deployed_assets():
     compose = load_compose()
     readme = (ROOT / "README.md").read_text(encoding="utf-8")

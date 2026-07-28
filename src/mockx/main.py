@@ -18,6 +18,7 @@ from .latency import (
     PerfCounterClock,
     SchedulerFailedError,
 )
+from .lifecycle import ExchangeLifecycle, LifecycleState
 from .metrics import (
     BufferedMetricsWriter,
     LatencyTracker,
@@ -54,7 +55,6 @@ class MockExchange:
         self._scheduler_task: Optional[asyncio.Task] = None
         self._started = False
         self._shutdown_complete = False
-        self._lifecycle_lock = asyncio.Lock()
         self._callbacks_registered = False
 
         fix_config = self.config.get("fix", {})
@@ -170,6 +170,13 @@ class MockExchange:
             session_registry=self.session_registry,
             monotonic_clock=self.monotonic_clock,
         )
+        self.lifecycle = ExchangeLifecycle(
+            self.engine,
+            self.metrics,
+            self.latency_tracker,
+            self.fix_app,
+        )
+        self.fix_app.lifecycle = self.lifecycle
         self.fix_gateway: Optional[FIXGateway] = None
         if self.fix_enabled:
             if not self.fix_cfg or not os.path.isfile(self.fix_cfg):
@@ -191,6 +198,7 @@ class MockExchange:
             self.config,
             self.fix_app,
             lifecycle_manager=self,
+            session_lifecycle=self.lifecycle,
         )
         self.app = self.api.app
         self.app.state.exchange = self
@@ -225,7 +233,7 @@ class MockExchange:
 
     async def start_components(self) -> None:
         """Start components in one documented, readiness-gated order."""
-        async with self._lifecycle_lock:
+        async with self.lifecycle.lock:
             if self._started:
                 return
             if self._shutdown_complete:
@@ -289,11 +297,13 @@ class MockExchange:
 
     async def stop_components(self) -> None:
         """Stop ingestion first, flush last, and continue after close errors."""
-        async with self._lifecycle_lock:
+        async with self.lifecycle.lock:
             if self._shutdown_complete:
                 return
 
             state = self.app.state
+            if self.lifecycle.state == LifecycleState.ACTIVE:
+                self.lifecycle._publish(LifecycleState.ENDING)
             # Readiness and administrative ingestion are disabled first.
             state.ready = False
             state.accepting_admin = False
@@ -343,6 +353,9 @@ class MockExchange:
             state.component_status["api"] = "stopped"
             self._started = False
             self._shutdown_complete = True
+            if self.lifecycle.state != LifecycleState.FAILED:
+                self.lifecycle.run_id = None
+                self.lifecycle._publish(LifecycleState.STOPPED)
             logger.info("%s stopped", self.config["exchange_name"])
 
     def _on_order_submitted(self, order_id: int, command) -> None:
@@ -429,10 +442,9 @@ class MockExchange:
                 return
             try:
                 await asyncio.sleep(interval_ms / 1000)
-                target = self.scheduler.current_time + timedelta(
-                    milliseconds=interval_ms
+                await self.lifecycle.advance_realtime_by(
+                    timedelta(milliseconds=interval_ms)
                 )
-                await self.scheduler.run_until(target)
             except asyncio.CancelledError:
                 raise
             except SchedulerFailedError:

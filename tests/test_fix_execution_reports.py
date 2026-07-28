@@ -78,7 +78,7 @@ def test_fix_mapping_for_new_partial_fill_cancel_and_reject():
         rejected,
         exec_type=ExecutionType.REJECTED,
         timestamp=NOW,
-        exec_id="REJECT-1",
+        exec_id="G00000000-E00000001",
     )
 
     new_fields = execution_report_fields(
@@ -185,7 +185,7 @@ def test_cancel_reject_mapping_uses_request_and_known_order_snapshot():
     assert rejection.reason == CancelRejectReason.TOO_LATE_TO_CANCEL
     assert fields["ClOrdID"] == "CXL-TOO-LATE"
     assert fields["OrigClOrdID"] == "FIX-CXL-FILLED-PASSIVE"
-    assert fields["OrderID"] == str(order_id)
+    assert fields["OrderID"] == "G00000000-O00000001"
     assert fields["OrdStatus"] == "2"
     assert fields["CxlRejReason"] == 0
     assert fields["CxlRejResponseTo"] == "1"
@@ -260,10 +260,10 @@ def test_report_order_is_passive_then_aggressor_for_each_fill():
         for report in emitted
     )
     assert [report.exec_id for report in emitted] == [
-        "EXEC3",
-        "EXEC4",
-        "EXEC5",
-        "EXEC6",
+        "G00000000-E00000003",
+        "G00000000-E00000004",
+        "G00000000-E00000005",
+        "G00000000-E00000006",
     ]
 
 

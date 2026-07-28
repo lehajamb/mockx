@@ -11,12 +11,16 @@ def test_advance_time_processes_target_timestamp_inclusively():
     exchange = make_exchange()
     handled = []
     exchange.scheduler.register_handler("probe", handled.append)
-    exchange.scheduler.schedule_event("probe", "before", 1)
-    exchange.scheduler.schedule_event("probe", "target", 2)
-    exchange.scheduler.schedule_event("probe", "after", 3)
-    target = exchange.scheduler.current_time + timedelta(milliseconds=2)
 
     with TestClient(exchange.app) as client:
+        assert client.post(
+            "/api/v1/session/start",
+            json={"run_id": "inclusive"},
+        ).status_code == 200
+        exchange.scheduler.schedule_event("probe", "before", 1)
+        exchange.scheduler.schedule_event("probe", "target", 2)
+        exchange.scheduler.schedule_event("probe", "after", 3)
+        target = exchange.scheduler.current_time + timedelta(milliseconds=2)
         response = client.post(
             "/admin/advance-time",
             json={"target_time": target.isoformat()},
@@ -32,6 +36,10 @@ def test_advance_time_processes_target_timestamp_inclusively():
 def test_aware_offsets_normalize_to_utc_and_naive_time_is_rejected():
     exchange = make_exchange()
     with TestClient(exchange.app) as client:
+        assert client.post(
+            "/api/v1/session/start",
+            json={"run_id": "offsets"},
+        ).status_code == 200
         normalized = client.post(
             "/admin/advance-time",
             json={"target_time": "1970-01-01T01:00:00+01:00"},
@@ -50,6 +58,10 @@ def test_backward_movement_returns_stable_conflict_without_mutation():
     exchange = make_exchange()
     with TestClient(exchange.app) as client:
         assert client.post(
+            "/api/v1/session/start",
+            json={"run_id": "backward"},
+        ).status_code == 200
+        assert client.post(
             "/admin/advance-time",
             json={"milliseconds": 10},
         ).status_code == 200
@@ -67,6 +79,10 @@ def test_backward_movement_returns_stable_conflict_without_mutation():
 def test_empty_relative_advancement_moves_clock_and_reports_zero_events():
     exchange = make_exchange()
     with TestClient(exchange.app) as client:
+        assert client.post(
+            "/api/v1/session/start",
+            json={"run_id": "empty"},
+        ).status_code == 200
         response = client.post(
             "/admin/advance-time",
             json={"milliseconds": 25},

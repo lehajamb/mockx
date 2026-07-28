@@ -56,6 +56,7 @@ def new_report(order: Order):
         order,
         exec_type="NEW",
         timestamp=NOW,
+        exec_id="G00000000-E00000001",
     )
 
 
@@ -171,6 +172,7 @@ def test_report_factory_rejects_inconsistent_state_and_quantities():
         order,
         exec_type=ExecutionType.TRADE,
         timestamp=NOW,
+        exec_id="G00000000-E00000002",
         last_px=order.price,
         last_qty=order.qty,
         trade_id=1,
@@ -215,6 +217,7 @@ def test_terminal_cleanup_uses_report_snapshot_status():
         order,
         exec_type=ExecutionType.TRADE,
         timestamp=NOW,
+        exec_id="G00000000-E00000002",
         last_px=order.price,
         last_qty=order.qty,
         trade_id=1,
