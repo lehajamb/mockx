@@ -71,6 +71,7 @@ def wire_stack(*, inbound_ms=5, engine_ms=3, outbound_ms=7, clock=None):
         reports.append(report)
         metrics.record_order(report)
         tracker.report_created(report)
+        app.enqueue_report(report)
 
     def process(command):
         tracker.order_processing_start(command.order_id)
@@ -93,16 +94,7 @@ def wire_stack(*, inbound_ms=5, engine_ms=3, outbound_ms=7, clock=None):
     )
     app.register_session(SessionIdentity(SESSION_ID, alias="CLIENT"), delivered)
 
-    def deliver(report):
-        app.process_execution_report(report)
-        if (
-            report.ord_status
-            in {OrderStatus.FILLED, OrderStatus.REJECTED, OrderStatus.CANCELLED}
-            and tracker.complete_order(report)
-        ):
-            tracker.cleanup_order(report.order_id)
-
-    scheduler.register_handler("exec_report", deliver)
+    scheduler.register_handler("fix_delivery_due", app.process_delivery_due)
     return scheduler, engine, metrics, tracker, reports, delivered
 
 
@@ -272,14 +264,14 @@ def test_partial_ioc_trace_cleans_only_on_terminal_cancel_and_is_idempotent():
     )
 
     assert tracker.report_delivered(partial)
-    assert ioc_id in tracker.orders
+    assert (0, ioc_id) in tracker.orders
     assert not tracker.complete_order(partial)
 
     assert tracker.report_delivered(terminal)
     before_count = len(tracker.measurements)
     assert tracker.complete_order(terminal)
     tracker.cleanup_order(ioc_id)
-    assert ioc_id not in tracker.orders
+    assert (0, ioc_id) not in tracker.orders
 
     assert not tracker.report_delivered(terminal)
     assert not tracker.complete_order(terminal)

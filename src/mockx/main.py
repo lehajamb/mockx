@@ -26,13 +26,11 @@ from .metrics import (
 )
 from .models import (
     CancelOrderCommand,
-    CancelReportDelivery,
     ExecutionParams,
     ExecutionReport,
     MarketDataSnapshot,
     ProcessOrderCommand,
     SchedulerState,
-    TERMINAL_ORDER_STATUSES,
     Trade,
 )
 from .tsdb_writer import InfluxDBMetricsSink
@@ -171,6 +169,14 @@ class MockExchange:
             self.latency_tracker,
             session_registry=self.session_registry,
             monotonic_clock=self.monotonic_clock,
+            delivery_retry_interval_ms=self.config.get("fix", {}).get(
+                "delivery_retry_interval_ms",
+                1_000,
+            ),
+            delivery_max_attempts_per_cycle=self.config.get("fix", {}).get(
+                "delivery_max_attempts_per_cycle",
+                3,
+            ),
         )
         self.lifecycle = ExchangeLifecycle(
             self.engine,
@@ -226,8 +232,8 @@ class MockExchange:
             self._handle_order_process,
         )
         self.scheduler.register_handler(
-            "exec_report",
-            self._handle_exec_report,
+            "fix_delivery_due",
+            self.fix_app.process_delivery_due,
         )
         self.scheduler.register_handler(
             "cancel_arrived_at_exchange",
@@ -236,10 +242,6 @@ class MockExchange:
         self.scheduler.register_handler(
             "cancel_engine_process",
             self._handle_cancel_process,
-        )
-        self.scheduler.register_handler(
-            "cancel_report_delivery",
-            self._handle_cancel_report_delivery,
         )
 
         self.engine.on_execution_report = self._on_execution_report
@@ -383,34 +385,38 @@ class MockExchange:
 
     def _on_order_submitted(self, order_id: int, command) -> None:
         self.metrics.record_order_submitted(order_id, command)
+        run_generation = self.engine.orders[order_id].run_generation
         self.latency_tracker.order_submitted(
             order_id,
             session_id=command.session_id,
             sim_submitted_at=command.submitted_at,
+            run_generation=run_generation,
         )
 
     def _handle_order_arrived(self, command: ProcessOrderCommand) -> None:
-        self.latency_tracker.order_arrived(command.order_id)
+        self.latency_tracker.order_arrived(
+            command.order_id,
+            self.engine.identifier_scope.generation,
+        )
 
     def _handle_order_process(self, command: ProcessOrderCommand) -> None:
         order_id = command.order_id
-        self.latency_tracker.order_processing_start(order_id)
+        run_generation = self.engine.identifier_scope.generation
+        self.latency_tracker.order_processing_start(
+            order_id,
+            run_generation,
+        )
         self.engine.process_order(command)
-        self.latency_tracker.order_processing_end(order_id)
-
-    def _handle_exec_report(self, report: ExecutionReport) -> None:
-        if report.session_id is not None:
-            self.fix_app.process_execution_report(report)
-        if (
-            report.ord_status in TERMINAL_ORDER_STATUSES
-            and self.latency_tracker.complete_order(report)
-        ):
-            self.latency_tracker.cleanup_order(report.order_id)
+        self.latency_tracker.order_processing_end(
+            order_id,
+            run_generation,
+        )
 
     def _on_execution_report(self, report: ExecutionReport) -> None:
         self.metrics.record_order(report)
         if report.cancel_ingress_sequence is None:
             self.latency_tracker.report_created(report)
+        self.fix_app.enqueue_report(report)
 
     def _handle_cancel_arrived(self, command: CancelOrderCommand) -> None:
         self.latency_tracker.cancel_arrived(command)
@@ -418,32 +424,8 @@ class MockExchange:
     def _handle_cancel_process(self, command: CancelOrderCommand) -> None:
         report = self.engine.cancel_order(command)
         self.latency_tracker.cancel_report_created(command, report)
-        self.scheduler.schedule_cancel_report_delivery(
-            CancelReportDelivery(command=command, report=report),
-            self.exec_params.network_latency_ms,
-            outbound_ms=self.exec_params.outbound_network_latency_ms,
-        )
-
-    def _handle_cancel_report_delivery(
-        self,
-        delivery: CancelReportDelivery,
-    ) -> None:
-        report = delivery.report
-        delivered = (
-            self.fix_app.process_execution_report(report)
-            if isinstance(report, ExecutionReport)
-            else self.fix_app.process_cancel_reject(report)
-        )
-        self.latency_tracker.cancel_report_delivered(
-            delivery,
-            delivered=delivered,
-        )
-        if (
-            isinstance(report, ExecutionReport)
-            and report.ord_status in TERMINAL_ORDER_STATUSES
-            and self.latency_tracker.complete_order(report)
-        ):
-            self.latency_tracker.cleanup_order(report.order_id)
+        if not isinstance(report, ExecutionReport):
+            self.fix_app.enqueue_report(report)
 
     @staticmethod
     def _log_broadcast_result(future) -> None:

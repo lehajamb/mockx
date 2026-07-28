@@ -21,7 +21,6 @@ import logging
 
 from .models import (
     CancelOrderCommand,
-    CancelReportDelivery,
     ExecutionReport,
     ProcessOrderCommand,
     SchedulerEventMetadata,
@@ -364,20 +363,6 @@ class LatencyScheduler:
         self.schedule_event(
             "exec_report",
             report,
-            network_ms // 2 if outbound_ms is None else outbound_ms,
-        )
-
-    def schedule_cancel_report_delivery(
-        self,
-        delivery: CancelReportDelivery,
-        network_ms: int,
-        *,
-        outbound_ms: Optional[int] = None,
-    ) -> None:
-        """Schedule one immutable cancel success or reject for delivery."""
-        self.schedule_event(
-            "cancel_report_delivery",
-            delivery,
             network_ms // 2 if outbound_ms is None else outbound_ms,
         )
 

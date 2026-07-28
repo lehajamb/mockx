@@ -13,6 +13,8 @@ class RunIdentifierScope:
         self._next_order = 1
         self._next_exec = 1
         self._next_trade = 1
+        self._next_delivery = 1
+        self._next_cancel_reject = 1
 
     def next_order_id(self) -> str:
         value = self._format("O", self._next_order)
@@ -27,6 +29,16 @@ class RunIdentifierScope:
     def next_trade_id(self) -> str:
         value = self._format("T", self._next_trade)
         self._next_trade += 1
+        return value
+
+    def next_delivery_id(self) -> str:
+        value = self._format("D", self._next_delivery)
+        self._next_delivery += 1
+        return value
+
+    def next_cancel_reject_id(self) -> str:
+        value = self._format("R", self._next_cancel_reject)
+        self._next_cancel_reject += 1
         return value
 
     def _format(self, kind: str, counter: int) -> str:

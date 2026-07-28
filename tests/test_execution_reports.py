@@ -107,6 +107,13 @@ async def test_delayed_new_report_remains_new_when_delivered_after_fill():
         scheduler,
     )
     engine.add_symbol("TEST")
+    engine.on_execution_report = lambda report: (
+        scheduler.schedule_execution_report(
+            report,
+            engine.exec_params.network_latency_ms,
+            outbound_ms=engine.exec_params.simulated_outbound_latency_ms,
+        )
+    )
     scheduler.register_handler("order_arrived", lambda command: None)
     scheduler.register_handler("order_process", engine.process_order)
 
@@ -208,7 +215,7 @@ def test_fix_field_preparation_uses_only_report_snapshot():
 
 
 def test_terminal_cleanup_uses_report_snapshot_status():
-    from src.mockx.main import MockExchange
+    from src.mockx.gateway import FIXApplication
 
     order = make_order()
     report = new_report(order)
@@ -224,14 +231,20 @@ def test_terminal_cleanup_uses_report_snapshot_status():
     )
     fake_exchange = SimpleNamespace(
         latency_tracker=Mock(),
-        fix_app=Mock(),
+        engine=SimpleNamespace(
+            scheduler=SimpleNamespace(current_time=NOW),
+        ),
     )
+    fake_exchange.latency_tracker.complete_order.return_value = True
 
-    MockExchange._handle_exec_report(fake_exchange, report)
+    FIXApplication._complete_delivery(fake_exchange, report)
     fake_exchange.latency_tracker.cleanup_order.assert_not_called()
 
-    MockExchange._handle_exec_report(fake_exchange, terminal_report)
-    fake_exchange.latency_tracker.cleanup_order.assert_called_once_with(order.id)
+    FIXApplication._complete_delivery(fake_exchange, terminal_report)
+    fake_exchange.latency_tracker.cleanup_order.assert_called_once_with(
+        order.id,
+        run_generation=terminal_report.run_generation,
+    )
 
 
 def test_metrics_record_report_snapshot_not_live_order():

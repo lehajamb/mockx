@@ -52,6 +52,23 @@ class FixCommandType(str, Enum):
     CANCEL_ORDER = "CANCEL_ORDER"
 
 
+class FixDeliveryState(str, Enum):
+    """Explicit application-level state for one outbound FIX message."""
+
+    PENDING = "PENDING"
+    DUE = "DUE"
+    DELIVERED = "DELIVERED"
+    RETRY_PENDING = "RETRY_PENDING"
+    PERMANENTLY_FAILED = "PERMANENTLY_FAILED"
+
+
+class FixDeliveryMessageType(str, Enum):
+    """FIX application message types covered by reliable delivery."""
+
+    EXECUTION_REPORT = "8"
+    ORDER_CANCEL_REJECT = "9"
+
+
 class CancellationOutcome(str, Enum):
     """Bounded cancellation outcomes used by process metrics."""
 
@@ -360,6 +377,7 @@ class CancelOrderCommand:
 class CancelReject:
     """Immutable cancel-rejection snapshot without live order/FIX objects."""
 
+    reject_id: str
     cancel_cl_ord_id: str
     orig_cl_ord_id: str
     order_id: Optional[int]
@@ -373,20 +391,16 @@ class CancelReject:
     run_generation: int = 0
     ingress_sequence: int = 0
 
+    def __post_init__(self) -> None:
+        if not self.reject_id:
+            raise ValueError("Cancel reject ID is required")
+
     def __contains__(self, value: str) -> bool:
         """Keep legacy ``"text" in result`` callers source-compatible."""
         return value in self.text
 
     def __str__(self) -> str:
         return self.text
-
-
-@dataclass(frozen=True, slots=True)
-class CancelReportDelivery:
-    """Immutable correlation between a cancel command and its report."""
-
-    command: CancelOrderCommand
-    report: Union["ExecutionReport", CancelReject]
 
 
 @dataclass(slots=True)
@@ -1626,6 +1640,7 @@ def create_execution_report(
 def create_cancel_reject(
     command: CancelOrderCommand,
     *,
+    reject_id: str,
     reason: CancelRejectReason,
     text: str,
     timestamp: datetime,
@@ -1633,6 +1648,7 @@ def create_cancel_reject(
 ) -> CancelReject:
     """Capture a cancel rejection from immutable command/current scalar state."""
     return CancelReject(
+        reject_id=reject_id,
         cancel_cl_ord_id=command.cancel_cl_ord_id or "",
         orig_cl_ord_id=command.orig_cl_ord_id or "",
         order_id=order.id if order else None,
@@ -1653,6 +1669,78 @@ def create_cancel_reject(
             else None
         ),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class OutboundFixDelivery:
+    """Immutable state snapshot for one logical outbound FIX delivery."""
+
+    delivery_id: str
+    session_sequence: int
+    run_generation: int
+    destination: SessionIdentity
+    message_type: FixDeliveryMessageType
+    payload: Union[ExecutionReport, CancelReject]
+    domain_id: str
+    simulated_due_timestamp: datetime
+    enqueued_at: datetime
+    state: FixDeliveryState = FixDeliveryState.PENDING
+    attempt_count: int = 0
+    cycle_attempt_count: int = 0
+    last_attempt_at: Optional[datetime] = None
+    last_attempt_simulated_at: Optional[datetime] = None
+    last_failure_reason: Optional[str] = None
+    next_retry_timestamp: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+
+    def __post_init__(self) -> None:
+        if not self.delivery_id:
+            raise ValueError("Delivery ID is required")
+        if self.session_sequence < 0:
+            raise ValueError("Session delivery sequence cannot be negative")
+        if self.run_generation < 0:
+            raise ValueError("Delivery run generation cannot be negative")
+        if not self.domain_id:
+            raise ValueError("Delivery domain ID is required")
+        if self.attempt_count < 0 or self.cycle_attempt_count < 0:
+            raise ValueError("Delivery attempt counts cannot be negative")
+        for name, timestamp in (
+            ("simulated_due_timestamp", self.simulated_due_timestamp),
+            ("enqueued_at", self.enqueued_at),
+            ("last_attempt_at", self.last_attempt_at),
+            ("last_attempt_simulated_at", self.last_attempt_simulated_at),
+            ("next_retry_timestamp", self.next_retry_timestamp),
+            ("delivered_at", self.delivered_at),
+        ):
+            if timestamp is not None and timestamp.tzinfo is None:
+                raise ValueError(f"{name} must be timezone-aware")
+        if self.message_type == FixDeliveryMessageType.EXECUTION_REPORT:
+            if not isinstance(self.payload, ExecutionReport):
+                raise TypeError("Execution-report delivery requires ExecutionReport")
+            if self.domain_id != self.payload.exec_id:
+                raise ValueError("Execution-report domain ID must equal ExecID")
+        elif not isinstance(self.payload, CancelReject):
+            raise TypeError("Cancel-reject delivery requires CancelReject")
+        elif self.domain_id != self.payload.reject_id:
+            raise ValueError("Cancel-reject domain ID must equal reject_id")
+
+
+@dataclass(frozen=True, slots=True)
+class FixDeliveryQueueSnapshot:
+    """Process-lifetime operational snapshot of the FIX delivery queue."""
+
+    enqueued: int
+    queue_depth: int
+    pending: int
+    due: int
+    retry_pending: int
+    delivered: int
+    permanently_failed: int
+    abandoned: int
+    sessions_with_backlog: int
+    attempts: int
+    failures: int
+    oldest_pending_age_seconds: Optional[float]
 
 SchedulerMetadataScalar = Optional[Union[str, int, float, bool]]
 SchedulerEventMetadata = Tuple[Tuple[str, SchedulerMetadataScalar], ...]
@@ -1708,6 +1796,7 @@ class ScheduledEvent:
 class OrderLatencyTrace:
     """Latency tracker-owned mutable state for one accepted order."""
 
+    run_generation: int
     order_id: int
     session_id: Optional[str]
     sim_submitted_at: datetime

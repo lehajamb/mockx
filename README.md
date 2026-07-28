@@ -63,9 +63,14 @@ Public exchange identifiers include the successful simulation-run generation:
 | `OrderID` | `G{generation:08d}-O{counter:08d}` |
 | `ExecID` | `G{generation:08d}-E{counter:08d}` |
 | `TradeID` | `G{generation:08d}-T{counter:08d}` |
+| cancel-reject domain ID | `G{generation:08d}-R{counter:08d}` |
+| FIX delivery ID | `G{generation:08d}-D{counter:08d}` |
 
 Engine and gateway rejection reports share the same run scope. Numeric engine
-handles remain internal and are not serialized as FIX or WebSocket IDs.
+handles remain internal and are not serialized as FIX or WebSocket IDs. The
+cancel-reject domain ID is an application identity used for deduplication and
+observability; FIX `OrderCancelReject (35=9)` has no `ExecID`, so the ID is not
+serialized on the wire. Delivery IDs are also application-internal.
 
 Real matching and serialization durations use a monotonic wall clock.
 Configured network, engine, and end-to-end latency values use simulated time.
@@ -96,21 +101,58 @@ Cancel requests use four explicit scheduled stages:
 cancel_received
 cancel_arrived_at_exchange
 cancel_engine_process
-cancel_report_delivery
+fix_delivery_due
 ```
 
 `cancel_arrived_at_exchange` applies configured inbound network latency plus
 the requester's session-alias delay. `cancel_engine_process` additionally
-applies configured engine latency. `cancel_report_delivery` applies configured
-outbound latency to both successful execution reports and order-cancel
-rejects. A successful pending cancel advances the order version, so an older
-queued new-order process command is harmless.
+applies configured engine latency. The report or reject enters the outbound
+FIX queue when created, and `fix_delivery_due` makes its immutable record
+eligible after the configured outbound latency. A successful pending cancel
+advances the order version, so an older queued new-order process command is
+harmless.
 
 Equal-time events already in the scheduler keep their earlier scheduler
 priority. Consequently, an already-queued match can fill an order before a
 later cancel; the cancel then returns `TOO_LATE_TO_CANCEL`. Conversely, a
 cancel wins only when configured timing and the explicit ingress/scheduler
 ordering place its engine event first.
+
+### Reliable FIX application delivery
+
+Execution reports (`35=8`) and order-cancel rejects (`35=9`) enter a
+process-lifetime application queue exactly once when created. Each record
+retains its delivery ID, origin run generation, stable destination
+`SessionID`, per-session sequence, immutable report or reject payload,
+`ExecID` or cancel-reject domain ID, original simulated due time, attempt
+history, last failure, and explicit state. The states are `PENDING`, `DUE`,
+`RETRY_PENDING`, `DELIVERED`, and `PERMANENTLY_FAILED`.
+
+Only the oldest non-delivered record for a stable FIX session may be
+submitted. A disconnected session retains its due record without calling the
+sender. Transport exceptions and `sendToTarget(...) == False` are retried at
+`fix.delivery_retry_interval_ms`, with at most
+`fix.delivery_max_attempts_per_cycle` sender calls in a cycle. Exhausting a
+cycle leaves the record `RETRY_PENDING`; the next logon starts a fresh bounded
+cycle immediately. Deterministic serialization failures become
+`PERMANENTLY_FAILED` and visibly block later records for that session. One
+blocked session never prevents another session from progressing.
+
+Logon registers the replacement live transport and triggers an immediate
+FIFO drain. Logout removes only that transport. Duplicate due events,
+repeated logons, and transport retries reuse the original record and cannot
+resubmit a record already marked `DELIVERED` inside MockX. Logical report,
+trade, and reject metrics are keyed by their domain identifiers, while
+delivery-attempt metrics are separate. Terminal order and cancel latency
+traces remain retained until local QuickFIX submission succeeds.
+
+This is application-level reliability, not end-to-end exactly-once FIX
+delivery. MockX guarantees one immutable application record and performs no
+further application retry after QuickFIX reports successful local submission.
+QuickFIX remains responsible for `MsgSeqNum`, message-store persistence,
+resend requests, and protocol-level duplicate/resend behavior. An ambiguous
+transport outcome can therefore still produce a client-visible duplicate.
+The queue is process-local and does not survive MockX or host restart.
 
 ## 3. Architecture
 
@@ -358,7 +400,11 @@ Unknown symbols return HTTP 404:
 ```
 
 `/stats` separates orders, trades, cancellations, reports, sessions, book
-gauges, latency, persistence, and scheduler state. The `cancellations` object
+gauges, FIX delivery, latency, persistence, and scheduler state. The
+process-lifetime `fix_delivery` object exposes enqueued records, queue depth,
+counts by delivery state, sessions with backlog, cumulative attempts,
+failures, deliveries, permanent failures, abandonments, and oldest pending
+age. The `cancellations` object
 contains `accepted`, `unknown_order`, `already_terminal`, `wrong_owner`,
 `duplicate_request`, and `stale_run_generation`. Scheduler diagnostics contain `state`,
 `pending_events`, the current-generation `failure_count`, the configured
@@ -455,7 +501,7 @@ isolated network. CORS defaults to no allowed cross-origin callers.
 
 | Method | Route | Behavior |
 |---|---|---|
-| POST | `/api/v1/session/start` | Flush previous metrics, reset engine/scheduler/sequence/latency state, start named simulation session |
+| POST | `/api/v1/session/start` | Flush previous metrics, reset run-local engine/scheduler/sequence/latency state, preserve and reschedule the FIX delivery backlog, start named simulation session |
 | POST | `/api/v1/session/end` | Flush metrics, return final stats, end active simulation session |
 | POST | `/admin/advance-time` | Inclusively process events through an absolute UTC target or positive delta |
 
@@ -479,21 +525,28 @@ Reject (`35=3`) with `RefMsgType` and one stable text code:
 do not reserve `ClOrdID`, consume run identifiers, or enter run metrics.
 
 Starting while active returns `409 SESSION_ALREADY_ACTIVE`. A successful start
-flushes inactive metrics, closes WebSockets, resets scheduler/engine/latency and
+flushes inactive metrics, closes WebSockets, resets scheduler/engine and
 run-local statistics, reseeds the RNG from `execution.random_seed`, assigns
-`last_successful_generation + 1`, installs fresh identifier counters, and only
-then publishes `ACTIVE`. A failure before destructive reset work restores
-`STOPPED`; a failure after it begins returns `503 SESSION_START_FAILED`, enters
-`FAILED`, and requires process restart.
+`last_successful_generation + 1`, installs fresh run identifier counters, and
+only then publishes `ACTIVE`. The process-lifetime FIX delivery queue and its
+per-session sequence are not reset. Latency traces referenced by its
+non-delivered records are preserved with `(run_generation, order_id)` or
+`(run_generation, cancel_ingress_sequence)` keys; unrelated traces are reset.
+A failure before destructive reset work restores `STOPPED`; a failure after it
+begins returns `503 SESSION_START_FAILED`, enters `FAILED`, and requires
+process restart.
 
 Ending with no active session is idempotent and returns
 `status="no_active_session"` with null `session_id`, `run_generation`, and
-`final_stats`. A successful end returns the ended run ID, generation, and only
-that run's statistics. It does not drain or clear pending scheduler events:
-they remain frozen and observable in `final_stats`, cannot execute while
-stopped, and are discarded by the next successful start. A failed scheduler's
-dead letter is therefore retained in final statistics; end the run and start a
-new one to reset it.
+`final_stats`. A successful end returns the ended run ID, generation, and run
+statistics plus the process-lifetime FIX delivery snapshot. It does not drain
+or abandon undelivered FIX records. They remain frozen while stopped; the next
+start schedules old `PENDING` records at their original due time and old
+`DUE`/`RETRY_PENDING` FIFO heads at the new scheduler's current time. Older
+generations remain ahead of new-run records for the same stable FIX session.
+Other pending scheduler events are discarded by the next start. A failed
+scheduler's dead letter remains in final statistics and is reset by a
+successful new start.
 
 Lifecycle error codes are:
 
@@ -569,7 +622,22 @@ Fixed outcome counters are exposed as
 `mockx_cancel_stale_run_generation_total`. Persisted cancel latency samples
 include the run generation, ingress sequence, cancel `ClOrdID`,
 `OrigClOrdID`, stable session identity, and resolved internal order ID when
-available. Delivery failure does not trigger a disconnected-report retry.
+available. Failed or disconnected terminal delivery retains its latency trace;
+successful retry records delivery latency once and then removes the trace.
+
+FIX delivery Prometheus collectors include
+`mockx_fix_delivery_enqueued_total`,
+`mockx_fix_delivery_attempts_total`,
+`mockx_fix_delivery_failures_total`,
+`mockx_fix_delivery_successes_total`,
+`mockx_fix_delivery_permanent_failures_total`,
+`mockx_fix_delivery_queue_depth`,
+`mockx_fix_delivery_oldest_pending_age_seconds`, and
+`mockx_fix_delivery_records{state="..."}`. `/readyz` exposes
+`components.fix_delivery`: `ready` without a due/error backlog, `degraded`
+with HTTP 200 for retry-pending or permanently failed records, and `disabled`
+when FIX is disabled. A delivery backlog alone never makes core matching
+unavailable.
 
 Compose does not deploy a Prometheus server, Grafana, provisioning, or
 prebuilt dashboards. Scrape `mockx1:8000/metrics` and
@@ -674,6 +742,8 @@ admin_api:
   enabled: true
 fix:
   enabled: true
+  delivery_retry_interval_ms: 1000
+  delivery_max_attempts_per_cycle: 3
 scheduler:
   mode: external
   interval_ms: 10
@@ -700,9 +770,9 @@ latency measurements are not part of deterministic replay.
 
 Startup validation rejects missing fields, duplicate/empty symbols, invalid
 ports, noninteger random seeds, unsupported scheduler modes, nonpositive
-intervals, stale timeouts not greater than heartbeat cadence, nonpositive
-event-processing limits, wildcard CORS, and incomplete enabled TSDB
-configuration.
+intervals or FIX delivery retry settings, stale timeouts not greater than
+heartbeat cadence, nonpositive event-processing limits, wildcard CORS, and
+incomplete enabled TSDB configuration.
 
 `CFG_PATH` and `FIX_CONFIG_FILE` select the YAML and QuickFIX files.
 `INFLUXDB_URL`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET`
@@ -734,8 +804,12 @@ python -m pytest -q tests/test_readme_examples.py
 - No production authentication, TLS termination, or reverse-proxy config is
   included. Disable admin routes or bind them to a trusted interface.
 - No guaranteed WebSocket replay or sequence persistence across restarts.
-- No distributed WebSocket fan-out or message broker.
-- No FIX resend/sequence-recovery redesign.
+- No distributed WebSocket fan-out, WebSocket delivery queue, or message
+  broker.
+- The reliable outbound FIX queue is process-local; a process or host failure
+  loses it. QuickFIX still owns FIX sequence numbers, message stores, resend
+  requests, and protocol-level duplicate behavior. This is not
+  production-grade FIX recovery or end-to-end exactly-once delivery.
 - No replace workflow, stop orders, or new order types beyond limit/market.
 - FIX market-data requests are rejected; use REST/WebSocket.
 - No Prometheus server, Grafana, dashboard assets, OpenTelemetry, or cloud
@@ -759,6 +833,10 @@ FIX client logs on but receives no reports:
 - Call `/admin/advance-time` far enough to cover inbound, engine, and
   session-specific delays.
 - Verify the target component and FIX port match the chosen instance.
+- Inspect `/stats.fix_delivery` and `components.fix_delivery` in `/readyz`.
+  A `RETRY_PENDING` head is retried immediately at the next logon; a
+  `PERMANENTLY_FAILED` head requires fixing the deterministic serialization
+  problem or restarting the process.
 
 The browser says `HTTP fallback` while heartbeats continue:
 

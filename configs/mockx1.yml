@@ -19,6 +19,8 @@ admin_api:
   enabled: true
 fix:
   enabled: true
+  delivery_retry_interval_ms: 1000
+  delivery_max_attempts_per_cycle: 3
 scheduler:
   mode: "external"
   interval_ms: 10

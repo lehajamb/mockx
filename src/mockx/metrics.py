@@ -44,9 +44,10 @@ from .models import (
     CancelLatencyTrace,
     CancelOrderCommand,
     CancelReject,
-    CancelReportDelivery,
     ExecutionReport,
     ExecutionType,
+    FixDeliveryQueueSnapshot,
+    FixDeliveryState,
     LatencyMeasurement,
     LiquidityCategory,
     MarketDataUpdate,
@@ -504,12 +505,14 @@ class MetricsCollector:
         self._accepted_order_ids: set[int] = set()
         self._filled_order_ids: set[int] = set()
         self._seen_report_exec_ids: set[str] = set()
+        self._seen_cancel_reject_ids: set[str] = set()
         self._seen_trade_ids: set[str] = set()
 
         self.registry = None
         self._prom_counters: Dict[str, Any] = {}
         self._prom_gauges: Dict[str, Any] = {}
         self._prom_histograms: Dict[str, Any] = {}
+        self._prom_delivery_state_gauge = None
         if prometheus_enabled and CollectorRegistry is not None:
             self._init_prometheus()
 
@@ -559,6 +562,7 @@ class MetricsCollector:
             self._accepted_order_ids.clear()
             self._filled_order_ids.clear()
             self._seen_report_exec_ids.clear()
+            self._seen_cancel_reject_ids.clear()
             self._seen_trade_ids.clear()
 
     def attach_persistence(self, persistence: BufferedMetricsWriter) -> None:
@@ -614,6 +618,55 @@ class MetricsCollector:
                 help_text,
                 registry=self.registry,
             )
+
+        for name, metric_name, help_text in (
+            (
+                "fix_delivery_enqueued",
+                "mockx_fix_delivery_enqueued_total",
+                "Logical application FIX deliveries enqueued.",
+            ),
+            (
+                "fix_delivery_attempts",
+                "mockx_fix_delivery_attempts_total",
+                "Transport sender invocations for FIX deliveries.",
+            ),
+            (
+                "fix_delivery_failures",
+                "mockx_fix_delivery_failures_total",
+                "Disconnected checks and failed FIX delivery attempts.",
+            ),
+            (
+                "fix_delivery_successes",
+                "mockx_fix_delivery_successes_total",
+                "FIX deliveries successfully submitted to QuickFIX.",
+            ),
+            (
+                "fix_delivery_permanent_failures",
+                "mockx_fix_delivery_permanent_failures_total",
+                "Deterministic FIX serialization failures.",
+            ),
+        ):
+            self._prom_counters[name] = Counter(
+                metric_name,
+                help_text,
+                registry=self.registry,
+            )
+        self._prom_gauges["fix_delivery_queue_depth"] = Gauge(
+            "mockx_fix_delivery_queue_depth",
+            "Non-delivered application FIX records retained in memory.",
+            registry=self.registry,
+        )
+        self._prom_gauges["fix_delivery_oldest_pending_age_seconds"] = Gauge(
+            "mockx_fix_delivery_oldest_pending_age_seconds",
+            "Wall-clock age of the oldest retained FIX delivery.",
+            registry=self.registry,
+        )
+        self._prom_delivery_state_gauge = Gauge(
+            "mockx_fix_delivery_records",
+            "Process-lifetime FIX delivery records by state.",
+            ("state",),
+            registry=self.registry,
+        )
 
         duration_help = {
             SIM_INBOUND_LATENCY: (
@@ -822,9 +875,13 @@ class MetricsCollector:
         with self._lock:
             self._increment_locked("cancel_requests")
 
-    def record_cancel_reject(self, reject: CancelReject) -> None:
+    def record_cancel_reject(self, reject: CancelReject) -> bool:
         with self._lock:
+            if reject.reject_id in self._seen_cancel_reject_ids:
+                return False
+            self._seen_cancel_reject_ids.add(reject.reject_id)
             self._increment_locked("cancel_rejects")
+            return True
 
     def record_cancel_outcome(
         self,
@@ -860,6 +917,47 @@ class MetricsCollector:
             gauge = self._prom_gauges.get("connected_sessions")
             if gauge is not None:
                 gauge.set(count)
+
+    def record_fix_delivery_enqueued(self) -> None:
+        self._prom_increment("fix_delivery_enqueued", 1)
+
+    def record_fix_delivery_attempt(self) -> None:
+        self._prom_increment("fix_delivery_attempts", 1)
+
+    def record_fix_delivery_failure(self, *, permanent: bool = False) -> None:
+        self._prom_increment("fix_delivery_failures", 1)
+        if permanent:
+            self._prom_increment("fix_delivery_permanent_failures", 1)
+
+    def record_fix_delivery_success(self) -> None:
+        self._prom_increment("fix_delivery_successes", 1)
+
+    def update_fix_delivery_gauges(
+        self,
+        snapshot: FixDeliveryQueueSnapshot,
+    ) -> None:
+        depth = self._prom_gauges.get("fix_delivery_queue_depth")
+        if depth is not None:
+            depth.set(snapshot.queue_depth)
+        age = self._prom_gauges.get(
+            "fix_delivery_oldest_pending_age_seconds"
+        )
+        if age is not None:
+            age.set(snapshot.oldest_pending_age_seconds or 0.0)
+        if self._prom_delivery_state_gauge is not None:
+            state_counts = {
+                FixDeliveryState.PENDING: snapshot.pending,
+                FixDeliveryState.DUE: snapshot.due,
+                FixDeliveryState.RETRY_PENDING: snapshot.retry_pending,
+                FixDeliveryState.DELIVERED: snapshot.delivered,
+                FixDeliveryState.PERMANENTLY_FAILED: (
+                    snapshot.permanently_failed
+                ),
+            }
+            for state, count in state_counts.items():
+                self._prom_delivery_state_gauge.labels(
+                    state=state.value
+                ).set(count)
 
     def record_invalid_latency(
         self,
@@ -1244,39 +1342,68 @@ class LatencyTracker:
         self.scheduler = scheduler
         self.metrics = metrics_collector
         self.monotonic_clock = monotonic_clock or PerfCounterClock()
-        self.orders: Dict[int, OrderLatencyTrace] = {}
+        self.orders: Dict[tuple[int, int], OrderLatencyTrace] = {}
         self.cancels: Dict[tuple[int, int], CancelLatencyTrace] = {}
         self.measurements: list[LatencyMeasurement] = []
         self._delivered_exec_ids: set[str] = set()
-        self._completed_order_ids: set[int] = set()
+        self._completed_order_ids: set[tuple[int, int]] = set()
         self._lock = threading.RLock()
 
-    def reset(self) -> None:
+    def reset(
+        self,
+        *,
+        preserve_order_keys: Optional[set[tuple[int, int]]] = None,
+        preserve_cancel_keys: Optional[set[tuple[int, int]]] = None,
+    ) -> None:
         with self._lock:
-            self.orders.clear()
-            self.cancels.clear()
+            if preserve_order_keys is None:
+                self.orders.clear()
+                self._completed_order_ids.clear()
+            else:
+                self.orders = {
+                    key: trace
+                    for key, trace in self.orders.items()
+                    if key in preserve_order_keys
+                }
+                self._completed_order_ids.intersection_update(
+                    preserve_order_keys
+                )
+            if preserve_cancel_keys is None:
+                self.cancels.clear()
+            else:
+                self.cancels = {
+                    key: trace
+                    for key, trace in self.cancels.items()
+                    if key in preserve_cancel_keys
+                }
             self.measurements.clear()
             self._delivered_exec_ids.clear()
-            self._completed_order_ids.clear()
 
     def order_submitted(
         self,
         order_id: int,
         session_id: Optional[str] = None,
         sim_submitted_at: Optional[datetime] = None,
+        run_generation: int = 0,
     ) -> None:
+        key = (run_generation, order_id)
         with self._lock:
-            if order_id in self.orders or order_id in self._completed_order_ids:
+            if key in self.orders or key in self._completed_order_ids:
                 return
-            self.orders[order_id] = OrderLatencyTrace(
+            self.orders[key] = OrderLatencyTrace(
+                run_generation=run_generation,
                 order_id=order_id,
                 session_id=session_id,
                 sim_submitted_at=sim_submitted_at or self.scheduler.current_time,
             )
 
-    def order_arrived(self, order_id: int) -> None:
+    def order_arrived(
+        self,
+        order_id: int,
+        run_generation: Optional[int] = None,
+    ) -> None:
         with self._lock:
-            trace = self.orders.get(order_id)
+            trace = self._find_order_trace_locked(order_id, run_generation)
             if trace is None:
                 self._missing_trace(order_id, "order_arrived")
                 return
@@ -1291,21 +1418,32 @@ class LatencyTracker:
             )
         self._publish(measurement)
 
-    def order_processing_start(self, order_id: int) -> None:
+    def order_processing_start(
+        self,
+        order_id: int,
+        run_generation: Optional[int] = None,
+    ) -> None:
         # The scheduler's configured engine delay is measured from arrival to
         # first report creation.  Real matching is measured inside the engine.
-        if order_id not in self.orders:
-            self._missing_trace(order_id, "order_processing_start")
-
-    def order_processing_end(self, order_id: int) -> None:
         with self._lock:
-            trace = self.orders.get(order_id)
+            if self._find_order_trace_locked(order_id, run_generation) is None:
+                self._missing_trace(order_id, "order_processing_start")
+
+    def order_processing_end(
+        self,
+        order_id: int,
+        run_generation: Optional[int] = None,
+    ) -> None:
+        with self._lock:
+            trace = self._find_order_trace_locked(order_id, run_generation)
             if trace is not None:
                 trace.sim_processed_at = self.scheduler.current_time
 
     def report_created(self, report: ExecutionReport) -> None:
         with self._lock:
-            trace = self.orders.get(report.order_id)
+            trace = self.orders.get(
+                (report.run_generation, report.order_id)
+            )
             if trace is None:
                 self._missing_trace(report.order_id, "report_created")
                 return
@@ -1334,7 +1472,9 @@ class LatencyTracker:
             if report.exec_id in self._delivered_exec_ids:
                 return False
             self._delivered_exec_ids.add(report.exec_id)
-            trace = self.orders.get(report.order_id)
+            trace = self.orders.get(
+                (report.run_generation, report.order_id)
+            )
             if trace is None:
                 self._missing_trace(report.order_id, "report_delivered")
                 return False
@@ -1423,53 +1563,62 @@ class LatencyTracker:
                 report_exec_id=(
                     report.exec_id
                     if isinstance(report, ExecutionReport)
-                    else None
+                    else report.reject_id
                 ),
             )
         self._publish(measurement)
 
     def cancel_report_delivered(
         self,
-        delivery: CancelReportDelivery,
+        report: ExecutionReport | CancelReject,
         *,
-        delivered: bool,
+        delivered_at: Optional[datetime] = None,
     ) -> bool:
         """Finish a cancel trace only after successful report delivery."""
-        command = delivery.command
-        key = self._cancel_key(command)
+        ingress_sequence = (
+            report.cancel_ingress_sequence
+            if isinstance(report, ExecutionReport)
+            else report.ingress_sequence
+        )
+        if ingress_sequence is None:
+            return False
+        key = (report.run_generation, ingress_sequence)
         with self._lock:
             trace = self.cancels.get(key)
             if trace is None:
-                self._missing_cancel_trace(command, "cancel_report_delivered")
-                return False
-            if not delivered:
-                self.cancels.pop(key, None)
+                logger.warning(
+                    "Cancel latency trace missing",
+                    extra={
+                        "run_generation": report.run_generation,
+                        "ingress_sequence": ingress_sequence,
+                        "latency_stage": "cancel_report_delivered",
+                    },
+                )
                 return False
             if trace.sim_report_delivered_at is not None:
                 return False
-            report = delivery.report
-            delivered_at = self.scheduler.current_time
-            trace.sim_report_delivered_at = delivered_at
+            resolved_delivered_at = delivered_at or self.scheduler.current_time
+            trace.sim_report_delivered_at = resolved_delivered_at
             outbound = self._cancel_duration_measurement(
                 trace,
                 SIM_CANCEL_OUTBOUND_LATENCY,
                 report.timestamp,
-                delivered_at,
+                resolved_delivered_at,
                 report_exec_id=(
                     report.exec_id
                     if isinstance(report, ExecutionReport)
-                    else None
+                    else report.reject_id
                 ),
             )
             end_to_end = self._cancel_duration_measurement(
                 trace,
                 SIM_CANCEL_END_TO_END_LATENCY,
                 trace.sim_received_at,
-                delivered_at,
+                resolved_delivered_at,
                 report_exec_id=(
                     report.exec_id
                     if isinstance(report, ExecutionReport)
-                    else None
+                    else report.reject_id
                 ),
             )
             self.cancels.pop(key, None)
@@ -1493,7 +1642,7 @@ class LatencyTracker:
         )
         if measurement is not None:
             with self._lock:
-                trace = self.orders.get(order_id)
+                trace = self._find_order_trace_locked(order_id, None)
                 if trace is not None:
                     trace.real_matching_duration_ns = duration_ns
         self._publish(measurement)
@@ -1558,19 +1707,41 @@ class LatencyTracker:
             OrderStatus.CANCELLED,
         }:
             return False
+        key = (report.run_generation, report.order_id)
         with self._lock:
-            if report.order_id in self._completed_order_ids:
+            if key in self._completed_order_ids:
                 return False
-            if report.order_id not in self.orders:
+            if key not in self.orders:
                 self._missing_trace(report.order_id, "terminal_cleanup")
                 return False
-            self._completed_order_ids.add(report.order_id)
+            self._completed_order_ids.add(key)
             return True
 
-    def cleanup_order(self, order_id: int) -> None:
+    def cleanup_order(
+        self,
+        order_id: int,
+        *,
+        run_generation: int = 0,
+    ) -> None:
         """Remove a trace after terminal measurements have been emitted."""
         with self._lock:
-            self.orders.pop(order_id, None)
+            self.orders.pop((run_generation, order_id), None)
+
+    def _find_order_trace_locked(
+        self,
+        order_id: int,
+        run_generation: Optional[int],
+    ) -> Optional[OrderLatencyTrace]:
+        if run_generation is not None:
+            return self.orders.get((run_generation, order_id))
+        matches = [
+            (generation, trace)
+            for (generation, candidate_id), trace in self.orders.items()
+            if candidate_id == order_id
+        ]
+        if not matches:
+            return None
+        return max(matches, key=lambda item: item[0])[1]
 
     def _duration_measurement(
         self,
@@ -1597,6 +1768,7 @@ class LatencyTracker:
             unit="seconds",
             timestamp=end,
             report_exec_id=report_exec_id,
+            run_generation=trace.run_generation,
         )
 
     def _cancel_duration_measurement(

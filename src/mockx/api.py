@@ -160,6 +160,21 @@ class SessionsStats(BaseModel):
     connected: int
 
 
+class FixDeliveryStats(BaseModel):
+    enqueued: int
+    queue_depth: int
+    pending: int
+    due: int
+    retry_pending: int
+    delivered: int
+    permanently_failed: int
+    abandoned: int
+    sessions_with_backlog: int
+    attempts: int
+    failures: int
+    oldest_pending_age_seconds: Optional[float]
+
+
 class BookStats(BaseModel):
     levels: int
 
@@ -240,6 +255,7 @@ class StatsResponse(BaseModel):
     cancellations: CancellationStats
     reports: ReportsStats
     sessions: SessionsStats
+    fix_delivery: FixDeliveryStats
     book: BookStats
     latency: LatencyStats
     persistence: PersistenceStats
@@ -588,6 +604,19 @@ class ExchangeAPI:
         )
         if persistence_failures:
             components["persistence"] = "degraded"
+        if not getattr(self.lifecycle_manager, "fix_enabled", False):
+            components["fix_delivery"] = "disabled"
+        else:
+            delivery = self.fix_app.delivery_queue.snapshot()
+            components["fix_delivery"] = (
+                "degraded"
+                if (
+                    delivery.due
+                    or delivery.retry_pending
+                    or delivery.permanently_failed
+                )
+                else "ready"
+            )
 
         critical_names = ["engine", "scheduler", "api", "metrics"]
         if getattr(self.lifecycle_manager, "fix_enabled", False):
@@ -627,6 +656,23 @@ class ExchangeAPI:
             else None
         )
         payload["scheduler"] = self.scheduler.diagnostics()
+        delivery = self.fix_app.delivery_queue.snapshot()
+        payload["fix_delivery"] = {
+            "enqueued": delivery.enqueued,
+            "queue_depth": delivery.queue_depth,
+            "pending": delivery.pending,
+            "due": delivery.due,
+            "retry_pending": delivery.retry_pending,
+            "delivered": delivery.delivered,
+            "permanently_failed": delivery.permanently_failed,
+            "abandoned": delivery.abandoned,
+            "sessions_with_backlog": delivery.sessions_with_backlog,
+            "attempts": delivery.attempts,
+            "failures": delivery.failures,
+            "oldest_pending_age_seconds": (
+                delivery.oldest_pending_age_seconds
+            ),
+        }
         return StatsResponse.model_validate(payload)
 
     @staticmethod

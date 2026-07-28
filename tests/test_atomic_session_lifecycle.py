@@ -500,6 +500,7 @@ async def test_gateway_rejection_ids_use_the_active_generation():
             text="bad input",
         ),
     )
+    await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
 
     assert len(delivered) == 1
     assert delivered[0].exec_id == "G00000001-E00000001"

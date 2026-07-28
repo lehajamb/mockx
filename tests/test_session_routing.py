@@ -13,6 +13,7 @@ from src.mockx.models import (
     CancelRejectReason,
     ClientOrderKey,
     ExecutionParams,
+    FixDeliveryState,
     NewOrderCommand,
     OrderStatus,
     ProcessOrderCommand,
@@ -84,6 +85,15 @@ def register_pair(app):
     return transport_a, transport_b
 
 
+def deliver(app, report):
+    record = app.enqueue_report(report, delay_ms=0)
+    app.process_delivery_due(record.delivery_id)
+    return (
+        app.delivery_queue.get(record.delivery_id).state
+        == FixDeliveryState.DELIVERED
+    )
+
+
 def test_same_cl_ord_id_is_distinct_and_routes_to_own_session():
     engine, _, app, reports = make_stack()
     transport_a, transport_b = register_pair(app)
@@ -100,7 +110,7 @@ def test_same_cl_ord_id_is_distinct_and_routes_to_own_session():
     ] == order_b
 
     for report in reports:
-        assert app.process_execution_report(report)
+        assert deliver(app, report)
 
     assert {report.order_id for report in transport_a} == {order_a}
     assert {report.order_id for report in transport_b} == {order_b}
@@ -133,7 +143,7 @@ def test_cross_session_cancel_cannot_mutate_other_order_and_reject_routes_to_req
     )
 
     assert rejection.reason == CancelRejectReason.SESSION_MISMATCH
-    assert app.process_cancel_reject(rejection)
+    assert deliver(app, rejection)
     assert transport_a == [rejection]
     assert transport_b == []
     assert engine.orders[order_a].status == OrderStatus.NEW
@@ -150,7 +160,7 @@ def test_disconnected_destination_is_not_rerouted_and_counts_failure(caplog):
 
     assert app.unregister_session(SESSION_A)
     with caplog.at_level("WARNING"):
-        assert not app.process_execution_report(report)
+        assert not deliver(app, report)
 
     assert transport_a == []
     assert transport_b == []
@@ -172,7 +182,7 @@ def test_reconnect_replaces_transport_for_same_stable_session():
     order_id = submit(engine, SESSION_A, "CLIENT-A", 5.0, 99.0)
     report = next(report for report in reports if report.order_id == order_id)
 
-    assert app.process_execution_report(report)
+    assert deliver(app, report)
 
     assert first_transport == []
     assert second_transport == [report]
@@ -185,7 +195,7 @@ def test_alias_collision_never_controls_routing():
     order_b = submit(engine, SESSION_B, "shared", 7.0, 98.0)
 
     for report in reports:
-        app.process_execution_report(report)
+        deliver(app, report)
 
     assert [report.order_id for report in transport_a] == [order_a]
     assert [report.order_id for report in transport_b] == [order_b]

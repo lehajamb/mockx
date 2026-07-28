@@ -382,6 +382,8 @@ class TestMatchingEngine:
 
     def test_cancel_order_sends_execution_report(self, engine):
         """Test that cancelling an order generates a correct ExecutionReport."""
+        reports = []
+        engine.on_execution_report = reports.append
         # Add a resting order
         order = create_order_command(Side.BUY, 10, 99)
         order_id = engine.submit_order(order)
@@ -389,10 +391,11 @@ class TestMatchingEngine:
         # Process the NEW order report
         engine.process_order(process_command(order_id))
         
-        # Find the NEW execution report in the queue
+        # Find the NEW execution report at the application boundary.
         new_reports = [
-            e.data for e in engine.scheduler.event_queue
-            if e.event_type == 'exec_report' and e.data.exec_type == 'NEW'
+            report
+            for report in reports
+            if report.exec_type == ExecutionType.NEW
         ]
         assert len(new_reports) == 1
         report_ack = new_reports[0]
