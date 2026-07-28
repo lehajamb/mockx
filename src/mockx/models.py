@@ -252,6 +252,7 @@ class CancelReject:
     session_id: Optional[str]
     session_alias: Optional[str]
     timestamp: datetime
+    exchange_order_id: Optional[str] = None
 
     def __contains__(self, value: str) -> bool:
         """Keep legacy ``"text" in result`` callers source-compatible."""
@@ -285,6 +286,8 @@ class Order:
     reject_reason: Optional[str] = None
     session_id: Optional[str] = None
     session_alias: Optional[str] = None
+    exchange_order_id: Optional[str] = None
+    run_generation: int = 0
     version: int = 0
     processed: bool = False
     _liquidity_category: LiquidityCategory = field(init=False, repr=False)
@@ -450,6 +453,11 @@ class ExecutionParams:
     outbound_network_latency_ms: Optional[int] = None
 
     def __post_init__(self) -> None:
+        if not isinstance(self.rand_seed, int) or isinstance(
+            self.rand_seed,
+            bool,
+        ):
+            raise ValueError("Random seed must be an integer")
         delays = (
             self.network_latency_ms,
             self.engine_latency_ms,
@@ -483,6 +491,8 @@ class Fill:
     passive_order_id: int
     aggressor_side: Side
     timestamp: datetime
+    exchange_trade_id: Optional[str] = None
+    run_generation: int = 0
 
     def __post_init__(self) -> None:
         if self.trade_id <= 0:
@@ -518,6 +528,8 @@ class Trade:
     aggressor_order_id: int
     passive_order_id: int
     aggressor_side: Side
+    exchange_trade_id: Optional[str] = None
+    run_generation: int = 0
 
 @dataclass(frozen=True, slots=True)
 class BookFillResult:
@@ -1215,6 +1227,7 @@ class MarketDataSnapshot:
     bids: Tuple[PriceLevelSnapshot, ...]
     asks: Tuple[PriceLevelSnapshot, ...]
     trades: Tuple[TradeSnapshot, ...] = ()
+    run_generation: int = 0
 
     def __post_init__(self) -> None:
         if not self.symbol:
@@ -1270,9 +1283,12 @@ class ExecutionReport:
     submitted_at: datetime
     timestamp: datetime
     order_version: int
+    exchange_order_id: Optional[str] = None
+    run_generation: int = 0
     last_px: Optional[float] = None
     last_qty: Optional[float] = None
     trade_id: Optional[int] = None
+    exchange_trade_id: Optional[str] = None
     orig_cl_ord_id: Optional[str] = None
     reject_reason: Optional[str] = None
     text: Optional[str] = None
@@ -1415,10 +1431,11 @@ def create_execution_report(
     *,
     exec_type: Union[ExecutionType, str],
     timestamp: datetime,
-    exec_id: Optional[str] = None,
+    exec_id: str,
     last_px: Optional[float] = None,
     last_qty: Optional[float] = None,
     trade_id: Optional[int] = None,
+    exchange_trade_id: Optional[str] = None,
     cl_ord_id: Optional[str] = None,
     orig_cl_ord_id: Optional[str] = None,
     text: Optional[str] = None,
@@ -1436,12 +1453,8 @@ def create_execution_report(
     except ValueError as exc:
         raise ValueError(f"Unsupported execution type: {exec_type}") from exc
 
-    resolved_exec_id = exec_id or (
-        f"{order.id}:{order.version}:{execution_type.value}:"
-        f"{timestamp.isoformat()}"
-    )
     return ExecutionReport(
-        exec_id=resolved_exec_id,
+        exec_id=exec_id,
         order_id=order.id,
         cl_ord_id=cl_ord_id or order.cl_ord_id,
         symbol=order.symbol,
@@ -1466,6 +1479,17 @@ def create_execution_report(
         submitted_at=order.ts_submitted,
         timestamp=timestamp,
         order_version=order.version,
+        exchange_order_id=(
+            order.exchange_order_id
+            or f"G{order.run_generation:08d}-O{order.id:08d}"
+        ),
+        run_generation=order.run_generation,
+        exchange_trade_id=(
+            exchange_trade_id
+            or f"G{order.run_generation:08d}-T{trade_id:08d}"
+            if trade_id is not None
+            else None
+        ),
     )
 
 
@@ -1488,6 +1512,14 @@ def create_cancel_reject(
         session_id=command.session_id,
         session_alias=command.session_alias,
         timestamp=timestamp,
+        exchange_order_id=(
+            (
+                order.exchange_order_id
+                or f"G{order.run_generation:08d}-O{order.id:08d}"
+            )
+            if order
+            else None
+        ),
     )
 
 SchedulerMetadataScalar = Optional[Union[str, int, float, bool]]

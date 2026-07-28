@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from random import Random
 
+from .identifiers import RunIdentifierScope
 from .models import (
     CancelReject, CancelRejectReason, ClientOrderKey, ExecutionType, Fill,
     MarketDataSnapshot, Order, OrderBook, PriceLevelSnapshot, Trade,
@@ -48,7 +49,9 @@ class MatchingEngine:
         self.exec_params = exec_params
         self.scheduler = scheduler
         self.monotonic_clock = monotonic_clock or PerfCounterClock()
-        self.rng = Random(exec_params.rand_seed)
+        self.random_seed = exec_params.rand_seed
+        self.rng = Random(self.random_seed)
+        self.identifier_scope = RunIdentifierScope(0)
 
         # Order books by symbol
         self.books: Dict[str, OrderBook] = {}
@@ -58,7 +61,6 @@ class MatchingEngine:
         self.client_order_index: Dict[ClientOrderKey, int] = {}
         self.next_order_id = 1
         self.next_trade_id = 1
-        self.next_exec_id = 1
         # One deterministic sequence spans all symbols in this exchange.
         # It resets only when ``reset`` starts a new simulation session.
         self.market_data_sequence = 0
@@ -72,17 +74,12 @@ class MatchingEngine:
         self.on_cancel_reject = None
         self.on_matching_duration = None
         
-    def reset(self):
-        """
-        Resets the matching engine to a clean state.
-        - Clears all order books.
-        - Resets order and trade ID counters.
-        - Clears the internal order tracking dictionary.
-        """
-        logger.info("Resetting matching engine state.")
-        
+    def reset_run_state(self) -> None:
+        """Clear authoritative run state without touching the scheduler."""
+        logger.info("Resetting matching engine run state.")
+
         # Re-initialize order books for all known symbols
-        for symbol in self.books.keys():
+        for symbol in tuple(self.books):
             self.books[symbol] = OrderBook(symbol=symbol)
             
         # Clear order tracking
@@ -92,11 +89,17 @@ class MatchingEngine:
         # Reset ID counters
         self.next_order_id = 1
         self.next_trade_id = 1
-        self.next_exec_id = 1
         self.market_data_sequence = 0
-        
-        # Reset the scheduler
-        self.scheduler.reset()
+
+    def reseed_rng(self) -> None:
+        """Restore the configured deterministic RNG state."""
+        self.rng.seed(self.random_seed)
+
+    def install_identifier_scope(
+        self,
+        identifiers: RunIdentifierScope,
+    ) -> None:
+        self.identifier_scope = identifiers
         
     def add_symbol(self, symbol: str) -> None:
         """Add a tradable symbol."""
@@ -128,6 +131,8 @@ class MatchingEngine:
 
         order = Order(
             id=self.next_order_id,
+            exchange_order_id=self.identifier_scope.next_order_id(),
+            run_generation=self.identifier_scope.generation,
             cl_ord_id=command.cl_ord_id,
             symbol=command.symbol,
             side=command.side,
@@ -367,6 +372,8 @@ class MatchingEngine:
                 passive_order.validate_transition_to(passive_target)
                 fill = Fill(
                     trade_id=self.next_trade_id,
+                    exchange_trade_id=self.identifier_scope.next_trade_id(),
+                    run_generation=self.identifier_scope.generation,
                     symbol=aggressor.symbol,
                     price=exec_price,
                     qty=match_qty,
@@ -409,6 +416,7 @@ class MatchingEngine:
                         last_px=fill.price,
                         last_qty=fill.qty,
                         trade_id=fill.trade_id,
+                        exchange_trade_id=fill.exchange_trade_id,
                     )
                 )
                 self._send_execution_report(
@@ -418,6 +426,7 @@ class MatchingEngine:
                         last_px=fill.price,
                         last_qty=fill.qty,
                         trade_id=fill.trade_id,
+                        exchange_trade_id=fill.exchange_trade_id,
                     )
                 )
 
@@ -492,6 +501,8 @@ class MatchingEngine:
             aggressor_order_id=fill.aggressor_order_id,
             passive_order_id=fill.passive_order_id,
             aggressor_side=fill.aggressor_side,
+            exchange_trade_id=fill.exchange_trade_id,
+            run_generation=fill.run_generation,
         )
         logger.debug(
             "Trade: %s @ %s (%s x %s) at level %s",
@@ -511,13 +522,13 @@ class MatchingEngine:
         last_px: Optional[float] = None,
         last_qty: Optional[float] = None,
         trade_id: Optional[int] = None,
+        exchange_trade_id: Optional[str] = None,
         cl_ord_id: Optional[str] = None,
         orig_cl_ord_id: Optional[str] = None,
         text: Optional[str] = None,
     ) -> ExecutionReport:
         """Capture a report with a deterministic, engine-owned ExecID."""
-        exec_id = f"EXEC{self.next_exec_id}"
-        self.next_exec_id += 1
+        exec_id = self.identifier_scope.next_exec_id()
         return create_execution_report(
             order,
             exec_type=exec_type,
@@ -526,6 +537,7 @@ class MatchingEngine:
             last_px=last_px,
             last_qty=last_qty,
             trade_id=trade_id,
+            exchange_trade_id=exchange_trade_id,
             cl_ord_id=cl_ord_id,
             orig_cl_ord_id=orig_cl_ord_id,
             text=text,
@@ -587,7 +599,10 @@ class MatchingEngine:
             asks=self._snapshot_levels(book, Side.SELL),
             trades=tuple(
                 TradeSnapshot(
-                    trade_id=str(fill.trade_id),
+                    trade_id=(
+                        fill.exchange_trade_id
+                        or f"G{fill.run_generation:08d}-T{fill.trade_id:08d}"
+                    ),
                     price=float(fill.price),
                     qty=float(fill.qty),
                     aggressor_side=fill.aggressor_side,
@@ -595,6 +610,7 @@ class MatchingEngine:
                 )
                 for fill in fills
             ),
+            run_generation=self.identifier_scope.generation,
         )
 
     def _send_market_data_update(

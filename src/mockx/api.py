@@ -33,6 +33,11 @@ from starlette.responses import Response
 from .engine import MatchingEngine
 from .gateway import FIXApplication
 from .latency import SchedulerFailedError
+from .lifecycle import (
+    ExchangeLifecycle,
+    LifecycleError,
+    LifecycleState,
+)
 from .metrics import MetricsCollector
 from .models import MarketDataSnapshot, SchedulerState
 
@@ -208,6 +213,7 @@ class SchedulerStats(BaseModel):
 class StatsResponse(BaseModel):
     generated_at: datetime
     run_id: Optional[str]
+    run_generation: Optional[int]
     orders: OrdersStats
     trades: TradesStats
     reports: ReportsStats
@@ -233,13 +239,15 @@ class SessionBody(BaseModel):
 class SessionStartResponse(BaseModel):
     status: Literal["session_started"]
     session_id: str
+    run_generation: int
     starting_time: datetime
 
 
 class SessionEndResponse(BaseModel):
     status: Literal["session_ended", "no_active_session"]
     session_id: Optional[str]
-    final_stats: StatsResponse
+    run_generation: Optional[int]
+    final_stats: Optional[StatsResponse]
 
 
 class AdvanceTimeRequest(BaseModel):
@@ -406,6 +414,7 @@ class ExchangeAPI:
         fix_app: FIXApplication,
         *,
         lifecycle_manager: Optional[Any] = None,
+        session_lifecycle: Optional[ExchangeLifecycle] = None,
     ) -> None:
         self.engine = engine
         self.scheduler = engine.scheduler
@@ -413,9 +422,9 @@ class ExchangeAPI:
         self.config = config
         self.fix_app = fix_app
         self.lifecycle_manager = lifecycle_manager
+        self.lifecycle = session_lifecycle
         self.registry = WebSocketRegistry()
         self._broadcast_lock = asyncio.Lock()
-        self.simulation_session_id: Optional[str] = None
 
         websocket_config = config.get("websocket", {})
         self.heartbeat_interval_seconds = float(
@@ -513,6 +522,11 @@ class ExchangeAPI:
 
         template_dir = Path(__file__).resolve().parents[2] / "templates"
         self.templates = Jinja2Templates(directory=str(template_dir))
+        if self.lifecycle is not None:
+            self.lifecycle.bind_api(
+                close_websockets=self.close_websockets,
+                stats_builder=self._stats_response,
+            )
         self._setup_routes()
 
     def _normalized_symbol(self, symbol: str) -> str:
@@ -531,10 +545,22 @@ class ExchangeAPI:
 
     def _readiness(self) -> tuple[int, ReadinessResponse]:
         components = dict(self.app.state.component_status)
+        if self.lifecycle is not None:
+            components["lifecycle"] = self.lifecycle.state.value.lower()
         if self.scheduler.state == SchedulerState.FAILED:
             components["scheduler"] = "failed"
         elif self.scheduler.state == SchedulerState.STOPPED:
             components["scheduler"] = "stopped"
+        else:
+            components["scheduler"] = (
+                "waiting_external"
+                if self.config.get("scheduler", {}).get(
+                    "mode",
+                    "external",
+                )
+                == "external"
+                else "ready"
+            )
         persistence_failures = (
             self.metrics.snapshot().metric_sink_failures
         )
@@ -549,7 +575,12 @@ class ExchangeAPI:
             components.get(name) in ready_values
             for name in critical_names
         )
-        if not self.app.state.ready or not critical_ready:
+        lifecycle_ready = (
+            self.lifecycle is None
+            or self.lifecycle.state
+            in {LifecycleState.STOPPED, LifecycleState.ACTIVE}
+        )
+        if not self.app.state.ready or not critical_ready or not lifecycle_ready:
             return 503, ReadinessResponse(
                 status="not_ready",
                 components=components,
@@ -568,8 +599,25 @@ class ExchangeAPI:
         payload = self.metrics.snapshot().to_dict(
             run_id=self.metrics.run_id
         )
+        payload["run_generation"] = (
+            self.lifecycle.run_generation
+            if self.lifecycle is not None and self.lifecycle.run_id is not None
+            else None
+        )
         payload["scheduler"] = self.scheduler.diagnostics()
         return StatsResponse.model_validate(payload)
+
+    @staticmethod
+    def _raise_lifecycle_error(exc: LifecycleError) -> None:
+        raise _api_error(exc.status_code, exc.code, exc.message) from exc
+
+    def _require_stable_simulation_read(self) -> None:
+        if self.lifecycle is None:
+            return
+        try:
+            self.lifecycle.raise_if_transition_or_failed()
+        except LifecycleError as exc:
+            self._raise_lifecycle_error(exc)
 
     def _require_admin(self) -> None:
         if not self.app.state.accepting_admin:
@@ -611,16 +659,19 @@ class ExchangeAPI:
             responses={404: {"model": ErrorResponse}},
         )
         async def get_order_book(symbol: str) -> BookSnapshotResponse:
+            self._require_stable_simulation_read()
             return BookSnapshotResponse.model_validate(
                 _book_payload(self._snapshot_or_404(symbol))
             )
 
         @self.app.get("/symbols", response_model=SymbolsResponse)
         async def get_symbols() -> SymbolsResponse:
+            self._require_stable_simulation_read()
             return SymbolsResponse(symbols=list(self.engine.books))
 
         @self.app.get("/stats", response_model=StatsResponse)
         async def get_stats() -> StatsResponse:
+            self._require_stable_simulation_read()
             return self._stats_response()
 
         @self.app.get("/metrics")
@@ -640,6 +691,7 @@ class ExchangeAPI:
 
         @self.app.get("/ui/{symbol}", response_class=HTMLResponse)
         async def book_ui(request: Request, symbol: str):
+            self._require_stable_simulation_read()
             snapshot = self._snapshot_or_404(symbol)
             best_bid = snapshot.bids[0].price if snapshot.bids else None
             best_ask = snapshot.asks[0].price if snapshot.asks else None
@@ -693,9 +745,27 @@ class ExchangeAPI:
                 return
 
             await websocket.accept()
-            await self.registry.add(normalized, websocket)
             try:
-                snapshot = self.engine.get_market_data_snapshot(normalized)
+                async def _register_and_snapshot():
+                    await self.registry.add(normalized, websocket)
+                    return self.engine.get_market_data_snapshot(normalized)
+
+                if self.lifecycle is not None:
+                    try:
+                        snapshot = await self.lifecycle.websocket_snapshot(
+                            _register_and_snapshot
+                        )
+                    except LifecycleError as exc:
+                        await websocket.send_json(
+                            WebSocketErrorMessage(
+                                code=exc.code,
+                                message=exc.message,
+                            ).model_dump(mode="json")
+                        )
+                        await websocket.close(code=1013)
+                        return
+                else:
+                    snapshot = await _register_and_snapshot()
                 if snapshot is None:
                     raise RuntimeError(
                         f"Symbol vanished after validation: {normalized}"
@@ -748,45 +818,17 @@ class ExchangeAPI:
             session: SessionBody,
         ) -> SessionStartResponse:
             self._require_admin()
-            if self.simulation_session_id is not None:
-                raise _api_error(
-                    409,
-                    "SESSION_ALREADY_ACTIVE",
-                    "A simulation session is already active",
-                )
-            if not await self.metrics.set_run_id_async(session.run_id):
-                raise _api_error(
-                    503,
-                    "METRICS_FLUSH_FAILED",
-                    "Buffered metrics could not be flushed",
-                )
-
-            # Sequence zero is a session boundary; existing clients reconnect
-            # so their previous-session sequence cannot mask new data.
-            await self.registry.close_all()
-            self.engine.reset()
-            self.app.state.component_status["scheduler"] = (
-                "waiting_external"
-                if self.config.get("scheduler", {}).get(
-                    "mode",
-                    "external",
-                )
-                == "external"
-                else "ready"
-            )
-            self.fix_app.reset()
-            self.fix_app.latency_tracker.reset()
-            self.metrics.start_new_engine_generation()
-            self.metrics.refresh_engine_gauges()
-            self.simulation_session_id = session.run_id
-            logger.info(
-                "Simulation session started",
-                extra={"simulation_session_id": session.run_id},
-            )
+            assert self.lifecycle is not None
+            try:
+                self.lifecycle.raise_if_transition_or_failed()
+                result = await self.lifecycle.start_session(session.run_id)
+            except LifecycleError as exc:
+                self._raise_lifecycle_error(exc)
             return SessionStartResponse(
                 status="session_started",
-                session_id=session.run_id,
-                starting_time=self.scheduler.current_time,
+                session_id=result.run_id,
+                run_generation=result.run_generation,
+                starting_time=result.starting_time,
             )
 
         @self.app.post(
@@ -796,29 +838,21 @@ class ExchangeAPI:
         )
         async def end_session() -> SessionEndResponse:
             self._require_admin()
-            session_id = self.simulation_session_id
-            if session_id is not None and not await self.metrics.flush():
-                raise _api_error(
-                    503,
-                    "METRICS_FLUSH_FAILED",
-                    "Buffered metrics could not be flushed",
-                )
-            final_stats = self._stats_response()
-            if session_id is not None:
-                self.metrics.set_run_id(None)
-                self.simulation_session_id = None
-                logger.info(
-                    "Simulation session ended",
-                    extra={"simulation_session_id": session_id},
-                )
+            assert self.lifecycle is not None
+            try:
+                self.lifecycle.raise_if_transition_or_failed()
+                result = await self.lifecycle.end_session()
+            except LifecycleError as exc:
+                self._raise_lifecycle_error(exc)
             return SessionEndResponse(
                 status=(
                     "session_ended"
-                    if session_id is not None
+                    if result.run_id is not None
                     else "no_active_session"
                 ),
-                session_id=session_id,
-                final_stats=final_stats,
+                session_id=result.run_id,
+                run_generation=result.run_generation,
+                final_stats=result.final_stats,
             )
 
         @self.app.post(
@@ -833,6 +867,11 @@ class ExchangeAPI:
             body: AdvanceTimeRequest,
         ) -> AdvanceTimeResponse:
             self._require_admin()
+            assert self.lifecycle is not None
+            try:
+                self.lifecycle.raise_if_transition_or_failed()
+            except LifecycleError as exc:
+                self._raise_lifecycle_error(exc)
             scheduler_config = self.config.get("scheduler", {})
             if scheduler_config.get("mode", "external") != "external":
                 raise _api_error(
@@ -841,47 +880,49 @@ class ExchangeAPI:
                     "Manual time advancement requires external scheduler mode",
                 )
 
-            try:
+            async def _advance():
                 self.scheduler.ensure_running()
-            except SchedulerFailedError as exc:
-                raise _api_error(
-                    503,
-                    "SCHEDULER_FAILED",
-                    (
-                        "Scheduler is failed; end the current simulation "
-                        "session and start a new session to reset it"
-                    ),
-                ) from exc
-
-            previous_time = self.scheduler.current_time
-            if body.target_time is not None:
-                target_time = body.target_time
-            else:
-                max_advance = int(
-                    scheduler_config.get(
-                        "max_advance_ms",
-                        86_400_000,
+                previous_time = self.scheduler.current_time
+                if body.target_time is not None:
+                    target_time = body.target_time
+                else:
+                    max_advance = int(
+                        scheduler_config.get(
+                            "max_advance_ms",
+                            86_400_000,
+                        )
                     )
-                )
-                milliseconds = int(body.milliseconds or 0)
-                if milliseconds > max_advance:
+                    milliseconds = int(body.milliseconds or 0)
+                    if milliseconds > max_advance:
+                        raise _api_error(
+                            422,
+                            "ADVANCE_TOO_LARGE",
+                            (
+                                "milliseconds exceeds configured limit "
+                                f"{max_advance}"
+                            ),
+                        )
+                    target_time = previous_time + timedelta(
+                        milliseconds=milliseconds
+                    )
+
+                if target_time < previous_time:
                     raise _api_error(
-                        422,
-                        "ADVANCE_TOO_LARGE",
-                        f"milliseconds exceeds configured limit {max_advance}",
+                        409,
+                        "TIME_REVERSAL",
+                        "Target time is before current simulated time",
                     )
-                target_time = previous_time + timedelta(
-                    milliseconds=milliseconds
-                )
-
-            if target_time < previous_time:
-                raise _api_error(
-                    409,
-                    "TIME_REVERSAL",
-                    "Target time is before current simulated time",
-                )
-            try:
                 events_processed = await self.scheduler.run_until(target_time)
+                return previous_time, events_processed
+
+            try:
+                previous_time, events_processed = (
+                    await self.lifecycle.execute_administrative_advance(
+                        _advance
+                    )
+                )
+            except LifecycleError as exc:
+                self._raise_lifecycle_error(exc)
             except SchedulerFailedError as exc:
                 raise _api_error(
                     503,
@@ -903,22 +944,31 @@ class ExchangeAPI:
         snapshot: MarketDataSnapshot,
     ) -> None:
         """Deliver one immutable payload once to each current subscriber."""
-        message = market_data_message(snapshot).model_dump(mode="json")
-        async with self._broadcast_lock:
-            clients = await self.registry.snapshot(snapshot.symbol)
-            failed: list[WebSocket] = []
-            for websocket in clients:
-                try:
-                    await websocket.send_json(message)
-                except (
-                    WebSocketDisconnect,
-                    RuntimeError,
-                    ConnectionError,
-                    OSError,
-                ):
-                    failed.append(websocket)
-            for websocket in failed:
-                await self.registry.remove(snapshot.symbol, websocket)
+        async def _broadcast() -> None:
+            message = market_data_message(snapshot).model_dump(mode="json")
+            async with self._broadcast_lock:
+                clients = await self.registry.snapshot(snapshot.symbol)
+                failed: list[WebSocket] = []
+                for websocket in clients:
+                    try:
+                        await websocket.send_json(message)
+                    except (
+                        WebSocketDisconnect,
+                        RuntimeError,
+                        ConnectionError,
+                        OSError,
+                    ):
+                        failed.append(websocket)
+                for websocket in failed:
+                    await self.registry.remove(snapshot.symbol, websocket)
+
+        if self.lifecycle is not None:
+            await self.lifecycle.broadcast_if_current(
+                snapshot.run_generation,
+                _broadcast,
+            )
+        else:
+            await _broadcast()
 
     async def close_websockets(self) -> None:
         await self.registry.close_all()
@@ -937,7 +987,22 @@ def create_app(
     used transports that do not run lifespan events, so this compatibility
     path marks only that standalone API facade ready.
     """
-    api = ExchangeAPI(engine, metrics, config, fix_app)
+    lifecycle = fix_app.lifecycle
+    if lifecycle is None:
+        lifecycle = ExchangeLifecycle(
+            engine,
+            metrics,
+            fix_app.latency_tracker,
+            fix_app,
+        )
+        fix_app.lifecycle = lifecycle
+    api = ExchangeAPI(
+        engine,
+        metrics,
+        config,
+        fix_app,
+        session_lifecycle=lifecycle,
+    )
     api.app.state.component_status.update(
         {
             "engine": "ready",

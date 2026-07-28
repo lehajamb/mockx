@@ -31,6 +31,10 @@ def test_initial_snapshot_has_explicit_market_data_envelope():
 def test_live_committed_book_mutation_reaches_connected_client():
     exchange = make_exchange()
     with TestClient(exchange.app) as client:
+        assert client.post(
+            "/api/v1/session/start",
+            json={"run_id": "websocket-live"},
+        ).status_code == 200
         with client.websocket_connect("/ws/TEST") as websocket:
             assert websocket.receive_json()["sequence"] == 0
             exchange.engine.submit_order(
@@ -61,9 +65,13 @@ def test_live_committed_book_mutation_reaches_connected_client():
 
 def test_fill_reaches_client_once_with_committed_trade_fields():
     exchange = make_exchange()
-    process_order(exchange, "ASK", Side.SELL, 2.0, 100.0)
 
     with TestClient(exchange.app) as client:
+        assert client.post(
+            "/api/v1/session/start",
+            json={"run_id": "websocket-fill"},
+        ).status_code == 200
+        process_order(exchange, "ASK", Side.SELL, 2.0, 100.0)
         with client.websocket_connect("/ws/TEST") as websocket:
             initial = websocket.receive_json()
             process_order(exchange, "TAKER", Side.BUY, 2.0, 100.0)
@@ -73,7 +81,7 @@ def test_fill_reaches_client_once_with_committed_trade_fields():
     assert update["asks"] == []
     assert update["trades"] == [
         {
-            "trade_id": "1",
+            "trade_id": "G00000001-T00000001",
             "price": 100.0,
             "qty": 2.0,
             "aggressor_side": "BUY",
@@ -85,6 +93,10 @@ def test_fill_reaches_client_once_with_committed_trade_fields():
 def test_two_clients_each_receive_one_copy():
     exchange = make_exchange()
     with TestClient(exchange.app) as client:
+        assert client.post(
+            "/api/v1/session/start",
+            json={"run_id": "websocket-two"},
+        ).status_code == 200
         with client.websocket_connect("/ws/TEST") as first:
             with client.websocket_connect("/ws/TEST") as second:
                 first.receive_json()
@@ -115,6 +127,7 @@ class FakeWebSocket:
 @pytest.mark.asyncio
 async def test_failed_client_is_removed_without_blocking_healthy_client():
     exchange = make_exchange()
+    await exchange.lifecycle.start_session("websocket-failure")
     healthy = FakeWebSocket()
     failed = FakeWebSocket(fail=True)
     await exchange.api.registry.add("TEST", healthy)

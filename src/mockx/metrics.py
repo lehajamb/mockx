@@ -392,7 +392,7 @@ class MetricsCollector:
         self._accepted_order_ids: set[int] = set()
         self._filled_order_ids: set[int] = set()
         self._seen_report_exec_ids: set[str] = set()
-        self._seen_trade_ids: set[int] = set()
+        self._seen_trade_ids: set[str] = set()
 
         self.registry = None
         self._prom_counters: Dict[str, Any] = {}
@@ -414,9 +414,18 @@ class MetricsCollector:
         self._engine = engine
         self.refresh_engine_gauges()
 
-    def start_new_engine_generation(self) -> None:
-        """Allow deterministic IDs to restart after an explicit engine reset."""
+    def reset_run_metrics(self) -> None:
+        """Reset run-local statistics without resetting process collectors."""
         with self._lock:
+            connected_sessions = self._counts["connected_sessions"]
+            for name in self._counts:
+                self._counts[name] = 0
+            self._counts["connected_sessions"] = connected_sessions
+            for name in self._totals:
+                self._totals[name] = 0.0
+            for name in self._latency_sums:
+                self._latency_sums[name] = 0.0
+                self._latency_counts[name] = 0
             self._submitted_order_ids.clear()
             self._accepted_order_ids.clear()
             self._filled_order_ids.clear()
@@ -601,10 +610,14 @@ class MetricsCollector:
 
     def record_trade(self, trade: Trade) -> bool:
         """Count each immutable fill/trade record exactly once."""
+        identity = (
+            trade.exchange_trade_id
+            or f"G{trade.run_generation:08d}-T{trade.id:08d}"
+        )
         with self._lock:
-            if trade.id in self._seen_trade_ids:
+            if identity in self._seen_trade_ids:
                 return False
-            self._seen_trade_ids.add(trade.id)
+            self._seen_trade_ids.add(identity)
             self._increment_locked("trades")
             self._totals["traded_quantity"] += trade.qty
             self._totals["traded_notional"] += trade.price * trade.qty

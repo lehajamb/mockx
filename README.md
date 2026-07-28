@@ -12,7 +12,8 @@ InfluxDB persistence.
 - Inclusive time advancement: events exactly at the requested target execute.
 - Atomic order-book quantity accounting and invariant checks.
 - Limit and market orders with GTC and IOC lifecycle rules.
-- Session-scoped `ClOrdID` identity and execution-report routing.
+- Stable-FIX-session-scoped `ClOrdID` identity and execution-report routing.
+- Atomic simulation lifecycle transitions and generation-aware public IDs.
 - One execution report per order side and per fill.
 - Frozen market-data snapshots containing only scalar values.
 - A global per-exchange market-data sequence.
@@ -42,8 +43,22 @@ Supported orders are limit and market orders with GTC or IOC. Replace
 - A wholly unfilled GTC limit receives `NEW` and rests.
 - Each fill creates passive then aggressor trade reports at the same simulated
   timestamp; scheduler FIFO sequence preserves that order.
-- `ClOrdID` uniqueness is scoped to the stable FIX session, not the process.
+- Accepted `ClOrdID` uniqueness is scoped to the stable QuickFIX `SessionID`.
+  Its history survives transport replacement, logout/relogon, and simulation
+  reset; it is cleared only by process restart. A distinct `SessionID` has an
+  independent scope.
 - A cancel can affect only the owning session's live order.
+
+Public exchange identifiers include the successful simulation-run generation:
+
+| FIX/public field | Format |
+|---|---|
+| `OrderID` | `G{generation:08d}-O{counter:08d}` |
+| `ExecID` | `G{generation:08d}-E{counter:08d}` |
+| `TradeID` | `G{generation:08d}-T{counter:08d}` |
+
+Engine and gateway rejection reports share the same run scope. Numeric engine
+handles remain internal and are not serialized as FIX or WebSocket IDs.
 
 Real matching and serialization durations use a monotonic wall clock.
 Configured network, engine, and end-to-end latency values use simulated time.
@@ -51,9 +66,11 @@ The two clock domains are reported with distinct units.
 
 ## 3. Architecture
 
-`MockExchange` owns one scheduler, engine, metrics collector, FIX application,
-optional FIX acceptor, `ExchangeAPI`, and FastAPI app. The retained references
-are:
+`MockExchange` owns one lifecycle coordinator, scheduler, engine, metrics
+collector, FIX application, optional FIX acceptor, `ExchangeAPI`, and FastAPI
+app. The lifecycle coordinator's one asynchronous lock serializes component
+startup/shutdown, session start/end, scheduler advancement, full run reset, and
+committed FIX ingress. The retained references are:
 
 ```python
 exchange.api                 # ExchangeAPI
@@ -63,6 +80,7 @@ exchange.app.state.engine
 exchange.app.state.scheduler
 exchange.app.state.metrics
 exchange.app.state.session_registry
+exchange.lifecycle           # ExchangeLifecycle
 ```
 
 No route inspection or closure internals are used to recover ownership.
@@ -100,10 +118,12 @@ scheduler:
 ```
 
 In `external` mode, only `POST /admin/advance-time` or direct test calls move
-the simulated clock. Submitting a FIX order queues events; it does not process
-them until time advances.
+the simulated clock. The route requires an `ACTIVE` simulation session;
+`STOPPED` returns `409 SESSION_NOT_ACTIVE`. Submitting a FIX order queues
+events; it does not process them until time advances.
 
-The optional `realtime` mode advances simulated time by
+The optional `realtime` mode advances simulated time only while the lifecycle
+is `ACTIVE`, by
 `scheduler.interval_ms` after each non-busy asyncio interval. Event ordering
 remains deterministic at a given simulated timestamp, but the relationship to
 machine scheduling is necessarily nondeterministic. Manual advancement returns
@@ -349,6 +369,11 @@ when a new simulation session resets the engine. Session start closes existing
 WebSockets so clients reconnect across that boundary. Sequence state is not
 persisted across process restarts.
 
+WebSocket registration is lifecycle-gated. A connection attempted during
+`STARTING` or `ENDING` receives an error envelope and close code 1013. Delayed
+snapshots from an older run generation are discarded, so they cannot reach
+clients registered after a reset.
+
 Broadcasting copies the connection registry to a tuple before sending, holds no
 registry lock across network awaits, removes failed clients afterward, and
 does not let one client block another. Serialization uses the already-created
@@ -375,14 +400,48 @@ isolated network. CORS defaults to no allowed cross-origin callers.
 | POST | `/api/v1/session/end` | Flush metrics, return final stats, end active simulation session |
 | POST | `/admin/advance-time` | Inclusively process events through an absolute UTC target or positive delta |
 
-Starting while a session is active returns `409 SESSION_ALREADY_ACTIVE`.
+The exchange-wide lifecycle is:
+
+| State | Simulation behavior |
+|---|---|
+| `STOPPED` | Administrative start is available; FIX application ingress and time advancement are rejected |
+| `STARTING` | Ingress is gated while the previous buffer is flushed and all run state is reset |
+| `ACTIVE` | FIX application ingress and the configured clock mode are enabled |
+| `ENDING` | Ingress is gated while persistence and final run statistics are captured |
+| `FAILED` | A destructive reset failed; readiness and mutating routes remain unavailable until process restart |
+
+`/readyz` reports `components.lifecycle` and returns 503 during transitions or
+in `FAILED`. Simulation-state REST reads also return
+`503 LIFECYCLE_TRANSITION_IN_PROGRESS` during `STARTING`/`ENDING`. `/healthz`
+and `/metrics` remain available. FIX application messages receive session
+Reject (`35=3`) with `RefMsgType` and one stable text code:
+`LIFECYCLE_TRANSITION_IN_PROGRESS`, `SESSION_NOT_ACTIVE`,
+`SCHEDULER_FAILED`, `LIFECYCLE_CHANGED`, or `LIFECYCLE_FAILED`. Gated messages
+do not reserve `ClOrdID`, consume run identifiers, or enter run metrics.
+
+Starting while active returns `409 SESSION_ALREADY_ACTIVE`. A successful start
+flushes inactive metrics, closes WebSockets, resets scheduler/engine/latency and
+run-local statistics, reseeds the RNG from `execution.random_seed`, assigns
+`last_successful_generation + 1`, installs fresh identifier counters, and only
+then publishes `ACTIVE`. A failure before destructive reset work restores
+`STOPPED`; a failure after it begins returns `503 SESSION_START_FAILED`, enters
+`FAILED`, and requires process restart.
+
 Ending with no active session is idempotent and returns
-`status="no_active_session"`. Session end does not drain pending scheduler
-events or clear a failure; its `final_stats` preserves the failed state and
-dead-letter diagnostic. To recover, end the failed active session and start a
-new named session. Session start resets the engine, queue, clock, event
-sequence, failure count, retained exception, and dead letter, returning the
-scheduler to `RUNNING`.
+`status="no_active_session"` with null `session_id`, `run_generation`, and
+`final_stats`. A successful end returns the ended run ID, generation, and only
+that run's statistics. It does not drain or clear pending scheduler events:
+they remain frozen and observable in `final_stats`, cannot execute while
+stopped, and are discarded by the next successful start. A failed scheduler's
+dead letter is therefore retained in final statistics; end the run and start a
+new one to reset it.
+
+Lifecycle error codes are:
+
+| HTTP | Code |
+|---:|---|
+| 409 | `SESSION_ALREADY_ACTIVE`, `SESSION_NOT_ACTIVE`, `TIME_REVERSAL`, `CLOCK_MODE_CONFLICT` |
+| 503 | `LIFECYCLE_TRANSITION_IN_PROGRESS`, `LIFECYCLE_FAILED`, `SESSION_START_FAILED`, `SESSION_END_FAILED`, `METRICS_FLUSH_FAILED`, `SCHEDULER_FAILED` |
 
 Absolute advancement accepts any aware offset and normalizes it to UTC:
 
@@ -423,9 +482,12 @@ timestamp and returns:
 
 ## 10. Metrics and observability
 
-`GET /stats` returns a JSON-safe point-in-time view. `GET /metrics` exposes the
-same process's isolated Prometheus registry on the API port; there is no
-separate metrics server or metrics host port.
+`GET /stats` returns a JSON-safe point-in-time view. Its order, trade, report,
+latency, and persistence-failure counters are reset at every successful run
+start; the connected-session value remains a live gauge. Successful end
+captures the snapshot before clearing the active run tag. `GET /metrics`
+exposes process-lifetime monotonic Prometheus collectors from the same
+process's isolated registry on the API port; there is no separate metrics server or metrics host port.
 
 Compose does not deploy a Prometheus server, Grafana, provisioning, or
 prebuilt dashboards. Scrape `mockx1:8000/metrics` and
@@ -493,10 +555,18 @@ prometheus:
 Matching consumes all immediately executable liquidity. Partial fills occur
 naturally only when the book cannot fill the complete order.
 
+`execution.random_seed` is stored explicitly and must be an integer. Every
+successful start restores that seed and the epoch initial simulated time. For
+the same configuration and command sequence, matching decisions, fills,
+simulated timestamps, event order, and local identifier suffixes repeat across
+runs. The generation prefix intentionally changes, and monotonic wall-clock
+latency measurements are not part of deterministic replay.
+
 Startup validation rejects missing fields, duplicate/empty symbols, invalid
-ports, unsupported scheduler modes, nonpositive intervals, stale timeouts not
-greater than heartbeat cadence, nonpositive event-processing limits, wildcard
-CORS, and incomplete enabled TSDB configuration.
+ports, noninteger random seeds, unsupported scheduler modes, nonpositive
+intervals, stale timeouts not greater than heartbeat cadence, nonpositive
+event-processing limits, wildcard CORS, and incomplete enabled TSDB
+configuration.
 
 `CFG_PATH` and `FIX_CONFIG_FILE` select the YAML and QuickFIX files.
 `INFLUXDB_URL`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET`

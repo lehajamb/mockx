@@ -111,22 +111,26 @@ def test_post_mutation_engine_failure_cannot_look_healthy(
 ):
     exchange = make_exchange()
     later_events = []
-    order_id = _submit_scheduled_limit_order(exchange)
-    order = exchange.engine.orders[order_id]
-
-    def fail_after_claim(order, _book):
-        assert order.processed is True
-        raise RuntimeError("matching failed after processing claim")
-
-    monkeypatch.setattr(
-        exchange.engine,
-        "_process_limit_order",
-        fail_after_claim,
-    )
-    exchange.scheduler.register_handler("later", later_events.append)
-    exchange.scheduler.schedule_event("later", "must-not-run", 1)
 
     with TestClient(exchange.app) as client:
+        assert client.post(
+            "/api/v1/session/start",
+            json={"run_id": "post-mutation-failure"},
+        ).status_code == 200
+        order_id = _submit_scheduled_limit_order(exchange)
+        order = exchange.engine.orders[order_id]
+
+        def fail_after_claim(order, _book):
+            assert order.processed is True
+            raise RuntimeError("matching failed after processing claim")
+
+        monkeypatch.setattr(
+            exchange.engine,
+            "_process_limit_order",
+            fail_after_claim,
+        )
+        exchange.scheduler.register_handler("later", later_events.append)
+        exchange.scheduler.schedule_event("later", "must-not-run", 1)
         response = client.post(
             "/admin/advance-time",
             json={"milliseconds": 1},
@@ -182,6 +186,7 @@ async def test_realtime_scheduler_freezes_after_failure_and_resumes_on_reset():
         lambda _data: (_ for _ in ()).throw(RuntimeError("realtime boom")),
     )
     exchange.scheduler.register_handler("later", later_events.append)
+    await exchange.lifecycle.start_session("realtime-failed")
     exchange.scheduler.schedule_event("fail", None, 0)
     exchange.scheduler.schedule_event("later", "frozen", 0)
 
@@ -199,7 +204,8 @@ async def test_realtime_scheduler_freezes_after_failure_and_resumes_on_reset():
         assert later_events == []
         assert exchange.scheduler.current_time == failed_time
 
-        exchange.scheduler.reset()
+        await exchange.lifecycle.end_session()
+        await exchange.lifecycle.start_session("realtime-recovered")
         exchange.scheduler.schedule_event("later", "after-reset", 0)
         for _ in range(100):
             if later_events:

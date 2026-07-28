@@ -54,7 +54,10 @@ def execution_report_fields(report: ExecutionReport) -> Dict[str, object]:
         "ExecID": report.exec_id,
         "ExecType": EXEC_TYPE_FIX_VALUES[report.exec_type],
         "OrdStatus": ORD_STATUS_FIX_VALUES[report.ord_status],
-        "OrderID": str(report.order_id),
+        "OrderID": (
+            report.exchange_order_id
+            or f"G{report.run_generation:08d}-O{report.order_id:08d}"
+        ),
         "Symbol": report.symbol,
         "Side": SIDE_FIX_VALUES[report.side],
         "LeavesQty": report.leaves_qty,
@@ -67,7 +70,10 @@ def execution_report_fields(report: ExecutionReport) -> Dict[str, object]:
     if report.orig_cl_ord_id is not None:
         fields["OrigClOrdID"] = report.orig_cl_ord_id
     if report.trade_id is not None:
-        fields["TradeID"] = str(report.trade_id)
+        fields["TradeID"] = (
+            report.exchange_trade_id
+            or f"G{report.run_generation:08d}-T{report.trade_id:08d}"
+        )
     if report.order_price is not None:
         fields["Price"] = report.order_price
     if report.last_px is not None:
@@ -95,5 +101,8 @@ def cancel_reject_fields(reject: CancelReject) -> Dict[str, object]:
         "Text": reject.text,
     }
     if reject.order_id is not None:
-        fields["OrderID"] = str(reject.order_id)
+        fields["OrderID"] = (
+            reject.exchange_order_id
+            or f"G{0:08d}-O{reject.order_id:08d}"
+        )
     return fields

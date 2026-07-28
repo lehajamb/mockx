@@ -59,6 +59,19 @@ def load_config(config_path: str) -> dict:
         raise ValueError("symbols must not contain duplicates")
     config["symbols"] = normalized_symbols
 
+    execution = config["execution"]
+    if "reject_prob" not in execution:
+        raise ValueError(
+            "Missing required configuration field: execution.reject_prob"
+        )
+    if "random_seed" not in execution:
+        raise ValueError(
+            "Missing required configuration field: execution.random_seed"
+        )
+    random_seed = execution["random_seed"]
+    if not isinstance(random_seed, int) or isinstance(random_seed, bool):
+        raise ValueError("execution.random_seed must be an integer")
+
     admin_api = config["admin_api"]
     admin_api.setdefault("host", "127.0.0.1")
     admin_api.setdefault("enabled", True)
