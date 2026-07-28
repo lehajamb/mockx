@@ -239,7 +239,7 @@ def test_metrics_record_report_snapshot_not_live_order():
     report = new_report(order)
     fill_order(order)
 
-    collector = MetricsCollector("TEST-EXCHANGE", tsdb_writer=object())
+    collector = MetricsCollector("TEST-EXCHANGE")
     captured = {}
 
     def capture_point(measurement, tags, fields, timestamp_ns):

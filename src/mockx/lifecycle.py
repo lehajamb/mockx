@@ -192,7 +192,7 @@ class ExchangeLifecycle:
                 identifiers = RunIdentifierScope(generation)
                 self.engine.install_identifier_scope(identifiers)
                 self.fix_app.reset_run_state(identifiers)
-                self.metrics.set_run_id(run_id)
+                self.metrics.start_run(run_id)
 
                 self.run_id = run_id
                 self.run_generation = generation
@@ -210,7 +210,7 @@ class ExchangeLifecycle:
                     starting_time=self.scheduler.current_time,
                 )
             except Exception as exc:
-                self.metrics.set_run_id(None)
+                self.metrics.end_run()
                 self.run_id = None
                 self._publish(LifecycleState.FAILED)
                 logger.exception("Session start failed after destructive reset")
@@ -251,7 +251,7 @@ class ExchangeLifecycle:
                     "Simulation session end failed; the run remains active",
                 ) from exc
 
-            self.metrics.set_run_id(None)
+            self.metrics.end_run()
             self.run_id = None
             self._publish(LifecycleState.STOPPED)
             logger.info(

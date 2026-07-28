@@ -34,6 +34,19 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_EVENTS_PER_ADVANCE = 100_000
+UNIX_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def datetime_to_ns(value: datetime) -> int:
+    """Convert a timezone-aware datetime to exact integer Unix nanoseconds."""
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("Timestamp must be timezone-aware")
+    delta = value.astimezone(timezone.utc) - UNIX_EPOCH
+    total_microseconds = (
+        (delta.days * 86_400 + delta.seconds) * 1_000_000
+        + delta.microseconds
+    )
+    return total_microseconds * 1_000
 
 
 class SchedulerError(RuntimeError):
@@ -182,7 +195,7 @@ class LatencyScheduler:
 
     def current_time_ns(self) -> int:
         """Get current simulated time in nanoseconds."""
-        return int(self.current_time.timestamp() * 1_000_000_000)
+        return datetime_to_ns(self.current_time)
 
     def register_handler(self, event_type: str, handler: Callable) -> None:
         """Register a handler for a specific event type."""
