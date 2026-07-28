@@ -548,17 +548,11 @@ class MatchingEngine:
         )
         
     def _send_execution_report(self, report: ExecutionReport) -> None:
-        """Send execution report with network latency."""
+        """Publish one immutable report to the application delivery boundary."""
         self._notify_observer(
             "execution report",
             self.on_execution_report,
             report,
-        )
-
-        self.scheduler.schedule_execution_report(
-            report,
-            self.exec_params.network_latency_ms,
-            outbound_ms=self.exec_params.simulated_outbound_latency_ms,
         )
             
     @staticmethod
@@ -823,6 +817,7 @@ class MatchingEngine:
     ) -> CancelReject:
         reject = create_cancel_reject(
             command,
+            reject_id=self.identifier_scope.next_cancel_reject_id(),
             reason=reason,
             text=text,
             timestamp=self.scheduler.current_time,

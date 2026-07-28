@@ -83,6 +83,21 @@ def load_config(config_path: str) -> dict:
     if not isinstance(admin_api["enabled"], bool):
         raise ValueError("admin_api.enabled must be true or false")
 
+    fix_config = config.setdefault("fix", {})
+    fix_config.setdefault("delivery_retry_interval_ms", 1_000)
+    fix_config.setdefault("delivery_max_attempts_per_cycle", 3)
+    for field in (
+        "delivery_retry_interval_ms",
+        "delivery_max_attempts_per_cycle",
+    ):
+        value = fix_config[field]
+        if (
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or value <= 0
+        ):
+            raise ValueError(f"fix.{field} must be a positive integer")
+
     scheduler = config.setdefault("scheduler", {})
     scheduler.setdefault("mode", "external")
     scheduler.setdefault("interval_ms", 10)

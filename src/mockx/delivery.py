@@ -1,0 +1,419 @@
+"""Process-lifetime reliable application delivery for outbound FIX reports."""
+
+from __future__ import annotations
+
+from collections import defaultdict, deque
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
+import math
+import threading
+from typing import Callable, Deque, Dict, Iterable, Optional
+
+from .models import (
+    CancelReject,
+    ExecutionReport,
+    FixDeliveryMessageType,
+    FixDeliveryQueueSnapshot,
+    FixDeliveryState,
+    OutboundFixDelivery,
+    SessionIdentity,
+)
+
+
+class FixDeliverySerializationError(RuntimeError):
+    """A deterministic payload-to-FIX serialization failure."""
+
+
+class OutboundFixDeliveryQueue:
+    """Thread-safe owner of immutable delivery-state snapshots."""
+
+    def __init__(
+        self,
+        *,
+        retry_interval_ms: int = 1_000,
+        max_attempts_per_cycle: int = 3,
+        wall_clock: Optional[Callable[[], datetime]] = None,
+    ) -> None:
+        for name, value in (
+            ("retry_interval_ms", retry_interval_ms),
+            ("max_attempts_per_cycle", max_attempts_per_cycle),
+        ):
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or value <= 0
+            ):
+                raise ValueError(f"{name} must be a positive integer")
+        self.retry_interval_ms = retry_interval_ms
+        self.max_attempts_per_cycle = max_attempts_per_cycle
+        self._wall_clock = wall_clock or (lambda: datetime.now(timezone.utc))
+        self._lock = threading.RLock()
+        self._records: Dict[str, OutboundFixDelivery] = {}
+        self._record_order: list[str] = []
+        self._domain_index: Dict[str, str] = {}
+        self._session_queues: Dict[str, Deque[str]] = defaultdict(deque)
+        self._next_session_sequence: Dict[str, int] = defaultdict(int)
+        self._attempts = 0
+        self._failures = 0
+        self._delivered = 0
+        self._permanently_failed = 0
+
+    @property
+    def wall_time(self) -> datetime:
+        value = self._wall_clock()
+        if value.tzinfo is None:
+            raise ValueError("Delivery wall clock must be timezone-aware")
+        return value
+
+    def enqueue(
+        self,
+        *,
+        delivery_id: str,
+        destination: SessionIdentity,
+        payload: ExecutionReport | CancelReject,
+        simulated_due_timestamp: datetime,
+    ) -> tuple[OutboundFixDelivery, bool]:
+        """Insert one logical payload, deduplicated by its domain identity."""
+        if isinstance(payload, ExecutionReport):
+            message_type = FixDeliveryMessageType.EXECUTION_REPORT
+            domain_id = payload.exec_id
+        elif isinstance(payload, CancelReject):
+            message_type = FixDeliveryMessageType.ORDER_CANCEL_REJECT
+            domain_id = payload.reject_id
+        else:
+            raise TypeError(f"Unsupported FIX delivery payload: {type(payload)}")
+
+        with self._lock:
+            existing_id = self._domain_index.get(domain_id)
+            if existing_id is not None:
+                existing = self._records[existing_id]
+                if (
+                    existing.payload != payload
+                    or existing.destination.session_id
+                    != destination.session_id
+                ):
+                    raise ValueError(
+                        f"Conflicting payload for delivery domain ID {domain_id}"
+                    )
+                return existing, False
+            if delivery_id in self._records:
+                raise ValueError(f"Duplicate FIX delivery ID {delivery_id}")
+
+            session_id = destination.session_id
+            session_sequence = self._next_session_sequence[session_id]
+            self._next_session_sequence[session_id] = session_sequence + 1
+            record = OutboundFixDelivery(
+                delivery_id=delivery_id,
+                session_sequence=session_sequence,
+                run_generation=payload.run_generation,
+                destination=destination,
+                message_type=message_type,
+                payload=payload,
+                domain_id=domain_id,
+                simulated_due_timestamp=simulated_due_timestamp,
+                enqueued_at=self.wall_time,
+            )
+            self._records[delivery_id] = record
+            self._record_order.append(delivery_id)
+            self._domain_index[domain_id] = delivery_id
+            self._session_queues[session_id].append(delivery_id)
+            return record, True
+
+    def get(self, delivery_id: str) -> OutboundFixDelivery:
+        with self._lock:
+            return self._records[delivery_id]
+
+    def snapshot_records(self) -> tuple[OutboundFixDelivery, ...]:
+        with self._lock:
+            return tuple(
+                self._records[delivery_id]
+                for delivery_id in self._record_order
+            )
+
+    def mark_due(self, delivery_id: str) -> OutboundFixDelivery:
+        with self._lock:
+            record = self._records[delivery_id]
+            if record.state in {
+                FixDeliveryState.DELIVERED,
+                FixDeliveryState.PERMANENTLY_FAILED,
+            }:
+                return record
+            record = replace(
+                record,
+                state=FixDeliveryState.DUE,
+                next_retry_timestamp=None,
+            )
+            self._records[delivery_id] = record
+            return record
+
+    def head_ready(self, session_id: str) -> Optional[OutboundFixDelivery]:
+        with self._lock:
+            queue = self._session_queues.get(session_id)
+            if not queue:
+                return None
+            record = self._records[queue[0]]
+            return record if record.state == FixDeliveryState.DUE else None
+
+    def note_unavailable(
+        self,
+        delivery_id: str,
+        *,
+        reason: str,
+    ) -> OutboundFixDelivery:
+        with self._lock:
+            record = self._require_due_head_locked(delivery_id)
+            self._failures += 1
+            record = replace(
+                record,
+                state=FixDeliveryState.RETRY_PENDING,
+                last_failure_reason=reason,
+                next_retry_timestamp=None,
+            )
+            self._records[delivery_id] = record
+            return record
+
+    def start_attempt(
+        self,
+        delivery_id: str,
+        *,
+        simulated_timestamp: datetime,
+    ) -> OutboundFixDelivery:
+        with self._lock:
+            record = self._require_due_head_locked(delivery_id)
+            self._attempts += 1
+            record = replace(
+                record,
+                attempt_count=record.attempt_count + 1,
+                cycle_attempt_count=record.cycle_attempt_count + 1,
+                last_attempt_at=self.wall_time,
+                last_attempt_simulated_at=simulated_timestamp,
+                last_failure_reason=None,
+            )
+            self._records[delivery_id] = record
+            return record
+
+    def record_transport_failure(
+        self,
+        delivery_id: str,
+        *,
+        reason: str,
+        simulated_timestamp: datetime,
+    ) -> OutboundFixDelivery:
+        with self._lock:
+            record = self._require_due_head_locked(delivery_id)
+            self._failures += 1
+            next_retry = (
+                simulated_timestamp
+                + timedelta(milliseconds=self.retry_interval_ms)
+                if record.cycle_attempt_count < self.max_attempts_per_cycle
+                else None
+            )
+            record = replace(
+                record,
+                state=FixDeliveryState.RETRY_PENDING,
+                last_failure_reason=reason,
+                next_retry_timestamp=next_retry,
+            )
+            self._records[delivery_id] = record
+            return record
+
+    def record_permanent_failure(
+        self,
+        delivery_id: str,
+        *,
+        reason: str,
+    ) -> OutboundFixDelivery:
+        with self._lock:
+            record = self._records[delivery_id]
+            if record.state == FixDeliveryState.PERMANENTLY_FAILED:
+                return record
+            record = self._require_due_head_locked(delivery_id)
+            self._failures += 1
+            self._permanently_failed += 1
+            record = replace(
+                record,
+                state=FixDeliveryState.PERMANENTLY_FAILED,
+                last_failure_reason=reason,
+                next_retry_timestamp=None,
+            )
+            self._records[delivery_id] = record
+            return record
+
+    def record_delivered(
+        self,
+        delivery_id: str,
+    ) -> OutboundFixDelivery:
+        with self._lock:
+            record = self._records[delivery_id]
+            if record.state == FixDeliveryState.DELIVERED:
+                return record
+            if record.state == FixDeliveryState.PERMANENTLY_FAILED:
+                raise ValueError(
+                    f"Cannot deliver permanently failed record {delivery_id}"
+                )
+            record = self._require_due_head_locked(delivery_id)
+            queue = self._session_queues[record.destination.session_id]
+            record = replace(
+                record,
+                state=FixDeliveryState.DELIVERED,
+                delivered_at=self.wall_time,
+                last_failure_reason=None,
+                next_retry_timestamp=None,
+            )
+            self._records[delivery_id] = record
+            queue.popleft()
+            self._delivered += 1
+            return record
+
+    def start_reconnect_cycle(
+        self,
+        session_id: str,
+    ) -> Optional[OutboundFixDelivery]:
+        with self._lock:
+            queue = self._session_queues.get(session_id)
+            if not queue:
+                return None
+            record = self._records[queue[0]]
+            if record.state not in {
+                FixDeliveryState.DUE,
+                FixDeliveryState.RETRY_PENDING,
+            }:
+                return None
+            record = replace(
+                record,
+                state=FixDeliveryState.DUE,
+                cycle_attempt_count=0,
+                next_retry_timestamp=None,
+            )
+            self._records[record.delivery_id] = record
+            return record
+
+    def prepare_after_scheduler_reset(
+        self,
+        current_simulated_time: datetime,
+    ) -> tuple[tuple[str, int], ...]:
+        """Return nonterminal records to schedule in the new scheduler generation."""
+        scheduled: list[tuple[str, int]] = []
+        with self._lock:
+            for delivery_id in self._record_order:
+                record = self._records[delivery_id]
+                if record.state in {
+                    FixDeliveryState.DELIVERED,
+                    FixDeliveryState.PERMANENTLY_FAILED,
+                }:
+                    continue
+                if record.state == FixDeliveryState.PENDING:
+                    seconds = (
+                        record.simulated_due_timestamp
+                        - current_simulated_time
+                    ).total_seconds()
+                    delay_ms = max(0, math.ceil(seconds * 1_000))
+                else:
+                    delay_ms = 0
+                    record = replace(
+                        record,
+                        state=FixDeliveryState.DUE,
+                        cycle_attempt_count=0,
+                        next_retry_timestamp=None,
+                    )
+                    self._records[delivery_id] = record
+                scheduled.append((delivery_id, delay_ms))
+        return tuple(scheduled)
+
+    def pending_order_keys(self) -> set[tuple[int, int]]:
+        with self._lock:
+            return {
+                (record.run_generation, record.payload.order_id)
+                for record in self._nonterminal_records_locked()
+                if (
+                    isinstance(record.payload, ExecutionReport)
+                    and record.payload.order_id > 0
+                )
+            }
+
+    def pending_cancel_keys(self) -> set[tuple[int, int]]:
+        with self._lock:
+            keys: set[tuple[int, int]] = set()
+            for record in self._nonterminal_records_locked():
+                payload = record.payload
+                ingress_sequence = (
+                    payload.cancel_ingress_sequence
+                    if isinstance(payload, ExecutionReport)
+                    else payload.ingress_sequence
+                )
+                if ingress_sequence is not None:
+                    keys.add((payload.run_generation, ingress_sequence))
+            return keys
+
+    def snapshot(
+        self,
+        *,
+        now: Optional[datetime] = None,
+    ) -> FixDeliveryQueueSnapshot:
+        current = now or self.wall_time
+        with self._lock:
+            records = tuple(self._records.values())
+            states = {
+                state: sum(record.state == state for record in records)
+                for state in FixDeliveryState
+            }
+            nonterminal = tuple(
+                record
+                for record in records
+                if record.state != FixDeliveryState.DELIVERED
+            )
+            oldest = (
+                max(
+                    0.0,
+                    (
+                        current
+                        - min(record.enqueued_at for record in nonterminal)
+                    ).total_seconds(),
+                )
+                if nonterminal
+                else None
+            )
+            sessions_with_backlog = sum(
+                bool(queue) for queue in self._session_queues.values()
+            )
+            return FixDeliveryQueueSnapshot(
+                enqueued=len(records),
+                queue_depth=len(nonterminal),
+                pending=states[FixDeliveryState.PENDING],
+                due=states[FixDeliveryState.DUE],
+                retry_pending=states[FixDeliveryState.RETRY_PENDING],
+                delivered=states[FixDeliveryState.DELIVERED],
+                permanently_failed=states[
+                    FixDeliveryState.PERMANENTLY_FAILED
+                ],
+                abandoned=0,
+                sessions_with_backlog=sessions_with_backlog,
+                attempts=self._attempts,
+                failures=self._failures,
+                oldest_pending_age_seconds=oldest,
+            )
+
+    def _nonterminal_records_locked(
+        self,
+    ) -> Iterable[OutboundFixDelivery]:
+        return (
+            record
+            for record in self._records.values()
+            if record.state != FixDeliveryState.DELIVERED
+        )
+
+    def _require_due_head_locked(
+        self,
+        delivery_id: str,
+    ) -> OutboundFixDelivery:
+        record = self._records[delivery_id]
+        if record.state != FixDeliveryState.DUE:
+            raise ValueError(
+                f"Delivery {delivery_id} is not due: {record.state.value}"
+            )
+        queue = self._session_queues.get(record.destination.session_id)
+        if not queue or queue[0] != delivery_id:
+            raise ValueError(
+                f"Delivery {delivery_id} is not the session FIFO head"
+            )
+        return record

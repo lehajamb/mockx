@@ -6,12 +6,17 @@ except ModuleNotFoundError:  # Pure report mapping and non-FIX tests remain impo
     fix = None
 import asyncio
 from concurrent.futures import Future
+from datetime import timedelta
 import logging
 from typing import Callable, Dict, Optional, Union
 import math
 import threading
 
 from .identifiers import RunIdentifierScope
+from .delivery import (
+    FixDeliverySerializationError,
+    OutboundFixDeliveryQueue,
+)
 from .lifecycle import (
     ExchangeLifecycle,
     IngressToken,
@@ -24,6 +29,7 @@ from .models import (
     CancelOrderCommand,
     ExecutionReport,
     ExecutionType,
+    FixDeliveryState,
     FixCommandType,
     FixIngressEnvelope,
     IngressBarrier,
@@ -167,10 +173,13 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         *,
         session_registry: Optional[SessionRegistry] = None,
         transport_sender: Optional[
-            Callable[[object, RoutableReport], None]
+            Callable[[object, RoutableReport], object]
         ] = None,
         monotonic_clock: Optional[MonotonicClock] = None,
         lifecycle: Optional[ExchangeLifecycle] = None,
+        delivery_queue: Optional[OutboundFixDeliveryQueue] = None,
+        delivery_retry_interval_ms: int = 1_000,
+        delivery_max_attempts_per_cycle: int = 3,
     ):
         super().__init__()
         self.engine = engine
@@ -180,6 +189,12 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         self.transport_sender = transport_sender or self._send_to_quickfix
         self.monotonic_clock = monotonic_clock or PerfCounterClock()
         self.lifecycle = lifecycle
+        self.delivery_queue = delivery_queue or OutboundFixDeliveryQueue(
+            retry_interval_ms=delivery_retry_interval_ms,
+            max_attempts_per_cycle=delivery_max_attempts_per_cycle,
+        )
+        self._draining_sessions: set[str] = set()
+        self._draining_sessions_lock = threading.Lock()
         self._metric_suppression = threading.local()
         self.identifier_scope = engine.identifier_scope
         self.loop = None
@@ -236,6 +251,14 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         self.metrics.set_connected_sessions(
             self.session_registry.connected_count
         )
+        loop = self.loop
+        if loop is not None and not loop.is_closed():
+            loop.call_soon_threadsafe(
+                self.retry_pending_for_session,
+                identity.session_id,
+            )
+        elif loop is None:
+            self.retry_pending_for_session(identity.session_id)
 
     def unregister_session(
         self,
@@ -859,7 +882,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             order_version=0,
         )
         self.metrics.record_order(report)
-        self.process_execution_report(report)
+        self.enqueue_report(report)
 
     def handle_order_cancel_request(
         self,
@@ -959,12 +982,13 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 )
                 rejection = create_cancel_reject(
                     invalid_command,
+                    reject_id=self.identifier_scope.next_cancel_reject_id(),
                     reason=CancelRejectReason.INVALID_REQUEST,
                     text=error_text,
                     timestamp=self.engine.scheduler.current_time,
                 )
                 self.metrics.record_cancel_reject(rejection)
-                self.process_cancel_reject(rejection)
+                self.enqueue_report(rejection)
 
             self._schedule_lifecycle_action(
                 sessionID,
@@ -1038,27 +1062,26 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         self,
         transport_session: object,
         report: RoutableReport,
-    ) -> None:
+    ) -> bool:
         """Serialize and send through QuickFIX at the adapter boundary."""
         if fix is None:
             raise RuntimeError("QuickFIX is unavailable")
-        if isinstance(report, ExecutionReport):
-            self._send_quickfix_execution_report(
-                transport_session,
-                report,
-            )
-        else:
-            self._send_quickfix_cancel_reject(
-                transport_session,
-                report,
-            )
+        try:
+            if isinstance(report, ExecutionReport):
+                message = self._send_quickfix_execution_report(report)
+            else:
+                message = self._send_quickfix_cancel_reject(report)
+        except Exception as exc:
+            raise FixDeliverySerializationError(
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
+        return bool(fix.Session.sendToTarget(message, transport_session))
 
     def _send_quickfix_execution_report(
         self,
-        transport_session: object,
         report: ExecutionReport,
-    ) -> None:
-        """Serialize one immutable execution report and send it."""
+    ):
+        """Serialize one immutable execution report."""
         serialize_start_ns = self.monotonic_clock.now_ns()
         fields = execution_report_fields(report)
         msg = fix.Message()
@@ -1121,14 +1144,13 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     },
                 )
 
-        fix.Session.sendToTarget(msg, transport_session)
+        return msg
 
     def _send_quickfix_cancel_reject(
         self,
-        transport_session: object,
         cancel_reject: CancelReject,
-    ) -> None:
-        """Serialize and send one immutable OrderCancelReject."""
+    ):
+        """Serialize one immutable OrderCancelReject."""
         fields = cancel_reject_fields(cancel_reject)
         reject = fix.Message()
         reject.getHeader().setField(fix.MsgType(fix.MsgType_OrderCancelReject))
@@ -1150,7 +1172,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         reject.setField(fix.CxlRejReason(int(fields["CxlRejReason"])))
         reject.setField(fix.Text(str(fields["Text"])))
 
-        fix.Session.sendToTarget(reject, transport_session)
+        return reject
 
     def send_market_data_reject(self, sessionID, md_req_id: str, text: str):
         """Send MarketDataRequestReject (35=Y) message."""
@@ -1179,80 +1201,246 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         
         fix.Session.sendToTarget(reject, sessionID)
         
-    def process_execution_report(self, report: ExecutionReport) -> bool:
-        """Deliver strictly to the immutable report destination."""
-        delivered = self._deliver_report(report)
-        if delivered and report.cancel_ingress_sequence is None:
-            try:
+    def enqueue_report(
+        self,
+        report: RoutableReport,
+        *,
+        delay_ms: Optional[int] = None,
+    ):
+        """Persist one immutable logical report before scheduling its due event."""
+        session_id = report_destination_id(report)
+        if not session_id:
+            logger.debug(
+                "Skipping FIX delivery for report without a destination",
+                extra={"report_type": type(report).__name__},
+            )
+            return None
+        resolved_delay = (
+            self.engine.exec_params.simulated_outbound_latency_ms
+            if delay_ms is None
+            else delay_ms
+        )
+        if (
+            not isinstance(resolved_delay, int)
+            or isinstance(resolved_delay, bool)
+            or resolved_delay < 0
+        ):
+            raise ValueError("FIX delivery delay must be a non-negative integer")
+        identity = self.session_registry.resolve_identity(session_id)
+        if identity is None:
+            identity = SessionIdentity(
+                session_id=session_id,
+                alias=report.session_alias,
+            )
+        record, fresh = self.delivery_queue.enqueue(
+            delivery_id=self.identifier_scope.next_delivery_id(),
+            destination=identity,
+            payload=report,
+            simulated_due_timestamp=(
+                self.engine.scheduler.current_time
+                + timedelta(milliseconds=resolved_delay)
+            ),
+        )
+        if fresh:
+            self.metrics.record_fix_delivery_enqueued()
+            self.engine.scheduler.schedule_event(
+                "fix_delivery_due",
+                record.delivery_id,
+                resolved_delay,
+            )
+            self._refresh_delivery_metrics()
+        return record
+
+    def process_delivery_due(self, delivery_id: str) -> None:
+        """Mark one delivery due and attempt the destination FIFO."""
+        record = self.delivery_queue.mark_due(delivery_id)
+        self._refresh_delivery_metrics()
+        if record.state in {
+            FixDeliveryState.DELIVERED,
+            FixDeliveryState.PERMANENTLY_FAILED,
+        }:
+            return
+        self._drain_session(record.destination.session_id)
+
+    def retry_pending_for_session(self, session_id: str) -> None:
+        """Begin a fresh bounded retry cycle after a stable-session logon."""
+        record = self.delivery_queue.start_reconnect_cycle(session_id)
+        if record is None:
+            return
+        self._refresh_delivery_metrics()
+        self._drain_session(session_id)
+
+    def reschedule_deliveries_after_reset(self) -> None:
+        """Reinstall nonterminal delivery events after scheduler reset."""
+        for delivery_id, delay_ms in (
+            self.delivery_queue.prepare_after_scheduler_reset(
+                self.engine.scheduler.current_time
+            )
+        ):
+            self.engine.scheduler.schedule_event(
+                "fix_delivery_due",
+                delivery_id,
+                delay_ms,
+            )
+        self._refresh_delivery_metrics()
+
+    def _drain_session(self, session_id: str) -> None:
+        with self._draining_sessions_lock:
+            if session_id in self._draining_sessions:
+                return
+            self._draining_sessions.add(session_id)
+        try:
+            while True:
+                record = self.delivery_queue.head_ready(session_id)
+                if record is None:
+                    return
+                transport = self.session_registry.resolve_transport(session_id)
+                if transport is None:
+                    self.delivery_queue.note_unavailable(
+                        record.delivery_id,
+                        reason="FIX session is disconnected",
+                    )
+                    self.metrics.record_report_delivery_failure(record.payload)
+                    self.metrics.record_fix_delivery_failure()
+                    self._refresh_delivery_metrics()
+                    logger.warning(
+                        "FIX delivery retained for disconnected session",
+                        extra={
+                            "delivery_id": record.delivery_id,
+                            "domain_id": record.domain_id,
+                            "session_id": session_id,
+                        },
+                    )
+                    return
+
+                attempted = self.delivery_queue.start_attempt(
+                    record.delivery_id,
+                    simulated_timestamp=self.engine.scheduler.current_time,
+                )
+                self.metrics.record_fix_delivery_attempt()
+                self._refresh_delivery_metrics()
+                try:
+                    result = self.transport_sender(
+                        transport,
+                        attempted.payload,
+                    )
+                except FixDeliverySerializationError as exc:
+                    self.delivery_queue.record_permanent_failure(
+                        attempted.delivery_id,
+                        reason=str(exc),
+                    )
+                    self.metrics.record_report_delivery_failure(
+                        attempted.payload
+                    )
+                    self.metrics.record_fix_delivery_failure(permanent=True)
+                    self._refresh_delivery_metrics()
+                    logger.exception(
+                        "FIX delivery permanently failed serialization",
+                        extra={
+                            "delivery_id": attempted.delivery_id,
+                            "domain_id": attempted.domain_id,
+                            "session_id": session_id,
+                        },
+                    )
+                    return
+                except Exception as exc:
+                    self._record_retryable_failure(attempted, exc)
+                    return
+                if result is False:
+                    self._record_retryable_failure(
+                        attempted,
+                        RuntimeError("QuickFIX sendToTarget returned False"),
+                    )
+                    return
+
+                delivered = self.delivery_queue.record_delivered(
+                    attempted.delivery_id
+                )
+                self.metrics.record_fix_delivery_success()
+                self._refresh_delivery_metrics()
+                self._complete_delivery(delivered.payload)
+        finally:
+            with self._draining_sessions_lock:
+                self._draining_sessions.discard(session_id)
+
+    def _record_retryable_failure(
+        self,
+        record,
+        exc: BaseException,
+    ) -> None:
+        failed = self.delivery_queue.record_transport_failure(
+            record.delivery_id,
+            reason=f"{type(exc).__name__}: {exc}",
+            simulated_timestamp=self.engine.scheduler.current_time,
+        )
+        self.metrics.record_report_delivery_failure(record.payload)
+        self.metrics.record_fix_delivery_failure()
+        self._refresh_delivery_metrics()
+        logger.warning(
+            "FIX delivery failed and was retained",
+            extra={
+                "delivery_id": record.delivery_id,
+                "domain_id": record.domain_id,
+                "session_id": record.destination.session_id,
+                "attempt_count": failed.attempt_count,
+                "last_failure_reason": failed.last_failure_reason,
+            },
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+        if failed.next_retry_timestamp is not None:
+            self.engine.scheduler.schedule_event(
+                "fix_delivery_due",
+                failed.delivery_id,
+                self.delivery_queue.retry_interval_ms,
+            )
+
+    def _complete_delivery(self, report: RoutableReport) -> None:
+        try:
+            if isinstance(report, CancelReject):
+                self.latency_tracker.cancel_report_delivered(
+                    report,
+                    delivered_at=self.engine.scheduler.current_time,
+                )
+                return
+            if report.cancel_ingress_sequence is None:
                 self.latency_tracker.report_delivered(
                     report,
                     self.engine.scheduler.current_time,
                 )
-            except Exception:
-                logger.exception(
-                    "Report delivery latency observer failed",
-                    extra={
-                        "order_id": report.order_id,
-                        "session_id": report.session_id,
-                        "report_type": type(report).__name__,
-                    },
+            else:
+                self.latency_tracker.cancel_report_delivered(
+                    report,
+                    delivered_at=self.engine.scheduler.current_time,
                 )
-        return delivered
-
-    def process_cancel_reject(self, cancel_reject: CancelReject) -> bool:
-        """Deliver a cancel reject strictly to its immutable destination."""
-        return self._deliver_report(cancel_reject)
-
-    def send_execution_report(self, report: ExecutionReport) -> bool:
-        """Compatibility alias for immutable execution-report delivery."""
-        return self.process_execution_report(report)
-
-    def send_cancel_reject(self, cancel_reject: CancelReject) -> bool:
-        """Compatibility alias for immutable cancel-reject delivery."""
-        return self.process_cancel_reject(cancel_reject)
-
-    def _deliver_report(self, report: RoutableReport) -> bool:
-        session_id = report_destination_id(report)
-        transport = (
-            self.session_registry.resolve_transport(session_id)
-            if session_id
-            else None
-        )
-        if transport is None:
-            self.metrics.record_report_delivery_failure(report)
-            logger.warning(
-                "FIX report destination is unknown or disconnected",
-                extra={
-                    "order_id": report.order_id,
-                    "session_id": session_id,
-                    "cl_ord_id": (
-                        report.cl_ord_id
-                        if isinstance(report, ExecutionReport)
-                        else report.cancel_cl_ord_id
-                    ),
-                    "report_type": type(report).__name__,
-                },
-            )
-            return False
-        try:
-            self.transport_sender(transport, report)
+            if (
+                report.ord_status in {
+                    OrderStatus.FILLED,
+                    OrderStatus.REJECTED,
+                    OrderStatus.CANCELLED,
+                }
+                and self.latency_tracker.complete_order(report)
+            ):
+                self.latency_tracker.cleanup_order(
+                    report.order_id,
+                    run_generation=report.run_generation,
+                )
         except Exception:
-            self.metrics.record_report_delivery_failure(report)
             logger.exception(
-                "FIX report delivery failed",
+                "FIX delivery completion observer failed",
                 extra={
-                    "order_id": report.order_id,
-                    "session_id": session_id,
-                    "cl_ord_id": (
-                        report.cl_ord_id
+                    "domain_id": (
+                        report.exec_id
                         if isinstance(report, ExecutionReport)
-                        else report.cancel_cl_ord_id
+                        else report.reject_id
                     ),
-                    "report_type": type(report).__name__,
+                    "session_id": report.session_id,
                 },
             )
-            return False
-        return True
+
+    def _refresh_delivery_metrics(self) -> None:
+        self.metrics.update_fix_delivery_gauges(
+            self.delivery_queue.snapshot()
+        )
             
     def _get_field(self, message, field):
         """

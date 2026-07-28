@@ -4,6 +4,7 @@ import pytest
 import asyncio
 from pathlib import Path
 from src.mockx.main import MockExchange
+from src.mockx.cli import load_config
 from src.mockx.models import NewOrderCommand, Order, OrderStatus, Side, TimeInForce
 from datetime import datetime, timezone
 
@@ -120,6 +121,40 @@ def test_config_loading():
     required_fields = ["exchange_name", "symbols", "latency", "execution", "admin_api"]
     for field in required_fields:
         assert field in config
+
+
+def test_fix_delivery_retry_config_defaults_and_validation(tmp_path):
+    config_path = tmp_path / "mockx.yml"
+    config_path.write_text(
+        """
+exchange_name: Test
+symbols: [TEST]
+latency: {network_ms: 0, engine_ms: 0}
+execution: {reject_prob: 0.0, random_seed: 42}
+admin_api: {port: 8999}
+""".strip(),
+        encoding="utf-8",
+    )
+    loaded = load_config(str(config_path))
+    assert loaded["fix"]["delivery_retry_interval_ms"] == 1_000
+    assert loaded["fix"]["delivery_max_attempts_per_cycle"] == 3
+
+    config_path.write_text(
+        """
+exchange_name: Test
+symbols: [TEST]
+latency: {network_ms: 0, engine_ms: 0}
+execution: {reject_prob: 0.0, random_seed: 42}
+admin_api: {port: 8999}
+fix: {delivery_retry_interval_ms: 0}
+""".strip(),
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        ValueError,
+        match="fix.delivery_retry_interval_ms must be a positive integer",
+    ):
+        load_config(str(config_path))
 
 
 @pytest.mark.asyncio

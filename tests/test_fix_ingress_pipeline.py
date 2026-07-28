@@ -375,7 +375,7 @@ async def test_cancel_reject_uses_all_four_cancel_latency_series():
 
 
 @pytest.mark.asyncio
-async def test_cancel_delivery_failure_is_not_retried_or_counted_as_delivery():
+async def test_cancel_delivery_failure_is_retained_for_bounded_retry():
     exchange = _exchange()
     sessions, _ = await _start(exchange)
     attempts = []
@@ -394,7 +394,7 @@ async def test_cancel_delivery_failure_is_not_retried_or_counted_as_delivery():
         await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
 
         assert len(attempts) == 1
-        assert exchange.scheduler.get_pending_count() == 0
+        assert exchange.scheduler.get_pending_count() == 1
         assert exchange.metrics.snapshot().report_delivery_failures == 1
         cancel_metrics = {
             sample.metric
@@ -405,7 +405,7 @@ async def test_cancel_delivery_failure_is_not_retried_or_counted_as_delivery():
             "mockx_sim_cancel_inbound_latency_seconds",
             "mockx_sim_cancel_engine_latency_seconds",
         }
-        assert exchange.latency_tracker.cancels == {}
+        assert exchange.latency_tracker.cancels
     finally:
         await _stop(exchange)
 

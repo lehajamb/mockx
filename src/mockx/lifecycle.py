@@ -183,7 +183,14 @@ class ExchangeLifecycle:
             try:
                 self.scheduler.reset()
                 self.engine.reset_run_state()
-                self.latency_tracker.reset()
+                self.latency_tracker.reset(
+                    preserve_order_keys=(
+                        self.fix_app.delivery_queue.pending_order_keys()
+                    ),
+                    preserve_cancel_keys=(
+                        self.fix_app.delivery_queue.pending_cancel_keys()
+                    ),
+                )
                 self.metrics.reset_run_metrics()
                 self.metrics.refresh_engine_gauges()
                 self.engine.reseed_rng()
@@ -193,6 +200,7 @@ class ExchangeLifecycle:
                 self.engine.install_identifier_scope(identifiers)
                 self.fix_app.reset_run_state(identifiers)
                 self.metrics.start_run(run_id)
+                self.fix_app.reschedule_deliveries_after_reset()
 
                 self.run_id = run_id
                 self.run_generation = generation
