@@ -1,3 +1,4 @@
+from tests.exact_helpers import exact_engine, exact_metrics
 """Per-client WebSocket queue, sender, and isolation regressions."""
 
 import asyncio
@@ -79,7 +80,7 @@ class ControlledWebSocket:
 
 @pytest.mark.asyncio
 async def test_initial_snapshot_is_pinned_before_racing_broadcast():
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     registry = WebSocketRegistry(
         metrics,
         queue_capacity=8,
@@ -107,7 +108,7 @@ async def test_initial_snapshot_is_pinned_before_racing_broadcast():
 
 @pytest.mark.asyncio
 async def test_blocked_client_does_not_block_healthy_client_same_symbol():
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     registry = WebSocketRegistry(
         metrics,
         queue_capacity=8,
@@ -174,7 +175,7 @@ async def test_blocked_client_does_not_delay_rest_scheduler_or_publication():
         )
         await wait_until(lambda: len(healthy_socket.messages) == 1)
 
-        process_order(exchange, "ISOLATED", Side.BUY, 1.0, 100.0)
+        process_order(exchange, "ISOLATED", Side.BUY, 1, 100)
         await wait_until(lambda: len(healthy_socket.messages) == 2)
         book = await asyncio.wait_for(client.get("/book/TEST"), timeout=0.1)
 
@@ -187,7 +188,7 @@ async def test_blocked_client_does_not_delay_rest_scheduler_or_publication():
         )
 
         assert book.status_code == 200
-        assert book.json()["bids"][0]["price"] == 100.0
+        assert book.json()["bids"][0]["price"] == "100.00"
         assert advanced.status_code == 200
         assert handled == ["advanced"]
         assert blocked_socket.messages == []
@@ -200,7 +201,7 @@ async def test_blocked_client_does_not_delay_rest_scheduler_or_publication():
 
 @pytest.mark.asyncio
 async def test_blocked_client_on_one_symbol_does_not_block_another_symbol():
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     registry = WebSocketRegistry(
         metrics,
         queue_capacity=8,
@@ -323,7 +324,7 @@ async def test_fatal_error_and_close_retain_priority_after_initial():
 
 @pytest.mark.asyncio
 async def test_send_timeout_disconnects_slow_client_and_records_metrics():
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     registry = WebSocketRegistry(
         metrics,
         queue_capacity=8,
@@ -352,7 +353,7 @@ async def test_send_timeout_disconnects_slow_client_and_records_metrics():
 
 @pytest.mark.asyncio
 async def test_explicit_disconnect_cancels_sender_and_clears_queue():
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     registry = WebSocketRegistry(
         metrics,
         queue_capacity=8,
@@ -379,7 +380,7 @@ async def test_explicit_disconnect_cancels_sender_and_clears_queue():
 
 @pytest.mark.asyncio
 async def test_one_sender_serializes_concurrent_snapshot_and_heartbeat_enqueues():
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     registry = WebSocketRegistry(
         metrics,
         queue_capacity=8,
@@ -415,7 +416,7 @@ async def test_one_sender_serializes_concurrent_snapshot_and_heartbeat_enqueues(
 
 @pytest.mark.asyncio
 async def test_websocket_prometheus_metrics_are_unlabeled_and_cleanup_to_zero():
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     registry = WebSocketRegistry(
         metrics,
         queue_capacity=8,

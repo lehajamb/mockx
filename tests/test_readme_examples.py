@@ -1,3 +1,4 @@
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Executable docs, OpenAPI, routes, and browser contract checks."""
 
 from pathlib import Path
@@ -94,12 +95,13 @@ def test_documented_in_process_session_workflow_processes_an_order():
         assert started.status_code == 200
 
         exchange.engine.submit_order(
-            NewOrderCommand(
+            exact_command(
                 cl_ord_id="QUICKSTART-1",
+                participant_id="QUICKSTART-1",
                 symbol="TEST",
                 side=Side.BUY,
-                qty=2.0,
-                price=100.0,
+                order_qty_lots=2,
+                price_ticks=100,
                 tif=TimeInForce.GTC,
                 submitted_at=exchange.scheduler.current_time,
                 session_id="FIX.4.4:CLIENT->MOCKX",
@@ -116,7 +118,7 @@ def test_documented_in_process_session_workflow_processes_an_order():
 
     assert advanced.status_code == 200
     assert advanced.json()["events_processed"] == 3
-    assert book.json()["bids"][0]["qty"] == 2.0
+    assert book.json()["bids"][0]["qty"] == "2.000"
     assert stats.json()["orders"]["submitted"] == 1
     assert ended.status_code == 200
     assert ended.json()["status"] == "session_ended"

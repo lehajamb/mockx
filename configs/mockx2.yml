@@ -1,7 +1,15 @@
 exchange_name: "MockX-2"
-symbols:
-  - BTC-USDT
-  - ETH-USDT
+instruments:
+  BTC-USDT:
+    tick_size: "0.01"
+    lot_size: "0.001"
+    price_display_precision: 2
+    quantity_display_precision: 3
+  ETH-USDT:
+    tick_size: "0.01"
+    lot_size: "0.001"
+    price_display_precision: 2
+    quantity_display_precision: 3
 latency:
   network_ms: 100
   engine_ms: 20
@@ -16,6 +24,8 @@ fix:
   enabled: true
   delivery_retry_interval_ms: 1000
   delivery_max_attempts_per_cycle: 3
+  session_participants:
+    "FIX.4.4:MOCKX2->CLIENT2": "participant-2"
 scheduler:
   mode: "external"
   interval_ms: 10
@@ -41,3 +51,6 @@ tsdb:
   org: "mockx-org"
   bucket: "mockx"
   batch_size: 1000
+  buffer_capacity: 10000
+  retry_interval_ms: 1000
+  timeout_ms: 10000

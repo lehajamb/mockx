@@ -1,3 +1,4 @@
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Actual WebSocket delivery plus registry and browser policy tests."""
 
 import asyncio
@@ -41,12 +42,13 @@ def test_live_committed_book_mutation_reaches_connected_client():
         with client.websocket_connect("/ws/TEST") as websocket:
             assert websocket.receive_json()["sequence"] == 0
             exchange.engine.submit_order(
-                NewOrderCommand(
+                exact_command(
                     cl_ord_id="BID",
+                    participant_id="BID",
                     symbol="TEST",
                     side=Side.BUY,
-                    qty=3.0,
-                    price=100.0,
+                    order_qty_lots=3,
+                    price_ticks=100,
                     tif=TimeInForce.GTC,
                     submitted_at=exchange.scheduler.current_time,
                     session_id="FIX.4.4:CLIENT->MOCKX",
@@ -62,7 +64,7 @@ def test_live_committed_book_mutation_reaches_connected_client():
 
     assert update["type"] == "market_data"
     assert update["sequence"] == 1
-    assert update["bids"][0]["qty"] == 3.0
+    assert update["bids"][0]["qty"] == "3.000"
     assert update["bids"][0]["order_count"] == 1
 
 
@@ -74,10 +76,10 @@ def test_fill_reaches_client_once_with_committed_trade_fields():
             "/api/v1/session/start",
             json={"run_id": "websocket-fill"},
         ).status_code == 200
-        process_order(exchange, "ASK", Side.SELL, 2.0, 100.0)
+        process_order(exchange, "ASK", Side.SELL, 2, 100)
         with client.websocket_connect("/ws/TEST") as websocket:
             initial = websocket.receive_json()
-            process_order(exchange, "TAKER", Side.BUY, 2.0, 100.0)
+            process_order(exchange, "TAKER", Side.BUY, 2, 100)
             update = websocket.receive_json()
 
     assert update["sequence"] == initial["sequence"] + 1
@@ -85,8 +87,8 @@ def test_fill_reaches_client_once_with_committed_trade_fields():
     assert update["trades"] == [
         {
             "trade_id": "G00000001-T00000001",
-            "price": 100.0,
-            "qty": 2.0,
+            "price": "100.00",
+            "qty": "2.000",
             "aggressor_side": "BUY",
             "timestamp": "1970-01-01T00:00:00Z",
         }
@@ -104,7 +106,7 @@ def test_two_clients_each_receive_one_copy():
             with client.websocket_connect("/ws/TEST") as second:
                 first.receive_json()
                 second.receive_json()
-                process_order(exchange, "BID", Side.BUY, 1.0, 10.0)
+                process_order(exchange, "BID", Side.BUY, 1, 10)
                 first_update = first.receive_json()
                 second_update = second.receive_json()
 
@@ -242,8 +244,12 @@ def test_browser_clears_missing_side_and_derived_statistics():
     ).read_text(encoding="utf-8")
     script = template.split("<script>", 1)[1]
 
-    assert "bestBid === null ? '-' : bestBid.toFixed(2)" in script
-    assert "bestAsk === null ? '-' : bestAsk.toFixed(2)" in script
+    assert "bestBid === null ? '-' : bestBid" in script
+    assert "bestAsk === null ? '-' : bestAsk" in script
+    assert "Number.parseFloat(bestBid)" in script
+    assert "Number.parseFloat(bestAsk)" in script
+    assert "bid.price.toFixed" not in script
+    assert "ask.qty.toFixed" not in script
     assert "spreadElement.textContent = '-'" in script
     assert "midElement.textContent = '-'" in script
 

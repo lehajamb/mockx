@@ -61,22 +61,22 @@ def test_instance_yaml_contracts_load_and_match_internal_api_port():
     first = load_config(str(ROOT / "configs" / "mockx1.yml"))
     second = load_config(str(ROOT / "configs" / "mockx2.yml"))
 
-    assert first["admin_api"]["port"] == 8000
-    assert second["admin_api"]["port"] == 8000
-    assert first["admin_api"]["host"] == "0.0.0.0"
-    assert second["admin_api"]["host"] == "0.0.0.0"
-    assert first["scheduler"]["mode"] == "external"
-    assert second["scheduler"]["mode"] == "external"
-    assert first["scheduler"]["max_events_per_advance"] == 100_000
-    assert second["scheduler"]["max_events_per_advance"] == 100_000
+    assert first.admin_api.port == 8000
+    assert second.admin_api.port == 8000
+    assert first.admin_api.host == "0.0.0.0"
+    assert second.admin_api.host == "0.0.0.0"
+    assert first.scheduler.mode == "external"
+    assert second.scheduler.mode == "external"
+    assert first.scheduler.max_events_per_advance == 100_000
+    assert second.scheduler.max_events_per_advance == 100_000
     for config in (first, second):
-        assert config["websocket"]["outbound_queue_capacity"] == 8
-        assert config["websocket"]["send_timeout_seconds"] == 5
-        assert config["websocket"]["heartbeat_stale_seconds"] == 30
-        assert config["websocket"]["reconnect_initial_seconds"] == 1
-        assert config["websocket"]["reconnect_max_seconds"] == 30
-        assert config["websocket"]["staleness_check_seconds"] == 1
-    assert first["tsdb"]["bucket"] == second["tsdb"]["bucket"]
+        assert config.websocket.outbound_queue_capacity == 8
+        assert config.websocket.send_timeout_seconds == 5
+        assert config.websocket.heartbeat_stale_seconds == 30
+        assert config.websocket.reconnect_initial_seconds == 1
+        assert config.websocket.reconnect_max_seconds == 30
+        assert config.websocket.staleness_check_seconds == 1
+    assert first.tsdb.bucket == second.tsdb.bucket
 
 
 def test_scheduler_processing_limit_defaults_and_validates(tmp_path):
@@ -88,9 +88,7 @@ def test_scheduler_processing_limit_defaults_and_validates(tmp_path):
     default_path.write_text(yaml.safe_dump(source), encoding="utf-8")
 
     assert (
-        load_config(str(default_path))["scheduler"][
-            "max_events_per_advance"
-        ]
+        load_config(str(default_path)).scheduler.max_events_per_advance
         == 100_000
     )
 
@@ -99,7 +97,7 @@ def test_scheduler_processing_limit_defaults_and_validates(tmp_path):
     invalid_path.write_text(yaml.safe_dump(source), encoding="utf-8")
     with pytest.raises(
         ValueError,
-        match="max_events_per_advance must be a positive integer",
+        match="scheduler.max_events_per_advance:",
     ):
         load_config(str(invalid_path))
 
@@ -114,7 +112,7 @@ def test_execution_random_seed_is_required_and_must_be_an_integer(tmp_path):
 
     with pytest.raises(
         ValueError,
-        match="Missing required configuration field: execution.random_seed",
+        match="execution.random_seed: Field required",
     ):
         load_config(str(missing_path))
 
@@ -123,7 +121,7 @@ def test_execution_random_seed_is_required_and_must_be_an_integer(tmp_path):
     invalid_path.write_text(yaml.safe_dump(source), encoding="utf-8")
     with pytest.raises(
         ValueError,
-        match="execution.random_seed must be an integer",
+        match="execution.random_seed:",
     ):
         load_config(str(invalid_path))
 
@@ -134,32 +132,32 @@ def test_execution_random_seed_is_required_and_must_be_an_integer(tmp_path):
         (
             "outbound_queue_capacity",
             0,
-            "websocket.outbound_queue_capacity must be a positive integer",
+            "websocket.outbound_queue_capacity:",
         ),
         (
             "send_timeout_seconds",
             0,
-            "websocket.send_timeout_seconds must be positive",
+            "websocket.send_timeout_seconds:",
         ),
         (
             "heartbeat_stale_seconds",
             10,
-            "websocket.heartbeat_stale_seconds must exceed heartbeat cadence",
+            "websocket: heartbeat_stale_seconds must exceed heartbeat cadence",
         ),
         (
             "reconnect_initial_seconds",
             0,
-            "websocket.reconnect_initial_seconds must be positive",
+            "websocket.reconnect_initial_seconds:",
         ),
         (
             "reconnect_max_seconds",
             0.5,
-            "websocket.reconnect_max_seconds must be at least reconnect_initial_seconds",
+            "websocket: reconnect_max_seconds must be at least reconnect_initial_seconds",
         ),
         (
             "staleness_check_seconds",
             0,
-            "websocket.staleness_check_seconds must be positive",
+            "websocket.staleness_check_seconds:",
         ),
     ],
 )

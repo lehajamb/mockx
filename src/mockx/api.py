@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 import logging
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
@@ -17,6 +18,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from prometheus_client import CONTENT_TYPE_LATEST
@@ -30,16 +32,23 @@ from pydantic import (
 )
 from starlette.responses import Response
 
-from .engine import MatchingEngine
+from .configuration import ExchangeConfig
+from .engine import DuplicateClientOrderID, MatchingEngine
 from .gateway import FIXApplication
 from .latency import SchedulerFailedError
 from .lifecycle import (
     ExchangeLifecycle,
     LifecycleError,
+    LifecycleIngressRejected,
     LifecycleState,
 )
 from .metrics import MetricsCollector
-from .models import MarketDataSnapshot, SchedulerState
+from .models import MarketDataSnapshot, OrderStatus, SchedulerState
+from .validation import (
+    OrderNormalizer,
+    OrderValidationError,
+    RawOrderInput,
+)
 from .websocket_delivery import WebSocketConnection, WebSocketRegistry
 
 
@@ -74,12 +83,12 @@ class SymbolsResponse(BaseModel):
 
 
 class PriceLevelResponse(BaseModel):
-    price: float = Field(description="Price for this level")
-    qty: float = Field(description="Total remaining quantity at this price")
-    strategy_qty: float = Field(
+    price: str = Field(description="Canonical decimal price")
+    qty: str = Field(description="Canonical decimal remaining quantity")
+    strategy_qty: str = Field(
         description="Quantity attributed to the strategy session category"
     )
-    market_qty: float = Field(
+    market_qty: str = Field(
         description="Quantity attributed to all other session categories"
     )
     order_count: int = Field(
@@ -89,8 +98,8 @@ class PriceLevelResponse(BaseModel):
 
 class TradeResponse(BaseModel):
     trade_id: str
-    price: float
-    qty: float
+    price: str
+    qty: str
     aggressor_side: Literal["BUY", "SELL"]
     timestamp: datetime
 
@@ -138,9 +147,9 @@ class OrdersStats(BaseModel):
 
 class TradesStats(BaseModel):
     count: int
-    quantity: float
-    notional: float
-    canceled_quantity: float
+    quantity: str
+    notional: str
+    canceled_quantity: str
 
 
 class CancellationStats(BaseModel):
@@ -327,15 +336,34 @@ class AdvanceTimeRequest(BaseModel):
         return self
 
 
-# Compatibility name used by older callers.
-TimeSyncBody = AdvanceTimeRequest
-
-
 class AdvanceTimeResponse(BaseModel):
     previous_time: datetime
     current_time: datetime
     events_processed: int
     pending_events: int
+
+
+class SubmitOrderRequest(BaseModel):
+    """Exact REST order values; numeric fields intentionally remain text."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    session_id: str
+    participant_id: str
+    cl_ord_id: str
+    symbol: str
+    side: str
+    order_type: str
+    quantity: str
+    price: Optional[str] = None
+    time_in_force: Optional[str] = None
+
+
+class SubmitOrderResponse(BaseModel):
+    order_id: str
+    internal_order_id: int
+    cl_ord_id: str
+    status: Literal["PENDING_NEW"]
 
 
 def _api_error(status_code: int, code: str, message: str) -> HTTPException:
@@ -346,26 +374,35 @@ def _api_error(status_code: int, code: str, message: str) -> HTTPException:
 
 
 def _book_payload(snapshot: MarketDataSnapshot) -> dict[str, Any]:
+    instrument = snapshot.instrument
     return {
         "symbol": snapshot.symbol,
         "sequence": snapshot.sequence,
         "timestamp": snapshot.timestamp,
         "bids": [
             {
-                "price": level.price,
-                "qty": level.qty,
-                "strategy_qty": level.strategy_qty,
-                "market_qty": level.market_qty,
+                "price": instrument.format_price(level.price_ticks),
+                "qty": instrument.format_quantity(level.level_qty_lots),
+                "strategy_qty": instrument.format_quantity(
+                    level.strategy_qty_lots
+                ),
+                "market_qty": instrument.format_quantity(
+                    level.market_qty_lots
+                ),
                 "order_count": level.order_count,
             }
             for level in snapshot.bids
         ],
         "asks": [
             {
-                "price": level.price,
-                "qty": level.qty,
-                "strategy_qty": level.strategy_qty,
-                "market_qty": level.market_qty,
+                "price": instrument.format_price(level.price_ticks),
+                "qty": instrument.format_quantity(level.level_qty_lots),
+                "strategy_qty": instrument.format_quantity(
+                    level.strategy_qty_lots
+                ),
+                "market_qty": instrument.format_quantity(
+                    level.market_qty_lots
+                ),
                 "order_count": level.order_count,
             }
             for level in snapshot.asks
@@ -383,8 +420,12 @@ def market_data_message(
         trades=[
             {
                 "trade_id": trade.trade_id,
-                "price": trade.price,
-                "qty": trade.qty,
+                "price": snapshot.instrument.format_price(
+                    trade.price_ticks
+                ),
+                "qty": snapshot.instrument.format_quantity(
+                    trade.qty_lots
+                ),
                 "aggressor_side": trade.aggressor_side.value,
                 "timestamp": trade.timestamp,
             }
@@ -400,9 +441,10 @@ class ExchangeAPI:
         self,
         engine: MatchingEngine,
         metrics: MetricsCollector,
-        config: Dict[str, Any],
+        config: ExchangeConfig,
         fix_app: FIXApplication,
         *,
+        order_normalizer: OrderNormalizer,
         lifecycle_manager: Optional[Any] = None,
         session_lifecycle: Optional[ExchangeLifecycle] = None,
     ) -> None:
@@ -411,78 +453,30 @@ class ExchangeAPI:
         self.metrics = metrics
         self.config = config
         self.fix_app = fix_app
+        self.order_normalizer = order_normalizer
         self.lifecycle_manager = lifecycle_manager
         self.lifecycle = session_lifecycle
 
-        websocket_config = config.get("websocket", {})
-
-        def _positive_seconds(name: str, default: float) -> float:
-            value = websocket_config.get(name, default)
-            if (
-                not isinstance(value, (int, float))
-                or isinstance(value, bool)
-                or value <= 0
-            ):
-                raise ValueError(f"websocket.{name} must be positive")
-            return float(value)
-
-        self.heartbeat_interval_seconds = _positive_seconds(
-            "heartbeat_interval_seconds",
-            10.0,
+        websocket_config = config.websocket
+        self.heartbeat_interval_seconds = (
+            websocket_config.heartbeat_interval_seconds
         )
-        queue_capacity = websocket_config.get("outbound_queue_capacity", 8)
-        if (
-            not isinstance(queue_capacity, int)
-            or isinstance(queue_capacity, bool)
-            or queue_capacity <= 0
-        ):
-            raise ValueError(
-                "websocket.outbound_queue_capacity must be a positive integer"
-            )
-        self.websocket_queue_capacity = queue_capacity
-        self.websocket_send_timeout_seconds = _positive_seconds(
-            "send_timeout_seconds",
-            5.0,
+        self.websocket_queue_capacity = (
+            websocket_config.outbound_queue_capacity
         )
-        heartbeat_stale_seconds = _positive_seconds(
-            "heartbeat_stale_seconds",
-            30.0,
+        self.websocket_send_timeout_seconds = (
+            websocket_config.send_timeout_seconds
         )
-        market_data_stale_seconds = _positive_seconds(
-            "market_data_stale_seconds",
-            30.0,
+        heartbeat_stale_seconds = websocket_config.heartbeat_stale_seconds
+        market_data_stale_seconds = (
+            websocket_config.market_data_stale_seconds
         )
-        fallback_poll_seconds = _positive_seconds(
-            "fallback_poll_seconds",
-            2.0,
+        fallback_poll_seconds = websocket_config.fallback_poll_seconds
+        reconnect_initial_seconds = (
+            websocket_config.reconnect_initial_seconds
         )
-        reconnect_initial_seconds = _positive_seconds(
-            "reconnect_initial_seconds",
-            1.0,
-        )
-        reconnect_max_seconds = _positive_seconds(
-            "reconnect_max_seconds",
-            30.0,
-        )
-        staleness_check_seconds = _positive_seconds(
-            "staleness_check_seconds",
-            1.0,
-        )
-        if heartbeat_stale_seconds <= self.heartbeat_interval_seconds:
-            raise ValueError(
-                "websocket.heartbeat_stale_seconds must exceed "
-                "heartbeat cadence"
-            )
-        if market_data_stale_seconds <= self.heartbeat_interval_seconds:
-            raise ValueError(
-                "websocket.market_data_stale_seconds must exceed "
-                "heartbeat cadence"
-            )
-        if reconnect_max_seconds < reconnect_initial_seconds:
-            raise ValueError(
-                "websocket.reconnect_max_seconds must be at least "
-                "reconnect_initial_seconds"
-            )
+        reconnect_max_seconds = websocket_config.reconnect_max_seconds
+        staleness_check_seconds = websocket_config.staleness_check_seconds
         self.registry = WebSocketRegistry(
             metrics,
             queue_capacity=self.websocket_queue_capacity,
@@ -553,6 +547,34 @@ class ExchangeAPI:
             version="2.0.0",
             lifespan=lifespan,
         )
+
+        @self.app.exception_handler(RequestValidationError)
+        async def request_validation_error_handler(
+            request: Request,
+            exc: RequestValidationError,
+        ) -> JSONResponse:
+            del request
+            issues = sorted(
+                (
+                    ".".join(str(part) for part in error["loc"]),
+                    error["msg"],
+                )
+                for error in exc.errors()
+            )
+            message = "; ".join(
+                f"{path}: {description}"
+                for path, description in issues
+            )
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "detail": {
+                        "code": "REQUEST_VALIDATION_ERROR",
+                        "message": message,
+                    }
+                },
+            )
+
         self.app.state.exchange_api = self
         self.app.state.engine = self.engine
         self.app.state.scheduler = self.scheduler
@@ -575,7 +597,7 @@ class ExchangeAPI:
             ),
         }
 
-        origins = config.get("cors_origins", [])
+        origins = config.cors_origins
         if origins:
             self.app.add_middleware(
                 CORSMiddleware,
@@ -619,11 +641,7 @@ class ExchangeAPI:
         else:
             components["scheduler"] = (
                 "waiting_external"
-                if self.config.get("scheduler", {}).get(
-                    "mode",
-                    "external",
-                )
-                == "external"
+                if self.config.scheduler.mode == "external"
                 else "ready"
             )
         persistence_failures = (
@@ -726,7 +744,7 @@ class ExchangeAPI:
         @self.app.get("/", response_model=RootResponse)
         async def root() -> RootResponse:
             return RootResponse(
-                exchange=self.config["exchange_name"],
+                exchange=self.config.exchange_name,
                 status="running",
             )
 
@@ -764,6 +782,71 @@ class ExchangeAPI:
             self._require_stable_simulation_read()
             return SymbolsResponse(symbols=list(self.engine.books))
 
+        @self.app.post(
+            "/api/v1/orders",
+            response_model=SubmitOrderResponse,
+            status_code=202,
+            responses={
+                400: {"model": ErrorResponse},
+                409: {"model": ErrorResponse},
+                422: {"model": ErrorResponse},
+                503: {"model": ErrorResponse},
+            },
+        )
+        async def submit_order(
+            body: SubmitOrderRequest,
+        ) -> SubmitOrderResponse:
+            try:
+                command = self.order_normalizer.normalize(
+                    RawOrderInput(
+                        session_id=body.session_id,
+                        participant_id=body.participant_id,
+                        cl_ord_id=body.cl_ord_id,
+                        symbol=body.symbol,
+                        side=body.side,
+                        order_type=body.order_type,
+                        quantity=body.quantity,
+                        price=body.price,
+                        time_in_force=body.time_in_force,
+                    ),
+                    submitted_at=self.scheduler.current_time,
+                )
+                if self.lifecycle is None:
+                    internal_order_id = self.engine.submit_order(command)
+                else:
+                    token = self.lifecycle.token
+                    internal_order_id = await self.lifecycle.execute_ingress(
+                        token,
+                        lambda: self.engine.submit_order(command),
+                    )
+            except OrderValidationError as exc:
+                raise _api_error(
+                    422,
+                    exc.code.value,
+                    f"{exc.field}: {exc.message}",
+                ) from exc
+            except DuplicateClientOrderID as exc:
+                raise _api_error(
+                    400,
+                    "DUPLICATE_CL_ORD_ID",
+                    str(exc),
+                ) from exc
+            except LifecycleIngressRejected as exc:
+                raise _api_error(
+                    409 if exc.code == "SESSION_NOT_ACTIVE" else 503,
+                    exc.code,
+                    "Order submission is unavailable in the current lifecycle",
+                ) from exc
+            order = self.engine.orders[internal_order_id]
+            if order.status != OrderStatus.PENDING_NEW:
+                raise RuntimeError("Newly submitted REST order is not pending")
+            return SubmitOrderResponse(
+                order_id=order.exchange_order_id or str(order.id),
+                internal_order_id=order.id,
+                cl_ord_id=order.cl_ord_id,
+                status="PENDING_NEW",
+            )
+
         @self.app.get("/stats", response_model=StatsResponse)
         async def get_stats() -> StatsResponse:
             self._require_stable_simulation_read()
@@ -788,10 +871,19 @@ class ExchangeAPI:
         async def book_ui(request: Request, symbol: str):
             self._require_stable_simulation_read()
             snapshot = self._snapshot_or_404(symbol)
-            best_bid = snapshot.bids[0].price if snapshot.bids else None
-            best_ask = snapshot.asks[0].price if snapshot.asks else None
+            instrument = snapshot.instrument
+            best_bid = (
+                instrument.format_price(snapshot.bids[0].price_ticks)
+                if snapshot.bids
+                else None
+            )
+            best_ask = (
+                instrument.format_price(snapshot.asks[0].price_ticks)
+                if snapshot.asks
+                else None
+            )
             mid_price = (
-                (best_bid + best_ask) / 2
+                format((Decimal(best_bid) + Decimal(best_ask)) / 2, "f")
                 if best_bid is not None and best_ask is not None
                 else None
             )
@@ -802,16 +894,24 @@ class ExchangeAPI:
                     "symbol": snapshot.symbol,
                     "bids": [
                         {
-                            "price": level.price,
-                            "qty": level.qty,
+                            "price": instrument.format_price(
+                                level.price_ticks
+                            ),
+                            "qty": instrument.format_quantity(
+                                level.level_qty_lots
+                            ),
                             "orders": level.order_count,
                         }
                         for level in snapshot.bids[:10]
                     ],
                     "asks": [
                         {
-                            "price": level.price,
-                            "qty": level.qty,
+                            "price": instrument.format_price(
+                                level.price_ticks
+                            ),
+                            "qty": instrument.format_quantity(
+                                level.level_qty_lots
+                            ),
                             "orders": level.order_count,
                         }
                         for level in snapshot.asks[:10]
@@ -928,7 +1028,7 @@ class ExchangeAPI:
                 if connection is not None:
                     await self.registry.disconnect(connection)
 
-        if self.config.get("admin_api", {}).get("enabled", True):
+        if self.config.admin_api.enabled:
             self._setup_admin_routes()
 
     def _setup_admin_routes(self) -> None:
@@ -998,8 +1098,7 @@ class ExchangeAPI:
                 self.lifecycle.raise_if_transition_or_failed()
             except LifecycleError as exc:
                 self._raise_lifecycle_error(exc)
-            scheduler_config = self.config.get("scheduler", {})
-            if scheduler_config.get("mode", "external") != "external":
+            if self.config.scheduler.mode != "external":
                 raise _api_error(
                     409,
                     "CLOCK_MODE_CONFLICT",
@@ -1012,12 +1111,7 @@ class ExchangeAPI:
                 if body.target_time is not None:
                     target_time = body.target_time
                 else:
-                    max_advance = int(
-                        scheduler_config.get(
-                            "max_advance_ms",
-                            86_400_000,
-                        )
-                    )
+                    max_advance = self.config.scheduler.max_advance_ms
                     milliseconds = int(body.milliseconds or 0)
                     if milliseconds > max_advance:
                         raise _api_error(
@@ -1093,16 +1187,10 @@ class ExchangeAPI:
 def create_app(
     engine: MatchingEngine,
     metrics: MetricsCollector,
-    config: Dict[str, Any],
+    config: ExchangeConfig,
     fix_app: FIXApplication,
 ) -> FastAPI:
-    """Compatibility factory for already initialized in-process components.
-
-    Production ownership uses ``MockExchange.api`` and the ASGI lifespan.
-    Historical callers of this factory supplied already-live components and
-    used transports that do not run lifespan events, so this compatibility
-    path marks only that standalone API facade ready.
-    """
+    """Create an in-process API facade around initialized components."""
     lifecycle = fix_app.lifecycle
     if lifecycle is None:
         lifecycle = ExchangeLifecycle(
@@ -1117,6 +1205,7 @@ def create_app(
         metrics,
         config,
         fix_app,
+        order_normalizer=OrderNormalizer(engine.instruments),
         session_lifecycle=lifecycle,
     )
     api.app.state.component_status.update(

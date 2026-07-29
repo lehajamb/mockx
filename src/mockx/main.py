@@ -6,11 +6,12 @@ import asyncio
 from datetime import timedelta
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import uvicorn
 
 from .api import ExchangeAPI
+from .configuration import ExchangeConfig
 from .engine import MatchingEngine
 from .gateway import FIXApplication, FIXGateway, SessionRegistry
 from .latency import (
@@ -18,6 +19,7 @@ from .latency import (
     PerfCounterClock,
     SchedulerFailedError,
 )
+from .instruments import InstrumentCatalog
 from .lifecycle import ExchangeLifecycle, LifecycleState
 from .metrics import (
     BufferedMetricsWriter,
@@ -34,6 +36,7 @@ from .models import (
     Trade,
 )
 from .tsdb_writer import InfluxDBMetricsSink
+from .validation import OrderNormalizer
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +47,7 @@ class MockExchange:
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: ExchangeConfig,
         fix_cfg: Optional[str] = None,
     ) -> None:
         self.config = config
@@ -57,96 +60,55 @@ class MockExchange:
         self._shutdown_complete = False
         self._callbacks_registered = False
 
-        fix_config = self.config.get("fix", {})
-        self.fix_enabled = bool(
-            fix_config.get("enabled", bool(self.fix_cfg))
-        )
-        self.scheduler_mode = self.config.get("scheduler", {}).get(
-            "mode",
-            "external",
-        )
-        if self.scheduler_mode not in {"external", "realtime"}:
-            raise ValueError(
-                "scheduler.mode must be 'external' or 'realtime'"
-            )
+        self.fix_enabled = self.config.fix.enabled
+        self.scheduler_mode = self.config.scheduler.mode
 
         self._init_components()
 
-    def _tsdb_config(self) -> Optional[dict[str, Any]]:
-        configured = dict(self.config.get("tsdb") or {})
-        environment_values = {
-            "url": os.environ.get("INFLUXDB_URL"),
-            "token": os.environ.get("INFLUXDB_TOKEN"),
-            "org": os.environ.get("INFLUXDB_ORG"),
-            "bucket": os.environ.get("INFLUXDB_BUCKET"),
-        }
-        if any(environment_values.values()):
-            for key, value in environment_values.items():
-                if value is not None:
-                    configured[key] = value
-        if not configured or not configured.get("enabled", True):
-            return None
-        missing = [
-            key
-            for key in ("url", "token", "org", "bucket")
-            if not configured.get(key)
-        ]
-        if missing:
-            raise ValueError(
-                "Missing TSDB configuration fields: "
-                + ", ".join(f"tsdb.{key}" for key in missing)
-            )
-        return configured
-
     def _init_components(self) -> None:
-        latency_config = self.config["latency"]
-        network_ms = latency_config.get(
-            "network_ms",
-            latency_config.get("inbound_ms", 0)
-            + latency_config.get("outbound_ms", 0),
-        )
+        latency_config = self.config.latency
         self.exec_params = ExecutionParams(
-            network_latency_ms=network_ms,
-            engine_latency_ms=latency_config["engine_ms"],
-            reject_prob=self.config["execution"]["reject_prob"],
-            rand_seed=self.config["execution"]["random_seed"],
-            inbound_network_latency_ms=latency_config.get("inbound_ms"),
-            outbound_network_latency_ms=latency_config.get("outbound_ms"),
+            network_latency_ms=latency_config.total_network_ms,
+            engine_latency_ms=latency_config.engine_ms,
+            reject_prob=self.config.execution.reject_prob,
+            rand_seed=self.config.execution.random_seed,
+            inbound_network_latency_ms=latency_config.inbound_ms,
+            outbound_network_latency_ms=latency_config.outbound_ms,
         )
 
-        session_delays = latency_config.get("session_delays", {})
-        scheduler_config = self.config.get("scheduler", {})
         self.scheduler = LatencyScheduler(
-            session_delays=session_delays,
-            max_events_per_advance=scheduler_config.get(
-                "max_events_per_advance",
-                100_000,
+            session_delays=dict(latency_config.session_delays),
+            max_events_per_advance=(
+                self.config.scheduler.max_events_per_advance
             ),
         )
         self.monotonic_clock = PerfCounterClock()
+        self.instruments = InstrumentCatalog.from_config(self.config)
+        self.order_normalizer = OrderNormalizer(self.instruments)
 
         self.tsdb_writer = None
         self.metrics_persistence = None
-        tsdb_config = self._tsdb_config()
-        if tsdb_config is not None:
+        tsdb_config = self.config.tsdb
+        if tsdb_config is not None and tsdb_config.enabled:
             self.tsdb_writer = InfluxDBMetricsSink(
-                url=tsdb_config["url"],
-                token=tsdb_config["token"],
-                org=tsdb_config["org"],
-                bucket=tsdb_config["bucket"],
+                url=tsdb_config.url or "",
+                token=tsdb_config.token or "",
+                org=tsdb_config.org or "",
+                bucket=tsdb_config.bucket or "",
+                timeout_ms=tsdb_config.timeout_ms,
             )
             self.metrics_persistence = BufferedMetricsWriter(
                 self.tsdb_writer,
-                batch_size=int(tsdb_config.get("batch_size", 1000)),
+                batch_size=tsdb_config.batch_size,
+                buffer_capacity=tsdb_config.buffer_capacity,
+                retry_interval_ms=tsdb_config.retry_interval_ms,
             )
 
         self.metrics = MetricsCollector(
-            self.config["exchange_name"],
+            self.config.exchange_name,
+            instruments=self.instruments,
             persistence=self.metrics_persistence,
-            prometheus_enabled=self.config.get("prometheus", {}).get(
-                "enabled",
-                True,
-            ),
+            prometheus_enabled=self.config.prometheus.enabled,
         )
         self.latency_tracker = LatencyTracker(
             self.scheduler,
@@ -156,11 +118,10 @@ class MockExchange:
         self.engine = MatchingEngine(
             self.exec_params,
             self.scheduler,
+            self.instruments,
             monotonic_clock=self.monotonic_clock,
         )
         self.metrics.bind_engine(self.engine)
-        for symbol in self.config["symbols"]:
-            self.engine.add_symbol(symbol)
 
         self.session_registry = SessionRegistry()
         self.fix_app = FIXApplication(
@@ -169,13 +130,13 @@ class MockExchange:
             self.latency_tracker,
             session_registry=self.session_registry,
             monotonic_clock=self.monotonic_clock,
-            delivery_retry_interval_ms=self.config.get("fix", {}).get(
-                "delivery_retry_interval_ms",
-                1_000,
+            order_normalizer=self.order_normalizer,
+            session_participants=self.config.fix.session_participants,
+            delivery_retry_interval_ms=(
+                self.config.fix.delivery_retry_interval_ms
             ),
-            delivery_max_attempts_per_cycle=self.config.get("fix", {}).get(
-                "delivery_max_attempts_per_cycle",
-                3,
+            delivery_max_attempts_per_cycle=(
+                self.config.fix.delivery_max_attempts_per_cycle
             ),
         )
         self.lifecycle = ExchangeLifecycle(
@@ -197,6 +158,7 @@ class MockExchange:
                 self.metrics,
                 self.latency_tracker,
                 application=self.fix_app,
+                session_participants=self.config.fix.session_participants,
             )
 
         # Ownership is explicit: no route endpoint introspection is involved.
@@ -205,6 +167,7 @@ class MockExchange:
             self.metrics,
             self.config,
             self.fix_app,
+            order_normalizer=self.order_normalizer,
             lifecycle_manager=self,
             session_lifecycle=self.lifecycle,
         )
@@ -247,6 +210,9 @@ class MockExchange:
         self.engine.on_execution_report = self._on_execution_report
         self.engine.on_market_data_update = self._on_market_data_update
         self.engine.on_trade = self._on_trade
+        self.engine.on_self_trade_prevention = (
+            self.metrics.record_self_trade_prevention
+        )
         self.engine.on_order_submitted = self._on_order_submitted
         self.engine.on_cancel_request = self.metrics.record_cancel_request
         self.engine.on_cancel_reject = self.metrics.record_cancel_reject
@@ -311,14 +277,14 @@ class MockExchange:
             if self.scheduler_mode == "realtime":
                 self._scheduler_task = self.loop.create_task(
                     self._run_scheduler(),
-                    name=f"{self.config['exchange_name']}-scheduler",
+                    name=f"{self.config.exchange_name}-scheduler",
                 )
 
             state.component_status["api"] = "ready"
             state.accepting_admin = True
             state.ready = True
             self._started = True
-            logger.info("%s is ready", self.config["exchange_name"])
+            logger.info("%s is ready", self.config.exchange_name)
 
     async def stop_components(self) -> None:
         """Stop ingestion first, flush last, and continue after close errors."""
@@ -381,7 +347,7 @@ class MockExchange:
             if self.lifecycle.state != LifecycleState.FAILED:
                 self.lifecycle.run_id = None
                 self.lifecycle._publish(LifecycleState.STOPPED)
-            logger.info("%s stopped", self.config["exchange_name"])
+            logger.info("%s stopped", self.config.exchange_name)
 
     def _on_order_submitted(self, order_id: int, command) -> None:
         self.metrics.record_order_submitted(order_id, command)
@@ -469,10 +435,7 @@ class MockExchange:
 
     async def _run_scheduler(self) -> None:
         """Advance simulated time periodically only in explicit realtime mode."""
-        scheduler_config = self.config.get("scheduler", {})
-        interval_ms = int(scheduler_config.get("interval_ms", 10))
-        if interval_ms <= 0:
-            raise ValueError("scheduler.interval_ms must be positive")
+        interval_ms = self.config.scheduler.interval_ms
         while self.running:
             if self.scheduler.state == SchedulerState.FAILED:
                 await asyncio.sleep(interval_ms / 1000)
@@ -493,11 +456,11 @@ class MockExchange:
                 )
 
     async def _run_api(self) -> None:
-        admin_config = self.config.get("admin_api", {})
+        admin_config = self.config.admin_api
         config = uvicorn.Config(
             self.app,
-            host=admin_config.get("host", "127.0.0.1"),
-            port=int(admin_config["port"]),
+            host=admin_config.host,
+            port=admin_config.port,
             log_level="warning",
         )
         self.server = uvicorn.Server(config)
@@ -505,7 +468,7 @@ class MockExchange:
 
     def run(self) -> None:
         """Run Uvicorn; its lifespan owns FIX, scheduler, and persistence."""
-        logger.info("Starting %s", self.config["exchange_name"])
+        logger.info("Starting %s", self.config.exchange_name)
         asyncio.run(self._run_api())
 
     async def aclose(self) -> bool:

@@ -8,6 +8,7 @@ from datetime import timedelta
 import pytest
 
 from src.mockx.gateway import fix
+from src.mockx.configuration import validate_config
 from src.mockx.main import MockExchange
 from src.mockx.models import (
     CancelReject,
@@ -35,7 +36,13 @@ def _exchange(
         "engine_ms": engine_ms,
         "session_delays": {"CLIENT": session_delay_ms},
     }
-    return MockExchange(config)
+    config["fix"]["session_participants"] = {
+        "FIX.4.4:MOCKX->CLIENT": "participant-client",
+        "FIX.4.4:MOCKX->CLIENT2": "participant-client-2",
+        "FIX.4.4:MOCKX->CLIENT-A": "participant-client-a",
+        "FIX.4.4:MOCKX->CLIENT-B": "participant-client-b",
+    }
+    return MockExchange(validate_config(config, environ={}))
 
 
 def _session(client: str = "CLIENT"):
@@ -279,8 +286,9 @@ async def test_duplicate_cancel_cl_ord_id_precedes_terminal_state():
 @pytest.mark.asyncio
 async def test_already_queued_fill_legitimately_beats_later_cancel():
     exchange = _exchange()
-    sessions, delivered = await _start(exchange)
+    sessions, delivered = await _start(exchange, "CLIENT", "CLIENT2")
     session = sessions["CLIENT"]
+    aggressor_session = sessions["CLIENT2"]
     try:
         exchange.fix_app.fromApp(
             _new_order(
@@ -297,7 +305,7 @@ async def test_already_queued_fill_legitimately_beats_later_cancel():
 
         exchange.fix_app.fromApp(
             _new_order("AGGRESSOR", 2, qty=5, price=100),
-            session,
+            aggressor_session,
         )
         await exchange.fix_app.wait_for_ingress()
         exchange.fix_app.fromApp(
@@ -508,7 +516,7 @@ async def test_fresh_generations_repeat_ingress_and_scheduler_priorities():
                         for event in receives
                     ),
                     tuple(
-                        order.price
+                        order.price_ticks
                         for _, order in sorted(
                             exchange.engine.orders.items()
                         )

@@ -1,3 +1,5 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Deterministic persisted metric identity regression tests."""
 
 import asyncio
@@ -38,7 +40,7 @@ EPOCH_NS = 0
 def make_metrics(*, run_id: str = "identity-run", batch_size: int = 10_000):
     sink = InMemoryMetricsSink()
     writer = BufferedMetricsWriter(sink, batch_size=batch_size)
-    metrics = MetricsCollector("TEST", persistence=writer)
+    metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run(run_id)
     return metrics, writer, sink
 
@@ -73,7 +75,7 @@ async def test_identical_order_points_at_same_timestamp_have_unique_identity():
 async def test_multi_fill_and_both_report_sides_share_timestamp_without_collision():
     metrics, writer, sink = make_metrics()
     scheduler = LatencyScheduler()
-    engine = MatchingEngine(
+    engine = exact_engine(
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
@@ -82,7 +84,6 @@ async def test_multi_fill_and_both_report_sides_share_timestamp_without_collisio
         ),
         scheduler,
     )
-    engine.add_symbol("TEST")
     metrics.bind_engine(engine)
     engine.on_order_submitted = metrics.record_order_submitted
     engine.on_execution_report = metrics.record_order
@@ -90,12 +91,13 @@ async def test_multi_fill_and_both_report_sides_share_timestamp_without_collisio
 
     def submit(cl_ord_id, side, qty):
         order_id = engine.submit_order(
-            NewOrderCommand(
+            exact_command(
                 cl_ord_id=cl_ord_id,
+                participant_id=cl_ord_id,
                 symbol="TEST",
                 side=side,
-                qty=qty,
-                price=100.0,
+                order_qty_lots=qty,
+                price_ticks=100,
                 tif=TimeInForce.GTC,
                 submitted_at=scheduler.current_time,
                 session_id="FIX.4.4:MOCKX->CLIENT",
@@ -104,10 +106,10 @@ async def test_multi_fill_and_both_report_sides_share_timestamp_without_collisio
         )
         engine.process_order(ProcessOrderCommand(order_id, 0))
 
-    submit("P1", Side.SELL, 1.0)
-    submit("P2", Side.SELL, 2.0)
-    submit("P3", Side.SELL, 3.0)
-    submit("TAKER", Side.BUY, 6.0)
+    submit("P1", Side.SELL, 1)
+    submit("P2", Side.SELL, 2)
+    submit("P3", Side.SELL, 3)
+    submit("TAKER", Side.BUY, 6)
 
     records = await flush_records(writer, sink)
     trades = [record for record in records if record.measurement == "trades"]
@@ -339,7 +341,7 @@ class RecordingFailOnceSink(InMemoryMetricsSink):
 async def test_failed_write_retry_preserves_exact_identity_without_reallocation():
     sink = RecordingFailOnceSink()
     writer = BufferedMetricsWriter(sink, batch_size=10)
-    metrics = MetricsCollector("TEST", persistence=writer)
+    metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run("retry")
     metrics._create_point(
         "orders",
@@ -406,7 +408,7 @@ def test_influx_conversion_preserves_all_identity_metadata(monkeypatch):
 def test_persistence_rejects_missing_run_backdating_and_submicrosecond_input():
     sink = InMemoryMetricsSink()
     writer = BufferedMetricsWriter(sink)
-    metrics = MetricsCollector("TEST", persistence=writer)
+    metrics = exact_metrics("TEST", persistence=writer)
 
     with pytest.raises(RuntimeError, match="active simulation run"):
         metrics._create_point("orders", {}, {"value": 1}, EPOCH_NS)

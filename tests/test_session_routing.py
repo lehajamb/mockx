@@ -1,3 +1,5 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Stable FIX session identity and scoped ClOrdID routing tests."""
 
 from datetime import datetime, timezone
@@ -29,7 +31,7 @@ SESSION_B = "FIX.4.4:MOCKX->CLIENT-B"
 
 def make_stack():
     scheduler = LatencyScheduler()
-    engine = MatchingEngine(
+    engine = exact_engine(
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
@@ -38,8 +40,7 @@ def make_stack():
         ),
         scheduler,
     )
-    engine.add_symbol("TEST")
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     metrics.bind_engine(engine)
     tracker = LatencyTracker(scheduler, metrics)
     app = FIXApplication(
@@ -55,12 +56,13 @@ def make_stack():
 
 def submit(engine, session_id, alias, qty, price, cl_ord_id="ABC"):
     order_id = engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id=cl_ord_id,
+            participant_id=cl_ord_id,
             symbol="TEST",
             side=Side.BUY,
-            qty=qty,
-            price=price,
+            order_qty_lots=qty,
+            price_ticks=price,
             tif=TimeInForce.GTC,
             submitted_at=engine.scheduler.current_time,
             session_id=session_id,
@@ -98,8 +100,8 @@ def test_same_cl_ord_id_is_distinct_and_routes_to_own_session():
     engine, _, app, reports = make_stack()
     transport_a, transport_b = register_pair(app)
 
-    order_a = submit(engine, SESSION_A, "shared", 5.0, 99.0)
-    order_b = submit(engine, SESSION_B, "shared", 7.0, 98.0)
+    order_a = submit(engine, SESSION_A, "shared", 5, 99)
+    order_b = submit(engine, SESSION_B, "shared", 7, 98)
 
     assert order_a != order_b
     assert engine.client_order_index[
@@ -122,20 +124,22 @@ def test_cross_session_cancel_cannot_mutate_other_order_and_reject_routes_to_req
     engine, _, app, _ = make_stack()
     transport_a, transport_b = register_pair(app)
     order_a = submit(
-        engine, SESSION_A, "shared", 5.0, 99.0, "A-OWN"
+        engine, SESSION_A, "shared", 5, 99, "A-OWN"
     )
     order_b = submit(
-        engine, SESSION_B, "shared", 7.0, 98.0, "FOREIGN"
+        engine, SESSION_B, "shared", 7, 98, "FOREIGN"
     )
-    before_qty = sum(level.qty for level in engine.books["TEST"].bids)
+    before_qty = sum(
+        level.level_qty_lots for level in engine.books["TEST"].bids
+    )
 
     rejection = engine.cancel_order(
-        CancelOrderCommand(
+        exact_cancel_command(
             cancel_cl_ord_id="CXL-BY-A",
             orig_cl_ord_id="FOREIGN",
             symbol="TEST",
             side=Side.BUY,
-            qty=7,
+            order_qty_lots=7,
             requested_at=engine.scheduler.current_time,
             session_id=SESSION_A,
             session_alias="shared",
@@ -148,13 +152,15 @@ def test_cross_session_cancel_cannot_mutate_other_order_and_reject_routes_to_req
     assert transport_b == []
     assert engine.orders[order_a].status == OrderStatus.NEW
     assert engine.orders[order_b].status == OrderStatus.NEW
-    assert sum(level.qty for level in engine.books["TEST"].bids) == before_qty
+    assert sum(
+        level.level_qty_lots for level in engine.books["TEST"].bids
+    ) == before_qty
 
 
 def test_disconnected_destination_is_not_rerouted_and_counts_failure(caplog):
     engine, metrics, app, reports = make_stack()
     transport_a, transport_b = register_pair(app)
-    order_a = submit(engine, SESSION_A, "shared", 5.0, 99.0)
+    order_a = submit(engine, SESSION_A, "shared", 5, 99)
     report = next(report for report in reports if report.order_id == order_a)
     before_status = engine.orders[order_a].status
 
@@ -179,7 +185,7 @@ def test_reconnect_replaces_transport_for_same_stable_session():
     identity = SessionIdentity(SESSION_A, alias="CLIENT-A")
     app.register_session(identity, first_transport)
     app.register_session(identity, second_transport)
-    order_id = submit(engine, SESSION_A, "CLIENT-A", 5.0, 99.0)
+    order_id = submit(engine, SESSION_A, "CLIENT-A", 5, 99)
     report = next(report for report in reports if report.order_id == order_id)
 
     assert deliver(app, report)
@@ -191,8 +197,8 @@ def test_reconnect_replaces_transport_for_same_stable_session():
 def test_alias_collision_never_controls_routing():
     engine, _, app, reports = make_stack()
     transport_a, transport_b = register_pair(app)
-    order_a = submit(engine, SESSION_A, "shared", 5.0, 99.0)
-    order_b = submit(engine, SESSION_B, "shared", 7.0, 98.0)
+    order_a = submit(engine, SESSION_A, "shared", 5, 99)
+    order_b = submit(engine, SESSION_B, "shared", 7, 98)
 
     for report in reports:
         deliver(app, report)
@@ -203,7 +209,7 @@ def test_alias_collision_never_controls_routing():
 
 def test_duplicate_cl_ord_id_is_rejected_within_session_until_reset():
     engine, _, _, _ = make_stack()
-    submit(engine, SESSION_A, "CLIENT-A", 5.0, 99.0)
+    submit(engine, SESSION_A, "CLIENT-A", 5, 99)
 
     with pytest.raises(ValueError, match="Duplicate ClOrdID"):
-        submit(engine, SESSION_A, "CLIENT-A", 7.0, 98.0)
+        submit(engine, SESSION_A, "CLIENT-A", 7, 98)

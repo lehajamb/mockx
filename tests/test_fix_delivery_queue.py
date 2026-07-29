@@ -1,6 +1,7 @@
 """Pure state-machine tests for the process-lifetime FIX delivery queue."""
 
 from __future__ import annotations
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 
 from datetime import datetime, timedelta, timezone
 
@@ -24,13 +25,14 @@ SESSION = SessionIdentity("FIX.4.4:MOCKX->CLIENT", alias="CLIENT")
 
 
 def report(exec_id: str, order_id: int):
-    order = Order(
+    order = exact_order(
         id=order_id,
         cl_ord_id=f"ORDER-{order_id}",
+        participant_id=f"ORDER-{order_id}",
         symbol="TEST",
         side=Side.BUY,
-        qty=1.0,
-        price=100.0,
+        order_qty_lots=1,
+        price_ticks=100,
         tif=TimeInForce.GTC,
         ts_submitted=NOW,
         session_id=SESSION.session_id,

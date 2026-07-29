@@ -1,13 +1,17 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Invariant corruption and deterministic stateful order-book tests."""
 
 from collections import deque
 from datetime import datetime, timezone
+from decimal import Decimal
 import random
 
 from hypothesis import given, settings, strategies as st
 import pytest
 
 from src.mockx.engine import MatchingEngine
+from src.mockx.instruments import Instrument, InstrumentCatalog
 from src.mockx.latency import LatencyScheduler
 from src.mockx.models import (
     BookLevel,
@@ -49,17 +53,18 @@ def make_order(
     order_id: int,
     *,
     side: Side = Side.BUY,
-    qty: float = 5,
-    price: float = 100,
+    qty: int = 5,
+    price: int = 100,
     alias: str = "market_bot",
 ) -> Order:
-    return Order(
+    return exact_order(
         id=order_id,
         cl_ord_id=f"ORDER-{order_id}",
+        participant_id=f"ORDER-{order_id}",
         symbol="TEST",
         side=side,
-        qty=qty,
-        price=price,
+        order_qty_lots=qty,
+        price_ticks=price,
         tif=TimeInForce.GTC,
         ts_submitted=NOW,
         status=OrderStatus.NEW,
@@ -69,32 +74,32 @@ def make_order(
 
 def assert_independent_reference(book: OrderBook) -> None:
     for level in (*book.bids, *book.asks):
-        total = sum(order.qty - order.filled_qty for order in level.orders)
+        total = sum(order.leaves_qty_lots for order in level.orders)
         strategy = sum(
-            order.qty - order.filled_qty
+            order.leaves_qty_lots
             for order in level.orders
             if order.session_alias == "strategy_bot"
         )
         market = sum(
-            order.qty - order.filled_qty
+            order.leaves_qty_lots
             for order in level.orders
             if order.session_alias != "strategy_bot"
         )
-        assert level.qty == pytest.approx(total, abs=1e-9)
-        assert level.strategy_qty == pytest.approx(strategy, abs=1e-9)
-        assert level.market_qty == pytest.approx(market, abs=1e-9)
+        assert level.level_qty_lots == total
+        assert level.strategy_qty_lots == pytest.approx(strategy, abs=1e-9)
+        assert level.market_qty_lots == pytest.approx(market, abs=1e-9)
 
 
 def test_invariant_checker_detects_corrupt_cached_total_with_context():
     book = OrderBook("TEST")
     book.add_order(make_order(1))
-    book.bids[0].qty += 1
+    book.bids[0].level_qty_lots += 1
 
     with pytest.raises(
         OrderBookInvariantError,
         match=(
-            r"Level Side.BUY 100 category mismatch: "
-            r"qty=6.0, strategy_qty=0.0, market_qty=5.0"
+            r"Level category mismatch at Side.BUY 100: "
+            r"level_qty_lots=6, strategy_qty_lots=0, market_qty_lots=5"
         ),
     ):
         book.assert_invariants()
@@ -107,8 +112,8 @@ def test_invariant_checker_detects_duplicate_order_ids():
     book.add_order(first)
     level = book.bids[0]
     level.orders.append(duplicate_id)
-    level.qty += 3
-    level.market_qty += 3
+    level.level_qty_lots += 3
+    level.market_qty_lots += 3
 
     with pytest.raises(OrderBookInvariantError, match="Duplicate order id 1"):
         book.assert_invariants()
@@ -118,12 +123,12 @@ def test_invariant_checker_detects_wrong_category_total():
     book = OrderBook("TEST")
     book.add_order(make_order(1, alias="strategy_bot"))
     level = book.bids[0]
-    level.strategy_qty -= 1
-    level.market_qty += 1
+    level.strategy_qty_lots -= 1
+    level.market_qty_lots += 1
 
     with pytest.raises(
         OrderBookInvariantError,
-        match="Strategy quantity mismatch",
+        match="Level aggregate mismatch",
     ):
         book.assert_invariants()
 
@@ -132,8 +137,8 @@ def test_invariant_checker_detects_retained_empty_level():
     book = OrderBook("TEST")
     book.bids.append(
         BookLevel(
-            price=100,
-            qty=0,
+            price_ticks=100,
+            level_qty_lots=0,
             orders=deque(),
             side=Side.BUY,
         )
@@ -149,8 +154,8 @@ def test_invariant_checker_detects_retained_empty_level():
 @pytest.mark.parametrize(
     ("best_bid", "best_ask"),
     (
-        (101.0, 100.0),
-        (100.0, 100.0),
+        (101, 100),
+        (100, 100),
     ),
 )
 def test_invariant_checker_detects_crossed_or_locked_book(
@@ -172,7 +177,19 @@ def test_invariant_checker_detects_crossed_or_locked_book(
 
 
 def make_random_engine() -> MatchingEngine:
-    engine = MatchingEngine(
+    instruments = InstrumentCatalog(
+        {
+            symbol: Instrument(
+                symbol=symbol,
+                tick_size=Decimal("1"),
+                lot_size=Decimal("1"),
+                price_display_precision=2,
+                quantity_display_precision=3,
+            )
+            for symbol in ("ALPHA", "BETA")
+        }
+    )
+    return exact_engine(
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
@@ -180,10 +197,8 @@ def make_random_engine() -> MatchingEngine:
             rand_seed=777,
         ),
         LatencyScheduler(),
+        instruments,
     )
-    for symbol in ("ALPHA", "BETA"):
-        engine.add_symbol(symbol)
-    return engine
 
 
 def test_fixed_seed_randomized_operations_preserve_all_invariants():
@@ -213,12 +228,12 @@ def test_fixed_seed_randomized_operations_preserve_all_invariants():
             ]
             if candidates:
                 order = rng.choice(candidates)
-                command = CancelOrderCommand(
+                command = exact_cancel_command(
                     cancel_cl_ord_id=f"RND-CXL-{step}",
                     orig_cl_ord_id=order.cl_ord_id,
                     symbol=order.symbol,
                     side=order.side,
-                    qty=order.qty,
+                    order_qty_lots=order.order_qty_lots,
                     requested_at=NOW,
                     session_id=order.session_id or "INVARIANT-SESSION",
                     session_alias=order.session_alias,
@@ -249,25 +264,26 @@ def test_fixed_seed_randomized_operations_preserve_all_invariants():
 
         if action in {"rest", "cross"}:
             side = rng.choice((Side.BUY, Side.SELL))
-            qty = float(rng.randint(1, 12))
+            qty = rng.randint(1, 12)
             if action == "rest":
-                price = float(
+                price = (
                     rng.randint(95, 99)
                     if side == Side.BUY
                     else rng.randint(101, 105)
                 )
             else:
-                price = 110.0 if side == Side.BUY else 90.0
+                price = 110 if side == Side.BUY else 90
             alias = rng.choice(
                 ("strategy_bot", "liquidity_bot", "noise_bot")
             )
             order_id = engine.submit_order(
-                NewOrderCommand(
+                exact_command(
                     cl_ord_id=f"RND-{step}-{action}",
+                    participant_id=f"RND-{step}-{action}",
                     symbol=symbol,
                     side=side,
-                    qty=qty,
-                    price=price,
+                    order_qty_lots=qty,
+                    price_ticks=price,
                     tif=TimeInForce.GTC,
                     submitted_at=NOW,
                     session_id="INVARIANT-SESSION",
@@ -286,7 +302,7 @@ def test_fixed_seed_randomized_operations_preserve_all_invariants():
                 book.assert_invariants()
                 assert_independent_reference(book)
                 assert all(
-                    level.orders and level.qty > 0
+                    level.orders and level.level_qty_lots > 0
                     for level in (*book.bids, *book.asks)
                 ), current_symbol
         except Exception as exc:
@@ -301,7 +317,7 @@ def test_fixed_seed_randomized_operations_preserve_all_invariants():
 @settings(max_examples=75, deadline=None)
 @given(st.lists(COMMAND_OPERATION, min_size=1, max_size=50))
 def test_command_sequences_never_leave_crossed_or_locked_book(operations):
-    engine = MatchingEngine(
+    engine = exact_engine(
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
@@ -310,18 +326,18 @@ def test_command_sequences_never_leave_crossed_or_locked_book(operations):
         ),
         LatencyScheduler(),
     )
-    engine.add_symbol("TEST")
 
     for step, operation in enumerate(operations):
         if operation[0] == "submit":
             _, side, qty, price, tif = operation
             order_id = engine.submit_order(
-                NewOrderCommand(
+                exact_command(
                     cl_ord_id=f"PROPERTY-{step}",
+                    participant_id=f"PROPERTY-{step}",
                     symbol="TEST",
                     side=side,
-                    qty=float(qty),
-                    price=None if price is None else float(price),
+                    order_qty_lots=qty,
+                    price_ticks=price,
                     tif=tif,
                     submitted_at=NOW,
                     session_id="PROPERTY-SESSION",
@@ -343,12 +359,12 @@ def test_command_sequences_never_leave_crossed_or_locked_book(operations):
                 order_id = resting_ids[selector % len(resting_ids)]
                 order = engine.orders[order_id]
                 engine.cancel_order(
-                    CancelOrderCommand(
+                    exact_cancel_command(
                         cancel_cl_ord_id=f"PROPERTY-CXL-{step}",
                         orig_cl_ord_id=order.cl_ord_id,
                         symbol=order.symbol,
                         side=order.side,
-                        qty=order.qty,
+                        order_qty_lots=order.order_qty_lots,
                         requested_at=NOW,
                         session_id=order.session_id or "PROPERTY-SESSION",
                         session_alias=order.session_alias,
@@ -359,8 +375,8 @@ def test_command_sequences_never_leave_crossed_or_locked_book(operations):
         book.assert_invariants()
         assert_independent_reference(book)
 
-        best_bid = book.get_best_bid()
-        best_ask = book.get_best_ask()
+        best_bid = book.get_best_bid_ticks()
+        best_ask = book.get_best_ask_ticks()
         if best_bid is not None and best_ask is not None:
             assert best_bid < best_ask
 
@@ -378,5 +394,5 @@ def test_command_sequences_never_leave_crossed_or_locked_book(operations):
                 OrderStatus.REJECTED,
             }:
                 assert not book.is_resting(order.id)
-            if order.price is None or order.tif == TimeInForce.IOC:
+            if order.price_ticks is None or order.tif == TimeInForce.IOC:
                 assert not book.is_resting(order.id)

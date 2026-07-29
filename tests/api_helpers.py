@@ -1,10 +1,13 @@
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Shared deterministic fixtures for API remediation tests."""
 
 from pathlib import Path
 
+from src.mockx.configuration import validate_config
 from src.mockx.main import MockExchange
 from src.mockx.models import (
     NewOrderCommand,
+    OrderType,
     ProcessOrderCommand,
     Side,
     TimeInForce,
@@ -35,7 +38,14 @@ def api_config(
         market_data_stale_seconds = max(30.0, heartbeat_seconds * 3)
     return {
         "exchange_name": "Test-Exchange",
-        "symbols": ["TEST"],
+        "instruments": {
+            "TEST": {
+                "tick_size": "1",
+                "lot_size": "1",
+                "price_display_precision": 2,
+                "quantity_display_precision": 3,
+            }
+        },
         "latency": {"network_ms": 0, "engine_ms": 0},
         "execution": {
             "reject_prob": 0.0,
@@ -46,7 +56,12 @@ def api_config(
             "port": 8999,
             "enabled": True,
         },
-        "fix": {"enabled": fix_enabled},
+        "fix": {
+            "enabled": fix_enabled,
+            "session_participants": {
+                "FIX.4.4:MOCKX1->CLIENT1": "participant-1"
+            },
+        },
         "scheduler": {
             "mode": "external",
             "interval_ms": 10,
@@ -72,29 +87,33 @@ def api_config(
 def make_exchange(**config_overrides) -> MockExchange:
     config = api_config(**config_overrides)
     fix_cfg = str(FIX_CONFIG) if config["fix"]["enabled"] else None
-    return MockExchange(config, fix_cfg)
+    return MockExchange(validate_config(config, environ={}), fix_cfg)
 
 
 def process_order(
     exchange: MockExchange,
     cl_ord_id: str,
     side: Side,
-    qty: float,
-    price: float | None,
+    qty: int,
+    price: int | None,
     *,
     tif: TimeInForce = TimeInForce.GTC,
 ) -> int:
     order_id = exchange.engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id=cl_ord_id,
             symbol="TEST",
             side=side,
-            qty=qty,
-            price=price,
+            order_type=(
+                OrderType.MARKET if price is None else OrderType.LIMIT
+            ),
+            order_qty_lots=qty,
+            price_ticks=price,
             tif=tif,
             submitted_at=exchange.scheduler.current_time,
             session_id="FIX.4.4:CLIENT->MOCKX",
             session_alias="CLIENT",
+            participant_id=f"participant-{cl_ord_id}",
         )
     )
     exchange.engine.process_order(

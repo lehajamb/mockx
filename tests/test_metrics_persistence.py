@@ -1,3 +1,5 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Buffered metric persistence reliability tests."""
 
 import asyncio
@@ -91,7 +93,7 @@ async def test_close_flushes_records_below_threshold():
 async def test_collector_shutdown_flushes_attached_writer():
     sink = InMemoryMetricsSink()
     writer = BufferedMetricsWriter(sink, batch_size=3)
-    metrics = MetricsCollector("TEST", persistence=writer)
+    metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run("shutdown")
     metrics._create_point(
         "shutdown",
@@ -185,10 +187,10 @@ async def test_empty_flush_does_not_call_sink_write():
 async def test_sink_failure_does_not_roll_back_valid_trade(caplog):
     sink = FailOnceSink()
     writer = BufferedMetricsWriter(sink, batch_size=100)
-    metrics = MetricsCollector("TEST", persistence=writer)
+    metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run("sink-failure")
     scheduler = LatencyScheduler()
-    engine = MatchingEngine(
+    engine = exact_engine(
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
@@ -197,7 +199,6 @@ async def test_sink_failure_does_not_roll_back_valid_trade(caplog):
         ),
         scheduler,
     )
-    engine.add_symbol("TEST")
     metrics.bind_engine(engine)
     engine.on_order_submitted = metrics.record_order_submitted
     engine.on_execution_report = metrics.record_order
@@ -205,12 +206,13 @@ async def test_sink_failure_does_not_roll_back_valid_trade(caplog):
 
     def submit(cl_ord_id, side):
         order_id = engine.submit_order(
-            NewOrderCommand(
+            exact_command(
                 cl_ord_id=cl_ord_id,
+                participant_id=cl_ord_id,
                 symbol="TEST",
                 side=side,
-                qty=5.0,
-                price=100.0,
+                order_qty_lots=5,
+                price_ticks=100,
                 tif=TimeInForce.GTC,
                 submitted_at=scheduler.current_time,
                 session_id="FIX.4.4:MOCKX->CLIENT",
@@ -227,8 +229,8 @@ async def test_sink_failure_does_not_roll_back_valid_trade(caplog):
     with caplog.at_level("ERROR"):
         assert not await writer.flush()
 
-    assert engine.orders[passive_id].filled_qty == 5.0
-    assert engine.orders[aggressor_id].filled_qty == 5.0
+    assert engine.orders[passive_id].filled_qty_lots == 5.0
+    assert engine.orders[aggressor_id].filled_qty_lots == 5.0
     assert not engine.books["TEST"].bids
     assert not engine.books["TEST"].asks
     engine.books["TEST"].assert_invariants()

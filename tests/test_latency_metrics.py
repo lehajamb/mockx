@@ -1,3 +1,5 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Clock separation and terminal latency cleanup tests."""
 
 from datetime import timedelta
@@ -41,9 +43,9 @@ class FakeMonotonicClock:
 
 def wire_stack(*, inbound_ms=5, engine_ms=3, outbound_ms=7, clock=None):
     scheduler = LatencyScheduler()
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     tracker = LatencyTracker(scheduler, metrics)
-    engine = MatchingEngine(
+    engine = exact_engine(
         ExecutionParams(
             network_latency_ms=inbound_ms + outbound_ms,
             engine_latency_ms=engine_ms,
@@ -55,7 +57,6 @@ def wire_stack(*, inbound_ms=5, engine_ms=3, outbound_ms=7, clock=None):
         scheduler,
         monotonic_clock=clock,
     )
-    engine.add_symbol("TEST")
     metrics.bind_engine(engine)
     reports = []
 
@@ -103,12 +104,13 @@ async def test_simulated_and_real_latency_clocks_are_separate():
     clock = FakeMonotonicClock(1_000, 201_000)
     scheduler, engine, metrics, tracker, _, _ = wire_stack(clock=clock)
     engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id="LATENCY",
+            participant_id="LATENCY",
             symbol="TEST",
             side=Side.BUY,
-            qty=1.0,
-            price=99.0,
+            order_qty_lots=1,
+            price_ticks=99,
             tif=TimeInForce.GTC,
             submitted_at=scheduler.current_time,
             session_id=SESSION_ID,
@@ -143,12 +145,13 @@ async def test_simulated_end_to_end_is_delivery_minus_submission():
     )
     submitted_at = scheduler.current_time
     engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id="E2E",
+            participant_id="E2E",
             symbol="TEST",
             side=Side.BUY,
-            qty=1.0,
-            price=99.0,
+            order_qty_lots=1,
+            price_ticks=99,
             tif=TimeInForce.GTC,
             submitted_at=submitted_at,
             session_id=SESSION_ID,
@@ -171,7 +174,7 @@ async def test_simulated_end_to_end_is_delivery_minus_submission():
 
 def test_negative_simulated_latency_is_rejected_not_absolute(caplog):
     scheduler = LatencyScheduler()
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     tracker = LatencyTracker(scheduler, metrics)
     future = scheduler.current_time + timedelta(milliseconds=5)
     tracker.order_submitted(1, SESSION_ID, future)
@@ -192,7 +195,7 @@ def test_negative_simulated_latency_is_rejected_not_absolute(caplog):
 
 def test_fake_monotonic_clock_duration_is_exact_without_sleep():
     scheduler = LatencyScheduler()
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     tracker = LatencyTracker(scheduler, metrics)
 
     sample = tracker.measure_real_duration(
@@ -220,12 +223,13 @@ def test_partial_ioc_trace_cleans_only_on_terminal_cancel_and_is_idempotent():
     )
 
     passive_id = engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id="PASSIVE",
+            participant_id="PASSIVE",
             symbol="TEST",
             side=Side.SELL,
-            qty=4.0,
-            price=100.0,
+            order_qty_lots=4,
+            price_ticks=100,
             tif=TimeInForce.GTC,
             submitted_at=scheduler.current_time,
             session_id=SESSION_ID,
@@ -236,12 +240,13 @@ def test_partial_ioc_trace_cleans_only_on_terminal_cancel_and_is_idempotent():
     engine.process_order(ProcessOrderCommand(passive_id, 0))
 
     ioc_id = engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id="IOC",
+            participant_id="IOC",
             symbol="TEST",
             side=Side.BUY,
-            qty=10.0,
-            price=100.0,
+            order_qty_lots=10,
+            price_ticks=100,
             tif=TimeInForce.IOC,
             submitted_at=scheduler.current_time,
             session_id=SESSION_ID,

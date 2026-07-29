@@ -9,6 +9,7 @@ import threading
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import (
     Any,
     Callable,
@@ -39,6 +40,7 @@ from .latency import (
     datetime_to_ns,
     monotonic_duration_ns,
 )
+from .instruments import InstrumentCatalog
 from .models import (
     CancellationOutcome,
     CancelLatencyTrace,
@@ -50,11 +52,12 @@ from .models import (
     FixDeliveryState,
     LatencyMeasurement,
     LiquidityCategory,
-    MarketDataUpdate,
+    MarketDataSnapshot,
     MetricsSnapshot,
     NewOrderCommand,
     OrderLatencyTrace,
     OrderStatus,
+    SelfTradePrevention,
     Trade,
     liquidity_category_for_session,
 )
@@ -287,12 +290,22 @@ class BufferedMetricsWriter:
         sink: MetricsSink,
         *,
         batch_size: int = 1000,
+        buffer_capacity: int = 10_000,
+        retry_interval_ms: int = 1_000,
         on_failure: Optional[Callable[[BaseException, int], None]] = None,
     ) -> None:
         if batch_size <= 0:
             raise ValueError("Metrics batch_size must be positive")
+        if buffer_capacity < batch_size:
+            raise ValueError(
+                "Metrics buffer_capacity must be at least batch_size"
+            )
+        if retry_interval_ms <= 0:
+            raise ValueError("Metrics retry_interval_ms must be positive")
         self.sink = sink
         self.batch_size = batch_size
+        self.buffer_capacity = buffer_capacity
+        self.retry_interval_ms = retry_interval_ms
         self.on_failure = on_failure
         self._buffer: Deque[MetricRecord] = deque()
         self._buffer_lock = threading.RLock()
@@ -314,7 +327,7 @@ class BufferedMetricsWriter:
         with self._buffer_lock:
             return self._closed
 
-    def _append(self, record: MetricRecord) -> bool:
+    def _append(self, record: MetricRecord) -> tuple[bool, bool]:
         with self._buffer_lock:
             if self._closed or self._closing:
                 logger.warning(
@@ -324,13 +337,25 @@ class BufferedMetricsWriter:
                         "buffer_size": len(self._buffer),
                     },
                 )
-                return False
+                return False, False
+            if len(self._buffer) >= self.buffer_capacity:
+                error = MetricsSinkError(
+                    "Metrics buffer capacity exhausted"
+                )
+                self._record_failure(error, len(self._buffer))
+                logger.error(
+                    "Metric record rejected because the persistence buffer is full",
+                    extra={"buffer_capacity": self.buffer_capacity},
+                )
+                return False, False
             self._buffer.append(record)
-            return len(self._buffer) >= self.batch_size
+            return True, len(self._buffer) >= self.batch_size
 
     def add_nowait(self, record: MetricRecord) -> bool:
         """Buffer a record and schedule a threshold flush when a loop exists."""
-        threshold_reached = self._append(record)
+        accepted, threshold_reached = self._append(record)
+        if not accepted:
+            return False
         if not threshold_reached:
             return True
         try:
@@ -347,7 +372,9 @@ class BufferedMetricsWriter:
 
     async def add(self, record: MetricRecord) -> bool:
         """Buffer one record, flushing synchronously at the batch threshold."""
-        threshold_reached = self._append(record)
+        accepted, threshold_reached = self._append(record)
+        if not accepted:
+            return False
         if threshold_reached:
             return await self.flush()
         return True
@@ -377,8 +404,25 @@ class BufferedMetricsWriter:
                     },
                     exc_info=True,
                 )
+                self._schedule_retry()
                 return False
             return True
+
+    def _schedule_retry(self) -> None:
+        if self._closing or self._closed:
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+
+        async def _retry() -> bool:
+            await asyncio.sleep(self.retry_interval_ms / 1000)
+            return await self.flush()
+
+        task = loop.create_task(_retry())
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     async def close(self) -> bool:
         """Flush and close once; a failed final write leaves the writer retryable."""
@@ -461,10 +505,12 @@ class MetricsCollector:
         self,
         exchange_name: str,
         *,
+        instruments: InstrumentCatalog,
         persistence: Optional[BufferedMetricsWriter] = None,
         prometheus_enabled: bool = True,
     ) -> None:
         self.exchange_name = exchange_name
+        self.instruments = instruments
         self.persistence = persistence
         self._run_id: Optional[str] = None
         self._metric_event_sequence = 0
@@ -493,11 +539,15 @@ class MetricsCollector:
             "trades": 0,
             "invalid_latency_measurements": 0,
             "metric_sink_failures": 0,
+            "self_trade_preventions": 0,
         }
-        self._totals: Dict[str, float] = {
-            "traded_quantity": 0.0,
-            "traded_notional": 0.0,
-            "canceled_quantity": 0.0,
+        self._symbol_totals: Dict[str, Dict[str, int]] = {
+            symbol: {
+                "traded_qty_lots": 0,
+                "traded_notional_tick_lots": 0,
+                "canceled_qty_lots": 0,
+            }
+            for symbol in instruments.symbols
         }
         self._latency_sums = {name: 0.0 for name in LATENCY_METRICS}
         self._latency_counts = {name: 0 for name in LATENCY_METRICS}
@@ -522,6 +572,8 @@ class MetricsCollector:
         self._prom_gauges: Dict[str, Any] = {}
         self._prom_histograms: Dict[str, Any] = {}
         self._prom_delivery_state_gauge = None
+        self._prom_self_trade_preventions = None
+        self._prom_self_trade_prevented_quantity = None
         if prometheus_enabled and CollectorRegistry is not None:
             self._init_prometheus()
 
@@ -562,8 +614,9 @@ class MetricsCollector:
             for name in self._counts:
                 self._counts[name] = 0
             self._counts["connected_sessions"] = connected_sessions
-            for name in self._totals:
-                self._totals[name] = 0.0
+            for totals in self._symbol_totals.values():
+                for name in totals:
+                    totals[name] = 0
             for name in self._latency_sums:
                 self._latency_sums[name] = 0.0
                 self._latency_counts[name] = 0
@@ -718,6 +771,18 @@ class MetricsCollector:
             "Aggregate queued WebSocket frames, excluding in-flight sends.",
             registry=self.registry,
         )
+        self._prom_self_trade_preventions = Counter(
+            "mockx_self_trade_preventions_total",
+            "Same-participant crossings canceled before trade creation.",
+            ("symbol",),
+            registry=self.registry,
+        )
+        self._prom_self_trade_prevented_quantity = Counter(
+            "mockx_self_trade_prevented_quantity_total",
+            "Prevented self-trade quantity in display units.",
+            ("symbol",),
+            registry=self.registry,
+        )
 
         duration_help = {
             SIM_INBOUND_LATENCY: (
@@ -805,11 +870,37 @@ class MetricsCollector:
         fields: Dict[str, object] = {
             "order_id": report.order_id,
             "exec_id": report.exec_id,
-            "qty": report.order_qty,
-            "filled_qty": report.cum_qty,
-            "canceled_qty": report.canceled_qty,
-            "leaves_qty": report.leaves_qty,
-            "avg_fill_price": report.avg_px,
+            "order_qty_lots": report.order_qty_lots,
+            "filled_qty_lots": report.cum_qty_lots,
+            "canceled_qty_lots": report.canceled_qty_lots,
+            "leaves_qty_lots": report.leaves_qty_lots,
+            "filled_notional_tick_lots": (
+                report.filled_notional_tick_lots
+            ),
+            "quantity": report.instrument.format_quantity(
+                report.order_qty_lots
+            ),
+            "filled_quantity": report.instrument.format_quantity(
+                report.cum_qty_lots
+            ),
+            "canceled_quantity": report.instrument.format_quantity(
+                report.canceled_qty_lots
+            ),
+            "leaves_quantity": report.instrument.format_quantity(
+                report.leaves_qty_lots
+            ),
+            "average_fill_price": report.instrument.format_average_price(
+                report.filled_notional_tick_lots,
+                report.cum_qty_lots,
+            ),
+            "tick_size": str(report.instrument.tick_size),
+            "lot_size": str(report.instrument.lot_size),
+            "price_display_precision": (
+                report.instrument.price_display_precision
+            ),
+            "quantity_display_precision": (
+                report.instrument.quantity_display_precision
+            ),
             "ts_submitted": datetime_to_ns(report.submitted_at),
         }
         if report.exchange_order_id is not None:
@@ -818,8 +909,11 @@ class MetricsCollector:
             fields["trade_id"] = report.trade_id
         if report.exchange_trade_id is not None:
             fields["exchange_trade_id"] = report.exchange_trade_id
-        if report.order_price is not None:
-            fields["price"] = report.order_price
+        if report.order_price_ticks is not None:
+            fields["price_ticks"] = report.order_price_ticks
+            fields["price"] = report.instrument.format_price(
+                report.order_price_ticks
+            )
         self._create_point(
             "orders",
             tags,
@@ -847,8 +941,16 @@ class MetricsCollector:
 
             if report.exec_type == ExecutionType.CANCELED:
                 self._increment_locked("orders_canceled")
-                self._totals["canceled_quantity"] += report.canceled_qty
-                self._prom_increment("canceled_quantity", report.canceled_qty)
+                self._symbol_totals[report.instrument.symbol][
+                    "canceled_qty_lots"
+                ] += report.canceled_qty_lots
+                canceled_display = report.instrument.quantity_decimal(
+                    report.canceled_qty_lots
+                )
+                self._prom_increment(
+                    "canceled_quantity",
+                    float(canceled_display),
+                )
             elif (
                 report.exec_type == ExecutionType.TRADE
                 and report.ord_status == OrderStatus.PARTIAL
@@ -875,12 +977,21 @@ class MetricsCollector:
                 return False
             self._seen_trade_ids.add(identity)
             self._increment_locked("trades")
-            self._totals["traded_quantity"] += trade.qty
-            self._totals["traded_notional"] += trade.price * trade.qty
-            self._prom_increment("traded_quantity", trade.qty)
+            totals = self._symbol_totals[trade.symbol]
+            totals["traded_qty_lots"] += trade.qty_lots
+            totals["traded_notional_tick_lots"] += (
+                trade.notional_tick_lots
+            )
+            instrument = self.instruments.require(trade.symbol)
+            self._prom_increment(
+                "traded_quantity",
+                float(instrument.quantity_decimal(trade.qty_lots)),
+            )
             self._prom_increment(
                 "traded_notional",
-                trade.price * trade.qty,
+                float(instrument.format_notional(
+                    trade.notional_tick_lots
+                )),
             )
 
         tags: Dict[str, object] = {
@@ -908,19 +1019,75 @@ class MetricsCollector:
             {
                 "trade_id": trade.id,
                 "exchange_trade_id": identity,
-                "price": trade.price,
-                "qty": trade.qty,
-                "volume": trade.volume,
+                "price_ticks": trade.price_ticks,
+                "qty_lots": trade.qty_lots,
+                "notional_tick_lots": trade.notional_tick_lots,
+                "price": instrument.format_price(trade.price_ticks),
+                "quantity": instrument.format_quantity(trade.qty_lots),
+                "notional": instrument.format_notional(
+                    trade.notional_tick_lots
+                ),
+                "tick_size": str(instrument.tick_size),
+                "lot_size": str(instrument.lot_size),
+                "price_display_precision": (
+                    instrument.price_display_precision
+                ),
+                "quantity_display_precision": (
+                    instrument.quantity_display_precision
+                ),
                 "buyer_order_id": trade.buyer_order_id,
                 "seller_order_id": trade.seller_order_id,
                 "aggressor_order_id": trade.aggressor_order_id,
                 "passive_order_id": trade.passive_order_id,
+                "buyer_participant_id": trade.buyer_participant_id,
+                "seller_participant_id": trade.seller_participant_id,
                 "level": trade.level,
             },
             datetime_to_ns(trade.timestamp),
         )
         self.refresh_engine_gauges()
         return True
+
+    def record_self_trade_prevention(
+        self,
+        event: SelfTradePrevention,
+    ) -> None:
+        """Record one unconditional self-cross prevention."""
+        instrument = self.instruments.require(event.symbol)
+        with self._lock:
+            self._counts["self_trade_preventions"] += 1
+            if self._prom_self_trade_preventions is not None:
+                self._prom_self_trade_preventions.labels(
+                    symbol=event.symbol
+                ).inc()
+            if self._prom_self_trade_prevented_quantity is not None:
+                self._prom_self_trade_prevented_quantity.labels(
+                    symbol=event.symbol
+                ).inc(
+                    float(
+                        instrument.quantity_decimal(
+                            event.prevented_qty_lots
+                        )
+                    )
+                )
+        self._create_point(
+            "self_trade_prevention",
+            {
+                "exchange": self.exchange_name,
+                "symbol": event.symbol,
+            },
+            {
+                "participant_id": event.participant_id,
+                "aggressor_order_id": event.aggressor_order_id,
+                "passive_order_id": event.passive_order_id,
+                "prevented_qty_lots": event.prevented_qty_lots,
+                "prevented_quantity": instrument.format_quantity(
+                    event.prevented_qty_lots
+                ),
+                "lot_size": str(instrument.lot_size),
+            },
+            datetime_to_ns(event.timestamp),
+        )
 
     def record_cancel_request(self, command: CancelOrderCommand) -> None:
         with self._lock:
@@ -1196,21 +1363,27 @@ class MetricsCollector:
 
     def update_book_metrics(
         self,
-        update: MarketDataUpdate,
-        price_levels: int = 15,
-        tick_size: float = 1.0,
+        update: MarketDataSnapshot,
     ) -> None:
-        if not update.bid_levels or not update.ask_levels:
+        if not update.bids or not update.asks:
             self.refresh_engine_gauges()
             return
         timestamp_ns = datetime_to_ns(update.timestamp)
-        best_bid = update.bid_levels[0].price
-        best_ask = update.ask_levels[0].price
+        instrument = update.instrument
+        best_bid_ticks = update.bids[0].price_ticks
+        best_ask_ticks = update.asks[0].price_ticks
+        best_bid = instrument.price_decimal(best_bid_ticks)
+        best_ask = instrument.price_decimal(best_ask_ticks)
         fields: Dict[str, object] = {
-            "spread": best_ask - best_bid,
-            "mid_price": (best_bid + best_ask) / 2,
-            "best_bid": best_bid,
-            "best_ask": best_ask,
+            "best_bid_ticks": best_bid_ticks,
+            "best_ask_ticks": best_ask_ticks,
+            "spread_ticks": best_ask_ticks - best_bid_ticks,
+            "best_bid": instrument.format_price(best_bid_ticks),
+            "best_ask": instrument.format_price(best_ask_ticks),
+            "spread": format(best_ask - best_bid, "f"),
+            "mid_price": format((best_bid + best_ask) / Decimal(2), "f"),
+            "tick_size": str(instrument.tick_size),
+            "lot_size": str(instrument.lot_size),
         }
         self._create_point(
             "book",
@@ -1220,8 +1393,8 @@ class MetricsCollector:
         )
         self.refresh_engine_gauges()
 
-    def update_active_orders(self, update: MarketDataUpdate) -> None:
-        """Compatibility hook; gauges are derived from the engine."""
+    def update_active_orders(self, update: MarketDataSnapshot) -> None:
+        """Refresh gauges derived from authoritative engine state."""
         self.refresh_engine_gauges()
 
     def update_pending_events(self, count: int, timestamp_ns: int) -> None:
@@ -1259,7 +1432,10 @@ class MetricsCollector:
         active, resting, levels = self._authoritative_engine_counts()
         with self._lock:
             counts = dict(self._counts)
-            totals = dict(self._totals)
+            symbol_totals = {
+                symbol: dict(values)
+                for symbol, values in self._symbol_totals.items()
+            }
             latency_sums = dict(self._latency_sums)
             latency_counts = dict(self._latency_counts)
         buffered = (
@@ -1273,6 +1449,23 @@ class MetricsCollector:
             if count == 0:
                 return None
             return latency_sums[metric] / count * multiplier
+
+        traded_quantity = Decimal(0)
+        traded_notional = Decimal(0)
+        canceled_quantity = Decimal(0)
+        for symbol, totals in symbol_totals.items():
+            instrument = self.instruments.require(symbol)
+            traded_quantity += instrument.quantity_decimal(
+                totals["traded_qty_lots"]
+            )
+            traded_notional += (
+                instrument.tick_size
+                * instrument.lot_size
+                * totals["traded_notional_tick_lots"]
+            )
+            canceled_quantity += instrument.quantity_decimal(
+                totals["canceled_qty_lots"]
+            )
 
         return MetricsSnapshot(
             generated_at=datetime.now(timezone.utc),
@@ -1294,9 +1487,9 @@ class MetricsCollector:
             ],
             execution_reports=counts["execution_reports"],
             trades=counts["trades"],
-            traded_quantity=totals["traded_quantity"],
-            traded_notional=totals["traded_notional"],
-            canceled_quantity=totals["canceled_quantity"],
+            traded_quantity=format(traded_quantity, "f"),
+            traded_notional=format(traded_notional, "f"),
+            canceled_quantity=format(canceled_quantity, "f"),
             active_orders=active,
             resting_orders=resting,
             order_book_levels=levels,
@@ -1360,7 +1553,7 @@ class MetricsCollector:
     def get_trades_total(self) -> int:
         return self.snapshot().trades
 
-    def get_volume_total(self) -> float:
+    def get_volume_total(self) -> str:
         return self.snapshot().traded_quantity
 
     def _increment_locked(self, name: str, amount: int = 1) -> None:

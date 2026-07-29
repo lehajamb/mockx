@@ -1,3 +1,4 @@
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Pure FIX mappings and per-fill execution-report semantics."""
 
 from dataclasses import replace
@@ -37,6 +38,7 @@ def test_fix_mapping_for_new_partial_fill_cancel_and_reject():
     new_id = submit(
         engine,
         cl_ord_id="FIX-NEW",
+        participant_id="FIX-NEW",
         side=Side.SELL,
         qty=10,
         price=101,
@@ -44,6 +46,7 @@ def test_fix_mapping_for_new_partial_fill_cancel_and_reject():
     partial_id = submit(
         engine,
         cl_ord_id="FIX-PARTIAL-PASSIVE",
+        participant_id="FIX-PARTIAL-PASSIVE",
         side=Side.SELL,
         qty=10,
         price=100,
@@ -51,6 +54,7 @@ def test_fix_mapping_for_new_partial_fill_cancel_and_reject():
     filled_id = submit(
         engine,
         cl_ord_id="FIX-FILLED",
+        participant_id="FIX-FILLED",
         side=Side.BUY,
         qty=4,
         price=100,
@@ -61,13 +65,14 @@ def test_fix_mapping_for_new_partial_fill_cancel_and_reject():
         cancel_cl_ord_id="CXL-FIX-NEW",
     ) is None
 
-    rejected = Order(
+    rejected = exact_order(
         id=999,
         cl_ord_id="FIX-REJECTED",
+        participant_id="FIX-REJECTED",
         symbol="TEST",
         side=Side.BUY,
-        qty=3,
-        price=99,
+        order_qty_lots=3,
+        price_ticks=99,
         tif=TimeInForce.GTC,
         ts_submitted=NOW,
     )
@@ -104,28 +109,28 @@ def test_fix_mapping_for_new_partial_fill_cancel_and_reject():
         new_fields["OrdStatus"],
         new_fields["CumQty"],
         new_fields["LeavesQty"],
-    ) == ("0", "0", 0, 10)
+    ) == ("0", "0", "0.000", "10.000")
     assert partial_fields["ExecType"] == "F"
     assert partial_fields["OrdStatus"] == "1"
-    assert partial_fields["LastQty"] == 4
-    assert partial_fields["LastPx"] == 100
+    assert partial_fields["LastQty"] == "4.000"
+    assert partial_fields["LastPx"] == "100.00"
     assert partial_fields["TradeID"]
-    assert partial_fields["CumQty"] == 4
-    assert partial_fields["LeavesQty"] == 6
+    assert partial_fields["CumQty"] == "4.000"
+    assert partial_fields["LeavesQty"] == "6.000"
     assert fill_fields["ExecType"] == "F"
     assert fill_fields["OrdStatus"] == "2"
-    assert fill_fields["CumQty"] == fill_fields["OrderQty"] == 4
-    assert fill_fields["LeavesQty"] == 0
+    assert fill_fields["CumQty"] == fill_fields["OrderQty"] == "4.000"
+    assert fill_fields["LeavesQty"] == "0.000"
     assert fill_fields["TradeID"] == partial_fields["TradeID"]
     assert cancel_fields["ExecType"] == "4"
     assert cancel_fields["OrdStatus"] == "4"
     assert cancel_fields["ClOrdID"] == "CXL-FIX-NEW"
     assert cancel_fields["OrigClOrdID"] == "FIX-NEW"
-    assert cancel_fields["LeavesQty"] == 0
-    assert cancel_fields["CanceledQty"] == 10
+    assert cancel_fields["LeavesQty"] == "0.000"
+    assert cancel_fields["CanceledQty"] == "10.000"
     assert reject_fields["ExecType"] == "8"
     assert reject_fields["OrdStatus"] == "8"
-    assert reject_fields["LeavesQty"] == 0
+    assert reject_fields["LeavesQty"] == "0.000"
 
 
 def test_market_fix_report_omits_price_but_uses_fill_prices():
@@ -133,6 +138,7 @@ def test_market_fix_report_omits_price_but_uses_fill_prices():
     submit(
         engine,
         cl_ord_id="FIX-MARKET-PASSIVE",
+        participant_id="FIX-MARKET-PASSIVE",
         side=Side.SELL,
         qty=5,
         price=100,
@@ -140,6 +146,7 @@ def test_market_fix_report_omits_price_but_uses_fill_prices():
     market_id = submit(
         engine,
         cl_ord_id="FIX-MARKET",
+        participant_id="FIX-MARKET",
         side=Side.BUY,
         qty=5,
         price=None,
@@ -149,8 +156,8 @@ def test_market_fix_report_omits_price_but_uses_fill_prices():
         reports_for(reports, market_id, ExecutionType.TRADE)[0]
     )
     assert "Price" not in fields
-    assert fields["LastPx"] == 100
-    assert fields["AvgPx"] == 100
+    assert fields["LastPx"] == "100.00"
+    assert fields["AvgPx"] == "100.00"
 
 
 def test_cancel_reject_mapping_uses_request_and_known_order_snapshot():
@@ -158,6 +165,7 @@ def test_cancel_reject_mapping_uses_request_and_known_order_snapshot():
     order_id = submit(
         engine,
         cl_ord_id="FIX-CXL-FILLED-PASSIVE",
+        participant_id="FIX-CXL-FILLED-PASSIVE",
         side=Side.SELL,
         qty=2,
         price=100,
@@ -165,16 +173,17 @@ def test_cancel_reject_mapping_uses_request_and_known_order_snapshot():
     submit(
         engine,
         cl_ord_id="FIX-CXL-FILLED-HIT",
+        participant_id="FIX-CXL-FILLED-HIT",
         side=Side.BUY,
         qty=2,
         price=100,
     )
-    command = CancelOrderCommand(
+    command = exact_cancel_command(
         cancel_cl_ord_id="CXL-TOO-LATE",
         orig_cl_ord_id="FIX-CXL-FILLED-PASSIVE",
         symbol="TEST",
         side=Side.SELL,
-        qty=2,
+        order_qty_lots=2,
         requested_at=NOW,
         session_id="FIX.4.4:CLIENT->MOCKX",
         session_alias="CLIENT",
@@ -190,17 +199,17 @@ def test_cancel_reject_mapping_uses_request_and_known_order_snapshot():
     assert fields["OrdStatus"] == "2"
     assert fields["CxlRejReason"] == 0
     assert fields["CxlRejResponseTo"] == "1"
-    assert "terminal state" in fields["Text"]
+    assert fields["Text"] == "Order already FILLED"
 
 
 def test_unknown_cancel_reject_mapping_has_request_identity():
     engine, _, _, _ = make_engine()
-    command = CancelOrderCommand(
+    command = exact_cancel_command(
         cancel_cl_ord_id="CXL-UNKNOWN-FIX",
         orig_cl_ord_id="UNKNOWN-FIX",
         symbol="TEST",
         side=Side.BUY,
-        qty=1,
+        order_qty_lots=1,
         requested_at=NOW,
         session_id="FIX.4.4:CLIENT->MOCKX",
         session_alias="CLIENT",
@@ -223,6 +232,7 @@ def test_report_order_is_passive_then_aggressor_for_each_fill():
         submit(
             engine,
             cl_ord_id="ORDER-A",
+            participant_id="ORDER-A",
             side=Side.SELL,
             qty=3,
             price=100,
@@ -230,6 +240,7 @@ def test_report_order_is_passive_then_aggressor_for_each_fill():
         submit(
             engine,
             cl_ord_id="ORDER-B",
+            participant_id="ORDER-B",
             side=Side.SELL,
             qty=4,
             price=100,
@@ -239,6 +250,7 @@ def test_report_order_is_passive_then_aggressor_for_each_fill():
     aggressor_id = submit(
         engine,
         cl_ord_id="ORDER-AGGRESSOR",
+        participant_id="ORDER-AGGRESSOR",
         side=Side.BUY,
         qty=7,
         price=100,
@@ -274,6 +286,7 @@ def test_passive_order_reports_each_separate_fill_cumulatively():
     passive_id = submit(
         engine,
         cl_ord_id="PASSIVE-MULTI",
+        participant_id="PASSIVE-MULTI",
         side=Side.SELL,
         qty=10,
         price=100,
@@ -281,6 +294,7 @@ def test_passive_order_reports_each_separate_fill_cumulatively():
     submit(
         engine,
         cl_ord_id="PASSIVE-HIT-1",
+        participant_id="PASSIVE-HIT-1",
         side=Side.BUY,
         qty=3,
         price=100,
@@ -288,6 +302,7 @@ def test_passive_order_reports_each_separate_fill_cumulatively():
     submit(
         engine,
         cl_ord_id="PASSIVE-HIT-2",
+        participant_id="PASSIVE-HIT-2",
         side=Side.BUY,
         qty=2,
         price=100,
@@ -298,11 +313,11 @@ def test_passive_order_reports_each_separate_fill_cumulatively():
         passive_id,
         ExecutionType.TRADE,
     )
-    assert [report.last_qty for report in passive_reports] == [3, 2]
-    assert [report.last_px for report in passive_reports] == [100, 100]
-    assert [report.cum_qty for report in passive_reports] == [3, 5]
-    assert [report.leaves_qty for report in passive_reports] == [7, 5]
-    assert [report.avg_px for report in passive_reports] == [100, 100]
+    assert [report.last_qty_lots for report in passive_reports] == [3, 2]
+    assert [report.last_price_ticks for report in passive_reports] == [100, 100]
+    assert [report.cum_qty_lots for report in passive_reports] == [3, 5]
+    assert [report.leaves_qty_lots for report in passive_reports] == [7, 5]
+    assert [report.average_fill_price for report in passive_reports] == [100, 100]
     assert [report.ord_status for report in passive_reports] == [
         OrderStatus.PARTIAL,
         OrderStatus.PARTIAL,
@@ -314,6 +329,7 @@ def test_execution_report_invariants_reject_impossible_snapshots():
     new_id = submit(
         engine,
         cl_ord_id="INVALID-NEW",
+        participant_id="INVALID-NEW",
         side=Side.SELL,
         qty=10,
         price=101,
@@ -321,6 +337,7 @@ def test_execution_report_invariants_reject_impossible_snapshots():
     partial_id = submit(
         engine,
         cl_ord_id="INVALID-PARTIAL",
+        participant_id="INVALID-PARTIAL",
         side=Side.SELL,
         qty=10,
         price=100,
@@ -328,6 +345,7 @@ def test_execution_report_invariants_reject_impossible_snapshots():
     filled_id = submit(
         engine,
         cl_ord_id="INVALID-FILLED",
+        participant_id="INVALID-FILLED",
         side=Side.BUY,
         qty=4,
         price=100,
@@ -352,28 +370,28 @@ def test_execution_report_invariants_reject_impossible_snapshots():
     )[0]
 
     invalid_builders = [
-        lambda: replace(partial_report, last_qty=0),
-        lambda: replace(partial_report, last_px=None),
+        lambda: replace(partial_report, last_qty_lots=0),
+        lambda: replace(partial_report, last_price_ticks=None),
         lambda: replace(
             filled_report,
-            cum_qty=3,
-            leaves_qty=1,
+            cum_qty_lots=3,
+            leaves_qty_lots=1,
         ),
         lambda: replace(
             cancel_report,
-            leaves_qty=1,
-            canceled_qty=9,
+            leaves_qty_lots=1,
+            canceled_qty_lots=9,
         ),
-        lambda: replace(new_report, cum_qty=1, leaves_qty=9),
-        lambda: replace(new_report, leaves_qty=9),
+        lambda: replace(new_report, cum_qty_lots=1, leaves_qty_lots=9),
+        lambda: replace(new_report, leaves_qty_lots=9),
         lambda: replace(
             partial_report,
-            last_qty=partial_report.cum_qty + 1,
+            last_qty_lots=partial_report.cum_qty_lots + 1,
         ),
         lambda: replace(
             cancel_report,
-            canceled_qty=-1,
-            leaves_qty=11,
+            canceled_qty_lots=-1,
+            leaves_qty_lots=11,
         ),
         lambda: replace(
             cancel_report,
@@ -381,9 +399,11 @@ def test_execution_report_invariants_reject_impossible_snapshots():
         ),
         lambda: replace(
             cancel_report,
-            cum_qty=cancel_report.order_qty,
-            canceled_qty=0,
-            avg_px=100,
+            cum_qty_lots=cancel_report.order_qty_lots,
+            canceled_qty_lots=0,
+            filled_notional_tick_lots=(
+                cancel_report.order_qty_lots * 100
+            ),
         ),
     ]
 
@@ -397,6 +417,7 @@ def test_mapped_fields_remain_immutable_after_live_order_mutation():
     order_id = submit(
         engine,
         cl_ord_id="FIX-SNAPSHOT",
+        participant_id="FIX-SNAPSHOT",
         side=Side.SELL,
         qty=5,
         price=100,
@@ -405,6 +426,7 @@ def test_mapped_fields_remain_immutable_after_live_order_mutation():
     submit(
         engine,
         cl_ord_id="FIX-SNAPSHOT-HIT",
+        participant_id="FIX-SNAPSHOT-HIT",
         side=Side.BUY,
         qty=5,
         price=100,
@@ -414,5 +436,5 @@ def test_mapped_fields_remain_immutable_after_live_order_mutation():
     assert engine.orders[order_id].status == OrderStatus.FILLED
     assert fields["ExecType"] == "0"
     assert fields["OrdStatus"] == "0"
-    assert fields["CumQty"] == 0
-    assert fields["LeavesQty"] == 5
+    assert fields["CumQty"] == "0.000"
+    assert fields["LeavesQty"] == "5.000"

@@ -1,3 +1,5 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Tests for the matching engine."""
 
 import itertools
@@ -38,40 +40,42 @@ def exec_params():
 def engine(exec_params):
     """Create test matching engine."""
     scheduler = LatencyScheduler()
-    engine = MatchingEngine(exec_params, scheduler)
-    engine.add_symbol("TEST")
+    engine = exact_engine(exec_params, scheduler)
     # Set a dummy handler so that execution reports are generated
     engine.on_execution_report = lambda report: None
     return engine
 
 
-def create_order(side: Side, qty: float, price: float = None) -> Order:
+def create_order(side: Side, qty: int, price: int | None = None) -> Order:
     """Helper to create test orders."""
-    return Order(
+    return exact_order(
         id=next(ORDER_IDS),
         cl_ord_id=f"TEST_{datetime.now(timezone.utc).timestamp()}",
+        participant_id=f"TEST_{datetime.now(timezone.utc).timestamp()}",
         symbol="TEST",
         side=side,
-        qty=qty,
-        price=price,
+        order_qty_lots=qty,
+        price_ticks=price,
         tif=TimeInForce.GTC,
-        ts_submitted=datetime.now(timezone.utc)
+        ts_submitted=datetime.now(timezone.utc),
+        status=OrderStatus.NEW,
     )
 
 
 def create_order_command(
     side: Side,
-    qty: float,
-    price: float = None,
+    qty: int,
+    price: int | None = None,
     tif: TimeInForce = TimeInForce.GTC,
 ) -> NewOrderCommand:
     """Create an immutable order command for engine tests."""
-    return NewOrderCommand(
+    return exact_command(
         cl_ord_id=f"TEST_{datetime.now(timezone.utc).timestamp()}",
+        participant_id=f"TEST_{datetime.now(timezone.utc).timestamp()}",
         symbol="TEST",
         side=side,
-        qty=qty,
-        price=price,
+        order_qty_lots=qty,
+        price_ticks=price,
         tif=tif,
         submitted_at=datetime.now(timezone.utc),
         session_id="FIX.4.4:CLIENT->MOCKX",
@@ -88,12 +92,12 @@ def process_command(order_id: int, expected_version: int = 0) -> ProcessOrderCom
 
 def cancel_command(engine: MatchingEngine, order_id: int) -> CancelOrderCommand:
     order = engine.orders[order_id]
-    return CancelOrderCommand(
+    return exact_cancel_command(
         cancel_cl_ord_id=f"CANCEL_{order.cl_ord_id}",
         orig_cl_ord_id=order.cl_ord_id,
         symbol=order.symbol,
         side=order.side,
-        qty=order.qty,
+        order_qty_lots=order.order_qty_lots,
         requested_at=engine.scheduler.current_time,
         session_id=order.session_id or "FIX.4.4:CLIENT->MOCKX",
         session_alias=order.session_alias,
@@ -117,12 +121,12 @@ class TestOrderBook:
         
         # Check ordering (best bid first)
         assert len(book.bids) == 2
-        assert book.bids[0].price == 101
-        assert book.bids[1].price == 100
+        assert book.bids[0].price_ticks == 101
+        assert book.bids[1].price_ticks == 100
         
         # Check quantities
-        assert book.bids[0].qty == 5
-        assert book.bids[1].qty == 13  # 10 + 3
+        assert book.bids[0].level_qty_lots == 5
+        assert book.bids[1].level_qty_lots == 13  # 10 + 3
         
     def test_add_ask(self):
         """Test adding ask orders."""
@@ -137,21 +141,22 @@ class TestOrderBook:
         
         # Check ordering (best ask first)
         assert len(book.asks) == 2
-        assert book.asks[0].price == 99
-        assert book.asks[1].price == 100
+        assert book.asks[0].price_ticks == 99
+        assert book.asks[1].price_ticks == 100
         
         # Check quantities
-        assert book.asks[0].qty == 5
-        assert book.asks[1].qty == 13  # 10 + 3
+        assert book.asks[0].level_qty_lots == 5
+        assert book.asks[1].level_qty_lots == 13  # 10 + 3
         
     def test_best_prices(self):
         """Test best bid/ask price retrieval."""
         book = OrderBook("TEST")
         
         # Empty book
-        assert book.get_best_bid() is None
-        assert book.get_best_ask() is None
-        assert book.get_mid_price() is None
+        assert book.get_best_bid_ticks() is None
+        assert book.get_best_ask_ticks() is None
+        assert book.get_best_bid_ticks() is None
+        assert book.get_best_ask_ticks() is None
         
         # Add orders
         book.add_bid(create_order(Side.BUY, 10, 99))
@@ -159,9 +164,11 @@ class TestOrderBook:
         book.add_ask(create_order(Side.SELL, 10, 101))
         book.add_ask(create_order(Side.SELL, 5, 102))
         
-        assert book.get_best_bid() == 100
-        assert book.get_best_ask() == 101
-        assert book.get_mid_price() == 100.5
+        assert book.get_best_bid_ticks() == 100
+        assert book.get_best_ask_ticks() == 101
+        assert (
+            book.get_best_bid_ticks() + book.get_best_ask_ticks()
+        ) / 2 == 100.5
 
 
 class TestMatchingEngine:
@@ -190,9 +197,9 @@ class TestMatchingEngine:
         engine.process_order(process_command(buy_id))
         
         # Check orders are matched
-        assert engine.orders[sell_id].filled_qty == 5
+        assert engine.orders[sell_id].filled_qty_lots == 5
         assert engine.orders[sell_id].status == OrderStatus.PARTIAL
-        assert engine.orders[buy_id].filled_qty == 5
+        assert engine.orders[buy_id].filled_qty_lots == 5
         assert engine.orders[buy_id].status == OrderStatus.FILLED
         
     def test_price_time_priority(self, engine):
@@ -218,7 +225,7 @@ class TestMatchingEngine:
         # Check matching order
         assert engine.orders[id2].status == OrderStatus.FILLED  # Best price
         assert engine.orders[id1].status == OrderStatus.FILLED  # First at 100
-        assert engine.orders[id3].filled_qty == 5    # Partial fill
+        assert engine.orders[id3].filled_qty_lots == 5    # Partial fill
     
     def test_market_order(self, engine):
         """Test market order execution and resulting slippage from walking the book."""
@@ -239,15 +246,17 @@ class TestMatchingEngine:
         
         # The order should be fully filled
         assert buy_order.status == OrderStatus.FILLED
-        assert buy_order.filled_qty == 15
+        assert buy_order.filled_qty_lots == 15
 
         # The average price must be higher than the best price, demonstrating slippage
         # Weighted average: ((10 * 100) + (5 * 101)) / 15 = 100.333...
         expected_avg_price = (10 * 100 + 5 * 101) / 15
         
         # Use pytest.approx for float comparison
-        assert buy_order.avg_fill_price == pytest.approx(expected_avg_price)
-        assert buy_order.avg_fill_price > 100
+        assert float(buy_order.average_fill_price) == pytest.approx(
+            expected_avg_price
+        )
+        assert buy_order.average_fill_price > 100
 
     def test_ioc_order(self, engine):
         """Test immediate-or-cancel orders."""
@@ -257,12 +266,13 @@ class TestMatchingEngine:
         engine.process_order(process_command(sell_id))
         
         # IOC buy for more than available
-        buy = NewOrderCommand(
+        buy = exact_command(
             cl_ord_id="IOC_TEST",
+            participant_id="IOC_TEST",
             symbol="TEST",
             side=Side.BUY,
-            qty=10.0,
-            price=100.0,
+            order_qty_lots=10,
+            price_ticks=100,
             tif=TimeInForce.IOC,
             submitted_at=datetime.now(timezone.utc),
         )
@@ -270,7 +280,7 @@ class TestMatchingEngine:
         engine.process_order(process_command(buy_id))
         
         # Check partial fill and cancellation
-        assert engine.orders[buy_id].filled_qty == 5
+        assert engine.orders[buy_id].filled_qty_lots == 5
         assert engine.orders[buy_id].status == OrderStatus.CANCELLED
         
     def test_rejection(self):
@@ -283,8 +293,7 @@ class TestMatchingEngine:
         )
         
         scheduler = LatencyScheduler()
-        engine = MatchingEngine(exec_params, scheduler)
-        engine.add_symbol("TEST")
+        engine = exact_engine(exec_params, scheduler)
         
         order = create_order_command(Side.BUY, 10, 100)
         order_id = engine.submit_order(order)
@@ -301,8 +310,7 @@ class TestMatchingEngine:
         )
 
         scheduler = LatencyScheduler()
-        engine = MatchingEngine(exec_params, scheduler)
-        engine.add_symbol("TEST")
+        engine = exact_engine(exec_params, scheduler)
         # Set a dummy handler so that execution reports are generated
         engine.on_execution_report = lambda report: None
 
@@ -321,11 +329,11 @@ class TestMatchingEngine:
         book = engine.books["TEST"]
 
         assert sell_order.status == OrderStatus.FILLED
-        assert sell_order.filled_qty == 10
+        assert sell_order.filled_qty_lots == 10
         assert buy_order.status == OrderStatus.FILLED
-        assert buy_order.filled_qty == 10
-        assert book.get_best_bid() is None
-        assert book.get_best_ask() is None
+        assert buy_order.filled_qty_lots == 10
+        assert book.get_best_bid_ticks() is None
+        assert book.get_best_ask_ticks() is None
         book.assert_invariants()
 
     def test_gtc_partial_fill_rests_after_crossing_liquidity_is_exhausted(
@@ -347,12 +355,12 @@ class TestMatchingEngine:
         book = engine.books["TEST"]
 
         assert sell_order.status == OrderStatus.FILLED
-        assert sell_order.filled_qty == 10
+        assert sell_order.filled_qty_lots == 10
         assert buy_order.status == OrderStatus.PARTIAL
-        assert buy_order.filled_qty == 10
-        assert buy_order.remaining_qty == 5
-        assert book.get_best_bid() == 101
-        assert book.get_best_ask() is None
+        assert buy_order.filled_qty_lots == 10
+        assert buy_order.leaves_qty_lots == 5
+        assert book.get_best_bid_ticks() == 101
+        assert book.get_best_ask_ticks() is None
         assert book.is_resting(buy_id)
         book.assert_invariants()
 

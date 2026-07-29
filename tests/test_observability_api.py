@@ -1,3 +1,5 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """FastAPI stats and application-owned Prometheus registry tests."""
 
 import json
@@ -7,6 +9,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.mockx.api import create_app
+from src.mockx.configuration import validate_config
 from src.mockx.engine import MatchingEngine
 from src.mockx.gateway import FIXApplication
 from src.mockx.latency import LatencyScheduler
@@ -26,22 +29,33 @@ FIX_CONFIG = Path(__file__).resolve().parents[1] / "configs" / "mockx1.cfg"
 
 
 def config():
-    return {
+    return validate_config({
         "exchange_name": "Test-Exchange",
-        "symbols": ["TEST"],
+        "instruments": {
+            "TEST": {
+                "tick_size": "1",
+                "lot_size": "1",
+                "price_display_precision": 2,
+                "quantity_display_precision": 3,
+            }
+        },
         "latency": {"network_ms": 0, "engine_ms": 0},
         "execution": {
             "reject_prob": 0.0,
             "random_seed": 42,
         },
-        "admin_api": {"port": 8999},
+        "admin_api": {"host": "127.0.0.1", "port": 8999},
+        "fix": {"enabled": False, "session_participants": {}},
+        "scheduler": {"mode": "external"},
+        "websocket": {},
+        "cors_origins": [],
         "prometheus": {"enabled": True},
-    }
+    }, environ={})
 
 
 def bare_app():
     scheduler = LatencyScheduler()
-    engine = MatchingEngine(
+    engine = exact_engine(
         ExecutionParams(
             network_latency_ms=0,
             engine_latency_ms=0,
@@ -50,8 +64,7 @@ def bare_app():
         ),
         scheduler,
     )
-    engine.add_symbol("TEST")
-    metrics = MetricsCollector("TEST")
+    metrics = exact_metrics("TEST")
     metrics.bind_engine(engine)
     fix_app = FIXApplication(
         engine,
@@ -64,12 +77,13 @@ def bare_app():
 
 def submit(exchange, cl_ord_id, side, qty, price):
     order_id = exchange.engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id=cl_ord_id,
+            participant_id=cl_ord_id,
             symbol="TEST",
             side=side,
-            qty=qty,
-            price=price,
+            order_qty_lots=qty,
+            price_ticks=price,
             tif=TimeInForce.GTC,
             submitted_at=exchange.scheduler.current_time,
             session_id="FIX.4.4:MOCKX->CLIENT",
@@ -95,9 +109,9 @@ async def test_stats_empty_state_is_stable_and_json_serializable():
     assert data["orders"]["active"] == 0
     assert data["trades"] == {
         "count": 0,
-        "quantity": 0.0,
-        "notional": 0.0,
-        "canceled_quantity": 0.0,
+        "quantity": "0",
+        "notional": "0",
+        "canceled_quantity": "0",
     }
     assert data["latency"]["average_real_matching_duration_us"] is None
     json.dumps(data)
@@ -106,17 +120,17 @@ async def test_stats_empty_state_is_stable_and_json_serializable():
 @pytest.mark.asyncio
 async def test_stats_populated_state_matches_authoritative_events():
     exchange = MockExchange(config(), str(FIX_CONFIG))
-    submit(exchange, "PASSIVE", Side.SELL, 5.0, 100.0)
-    submit(exchange, "TAKER", Side.BUY, 5.0, 100.0)
-    cancel_id = submit(exchange, "CANCEL", Side.BUY, 3.0, 99.0)
+    submit(exchange, "PASSIVE", Side.SELL, 5, 100)
+    submit(exchange, "TAKER", Side.BUY, 5, 100)
+    cancel_id = submit(exchange, "CANCEL", Side.BUY, 3, 99)
     cancel_order = exchange.engine.orders[cancel_id]
     exchange.engine.cancel_order(
-        CancelOrderCommand(
+        exact_cancel_command(
             cancel_cl_ord_id="CXL-CANCEL",
             orig_cl_ord_id=cancel_order.cl_ord_id,
             symbol=cancel_order.symbol,
             side=cancel_order.side,
-            qty=cancel_order.qty,
+            order_qty_lots=cancel_order.order_qty_lots,
             requested_at=exchange.scheduler.current_time,
             session_id=(
                 cancel_order.session_id or "FIX.4.4:MOCKX->CLIENT"
@@ -125,12 +139,12 @@ async def test_stats_populated_state_matches_authoritative_events():
         )
     )
     exchange.engine.cancel_order(
-        CancelOrderCommand(
+        exact_cancel_command(
             cancel_cl_ord_id="CXL-UNKNOWN",
             orig_cl_ord_id="UNKNOWN",
             symbol="TEST",
             side=Side.BUY,
-            qty=1,
+            order_qty_lots=1,
             requested_at=exchange.scheduler.current_time,
             session_id="FIX.4.4:MOCKX->CLIENT",
             session_alias="CLIENT",
@@ -161,15 +175,15 @@ async def test_stats_populated_state_matches_authoritative_events():
     assert data["orders"]["active"] == 0
     assert data["orders"]["resting"] == 0
     assert data["trades"]["count"] == 1
-    assert data["trades"]["quantity"] == 5.0
-    assert data["trades"]["notional"] == 500.0
+    assert data["trades"]["quantity"] == "5"
+    assert data["trades"]["notional"] == "500"
 
 
 @pytest.mark.asyncio
 async def test_metrics_endpoint_has_expected_names_types_and_values():
     exchange = MockExchange(config(), str(FIX_CONFIG))
-    submit(exchange, "PASSIVE", Side.SELL, 2.0, 100.0)
-    submit(exchange, "TAKER", Side.BUY, 2.0, 100.0)
+    submit(exchange, "PASSIVE", Side.SELL, 2, 100)
+    submit(exchange, "TAKER", Side.BUY, 2, 100)
 
     async with AsyncClient(
         transport=ASGITransport(app=exchange.app),

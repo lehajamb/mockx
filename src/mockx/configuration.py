@@ -1,0 +1,650 @@
+"""Strict, immutable configuration loading for MockX."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
+import ipaddress
+import os
+from pathlib import Path
+import re
+from typing import Any, Mapping, Optional
+from urllib.parse import urlsplit
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictInt,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+import yaml
+
+
+MAX_LATENCY_MS = 2_147_483_647
+MAX_SEED = (1 << 63) - 1
+MIN_SEED = -(1 << 63)
+MAX_INSTRUMENT_UNITS = (1 << 63) - 1
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigurationIssue:
+    """Stable, path-addressed configuration problem."""
+
+    path: str
+    code: str
+    message: str
+
+
+class ConfigurationError(ValueError):
+    """Raised when a configuration file or environment merge is invalid."""
+
+    def __init__(self, issues: tuple[ConfigurationIssue, ...]):
+        if not issues:
+            raise ValueError("ConfigurationError requires at least one issue")
+        self.issues = tuple(sorted(issues, key=lambda item: (item.path, item.code)))
+        super().__init__(
+            "; ".join(
+                f"{issue.path}: {issue.message}" for issue in self.issues
+            )
+        )
+
+
+class StrictConfigModel(BaseModel):
+    """Shared strict/frozen policy for every configuration section."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        strict=True,
+        validate_default=True,
+    )
+
+
+def _nonempty(value: str, *, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+    return value.strip()
+
+
+def _decimal(value: object, *, field_name: str) -> Decimal:
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a decimal value")
+    try:
+        parsed = value if isinstance(value, Decimal) else Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise ValueError(f"{field_name} must be a decimal value") from exc
+    if not parsed.is_finite():
+        raise ValueError(f"{field_name} must be finite")
+    return parsed
+
+
+def _scale(value: Decimal) -> int:
+    return max(0, -value.normalize().as_tuple().exponent)
+
+
+class InstrumentConfig(StrictConfigModel):
+    """Validated per-symbol decimal metadata."""
+
+    tick_size: Decimal
+    lot_size: Decimal
+    price_display_precision: Optional[StrictInt] = None
+    quantity_display_precision: Optional[StrictInt] = None
+
+    @field_validator(
+        "tick_size",
+        "lot_size",
+        mode="before",
+    )
+    @classmethod
+    def parse_decimals(cls, value: object, info):
+        if value is None:
+            return None
+        return _decimal(value, field_name=info.field_name)
+
+    @field_validator("tick_size", "lot_size")
+    @classmethod
+    def positive_increment(cls, value: Decimal) -> Decimal:
+        if value <= 0:
+            raise ValueError("must be greater than zero")
+        return value
+
+    @field_validator("price_display_precision", "quantity_display_precision")
+    @classmethod
+    def valid_precision(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and not 0 <= value <= 18:
+            raise ValueError("must be between 0 and 18")
+        return value
+
+    @model_validator(mode="after")
+    def validate_ranges(self) -> "InstrumentConfig":
+        price_precision = (
+            _scale(self.tick_size)
+            if self.price_display_precision is None
+            else self.price_display_precision
+        )
+        quantity_precision = (
+            _scale(self.lot_size)
+            if self.quantity_display_precision is None
+            else self.quantity_display_precision
+        )
+        if price_precision < _scale(self.tick_size):
+            raise ValueError(
+                "price_display_precision cannot be smaller than tick-size scale"
+            )
+        if quantity_precision < _scale(self.lot_size):
+            raise ValueError(
+                "quantity_display_precision cannot be smaller than lot-size scale"
+            )
+        object.__setattr__(self, "price_display_precision", price_precision)
+        object.__setattr__(
+            self,
+            "quantity_display_precision",
+            quantity_precision,
+        )
+        return self
+
+
+class LatencyConfig(StrictConfigModel):
+    engine_ms: StrictInt = Field(ge=0, le=MAX_LATENCY_MS)
+    network_ms: Optional[StrictInt] = Field(
+        default=None,
+        ge=0,
+        le=MAX_LATENCY_MS,
+    )
+    inbound_ms: Optional[StrictInt] = Field(
+        default=None,
+        ge=0,
+        le=MAX_LATENCY_MS,
+    )
+    outbound_ms: Optional[StrictInt] = Field(
+        default=None,
+        ge=0,
+        le=MAX_LATENCY_MS,
+    )
+    session_delays: Mapping[str, StrictInt] = Field(default_factory=dict)
+
+    @field_validator("session_delays")
+    @classmethod
+    def validate_session_delays(
+        cls,
+        values: Mapping[str, int],
+    ) -> Mapping[str, int]:
+        normalized: dict[str, int] = {}
+        for alias, delay in values.items():
+            key = _nonempty(alias, field_name="session delay key")
+            if (
+                not isinstance(delay, int)
+                or isinstance(delay, bool)
+                or not 0 <= delay <= MAX_LATENCY_MS
+            ):
+                raise ValueError(
+                    f"session delay for {key!r} must be an integer between "
+                    f"0 and {MAX_LATENCY_MS}"
+                )
+            normalized[key] = delay
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_directional_shape(self) -> "LatencyConfig":
+        directional = self.inbound_ms is not None or self.outbound_ms is not None
+        if self.network_ms is None and not directional:
+            raise ValueError(
+                "configure network_ms or both inbound_ms and outbound_ms"
+            )
+        if self.network_ms is not None and directional:
+            raise ValueError(
+                "network_ms cannot be combined with inbound_ms/outbound_ms"
+            )
+        if directional and (
+            self.inbound_ms is None or self.outbound_ms is None
+        ):
+            raise ValueError(
+                "inbound_ms and outbound_ms must be configured together"
+            )
+        return self
+
+    @property
+    def total_network_ms(self) -> int:
+        if self.network_ms is not None:
+            return self.network_ms
+        return int(self.inbound_ms or 0) + int(self.outbound_ms or 0)
+
+
+class ExecutionConfig(StrictConfigModel):
+    reject_prob: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    random_seed: StrictInt = Field(ge=MIN_SEED, le=MAX_SEED)
+
+    @field_validator("reject_prob", mode="before")
+    @classmethod
+    def reject_boolean_probability(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("reject_prob must be a number")
+        return value
+
+
+class AdminAPIConfig(StrictConfigModel):
+    host: str = "127.0.0.1"
+    port: StrictInt = Field(ge=1, le=65535)
+    enabled: StrictBool = True
+
+    @field_validator("host")
+    @classmethod
+    def valid_host(cls, value: str) -> str:
+        host = _nonempty(value, field_name="admin_api.host")
+        try:
+            ipaddress.ip_address(host)
+            return host
+        except ValueError:
+            pass
+        if host == "localhost":
+            return host
+        if len(host) > 253 or not re.fullmatch(
+            r"(?=.{1,253}\Z)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}"
+            r"[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}"
+            r"[A-Za-z0-9])?",
+            host,
+        ):
+            raise ValueError("admin_api.host must be a valid IP address or hostname")
+        return host
+
+
+class FixConfig(StrictConfigModel):
+    enabled: StrictBool = False
+    delivery_retry_interval_ms: StrictInt = Field(
+        default=1_000,
+        ge=1,
+        le=MAX_LATENCY_MS,
+    )
+    delivery_max_attempts_per_cycle: StrictInt = Field(
+        default=3,
+        ge=1,
+        le=10_000,
+    )
+    session_participants: Mapping[str, str] = Field(default_factory=dict)
+
+    @field_validator("session_participants")
+    @classmethod
+    def valid_session_participants(
+        cls,
+        values: Mapping[str, str],
+    ) -> Mapping[str, str]:
+        return {
+            _nonempty(key, field_name="FIX SessionID"): _nonempty(
+                participant,
+                field_name="participant_id",
+            )
+            for key, participant in values.items()
+        }
+
+    @model_validator(mode="after")
+    def require_enabled_session_mapping(self) -> "FixConfig":
+        if self.enabled and not self.session_participants:
+            raise ValueError(
+                "enabled FIX configuration requires session_participants"
+            )
+        return self
+
+
+class SchedulerConfig(StrictConfigModel):
+    mode: str = "external"
+    interval_ms: StrictInt = Field(default=10, ge=1, le=60_000)
+    max_advance_ms: StrictInt = Field(
+        default=86_400_000,
+        ge=1,
+        le=86_400_000,
+    )
+    max_events_per_advance: StrictInt = Field(
+        default=100_000,
+        ge=1,
+        le=1_000_000,
+    )
+
+    @field_validator("mode")
+    @classmethod
+    def supported_mode(cls, value: str) -> str:
+        if value not in {"external", "realtime"}:
+            raise ValueError("must be 'external' or 'realtime'")
+        return value
+
+
+class WebSocketConfig(StrictConfigModel):
+    heartbeat_interval_seconds: float = Field(
+        default=10.0,
+        gt=0,
+        le=86_400,
+        allow_inf_nan=False,
+    )
+    outbound_queue_capacity: StrictInt = Field(
+        default=8,
+        ge=1,
+        le=100_000,
+    )
+    send_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        le=86_400,
+        allow_inf_nan=False,
+    )
+    heartbeat_stale_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        le=86_400,
+        allow_inf_nan=False,
+    )
+    market_data_stale_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        le=86_400,
+        allow_inf_nan=False,
+    )
+    fallback_poll_seconds: float = Field(
+        default=2.0,
+        gt=0,
+        le=86_400,
+        allow_inf_nan=False,
+    )
+    reconnect_initial_seconds: float = Field(
+        default=1.0,
+        gt=0,
+        le=86_400,
+        allow_inf_nan=False,
+    )
+    reconnect_max_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        le=86_400,
+        allow_inf_nan=False,
+    )
+    staleness_check_seconds: float = Field(
+        default=1.0,
+        gt=0,
+        le=86_400,
+        allow_inf_nan=False,
+    )
+
+    @field_validator(
+        "heartbeat_interval_seconds",
+        "send_timeout_seconds",
+        "heartbeat_stale_seconds",
+        "market_data_stale_seconds",
+        "fallback_poll_seconds",
+        "reconnect_initial_seconds",
+        "reconnect_max_seconds",
+        "staleness_check_seconds",
+        mode="before",
+    )
+    @classmethod
+    def reject_boolean_duration(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("timing values must be numbers")
+        return value
+
+    @model_validator(mode="after")
+    def validate_cadence(self) -> "WebSocketConfig":
+        if self.heartbeat_stale_seconds <= self.heartbeat_interval_seconds:
+            raise ValueError(
+                "heartbeat_stale_seconds must exceed heartbeat cadence"
+            )
+        if self.market_data_stale_seconds <= self.heartbeat_interval_seconds:
+            raise ValueError(
+                "market_data_stale_seconds must exceed heartbeat cadence"
+            )
+        if self.reconnect_max_seconds < self.reconnect_initial_seconds:
+            raise ValueError(
+                "reconnect_max_seconds must be at least "
+                "reconnect_initial_seconds"
+            )
+        return self
+
+
+class PrometheusConfig(StrictConfigModel):
+    enabled: StrictBool = True
+
+
+class InfluxConfig(StrictConfigModel):
+    enabled: StrictBool = True
+    url: Optional[str] = None
+    token: Optional[str] = None
+    org: Optional[str] = None
+    bucket: Optional[str] = None
+    batch_size: StrictInt = Field(default=1_000, ge=1, le=100_000)
+    buffer_capacity: StrictInt = Field(default=10_000, ge=1, le=1_000_000)
+    retry_interval_ms: StrictInt = Field(default=1_000, ge=1, le=86_400_000)
+    timeout_ms: StrictInt = Field(default=10_000, ge=1, le=86_400_000)
+
+    @field_validator("url", "token", "org", "bucket")
+    @classmethod
+    def strip_optional_strings(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+    @model_validator(mode="after")
+    def validate_enabled_contract(self) -> "InfluxConfig":
+        if self.buffer_capacity < self.batch_size:
+            raise ValueError("buffer_capacity must be at least batch_size")
+        if self.enabled:
+            missing = [
+                name
+                for name in ("url", "token", "org", "bucket")
+                if not getattr(self, name)
+            ]
+            if missing:
+                raise ValueError(
+                    "enabled Influx configuration is missing: "
+                    + ", ".join(missing)
+                )
+            parsed = urlsplit(self.url or "")
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise ValueError("url must be an absolute HTTP(S) URL")
+        return self
+
+
+class ExchangeConfig(StrictConfigModel):
+    """Complete final MockX configuration contract."""
+
+    exchange_name: str
+    instruments: Mapping[str, InstrumentConfig]
+    latency: LatencyConfig
+    execution: ExecutionConfig
+    admin_api: AdminAPIConfig
+    fix: FixConfig = Field(default_factory=FixConfig)
+    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
+    websocket: WebSocketConfig = Field(default_factory=WebSocketConfig)
+    cors_origins: tuple[str, ...] = ()
+    prometheus: PrometheusConfig = Field(default_factory=PrometheusConfig)
+    tsdb: Optional[InfluxConfig] = None
+
+    @field_validator("exchange_name")
+    @classmethod
+    def nonempty_exchange_name(cls, value: str) -> str:
+        return _nonempty(value, field_name="exchange_name")
+
+    @field_validator("instruments", mode="before")
+    @classmethod
+    def normalize_instruments(cls, value: object) -> object:
+        if not isinstance(value, Mapping) or not value:
+            raise ValueError("instruments must be a non-empty mapping")
+        normalized: dict[str, object] = {}
+        for raw_symbol, metadata in value.items():
+            if not isinstance(raw_symbol, str):
+                raise ValueError("instrument symbols must be strings")
+            symbol = raw_symbol.strip().upper()
+            if not symbol:
+                raise ValueError("instrument symbols cannot be empty")
+            if symbol in normalized:
+                raise ValueError(f"duplicate normalized instrument: {symbol}")
+            normalized[symbol] = metadata
+        return normalized
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def valid_cors_origins(cls, values: object) -> tuple[str, ...]:
+        if not isinstance(values, (list, tuple)):
+            raise ValueError("cors_origins must be a list")
+        result: list[str] = []
+        for raw in values:
+            origin = _nonempty(raw, field_name="cors origin")
+            if origin == "*":
+                raise ValueError("wildcard CORS is not supported")
+            parsed = urlsplit(origin)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.netloc
+                or parsed.path not in {"", "/"}
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError(
+                    f"CORS origin must be an HTTP(S) origin without a path: "
+                    f"{origin}"
+                )
+            result.append(origin.rstrip("/"))
+        if len(result) != len(set(result)):
+            raise ValueError("cors_origins must be unique")
+        return tuple(result)
+
+_ENV_OVERRIDES: Mapping[str, tuple[str, str]] = {
+    "INFLUXDB_URL": ("url", "text"),
+    "INFLUXDB_TOKEN": ("token", "text"),
+    "INFLUXDB_ORG": ("org", "text"),
+    "INFLUXDB_BUCKET": ("bucket", "text"),
+    "INFLUXDB_ENABLED": ("enabled", "bool"),
+    "INFLUXDB_BATCH_SIZE": ("batch_size", "int"),
+    "INFLUXDB_BUFFER_CAPACITY": ("buffer_capacity", "int"),
+    "INFLUXDB_RETRY_INTERVAL_MS": ("retry_interval_ms", "int"),
+    "INFLUXDB_TIMEOUT_MS": ("timeout_ms", "int"),
+}
+
+
+def _parse_override(name: str, raw: str, kind: str) -> object:
+    if kind == "text":
+        return raw
+    if kind == "int":
+        try:
+            return int(raw)
+        except ValueError as exc:
+            raise ConfigurationError(
+                (
+                    ConfigurationIssue(
+                        f"environment.{name}",
+                        "invalid_integer",
+                        "must be an integer",
+                    ),
+                )
+            ) from exc
+    if kind == "bool":
+        lowered = raw.strip().lower()
+        if lowered == "true":
+            return True
+        if lowered == "false":
+            return False
+        raise ConfigurationError(
+            (
+                ConfigurationIssue(
+                    f"environment.{name}",
+                    "invalid_boolean",
+                    "must be 'true' or 'false'",
+                ),
+            )
+        )
+    raise AssertionError(f"Unsupported environment override kind: {kind}")
+
+
+def merge_environment(
+    data: Mapping[str, Any],
+    environ: Mapping[str, str],
+) -> dict[str, Any]:
+    """Merge supported environment overrides before model validation."""
+
+    merged = deepcopy(dict(data))
+    supplied = {
+        name: environ[name] for name in _ENV_OVERRIDES if name in environ
+    }
+    if supplied:
+        tsdb = dict(merged.get("tsdb") or {})
+        if "enabled" not in tsdb and "INFLUXDB_ENABLED" not in supplied:
+            tsdb["enabled"] = True
+        for name, raw in supplied.items():
+            field_name, kind = _ENV_OVERRIDES[name]
+            tsdb[field_name] = _parse_override(name, raw, kind)
+        merged["tsdb"] = tsdb
+    return merged
+
+
+def _configuration_error(exc: ValidationError) -> ConfigurationError:
+    issues = []
+    for error in exc.errors(include_url=False):
+        path = ".".join(str(item) for item in error["loc"]) or "configuration"
+        issues.append(
+            ConfigurationIssue(
+                path=path,
+                code=str(error["type"]),
+                message=str(error["msg"]).removeprefix("Value error, "),
+            )
+        )
+    return ConfigurationError(tuple(issues))
+
+
+def validate_config(
+    data: Mapping[str, Any],
+    *,
+    environ: Optional[Mapping[str, str]] = None,
+) -> ExchangeConfig:
+    """Validate a raw mapping after applying supported environment overrides."""
+
+    try:
+        return ExchangeConfig.model_validate(
+            merge_environment(data, os.environ if environ is None else environ)
+        )
+    except ValidationError as exc:
+        raise _configuration_error(exc) from exc
+
+
+def load_config(
+    config_path: str | Path,
+    *,
+    environ: Optional[Mapping[str, str]] = None,
+) -> ExchangeConfig:
+    """Load YAML and return one validated immutable configuration."""
+
+    path = Path(config_path)
+    if not path.is_file():
+        raise ConfigurationError(
+            (
+                ConfigurationIssue(
+                    "configuration",
+                    "file_not_found",
+                    f"file not found: {path}",
+                ),
+            )
+        )
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise ConfigurationError(
+            (
+                ConfigurationIssue(
+                    "configuration",
+                    "invalid_yaml",
+                    str(exc),
+                ),
+            )
+        ) from exc
+    if not isinstance(raw, Mapping):
+        raise ConfigurationError(
+            (
+                ConfigurationIssue(
+                    "configuration",
+                    "invalid_root",
+                    "YAML root must be a mapping",
+                ),
+            )
+        )
+    return validate_config(raw, environ=environ)

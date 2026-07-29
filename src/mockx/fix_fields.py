@@ -7,6 +7,7 @@ from .models import (
     CancelRejectReason,
     ExecutionReport,
     ExecutionType,
+    OrderType,
     OrderStatus,
     Side,
     TimeInForce,
@@ -38,6 +39,16 @@ TIF_FIX_VALUES = {
     TimeInForce.IOC: "3",
 }
 
+ORDER_TYPE_FIX_VALUES = {
+    OrderType.MARKET: "1",
+    OrderType.LIMIT: "2",
+}
+
+ORDER_REJECT_REASON_FIX_VALUES = {
+    "UNKNOWN_SYMBOL": 1,
+    "DUPLICATE_CL_ORD_ID": 6,
+}
+
 CANCEL_REJECT_REASON_FIX_VALUES = {
     CancelRejectReason.UNKNOWN_ORDER: 1,
     CancelRejectReason.TOO_LATE_TO_CANCEL: 0,
@@ -49,6 +60,7 @@ CANCEL_REJECT_REASON_FIX_VALUES = {
 
 def execution_report_fields(report: ExecutionReport) -> Dict[str, object]:
     """Return FIX-ready primitive values using only ``report`` fields."""
+    instrument = report.instrument
     fields: Dict[str, object] = {
         "ClOrdID": report.cl_ord_id,
         "ExecID": report.exec_id,
@@ -60,11 +72,17 @@ def execution_report_fields(report: ExecutionReport) -> Dict[str, object]:
         ),
         "Symbol": report.symbol,
         "Side": SIDE_FIX_VALUES[report.side],
-        "LeavesQty": report.leaves_qty,
-        "CumQty": report.cum_qty,
-        "AvgPx": report.avg_px,
-        "OrderQty": report.order_qty,
-        "CanceledQty": report.canceled_qty,
+        "LeavesQty": instrument.format_quantity(report.leaves_qty_lots),
+        "CumQty": instrument.format_quantity(report.cum_qty_lots),
+        "AvgPx": instrument.format_average_price(
+            report.filled_notional_tick_lots,
+            report.cum_qty_lots,
+        ),
+        "OrderQty": instrument.format_quantity(report.order_qty_lots),
+        "CanceledQty": instrument.format_quantity(
+            report.canceled_qty_lots
+        ),
+        "OrdType": ORDER_TYPE_FIX_VALUES[report.order_type],
         "TimeInForce": TIF_FIX_VALUES[report.tif],
     }
     if report.orig_cl_ord_id is not None:
@@ -74,15 +92,21 @@ def execution_report_fields(report: ExecutionReport) -> Dict[str, object]:
             report.exchange_trade_id
             or f"G{report.run_generation:08d}-T{report.trade_id:08d}"
         )
-    if report.order_price is not None:
-        fields["Price"] = report.order_price
-    if report.last_px is not None:
-        fields["LastPx"] = report.last_px
-    if report.last_qty is not None:
-        fields["LastQty"] = report.last_qty
+    if report.order_price_ticks is not None:
+        fields["Price"] = instrument.format_price(report.order_price_ticks)
+    if report.last_price_ticks is not None:
+        fields["LastPx"] = instrument.format_price(report.last_price_ticks)
+    if report.last_qty_lots is not None:
+        fields["LastQty"] = instrument.format_quantity(report.last_qty_lots)
     text = report.text or report.reject_reason
     if text:
         fields["Text"] = text
+    if report.exec_type == ExecutionType.REJECTED:
+        code = str(text or "").split(":", 1)[0].strip("[] ")
+        fields["OrdRejReason"] = ORDER_REJECT_REASON_FIX_VALUES.get(
+            code,
+            99,
+        )
     return fields
 
 

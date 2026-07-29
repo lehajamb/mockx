@@ -81,8 +81,9 @@ async def test_new_report_due_while_disconnected_is_retained_and_retried():
 @pytest.mark.asyncio
 async def test_partial_and_filled_reports_wait_behind_new_in_session_order():
     exchange = _exchange(outbound_ms=5)
-    sessions, delivered = await _start(exchange)
+    sessions, delivered = await _start(exchange, "CLIENT", "CLIENT2")
     session = sessions["CLIENT"]
+    aggressor_session = sessions["CLIENT2"]
     session_id = session.toString()
     start = exchange.scheduler.current_time
     try:
@@ -98,7 +99,7 @@ async def test_partial_and_filled_reports_wait_behind_new_in_session_order():
         )
         exchange.fix_app.fromApp(
             _new_order("AGGRESSOR", 2, qty=4, price=100),
-            session,
+            aggressor_session,
         )
         await exchange.fix_app.wait_for_ingress()
         await exchange.lifecycle.advance_to(start)
@@ -117,7 +118,9 @@ async def test_partial_and_filled_reports_wait_behind_new_in_session_order():
             OrderStatus.PARTIAL,
             OrderStatus.FILLED,
         ]
-        assert delivered == []
+        assert [report.ord_status for report in delivered] == [
+            OrderStatus.FILLED,
+        ]
 
         exchange.fix_app.register_session(
             SessionIdentity(session_id, alias="CLIENT"),
@@ -125,9 +128,9 @@ async def test_partial_and_filled_reports_wait_behind_new_in_session_order():
         )
         await asyncio.sleep(0)
         assert [report.ord_status for report in delivered] == [
+            OrderStatus.FILLED,
             OrderStatus.NEW,
             OrderStatus.PARTIAL,
-            OrderStatus.FILLED,
         ]
     finally:
         await _stop(exchange)
@@ -136,8 +139,9 @@ async def test_partial_and_filled_reports_wait_behind_new_in_session_order():
 @pytest.mark.asyncio
 async def test_multiple_reports_for_one_order_keep_fifo_across_fills():
     exchange = _exchange()
-    sessions, delivered = await _start(exchange)
+    sessions, delivered = await _start(exchange, "CLIENT", "CLIENT2")
     session = sessions["CLIENT"]
+    aggressor_session = sessions["CLIENT2"]
     try:
         exchange.fix_app.fromApp(
             _new_order(
@@ -151,11 +155,11 @@ async def test_multiple_reports_for_one_order_keep_fifo_across_fills():
         )
         exchange.fix_app.fromApp(
             _new_order("HIT-1", 2, qty=2, price=100),
-            session,
+            aggressor_session,
         )
         exchange.fix_app.fromApp(
             _new_order("HIT-2", 3, qty=3, price=100),
-            session,
+            aggressor_session,
         )
         await exchange.fix_app.wait_for_ingress()
         await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
@@ -173,7 +177,7 @@ async def test_multiple_reports_for_one_order_keep_fifo_across_fills():
             OrderStatus.PARTIAL,
             OrderStatus.FILLED,
         ]
-        assert [report.cum_qty for report in passive] == [0, 2, 5]
+        assert [report.cum_qty_lots for report in passive] == [0, 2, 5]
     finally:
         await _stop(exchange)
 

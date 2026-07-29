@@ -133,9 +133,9 @@
         
         <div class="stats">
             <span class="spread">Spread: <span id="spread">-</span></span>
-            <span class="mid-price">Mid: <span id="mid-price">{{ mid_price|round(2) if mid_price else '-' }}</span></span>
-            <span>Best Bid: <span id="best-bid">{{ best_bid|round(2) if best_bid else '-' }}</span></span>
-            <span>Best Ask: <span id="best-ask">{{ best_ask|round(2) if best_ask else '-' }}</span></span>
+            <span class="mid-price">Mid: <span id="mid-price">{{ mid_price if mid_price else '-' }}</span></span>
+            <span>Best Bid: <span id="best-bid">{{ best_bid if best_bid else '-' }}</span></span>
+            <span>Best Ask: <span id="best-ask">{{ best_ask if best_ask else '-' }}</span></span>
         </div>
         
         <div class="book-container">
@@ -152,8 +152,8 @@
                     <tbody id="bids-tbody">
                         {% for bid in bids %}
                         <tr class="bid-row {% if loop.first %}best-price{% endif %}">
-                            <td>{{ bid.price|round(2) }}</td>
-                            <td>{{ bid.qty|round(4) }}</td>
+                            <td>{{ bid.price }}</td>
+                            <td>{{ bid.qty }}</td>
                             <td>{{ bid.orders }}</td>
                         </tr>
                         {% endfor %}
@@ -174,8 +174,8 @@
                     <tbody id="asks-tbody">
                         {% for ask in asks %}
                         <tr class="ask-row {% if loop.first %}best-price{% endif %}">
-                            <td>{{ ask.price|round(2) }}</td>
-                            <td>{{ ask.qty|round(4) }}</td>
+                            <td>{{ ask.price }}</td>
+                            <td>{{ ask.qty }}</td>
                             <td>{{ ask.orders }}</td>
                         </tr>
                         {% endfor %}
@@ -233,8 +233,8 @@
                 const row = document.createElement('tr');
                 row.className = `bid-row ${index === 0 ? 'best-price' : ''}`;
                 row.innerHTML = `
-                    <td>${bid.price.toFixed(2)}</td>
-                    <td>${bid.qty.toFixed(4)}</td>
+                    <td>${bid.price}</td>
+                    <td>${bid.qty}</td>
                     <td>${bid.order_count ?? bid.orders ?? ''}</td>
                 `;
                 bidsBody.appendChild(row);
@@ -247,8 +247,8 @@
                 const row = document.createElement('tr');
                 row.className = `ask-row ${index === 0 ? 'best-price' : ''}`;
                 row.innerHTML = `
-                    <td>${ask.price.toFixed(2)}</td>
-                    <td>${ask.qty.toFixed(4)}</td>
+                    <td>${ask.price}</td>
+                    <td>${ask.qty}</td>
                     <td>${ask.order_count ?? ask.orders ?? ''}</td>
                 `;
                 asksBody.appendChild(row);
@@ -263,15 +263,21 @@
             const midElement = document.getElementById('mid-price');
 
             bestBidElement.textContent =
-                bestBid === null ? '-' : bestBid.toFixed(2);
+                bestBid === null ? '-' : bestBid;
             bestAskElement.textContent =
-                bestAsk === null ? '-' : bestAsk.toFixed(2);
+                bestAsk === null ? '-' : bestAsk;
             if (bestBid !== null && bestAsk !== null) {
-                const spread = bestAsk - bestBid;
-                const mid = (bestBid + bestAsk) / 2;
+                const bestBidNumber = Number.parseFloat(bestBid);
+                const bestAskNumber = Number.parseFloat(bestAsk);
+                const precision = Math.max(
+                    (bestBid.split('.')[1] || '').length,
+                    (bestAsk.split('.')[1] || '').length
+                );
+                const spread = bestAskNumber - bestBidNumber;
+                const mid = (bestBidNumber + bestAskNumber) / 2;
 
-                spreadElement.textContent = spread.toFixed(2);
-                midElement.textContent = mid.toFixed(2);
+                spreadElement.textContent = spread.toFixed(precision);
+                midElement.textContent = mid.toFixed(precision);
             } else {
                 spreadElement.textContent = '-';
                 midElement.textContent = '-';
