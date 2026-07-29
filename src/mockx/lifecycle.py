@@ -160,7 +160,8 @@ class ExchangeLifecycle:
 
             self._publish(LifecycleState.STARTING)
             try:
-                if not await self.metrics.flush():
+                flush_result = await self.metrics.flush()
+                if not flush_result.successful:
                     self._publish(LifecycleState.STOPPED)
                     raise LifecycleError(
                         503,
@@ -200,6 +201,13 @@ class ExchangeLifecycle:
                 self.engine.install_identifier_scope(identifiers)
                 self.fix_app.reset_run_state(identifiers)
                 self.metrics.start_run(run_id)
+                for symbol in self.engine.books:
+                    snapshot = self.engine.get_market_data_snapshot(symbol)
+                    if snapshot is None:
+                        raise RuntimeError(
+                            f"Missing initial book snapshot for {symbol}"
+                        )
+                    self.metrics.update_book_metrics(snapshot)
                 self.fix_app.reschedule_deliveries_after_reset()
 
                 self.run_id = run_id
@@ -238,7 +246,8 @@ class ExchangeLifecycle:
             generation = self.run_generation
             self._publish(LifecycleState.ENDING)
             try:
-                if not await self.metrics.flush():
+                flush_result = await self.metrics.flush()
+                if not flush_result.successful:
                     self._publish(LifecycleState.ACTIVE)
                     raise LifecycleError(
                         503,

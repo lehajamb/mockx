@@ -34,7 +34,7 @@ set.
 |---|---|
 | Incoming | New Order Single (`35=D`), Order Cancel Request (`35=F`) |
 | Special incoming | Market Data Request (`35=V`) is rejected because market data is served by REST/WebSocket |
-| Outgoing | Execution Report (`35=8`), Order Cancel Reject (`35=9`), Market Data Request Reject (`35=Y`), session Reject (`35=3`) |
+| Outgoing | Execution Report (`35=8`), Order Cancel Reject (`35=9`), Market Data Request Reject (`35=Y`), session Reject (`35=3`), Business Message Reject (`35=j`) |
 
 Supported orders are limit and market orders with GTC or IOC. Replace
 (`OrderCancelReplaceRequest`) is unsupported.
@@ -107,9 +107,11 @@ cancel-reject domain ID is an application identity used for deduplication and
 observability; FIX `OrderCancelReject (35=9)` has no `ExecID`, so the ID is not
 serialized on the wire. Delivery IDs are also application-internal.
 
-Real matching and serialization durations use a monotonic wall clock.
-Configured network, engine, and end-to-end latency values use simulated time.
-The two clock domains are reported with distinct units.
+Measured CPU boundaries use a monotonic clock and microseconds: match loop,
+book commit, complete engine command, immutable report creation, and outbound
+FIX construction. Configured inbound, engine, outbound, end-to-end, and cancel
+stage delays use simulated time and milliseconds. The clock domains never
+share one ambiguous metric.
 
 ### Deterministic FIX ingress and cancel latency
 
@@ -180,6 +182,26 @@ resubmit a record already marked `DELIVERED` inside MockX. Logical report,
 trade, and reject metrics are keyed by their domain identifiers, while
 delivery-attempt metrics are separate. Terminal order and cancel latency
 traces remain retained until local QuickFIX submission succeeds.
+
+Full `DELIVERED` payload records are capped by
+`fix.delivery_terminal_retention_records` (default 10,000). Lifetime scalar
+totals survive pruning. A minimal generation-scoped tombstone prevents a
+pruned delivered payload from being enqueued again while its run can still
+produce work. `PENDING`, `DUE`, `RETRY_PENDING`, `PERMANENTLY_FAILED`, and any
+FIFO-blocking record are never pruned. Stable-session `ClOrdID` history is an
+intentional process-lifetime exception because correct duplicate detection
+requires it. Engine terminal orders, metrics deduplication sets, completed
+latency traces, and unrelated delivery tombstones are cleared at their run
+lifecycle boundary.
+
+Generic session Rejects always contain positive `RefSeqNum`, `RefMsgType`,
+applicable `RefTagID`, `SessionRejectReason`, and `Text`. The inbound header
+sequence is captured before deferred lifecycle dispatch; QuickFIX session
+state is only a fallback for an unreadable header. Well-formed unsupported
+application messages, lifecycle/application unavailability, and unusable
+application data use Business Message Reject with `RefMsgType`, bounded
+`BusinessRejectReason`, known `RefSeqNum`, and an optional reference ID. Both
+builders validate against the bundled `configs/FIX44.xml` dictionary.
 
 This is application-level reliability, not end-to-end exactly-once FIX
 delivery. MockX guarantees one immutable application record and performs no
@@ -605,8 +627,10 @@ The exchange-wide lifecycle is:
 `/readyz` reports `components.lifecycle` and returns 503 during transitions or
 in `FAILED`. Simulation-state REST reads also return
 `503 LIFECYCLE_TRANSITION_IN_PROGRESS` during `STARTING`/`ENDING`. `/healthz`
-and `/metrics` remain available. FIX application messages receive session
-Reject (`35=3`) with `RefMsgType` and one stable text code:
+and `/metrics` remain available. Well-formed FIX application messages gated by
+the lifecycle receive Business Message Reject (`35=j`) with reason
+`Application not available at this time`, their captured `RefSeqNum`,
+`RefMsgType`, and one stable text code:
 `LIFECYCLE_TRANSITION_IN_PROGRESS`, `SESSION_NOT_ACTIVE`,
 `SCHEDULER_FAILED`, `LIFECYCLE_CHANGED`, or `LIFECYCLE_FAILED`. Gated messages
 do not reserve `ClOrdID`, consume run identifiers, or enter run metrics.
@@ -625,9 +649,11 @@ process restart.
 
 Ending with no active session is idempotent and returns
 `status="no_active_session"` with null `session_id`, `run_generation`, and
-`final_stats`. A successful end returns the ended run ID, generation, and run
-statistics plus the process-lifetime FIX delivery snapshot. It does not drain
-or abandon undelivered FIX records. They remain frozen while stopped; the next
+`final_stats`. A successful end returns only the ended run's business metrics,
+run persistence outcomes, and scheduler diagnostics. Process-lifetime FIX,
+WebSocket, and persistence totals remain available only from `/stats`; they
+are never mixed into `final_stats`. Session end does not drain or abandon
+undelivered FIX records. They remain frozen while stopped; the next
 start schedules old `PENDING` records at their original due time and old
 `DUE`/`RETRY_PENDING` FIFO heads at the new scheduler's current time. Older
 generations remain ahead of new-run records for the same stable FIX session.
@@ -681,25 +707,44 @@ timestamp and returns:
 
 ## 10. Metrics and observability
 
-`GET /stats` returns a JSON-safe point-in-time view. Its order, trade, report,
-latency, and persistence-failure counters are reset at every successful run
-start; the connected-session value remains a live gauge. Successful end
-captures the snapshot before clearing the active run tag. `GET /metrics`
-exposes process-lifetime monotonic Prometheus collectors from the same
-process's isolated registry on the API port; there is no separate metrics server or metrics host port.
+`GET /stats` labels its scopes explicitly. The flat `orders`, `trades`,
+`cancellations`, `reports`, `book`, and `latency` objects have
+`scope="current_run"` at the response root and reset after a successful end.
+`run_active` distinguishes an active run from the cleared stopped state.
+`process_lifetime` contains cumulative business counters and duration
+aggregates. `persistence`, `scheduler`, `fix_delivery`, and `websocket` are
+separate operational sections with their own scope labels. The connected FIX
+session value and delivery queue depths are current gauges, not run totals.
+
+Successful session end captures the current-run snapshot before clearing it;
+its `final_stats` never includes `process_lifetime`, lifetime persistence,
+FIX-delivery, or WebSocket totals. `GET /metrics` exposes process-lifetime
+monotonic Prometheus collectors from the same process's isolated registry on
+the API port. Prometheus counters are never reset. There is no separate metrics server or metrics host port.
 
 Cancel latency is not mixed into new-order latency. `/stats.latency` exposes
 `average_sim_cancel_inbound_latency_ms`,
 `average_sim_cancel_engine_latency_ms`,
 `average_sim_cancel_outbound_latency_ms`, and
 `average_sim_cancel_end_to_end_latency_ms`. Prometheus exposes the
-corresponding fixed histograms:
+corresponding fixed millisecond histograms:
 
 ```text
-mockx_sim_cancel_inbound_latency_seconds
-mockx_sim_cancel_engine_latency_seconds
-mockx_sim_cancel_outbound_latency_seconds
-mockx_sim_cancel_end_to_end_latency_seconds
+mockx_sim_cancel_inbound_latency_ms
+mockx_sim_cancel_engine_latency_ms
+mockx_sim_cancel_outbound_latency_ms
+mockx_sim_cancel_end_to_end_latency_ms
+```
+
+Measured CPU durations are separate microsecond histograms and `/stats`
+averages:
+
+```text
+mockx_match_loop_duration_us
+mockx_book_commit_duration_us
+mockx_engine_command_duration_us
+mockx_report_creation_duration_us
+mockx_serialization_duration_us
 ```
 
 Fixed outcome counters are exposed as
@@ -712,9 +757,18 @@ include the run generation, ingress sequence, cancel `ClOrdID`,
 available. Failed or disconnected terminal delivery retains its latency trace;
 successful retry records delivery latency once and then removes the trace.
 
+Scheduler observers update queue depth on every enqueue, dequeue, clear,
+reset, and stop transition. `/stats.scheduler` exposes pending count, state,
+dead letter, dead-letter count, and event-processing-limit failures.
+Prometheus uses `mockx_scheduler_pending_events`,
+`mockx_scheduler_failed`, `mockx_scheduler_dead_letters_total`, and
+`mockx_scheduler_event_processing_limit_failures_total` without event IDs or
+other high-cardinality labels.
+
 FIX delivery Prometheus collectors include
 `mockx_fix_delivery_enqueued_total`,
 `mockx_fix_delivery_attempts_total`,
+`mockx_fix_delivery_retries_total`,
 `mockx_fix_delivery_failures_total`,
 `mockx_fix_delivery_successes_total`,
 `mockx_fix_delivery_permanent_failures_total`,
@@ -740,8 +794,9 @@ mockx_websocket_send_successes_total
 ```
 
 The two gauges report current valid-symbol subscriptions and aggregate pending
-frames; they return to zero after disconnect or session reset. These delivery
-values are not added to the run-local `/stats` response.
+frames; they return to zero after disconnect or session reset. `/stats`
+exposes the gauges and cumulative WebSocket counts under
+`websocket.scope="process_lifetime"`, outside the run-local business fields.
 
 Compose does not deploy a Prometheus server, Grafana, provisioning, or
 prebuilt dashboards. Scrape `mockx1:8000/metrics` and
@@ -750,10 +805,63 @@ Grafana is intentionally not included.
 
 Compose does deploy InfluxDB 2.7 on host port 8086. Both exchange
 configurations use the same org, bucket, and environment override contract.
-Metric writes are buffered; explicit session end and application shutdown
-flush before closing. InfluxDB is optional to core matching readiness:
-observed sink failure makes persistence `degraded` while the core service can
-remain ready.
+Persistence admission is explicit: `ACCEPTED`,
+`ACCEPTED_FLUSH_REQUIRED`, `ACCEPTED_DROPPED_OLDEST`, `REJECTED_CLOSED`,
+`REJECTED_FULL`, or `FAILED`. `add_nowait()` never blocks and never reports
+success after close. Rejections and evictions are counted; no record is
+silently discarded. Typed flush and close results distinguish empty/already
+closed, sink failure, timeout, and exact unflushed counts.
+
+One coalesced worker owns threshold, interval, explicit-flush, probe, and retry
+signals. Queued and in-flight records and logical encoded bytes count against
+the configured capacity. The shipped policy is `reject_new`, which preserves
+every accepted record. Opt-in `drop_oldest` may evict only queued records and
+reports `ACCEPTED_DROPPED_OLDEST`; it never evicts an in-flight or
+delivery-required record. Async `add()` may wait for the configured bounded
+retry attempts; `add_nowait()` immediately applies the policy. Failed batches
+are restored in original order with their immutable run ID, sequence,
+timestamp, bucket, and event identity. Runtime retry uses exponential backoff
+capped at `max_retry_delay_ms`.
+
+```yaml
+tsdb:
+  enabled: true
+  url: http://influxdb:8086
+  token: mockx-token
+  org: mockx-org
+  bucket: mockx
+  flush_batch_size: 1000
+  max_buffer_records: 10000
+  max_buffer_bytes: 67108864
+  flush_interval_ms: 1000
+  retry_backoff_ms: 1000
+  max_retry_delay_ms: 30000
+  overflow_retry_attempts: 3
+  shutdown_timeout_ms: 10000
+  overflow_policy: reject_new
+  timeout_ms: 10000
+```
+
+Session end performs an explicit drain and fails with
+`METRICS_FLUSH_FAILED` while leaving the run active if accepted records cannot
+be written. Process shutdown seals acceptance, stops the worker, and performs
+one timeout-bounded final drain/close attempt; its result reports the exact
+unflushed count rather than pretending success.
+
+Persistence health is current state, not a sticky historical failure:
+`DISABLED`, `HEALTHY`, `RETRYING`, `DEGRADED`, `UNAVAILABLE`, or `CLOSED`.
+`/stats.persistence` includes last successful write, last failure,
+consecutive and lifetime failures, buffered records/bytes, oldest age,
+accepted/rejected/dropped outcomes, worker state, and shutdown result. A
+successful write or probe clears consecutive failures and restores `HEALTHY`;
+lifetime failures remain cumulative. Prometheus exposes the same state with a
+fixed state label and bounded outcome labels.
+
+Persistence is optional only when disabled. When enabled it is required for
+traffic readiness: `/readyz` returns 503 unless persistence is `HEALTHY`.
+The response separately reports `core_ready`, `traffic_ready`, and
+`persistence_required`, so matching health remains visible during an Influx
+outage. Disabled persistence is non-critical.
 
 Every logical Influx record has a deterministic identity. Influx identifies a
 point by its measurement, complete tag set, and timestamp, so domain IDs stored
@@ -801,6 +909,16 @@ from(bucket: "mockx")
   )
   |> sort(columns: ["metric_event_sequence"])
 ```
+
+Every committed book update is persisted as one immutable `book_snapshot`,
+and run start emits an initial empty snapshot for every symbol after run
+identity begins. Each record contains `sequence`, `has_bid`, `has_ask`,
+explicit canonical `best_bid`/`best_ask` strings, `spread_valid`, canonical
+spread/mid strings, bid/ask depth, and canonical JSON arrays containing every
+current level. Bid-only, ask-only, and empty books are valid states. Consumers
+select the latest complete sequence; they must not carry indexed fields from
+an older two-sided/deeper record. A depth shrink therefore cannot leave stale
+levels appearing current.
 
 Failed writes retain the same immutable records in the buffer. Retrying a
 flush does not allocate new sequences, timestamps, or buckets. Replaying the
@@ -857,6 +975,7 @@ fix:
   enabled: true
   delivery_retry_interval_ms: 1000
   delivery_max_attempts_per_cycle: 3
+  delivery_terminal_retention_records: 10000
   session_participants:
     "FIX.4.4:MOCKX1->CLIENT1": "participant-1"
 scheduler:
@@ -891,8 +1010,8 @@ Validated ranges are:
 | execution | Finite `reject_prob` 0-1; signed 64-bit integer seed; unknown/obsolete fields forbidden |
 | scheduler | `external` or `realtime`; interval 1-60,000 ms; advance 1-86,400,000 ms; event limit 1-1,000,000 |
 | WebSocket | All timing values finite and in (0, 86,400] seconds; heartbeat/market staleness exceed heartbeat; queue 1-100,000 |
-| FIX delivery | Retry 1-2,147,483,647 ms; attempts 1-10,000; enabled sessions require exact participant mappings |
-| InfluxDB | Batch 1-100,000; buffer from batch size to 1,000,000; retry/timeout 1-86,400,000 ms; enabled config requires URL, token, org, bucket |
+| FIX delivery | Retry 1-2,147,483,647 ms; attempts 1-10,000; retained delivered payloads 1-1,000,000; enabled sessions require exact participant mappings |
+| InfluxDB | Batch 1-100,000; record capacity from batch size to 1,000,000; byte capacity 1-1 GiB; interval/backoff/retry/shutdown/timeout 1-86,400,000 ms; max retry at least initial backoff; policy `reject_new` or `drop_oldest`; enabled config requires URL, token, org, bucket |
 | admin/CORS | Valid host and port; origins are unique HTTP(S) origins; wildcard is forbidden |
 
 For example, startup fails before any component starts with a deterministic,
@@ -936,9 +1055,15 @@ TSDB configuration.
 
 `CFG_PATH` and `FIX_CONFIG_FILE` select the YAML and QuickFIX files.
 `INFLUXDB_URL`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET`,
-`INFLUXDB_ENABLED`, `INFLUXDB_BATCH_SIZE`, `INFLUXDB_BUFFER_CAPACITY`,
-`INFLUXDB_RETRY_INTERVAL_MS`, and `INFLUXDB_TIMEOUT_MS` override YAML. The
-merged result is validated by the same model before startup.
+`INFLUXDB_ENABLED`, `INFLUXDB_FLUSH_BATCH_SIZE`,
+`INFLUXDB_MAX_BUFFER_RECORDS`, `INFLUXDB_MAX_BUFFER_BYTES`,
+`INFLUXDB_FLUSH_INTERVAL_MS`, `INFLUXDB_RETRY_BACKOFF_MS`,
+`INFLUXDB_MAX_RETRY_DELAY_MS`, `INFLUXDB_OVERFLOW_RETRY_ATTEMPTS`,
+`INFLUXDB_SHUTDOWN_TIMEOUT_MS`, `INFLUXDB_OVERFLOW_POLICY`, and
+`INFLUXDB_TIMEOUT_MS` override YAML. The merged result is validated by the
+same model before startup. Obsolete YAML buffer keys are rejected and obsolete
+environment variable names are not recognized; no compatibility aliases are
+maintained.
 
 ## 13. Examples
 
@@ -983,6 +1108,9 @@ python -m pytest -q tests/test_readme_examples.py
 `/healthz` succeeds but `/readyz` returns 503:
 
 - Inspect `components` in the readiness response.
+- Compare `core_ready`, `traffic_ready`, and `persistence_required`. Enabled
+  persistence must be `HEALTHY`; a recovering/failed optional sink can make
+  traffic not ready while matching remains core-ready.
 - Confirm the QuickFIX loop handoff and acceptor startup.
 - Validate symbols, scheduler mode, and configuration paths.
 - If `components.scheduler` is `failed`, inspect
@@ -1011,7 +1139,9 @@ The browser says `HTTP fallback` while heartbeats continue:
 Session end returns `METRICS_FLUSH_FAILED`:
 
 - The buffered records were retained rather than discarded.
-- Restore the configured InfluxDB sink and retry session end or shutdown.
+- Restore the configured InfluxDB sink and retry session end; the active run
+  remains open. Shutdown is different: it seals admission and reports its one
+  final attempt and exact unflushed count in persistence diagnostics.
 
 Validate the repository with:
 

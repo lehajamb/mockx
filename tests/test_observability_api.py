@@ -113,7 +113,7 @@ async def test_stats_empty_state_is_stable_and_json_serializable():
         "notional": "0",
         "canceled_quantity": "0",
     }
-    assert data["latency"]["average_real_matching_duration_us"] is None
+    assert data["latency"]["average_match_loop_duration_us"] is None
     json.dumps(data)
 
 
@@ -201,11 +201,15 @@ async def test_metrics_endpoint_has_expected_names_types_and_values():
     assert "mockx_traded_quantity_total 2.0" in body
     assert "mockx_active_orders 0.0" in body
     assert "mockx_execution_report_delivery_failures_total" in body
-    assert "mockx_real_matching_duration_seconds" in body
-    assert "mockx_sim_cancel_inbound_latency_seconds" in body
-    assert "mockx_sim_cancel_engine_latency_seconds" in body
-    assert "mockx_sim_cancel_outbound_latency_seconds" in body
-    assert "mockx_sim_cancel_end_to_end_latency_seconds" in body
+    assert "mockx_match_loop_duration_us" in body
+    assert "mockx_book_commit_duration_us" in body
+    assert "mockx_engine_command_duration_us" in body
+    assert "mockx_report_creation_duration_us" in body
+    assert "mockx_serialization_duration_us" in body
+    assert "mockx_sim_cancel_inbound_latency_ms" in body
+    assert "mockx_sim_cancel_engine_latency_ms" in body
+    assert "mockx_sim_cancel_outbound_latency_ms" in body
+    assert "mockx_sim_cancel_end_to_end_latency_ms" in body
     assert "mockx_cancel_accepted_total" in body
     assert "mockx_cancel_unknown_order_total" in body
     assert "mockx_cancel_already_terminal_total" in body

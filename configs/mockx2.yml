@@ -24,6 +24,7 @@ fix:
   enabled: true
   delivery_retry_interval_ms: 1000
   delivery_max_attempts_per_cycle: 3
+  delivery_terminal_retention_records: 10000
   session_participants:
     "FIX.4.4:MOCKX2->CLIENT2": "participant-2"
 scheduler:
@@ -50,7 +51,13 @@ tsdb:
   token: "mockx-token"
   org: "mockx-org"
   bucket: "mockx"
-  batch_size: 1000
-  buffer_capacity: 10000
-  retry_interval_ms: 1000
+  flush_batch_size: 1000
+  max_buffer_records: 10000
+  max_buffer_bytes: 67108864
+  flush_interval_ms: 1000
+  retry_backoff_ms: 1000
+  max_retry_delay_ms: 30000
+  overflow_retry_attempts: 3
+  shutdown_timeout_ms: 10000
+  overflow_policy: "reject_new"
   timeout_ms: 10000

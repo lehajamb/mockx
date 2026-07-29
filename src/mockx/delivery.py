@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 import math
 import threading
@@ -24,6 +24,13 @@ class FixDeliverySerializationError(RuntimeError):
     """A deterministic payload-to-FIX serialization failure."""
 
 
+@dataclass(frozen=True, slots=True)
+class _DeliveredTombstone:
+    run_generation: int
+    destination_session_id: str
+    message_type: FixDeliveryMessageType
+
+
 class OutboundFixDeliveryQueue:
     """Thread-safe owner of immutable delivery-state snapshots."""
 
@@ -32,11 +39,13 @@ class OutboundFixDeliveryQueue:
         *,
         retry_interval_ms: int = 1_000,
         max_attempts_per_cycle: int = 3,
+        terminal_retention_records: int = 10_000,
         wall_clock: Optional[Callable[[], datetime]] = None,
     ) -> None:
         for name, value in (
             ("retry_interval_ms", retry_interval_ms),
             ("max_attempts_per_cycle", max_attempts_per_cycle),
+            ("terminal_retention_records", terminal_retention_records),
         ):
             if (
                 not isinstance(value, int)
@@ -46,6 +55,7 @@ class OutboundFixDeliveryQueue:
                 raise ValueError(f"{name} must be a positive integer")
         self.retry_interval_ms = retry_interval_ms
         self.max_attempts_per_cycle = max_attempts_per_cycle
+        self.terminal_retention_records = terminal_retention_records
         self._wall_clock = wall_clock or (lambda: datetime.now(timezone.utc))
         self._lock = threading.RLock()
         self._records: Dict[str, OutboundFixDelivery] = {}
@@ -53,7 +63,11 @@ class OutboundFixDeliveryQueue:
         self._domain_index: Dict[str, str] = {}
         self._session_queues: Dict[str, Deque[str]] = defaultdict(deque)
         self._next_session_sequence: Dict[str, int] = defaultdict(int)
+        self._delivered_record_ids: Deque[str] = deque()
+        self._delivered_tombstones: Dict[str, _DeliveredTombstone] = {}
+        self._enqueued = 0
         self._attempts = 0
+        self._retries = 0
         self._failures = 0
         self._delivered = 0
         self._permanently_failed = 0
@@ -72,7 +86,7 @@ class OutboundFixDeliveryQueue:
         destination: SessionIdentity,
         payload: ExecutionReport | CancelReject,
         simulated_due_timestamp: datetime,
-    ) -> tuple[OutboundFixDelivery, bool]:
+    ) -> tuple[Optional[OutboundFixDelivery], bool]:
         """Insert one logical payload, deduplicated by its domain identity."""
         if isinstance(payload, ExecutionReport):
             message_type = FixDeliveryMessageType.EXECUTION_REPORT
@@ -84,6 +98,18 @@ class OutboundFixDeliveryQueue:
             raise TypeError(f"Unsupported FIX delivery payload: {type(payload)}")
 
         with self._lock:
+            tombstone = self._delivered_tombstones.get(domain_id)
+            if tombstone is not None:
+                if (
+                    tombstone.destination_session_id
+                    != destination.session_id
+                    or tombstone.message_type != message_type
+                    or tombstone.run_generation != payload.run_generation
+                ):
+                    raise ValueError(
+                        f"Conflicting payload for delivery domain ID {domain_id}"
+                    )
+                return None, False
             existing_id = self._domain_index.get(domain_id)
             if existing_id is not None:
                 existing = self._records[existing_id]
@@ -117,7 +143,17 @@ class OutboundFixDeliveryQueue:
             self._record_order.append(delivery_id)
             self._domain_index[domain_id] = delivery_id
             self._session_queues[session_id].append(delivery_id)
+            self._enqueued += 1
             return record, True
+
+    def begin_generation(self, active_generation: int) -> None:
+        """Discard completed-generation tombstones after lifecycle reset."""
+        with self._lock:
+            self._delivered_tombstones = {
+                domain_id: tombstone
+                for domain_id, tombstone in self._delivered_tombstones.items()
+                if tombstone.run_generation == active_generation
+            }
 
     def get(self, delivery_id: str) -> OutboundFixDelivery:
         with self._lock:
@@ -181,6 +217,8 @@ class OutboundFixDeliveryQueue:
         with self._lock:
             record = self._require_due_head_locked(delivery_id)
             self._attempts += 1
+            if record.attempt_count > 0:
+                self._retries += 1
             record = replace(
                 record,
                 attempt_count=record.attempt_count + 1,
@@ -263,7 +301,32 @@ class OutboundFixDeliveryQueue:
             self._records[delivery_id] = record
             queue.popleft()
             self._delivered += 1
+            self._delivered_record_ids.append(delivery_id)
+            self._prune_delivered_locked()
             return record
+
+    def _prune_delivered_locked(self) -> None:
+        while (
+            len(self._delivered_record_ids)
+            > self.terminal_retention_records
+        ):
+            delivery_id = self._delivered_record_ids.popleft()
+            record = self._records.get(delivery_id)
+            if record is None or record.state != FixDeliveryState.DELIVERED:
+                continue
+            self._delivered_tombstones[record.domain_id] = (
+                _DeliveredTombstone(
+                    run_generation=record.run_generation,
+                    destination_session_id=record.destination.session_id,
+                    message_type=record.message_type,
+                )
+            )
+            self._records.pop(delivery_id, None)
+            self._domain_index.pop(record.domain_id, None)
+            try:
+                self._record_order.remove(delivery_id)
+            except ValueError:
+                pass
 
     def start_reconnect_cycle(
         self,
@@ -377,19 +440,21 @@ class OutboundFixDeliveryQueue:
                 bool(queue) for queue in self._session_queues.values()
             )
             return FixDeliveryQueueSnapshot(
-                enqueued=len(records),
+                enqueued=self._enqueued,
                 queue_depth=len(nonterminal),
                 pending=states[FixDeliveryState.PENDING],
                 due=states[FixDeliveryState.DUE],
                 retry_pending=states[FixDeliveryState.RETRY_PENDING],
-                delivered=states[FixDeliveryState.DELIVERED],
-                permanently_failed=states[
-                    FixDeliveryState.PERMANENTLY_FAILED
-                ],
+                delivered=self._delivered,
+                permanently_failed=self._permanently_failed,
                 abandoned=0,
                 sessions_with_backlog=sessions_with_backlog,
                 attempts=self._attempts,
+                retries=self._retries,
                 failures=self._failures,
+                retained_delivered_records=states[
+                    FixDeliveryState.DELIVERED
+                ],
                 oldest_pending_age_seconds=oldest,
             )
 

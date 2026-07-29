@@ -38,7 +38,7 @@ def test_ready_only_after_lifespan_finishes_critical_startup():
         )
 
 
-def test_optional_persistence_failure_is_degraded_not_unready():
+def test_disabled_persistence_is_noncritical_despite_historical_failure():
     exchange = make_exchange()
     with TestClient(exchange.app) as client:
         exchange.metrics.record_sink_failure(
@@ -48,8 +48,10 @@ def test_optional_persistence_failure_is_degraded_not_unready():
         response = client.get("/readyz")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "degraded"
-    assert response.json()["components"]["persistence"] == "degraded"
+    assert response.json()["status"] == "ready"
+    assert response.json()["components"]["persistence"] == "disabled"
+    assert response.json()["core_ready"] is True
+    assert response.json()["persistence_required"] is False
 
 
 @pytest.mark.asyncio

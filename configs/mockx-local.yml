@@ -24,6 +24,7 @@ fix:
   enabled: true
   delivery_retry_interval_ms: 1000
   delivery_max_attempts_per_cycle: 3
+  delivery_terminal_retention_records: 10000
   session_participants:
     "FIX.4.4:MOCKX1->CLIENT1": "participant-1"
 scheduler:

@@ -39,7 +39,7 @@ EPOCH_NS = 0
 
 def make_metrics(*, run_id: str = "identity-run", batch_size: int = 10_000):
     sink = InMemoryMetricsSink()
-    writer = BufferedMetricsWriter(sink, batch_size=batch_size)
+    writer = BufferedMetricsWriter(sink, flush_batch_size=batch_size)
     metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run(run_id)
     return metrics, writer, sink
@@ -49,7 +49,7 @@ async def flush_records(
     writer: BufferedMetricsWriter,
     sink: InMemoryMetricsSink,
 ):
-    assert await writer.flush()
+    assert (await writer.flush()).successful
     return tuple(record for batch in sink.writes for record in batch)
 
 
@@ -138,8 +138,8 @@ async def test_repeated_latency_points_preserve_domain_ids_and_identity():
                 order_id=order_id,
                 session_id="SESSION",
                 metric=SIM_ENGINE_LATENCY,
-                value=0.001,
-                unit="seconds",
+                value=1.0,
+                unit="ms",
                 timestamp=EPOCH,
                 report_exec_id=exec_id,
             )
@@ -167,8 +167,8 @@ async def test_cancel_latency_persists_ingress_and_request_identity():
             order_id=None,
             session_id="FIX.4.4:MOCKX->CLIENT",
             metric=SIM_CANCEL_ENGINE_LATENCY,
-            value=0.003,
-            unit="seconds",
+            value=3.0,
+            unit="ms",
             timestamp=EPOCH,
             run_generation=7,
             ingress_sequence=11,
@@ -259,7 +259,7 @@ async def test_sequence_resets_on_next_run_in_same_collector():
         {"order_id": 1},
         EPOCH_NS,
     )
-    assert await writer.flush()
+    assert (await writer.flush()).successful
     second = sink.writes[-1]
 
     assert first[0].metric_event_sequence == 1
@@ -340,7 +340,7 @@ class RecordingFailOnceSink(InMemoryMetricsSink):
 @pytest.mark.asyncio
 async def test_failed_write_retry_preserves_exact_identity_without_reallocation():
     sink = RecordingFailOnceSink()
-    writer = BufferedMetricsWriter(sink, batch_size=10)
+    writer = BufferedMetricsWriter(sink, flush_batch_size=10)
     metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run("retry")
     metrics._create_point(
@@ -350,8 +350,8 @@ async def test_failed_write_retry_preserves_exact_identity_without_reallocation(
         EPOCH_NS,
     )
 
-    assert not await writer.flush()
-    assert await writer.flush()
+    assert not (await writer.flush()).successful
+    assert (await writer.flush()).successful
 
     assert sink.attempts[0] == sink.attempts[1]
     assert influx_identity(sink.attempts[0][0]) == influx_identity(sink.attempts[1][0])
@@ -390,7 +390,7 @@ def test_influx_conversion_preserves_all_identity_metadata(monkeypatch):
             EPOCH_NS,
         )
     with writer._buffer_lock:
-        source = tuple(writer._buffer)
+        source = tuple(entry.record for entry in writer._buffer)
 
     points = [InfluxDBMetricsSink._to_point(record) for record in source]
 

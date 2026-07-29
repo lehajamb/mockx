@@ -19,6 +19,10 @@ from src.mockx.lifecycle import (
     LifecycleState,
 )
 from src.mockx.main import MockExchange
+from src.mockx.metrics import (
+    PersistenceFlushOutcome,
+    PersistenceFlushResult,
+)
 from src.mockx.models import (
     NewOrderCommand,
     OrderType,
@@ -207,7 +211,7 @@ async def test_fix_order_during_starting_is_session_rejected(monkeypatch):
     monkeypatch.setattr(exchange.metrics, "flush", paused_flush)
     monkeypatch.setattr(
         exchange.fix_app,
-        "send_reject",
+        "send_business_reject",
         lambda _session, text, **kwargs: rejected.append(
             (text, kwargs.get("ref_msg_type"))
         ),
@@ -263,7 +267,7 @@ async def test_fix_order_during_ending_is_session_rejected(monkeypatch):
     monkeypatch.setattr(exchange.metrics, "flush", paused_flush)
     monkeypatch.setattr(
         exchange.fix_app,
-        "send_reject",
+        "send_business_reject",
         lambda _session, text, **kwargs: rejected.append(
             (text, kwargs.get("ref_msg_type"))
         ),
@@ -344,8 +348,13 @@ async def test_end_flush_failure_restores_active_for_retry(monkeypatch):
     await exchange.stop_components()
 
 
-async def _false_async() -> bool:
-    return False
+async def _false_async() -> PersistenceFlushResult:
+    return PersistenceFlushResult(
+        PersistenceFlushOutcome.FAILED,
+        records_written=0,
+        remaining_records=1,
+        error="planned failure",
+    )
 
 
 async def _rejection_pattern(

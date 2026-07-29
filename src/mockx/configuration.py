@@ -265,6 +265,11 @@ class FixConfig(StrictConfigModel):
         ge=1,
         le=10_000,
     )
+    delivery_terminal_retention_records: StrictInt = Field(
+        default=10_000,
+        ge=1,
+        le=1_000_000,
+    )
     session_participants: Mapping[str, str] = Field(default_factory=dict)
 
     @field_validator("session_participants")
@@ -412,9 +417,43 @@ class InfluxConfig(StrictConfigModel):
     token: Optional[str] = None
     org: Optional[str] = None
     bucket: Optional[str] = None
-    batch_size: StrictInt = Field(default=1_000, ge=1, le=100_000)
-    buffer_capacity: StrictInt = Field(default=10_000, ge=1, le=1_000_000)
-    retry_interval_ms: StrictInt = Field(default=1_000, ge=1, le=86_400_000)
+    flush_batch_size: StrictInt = Field(default=1_000, ge=1, le=100_000)
+    max_buffer_records: StrictInt = Field(
+        default=10_000,
+        ge=1,
+        le=1_000_000,
+    )
+    max_buffer_bytes: StrictInt = Field(
+        default=67_108_864,
+        ge=1,
+        le=1_073_741_824,
+    )
+    flush_interval_ms: StrictInt = Field(
+        default=1_000,
+        ge=1,
+        le=86_400_000,
+    )
+    retry_backoff_ms: StrictInt = Field(
+        default=1_000,
+        ge=1,
+        le=86_400_000,
+    )
+    max_retry_delay_ms: StrictInt = Field(
+        default=30_000,
+        ge=1,
+        le=86_400_000,
+    )
+    overflow_retry_attempts: StrictInt = Field(
+        default=3,
+        ge=1,
+        le=10_000,
+    )
+    shutdown_timeout_ms: StrictInt = Field(
+        default=10_000,
+        ge=1,
+        le=86_400_000,
+    )
+    overflow_policy: str = "reject_new"
     timeout_ms: StrictInt = Field(default=10_000, ge=1, le=86_400_000)
 
     @field_validator("url", "token", "org", "bucket")
@@ -425,10 +464,23 @@ class InfluxConfig(StrictConfigModel):
         stripped = value.strip()
         return stripped or None
 
+    @field_validator("overflow_policy")
+    @classmethod
+    def valid_overflow_policy(cls, value: str) -> str:
+        if value not in {"reject_new", "drop_oldest"}:
+            raise ValueError("must be 'reject_new' or 'drop_oldest'")
+        return value
+
     @model_validator(mode="after")
     def validate_enabled_contract(self) -> "InfluxConfig":
-        if self.buffer_capacity < self.batch_size:
-            raise ValueError("buffer_capacity must be at least batch_size")
+        if self.max_buffer_records < self.flush_batch_size:
+            raise ValueError(
+                "max_buffer_records must be at least flush_batch_size"
+            )
+        if self.max_retry_delay_ms < self.retry_backoff_ms:
+            raise ValueError(
+                "max_retry_delay_ms must be at least retry_backoff_ms"
+            )
         if self.enabled:
             missing = [
                 name
@@ -516,9 +568,18 @@ _ENV_OVERRIDES: Mapping[str, tuple[str, str]] = {
     "INFLUXDB_ORG": ("org", "text"),
     "INFLUXDB_BUCKET": ("bucket", "text"),
     "INFLUXDB_ENABLED": ("enabled", "bool"),
-    "INFLUXDB_BATCH_SIZE": ("batch_size", "int"),
-    "INFLUXDB_BUFFER_CAPACITY": ("buffer_capacity", "int"),
-    "INFLUXDB_RETRY_INTERVAL_MS": ("retry_interval_ms", "int"),
+    "INFLUXDB_FLUSH_BATCH_SIZE": ("flush_batch_size", "int"),
+    "INFLUXDB_MAX_BUFFER_RECORDS": ("max_buffer_records", "int"),
+    "INFLUXDB_MAX_BUFFER_BYTES": ("max_buffer_bytes", "int"),
+    "INFLUXDB_FLUSH_INTERVAL_MS": ("flush_interval_ms", "int"),
+    "INFLUXDB_RETRY_BACKOFF_MS": ("retry_backoff_ms", "int"),
+    "INFLUXDB_MAX_RETRY_DELAY_MS": ("max_retry_delay_ms", "int"),
+    "INFLUXDB_OVERFLOW_RETRY_ATTEMPTS": (
+        "overflow_retry_attempts",
+        "int",
+    ),
+    "INFLUXDB_SHUTDOWN_TIMEOUT_MS": ("shutdown_timeout_ms", "int"),
+    "INFLUXDB_OVERFLOW_POLICY": ("overflow_policy", "text"),
     "INFLUXDB_TIMEOUT_MS": ("timeout_ms", "int"),
 }
 

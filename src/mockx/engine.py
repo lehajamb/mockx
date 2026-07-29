@@ -14,6 +14,12 @@ from .latency import (
     PerfCounterClock,
     monotonic_duration_ns,
 )
+from .metrics import (
+    BOOK_COMMIT_DURATION,
+    ENGINE_COMMAND_DURATION,
+    MATCH_LOOP_DURATION,
+    REPORT_CREATION_DURATION,
+)
 from .models import (
     CancellationOutcome,
     CancelOrderCommand,
@@ -87,7 +93,7 @@ class MatchingEngine:
         self.on_cancel_request = None
         self.on_cancel_reject = None
         self.on_cancel_outcome = None
-        self.on_matching_duration = None
+        self.on_cpu_duration = None
 
     def reset_run_state(self) -> None:
         """Clear authoritative run state without touching the scheduler."""
@@ -196,17 +202,30 @@ class MatchingEngine:
         ):
             return
 
-        should_reject = self.rng.random() < self.exec_params.reject_prob
-        order.processed = True
-        if should_reject:
-            self._reject_order(order, "SIMULATED_REJECTION: Simulated rejection")
-            return
+        command_start_ns = self.monotonic_clock.now_ns()
+        try:
+            should_reject = self.rng.random() < self.exec_params.reject_prob
+            order.processed = True
+            if should_reject:
+                self._reject_order(
+                    order,
+                    "SIMULATED_REJECTION: Simulated rejection",
+                )
+                return
 
-        book = self.books[order.symbol]
-        fills = self._run_matching(order, book)
-        self._finalize_unfilled_remainder(order, book)
-        book.assert_invariants()
-        self._send_market_data_update(order.symbol, fills)
+            book = self.books[order.symbol]
+            fills = self._run_matching(order, book)
+            self._finalize_unfilled_remainder(order, book)
+            book.assert_invariants()
+            self._send_market_data_update(order.symbol, fills)
+        finally:
+            self._record_cpu_duration(
+                ENGINE_COMMAND_DURATION,
+                order.id,
+                order.session_id,
+                command_start_ns,
+                context=f"process order command {order.id}",
+            )
 
     def _reject_order(self, order: Order, reason: str) -> None:
         order.validate_transition_to(OrderStatus.REJECTED)
@@ -242,8 +261,9 @@ class MatchingEngine:
             )
         else:
             self._notify_observer(
-                "matching duration",
-                self.on_matching_duration,
+                "match loop duration",
+                self.on_cpu_duration,
+                MATCH_LOOP_DURATION,
                 order.id,
                 order.session_id,
                 duration_ns,
@@ -379,14 +399,24 @@ class MatchingEngine:
                     aggressor_side=aggressor.side,
                     timestamp=self.scheduler.current_time,
                 )
-                aggressor.apply_fill(match_qty, exec_price)
-                fill_result = book.apply_fill(
-                    passive,
-                    match_qty,
-                    exec_price,
-                )
-                passive.transition_to(passive_target)
-                aggressor.transition_to(aggressor_target)
+                commit_start_ns = self.monotonic_clock.now_ns()
+                try:
+                    aggressor.apply_fill(match_qty, exec_price)
+                    fill_result = book.apply_fill(
+                        passive,
+                        match_qty,
+                        exec_price,
+                    )
+                    passive.transition_to(passive_target)
+                    aggressor.transition_to(aggressor_target)
+                finally:
+                    self._record_cpu_duration(
+                        BOOK_COMMIT_DURATION,
+                        aggressor.id,
+                        aggressor.session_id,
+                        commit_start_ns,
+                        context=f"fill commit for order {aggressor.id}",
+                    )
                 self.next_trade_id += 1
                 fills.append(fill)
 
@@ -457,7 +487,17 @@ class MatchingEngine:
             publish_new = True
         else:
             publish_new = False
-        book.add_order(order)
+        commit_start_ns = self.monotonic_clock.now_ns()
+        try:
+            book.add_order(order)
+        finally:
+            self._record_cpu_duration(
+                BOOK_COMMIT_DURATION,
+                order.id,
+                order.session_id,
+                commit_start_ns,
+                context=f"rest commit for order {order.id}",
+            )
         if publish_new:
             self._send_execution_report(
                 self._create_execution_report(
@@ -511,7 +551,8 @@ class MatchingEngine:
         text: Optional[str] = None,
         cancel_ingress_sequence: Optional[int] = None,
     ) -> ExecutionReport:
-        return create_execution_report(
+        start_ns = self.monotonic_clock.now_ns()
+        report = create_execution_report(
             order,
             exec_type=exec_type,
             timestamp=self.scheduler.current_time,
@@ -525,6 +566,15 @@ class MatchingEngine:
             text=text,
             cancel_ingress_sequence=cancel_ingress_sequence,
         )
+        self._record_cpu_duration(
+            REPORT_CREATION_DURATION,
+            order.id,
+            order.session_id,
+            start_ns,
+            context=f"execution report {report.exec_id} creation",
+            report_exec_id=report.exec_id,
+        )
+        return report
 
     def _send_execution_report(self, report: ExecutionReport) -> None:
         self._notify_observer(
@@ -621,6 +671,35 @@ class MatchingEngine:
         self,
         command: CancelOrderCommand,
     ) -> ExecutionReport | CancelReject:
+        """Measure and resolve one non-noop cancel command."""
+        if not isinstance(command, CancelOrderCommand):
+            raise TypeError("cancel_order requires CancelOrderCommand")
+        self.scheduler.ensure_running()
+        key = ClientOrderKey(
+            session_id=command.session_id,
+            cl_ord_id=command.orig_cl_ord_id,
+        )
+        order_id = self.client_order_index.get(key)
+        order = self.orders.get(order_id) if order_id is not None else None
+        start_ns = self.monotonic_clock.now_ns()
+        try:
+            return self._cancel_order_impl(command)
+        finally:
+            self._record_cpu_duration(
+                ENGINE_COMMAND_DURATION,
+                order.id if order is not None else None,
+                command.session_id,
+                start_ns,
+                context=(
+                    "cancel command "
+                    f"{command.run_generation}:{command.ingress_sequence}"
+                ),
+            )
+
+    def _cancel_order_impl(
+        self,
+        command: CancelOrderCommand,
+    ) -> ExecutionReport | CancelReject:
         """Resolve one cancel against authoritative execution-time state."""
         if not isinstance(command, CancelOrderCommand):
             raise TypeError("cancel_order requires CancelOrderCommand")
@@ -709,15 +788,25 @@ class MatchingEngine:
             )
 
         order.validate_transition_to(OrderStatus.CANCELLED)
-        if resting:
-            if not book.remove_order(order):
-                raise RuntimeError(
-                    f"Resting order {order.id} could not be removed"
-                )
-            book.assert_invariants()
-        order.version += 1
-        order.cancel_remaining()
-        order.transition_to(OrderStatus.CANCELLED)
+        commit_start_ns = self.monotonic_clock.now_ns()
+        try:
+            if resting:
+                if not book.remove_order(order):
+                    raise RuntimeError(
+                        f"Resting order {order.id} could not be removed"
+                    )
+                book.assert_invariants()
+            order.version += 1
+            order.cancel_remaining()
+            order.transition_to(OrderStatus.CANCELLED)
+        finally:
+            self._record_cpu_duration(
+                BOOK_COMMIT_DURATION,
+                order.id,
+                order.session_id,
+                commit_start_ns,
+                context=f"cancel commit for order {order.id}",
+            )
         report = self._create_execution_report(
             order,
             exec_type=ExecutionType.CANCELED,
@@ -746,6 +835,7 @@ class MatchingEngine:
         order: Optional[Order] = None,
         outcome: CancellationOutcome,
     ) -> CancelReject:
+        start_ns = self.monotonic_clock.now_ns()
         reject = create_cancel_reject(
             command,
             reject_id=self.identifier_scope.next_cancel_reject_id(),
@@ -753,6 +843,14 @@ class MatchingEngine:
             text=text,
             timestamp=self.scheduler.current_time,
             order=order,
+        )
+        self._record_cpu_duration(
+            REPORT_CREATION_DURATION,
+            order.id if order is not None else None,
+            command.session_id,
+            start_ns,
+            context=f"cancel reject {reject.reject_id} creation",
+            report_exec_id=reject.reject_id,
         )
         self._notify_observer("cancel reject", self.on_cancel_reject, reject)
         self._notify_observer(
@@ -780,6 +878,44 @@ class MatchingEngine:
         return sum(
             len(book.bids) + len(book.asks)
             for book in self.books.values()
+        )
+
+    def _record_cpu_duration(
+        self,
+        metric: str,
+        order_id: Optional[int],
+        session_id: Optional[str],
+        start_ns: int,
+        *,
+        context: str,
+        report_exec_id: Optional[str] = None,
+    ) -> None:
+        end_ns = self.monotonic_clock.now_ns()
+        try:
+            duration_ns = monotonic_duration_ns(
+                start_ns,
+                end_ns,
+                context=context,
+            )
+        except ValueError:
+            logger.exception(
+                "Invalid CPU duration timestamps",
+                extra={
+                    "metric": metric,
+                    "order_id": order_id,
+                    "session_id": session_id,
+                },
+            )
+            return
+        self._notify_observer(
+            metric,
+            self.on_cpu_duration,
+            metric,
+            order_id,
+            session_id,
+            duration_ns,
+            self.scheduler.current_time,
+            report_exec_id,
         )
 
     @staticmethod

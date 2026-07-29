@@ -99,9 +99,17 @@ class MockExchange:
             )
             self.metrics_persistence = BufferedMetricsWriter(
                 self.tsdb_writer,
-                batch_size=tsdb_config.batch_size,
-                buffer_capacity=tsdb_config.buffer_capacity,
-                retry_interval_ms=tsdb_config.retry_interval_ms,
+                flush_batch_size=tsdb_config.flush_batch_size,
+                max_buffer_records=tsdb_config.max_buffer_records,
+                max_buffer_bytes=tsdb_config.max_buffer_bytes,
+                flush_interval_ms=tsdb_config.flush_interval_ms,
+                retry_backoff_ms=tsdb_config.retry_backoff_ms,
+                max_retry_delay_ms=tsdb_config.max_retry_delay_ms,
+                overflow_retry_attempts=(
+                    tsdb_config.overflow_retry_attempts
+                ),
+                shutdown_timeout_ms=tsdb_config.shutdown_timeout_ms,
+                overflow_policy=tsdb_config.overflow_policy,
             )
 
         self.metrics = MetricsCollector(
@@ -137,6 +145,9 @@ class MockExchange:
             ),
             delivery_max_attempts_per_cycle=(
                 self.config.fix.delivery_max_attempts_per_cycle
+            ),
+            delivery_terminal_retention_records=(
+                self.config.fix.delivery_terminal_retention_records
             ),
         )
         self.lifecycle = ExchangeLifecycle(
@@ -217,9 +228,14 @@ class MockExchange:
         self.engine.on_cancel_request = self.metrics.record_cancel_request
         self.engine.on_cancel_reject = self.metrics.record_cancel_reject
         self.engine.on_cancel_outcome = self.metrics.record_cancel_outcome
-        self.engine.on_matching_duration = (
-            self.latency_tracker.record_real_matching_duration
+        self.engine.on_cpu_duration = self.latency_tracker.record_cpu_duration
+        self.scheduler.on_queue_depth_change = (
+            self.metrics.update_scheduler_pending
         )
+        self.scheduler.on_failure = self.metrics.record_scheduler_failure
+        self.scheduler.on_state_change = self.metrics.update_scheduler_state
+        self.metrics.update_scheduler_pending(self.scheduler.get_pending_count())
+        self.metrics.update_scheduler_state(self.scheduler.state)
         self._callbacks_registered = True
 
     async def start_components(self) -> None:
@@ -241,11 +257,14 @@ class MockExchange:
             )
             state.component_status["scheduler"] = "starting"
             state.component_status["metrics"] = "ready"
-            state.component_status["persistence"] = (
-                "ready"
-                if self.metrics.persistence is not None
-                else "disabled"
-            )
+            if self.metrics.persistence is not None:
+                await self.metrics.persistence.start()
+                state.component_status["persistence"] = (
+                    self.metrics.persistence.health_snapshot()
+                    .state.value.lower()
+                )
+            else:
+                state.component_status["persistence"] = "disabled"
 
             self.loop = asyncio.get_running_loop()
             # This handoff is deliberately before QuickFIX accepts traffic.
@@ -327,11 +346,19 @@ class MockExchange:
 
             try:
                 metrics_closed = await self.metrics.close()
-                if not metrics_closed:
+                if not metrics_closed.successful:
                     logger.error(
-                        "Metrics persistence did not flush cleanly"
+                        "Metrics persistence did not close cleanly",
+                        extra={
+                            "persistence_close_outcome": (
+                                metrics_closed.outcome.value
+                            ),
+                            "unflushed_records": (
+                                metrics_closed.unflushed_records
+                            ),
+                        },
                     )
-                    state.component_status["persistence"] = "degraded"
+                    state.component_status["persistence"] = "closed"
             except Exception:
                 logger.exception("Metrics shutdown failed")
                 state.component_status["persistence"] = "degraded"

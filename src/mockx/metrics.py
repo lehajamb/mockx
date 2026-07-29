@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import threading
+import time
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
+from enum import Enum
 from typing import (
     Any,
     Callable,
@@ -57,6 +60,9 @@ from .models import (
     NewOrderCommand,
     OrderLatencyTrace,
     OrderStatus,
+    SchedulerFailure,
+    SchedulerFailureStatus,
+    SchedulerState,
     SelfTradePrevention,
     Trade,
     liquidity_category_for_session,
@@ -66,20 +72,21 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
-SIM_INBOUND_LATENCY = "mockx_sim_inbound_latency_seconds"
-SIM_ENGINE_LATENCY = "mockx_sim_engine_latency_seconds"
-SIM_OUTBOUND_LATENCY = "mockx_sim_outbound_latency_seconds"
-SIM_END_TO_END_LATENCY = "mockx_sim_end_to_end_latency_seconds"
-SIM_CANCEL_INBOUND_LATENCY = "mockx_sim_cancel_inbound_latency_seconds"
-SIM_CANCEL_ENGINE_LATENCY = "mockx_sim_cancel_engine_latency_seconds"
-SIM_CANCEL_OUTBOUND_LATENCY = "mockx_sim_cancel_outbound_latency_seconds"
+SIM_INBOUND_LATENCY = "mockx_sim_inbound_latency_ms"
+SIM_ENGINE_LATENCY = "mockx_sim_engine_latency_ms"
+SIM_OUTBOUND_LATENCY = "mockx_sim_outbound_latency_ms"
+SIM_END_TO_END_LATENCY = "mockx_sim_end_to_end_latency_ms"
+SIM_CANCEL_INBOUND_LATENCY = "mockx_sim_cancel_inbound_latency_ms"
+SIM_CANCEL_ENGINE_LATENCY = "mockx_sim_cancel_engine_latency_ms"
+SIM_CANCEL_OUTBOUND_LATENCY = "mockx_sim_cancel_outbound_latency_ms"
 SIM_CANCEL_END_TO_END_LATENCY = (
-    "mockx_sim_cancel_end_to_end_latency_seconds"
+    "mockx_sim_cancel_end_to_end_latency_ms"
 )
-REAL_MATCHING_DURATION = "mockx_real_matching_duration_seconds"
-REAL_REPORT_SERIALIZATION_DURATION = (
-    "mockx_real_report_serialization_duration_seconds"
-)
+MATCH_LOOP_DURATION = "mockx_match_loop_duration_us"
+BOOK_COMMIT_DURATION = "mockx_book_commit_duration_us"
+ENGINE_COMMAND_DURATION = "mockx_engine_command_duration_us"
+REPORT_CREATION_DURATION = "mockx_report_creation_duration_us"
+SERIALIZATION_DURATION = "mockx_serialization_duration_us"
 
 LATENCY_METRICS = frozenset(
     {
@@ -91,10 +98,18 @@ LATENCY_METRICS = frozenset(
         SIM_CANCEL_ENGINE_LATENCY,
         SIM_CANCEL_OUTBOUND_LATENCY,
         SIM_CANCEL_END_TO_END_LATENCY,
-        REAL_MATCHING_DURATION,
-        REAL_REPORT_SERIALIZATION_DURATION,
+        MATCH_LOOP_DURATION,
+        BOOK_COMMIT_DURATION,
+        ENGINE_COMMAND_DURATION,
+        REPORT_CREATION_DURATION,
+        SERIALIZATION_DURATION,
     }
 )
+
+SIMULATED_LATENCY_METRICS = frozenset(
+    metric for metric in LATENCY_METRICS if metric.endswith("_ms")
+)
+CPU_DURATION_METRICS = LATENCY_METRICS - SIMULATED_LATENCY_METRICS
 
 METRIC_IDENTITY_TAGS = frozenset(
     {"run_id", "event_type", "metric_event_bucket"}
@@ -223,9 +238,124 @@ class MetricRecord:
     def run_id(self) -> str:
         return self.tag_map["run_id"]
 
+    @property
+    def encoded_size_bytes(self) -> int:
+        """Return a deterministic logical payload size for buffer limits."""
+        payload = {
+            "measurement": self.measurement,
+            "tags": self.tags,
+            "fields": self.fields,
+            "event_timestamp_ns": self.event_timestamp_ns,
+            "persistence_timestamp_ns": self.persistence_timestamp_ns,
+        }
+        return len(
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                default=str,
+            ).encode("utf-8")
+        )
+
 
 class MetricsSinkError(RuntimeError):
     """Expected persistence-adapter failure."""
+
+
+class PersistenceAddOutcome(str, Enum):
+    """Explicit admission result for one logical persistence record."""
+
+    ACCEPTED = "ACCEPTED"
+    ACCEPTED_FLUSH_REQUIRED = "ACCEPTED_FLUSH_REQUIRED"
+    ACCEPTED_DROPPED_OLDEST = "ACCEPTED_DROPPED_OLDEST"
+    REJECTED_CLOSED = "REJECTED_CLOSED"
+    REJECTED_FULL = "REJECTED_FULL"
+    FAILED = "FAILED"
+
+
+class PersistenceFlushOutcome(str, Enum):
+    """Explicit result for one requested buffer drain."""
+
+    FLUSHED = "FLUSHED"
+    NOTHING_TO_FLUSH = "NOTHING_TO_FLUSH"
+    FAILED = "FAILED"
+    TIMED_OUT = "TIMED_OUT"
+    CLOSED = "CLOSED"
+
+
+class PersistenceCloseOutcome(str, Enum):
+    """Explicit terminal result for the writer close boundary."""
+
+    CLOSED = "CLOSED"
+    ALREADY_CLOSED = "ALREADY_CLOSED"
+    CLOSED_WITH_UNFLUSHED = "CLOSED_WITH_UNFLUSHED"
+    TIMED_OUT = "TIMED_OUT"
+    SINK_CLOSE_FAILED = "SINK_CLOSE_FAILED"
+
+
+class PersistenceHealthState(str, Enum):
+    DISABLED = "DISABLED"
+    HEALTHY = "HEALTHY"
+    RETRYING = "RETRYING"
+    DEGRADED = "DEGRADED"
+    UNAVAILABLE = "UNAVAILABLE"
+    CLOSED = "CLOSED"
+
+
+class PersistenceOverflowPolicy(str, Enum):
+    REJECT_NEW = "reject_new"
+    DROP_OLDEST = "drop_oldest"
+
+
+@dataclass(frozen=True, slots=True)
+class PersistenceFlushResult:
+    outcome: PersistenceFlushOutcome
+    records_written: int
+    remaining_records: int
+    error: Optional[str] = None
+
+    @property
+    def successful(self) -> bool:
+        return self.outcome in {
+            PersistenceFlushOutcome.FLUSHED,
+            PersistenceFlushOutcome.NOTHING_TO_FLUSH,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PersistenceCloseResult:
+    outcome: PersistenceCloseOutcome
+    records_written: int
+    unflushed_records: int
+    error: Optional[str] = None
+
+    @property
+    def successful(self) -> bool:
+        return self.outcome in {
+            PersistenceCloseOutcome.CLOSED,
+            PersistenceCloseOutcome.ALREADY_CLOSED,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PersistenceHealthSnapshot:
+    state: PersistenceHealthState
+    last_successful_write_time: Optional[datetime]
+    last_failure_time: Optional[datetime]
+    consecutive_failures: int
+    lifetime_failures: int
+    buffered_records: int
+    buffered_bytes: int
+    oldest_buffered_record_age_seconds: Optional[float]
+    accepted_records: int
+    flush_required_records: int
+    dropped_records: int
+    rejected_closed_records: int
+    rejected_full_records: int
+    failed_records: int
+    worker_running: bool
+    close_outcome: Optional[PersistenceCloseOutcome]
+    unflushed_on_close: int
 
 
 class MetricsSink(Protocol):
@@ -240,6 +370,9 @@ class MetricsSink(Protocol):
     async def close(self) -> None:
         ...
 
+    async def health_check(self) -> None:
+        ...
+
 
 class NoOpMetricsSink:
     """Sink used when external metric persistence is disabled."""
@@ -251,6 +384,9 @@ class NoOpMetricsSink:
         return None
 
     async def close(self) -> None:
+        return None
+
+    async def health_check(self) -> None:
         return None
 
 
@@ -276,222 +412,704 @@ class InMemoryMetricsSink:
             self.close_calls += 1
             self.closed = True
 
+    async def health_check(self) -> None:
+        if self.closed:
+            raise MetricsSinkError("In-memory metrics sink is closed")
+
+
+@dataclass(frozen=True, slots=True)
+class _BufferedMetricRecord:
+    record: MetricRecord
+    encoded_size_bytes: int
+    enqueued_monotonic_ns: int
+
 
 class BufferedMetricsWriter:
-    """Loss-aware buffer in front of an asynchronous metric sink.
-
-    Producers only hold the short-lived buffer lock.  A separate async lock
-    serializes flushes, and no lock is held while awaiting the sink.  Failed
-    batches are restored ahead of records added while the write was in flight.
-    """
+    """Strictly bounded, loss-aware buffer with one coalesced worker."""
 
     def __init__(
         self,
         sink: MetricsSink,
         *,
-        batch_size: int = 1000,
-        buffer_capacity: int = 10_000,
-        retry_interval_ms: int = 1_000,
+        flush_batch_size: int = 1_000,
+        max_buffer_records: int = 10_000,
+        max_buffer_bytes: int = 67_108_864,
+        flush_interval_ms: int = 1_000,
+        retry_backoff_ms: int = 1_000,
+        max_retry_delay_ms: int = 30_000,
+        overflow_retry_attempts: int = 3,
+        shutdown_timeout_ms: int = 10_000,
+        overflow_policy: str | PersistenceOverflowPolicy = (
+            PersistenceOverflowPolicy.REJECT_NEW
+        ),
         on_failure: Optional[Callable[[BaseException, int], None]] = None,
+        on_outcome: Optional[
+            Callable[[PersistenceAddOutcome, int], None]
+        ] = None,
     ) -> None:
-        if batch_size <= 0:
-            raise ValueError("Metrics batch_size must be positive")
-        if buffer_capacity < batch_size:
+        for name, value in (
+            ("flush_batch_size", flush_batch_size),
+            ("max_buffer_records", max_buffer_records),
+            ("max_buffer_bytes", max_buffer_bytes),
+            ("flush_interval_ms", flush_interval_ms),
+            ("retry_backoff_ms", retry_backoff_ms),
+            ("max_retry_delay_ms", max_retry_delay_ms),
+            ("overflow_retry_attempts", overflow_retry_attempts),
+            ("shutdown_timeout_ms", shutdown_timeout_ms),
+        ):
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or value <= 0
+            ):
+                raise ValueError(f"Metrics {name} must be positive")
+        if max_buffer_records < flush_batch_size:
             raise ValueError(
-                "Metrics buffer_capacity must be at least batch_size"
+                "Metrics max_buffer_records must be at least "
+                "flush_batch_size"
             )
-        if retry_interval_ms <= 0:
-            raise ValueError("Metrics retry_interval_ms must be positive")
+        if max_retry_delay_ms < retry_backoff_ms:
+            raise ValueError(
+                "Metrics max_retry_delay_ms must be at least "
+                "retry_backoff_ms"
+            )
+        try:
+            resolved_policy = PersistenceOverflowPolicy(overflow_policy)
+        except ValueError as exc:
+            raise ValueError(
+                "Metrics overflow_policy must be 'reject_new' or "
+                "'drop_oldest'"
+            ) from exc
+
         self.sink = sink
-        self.batch_size = batch_size
-        self.buffer_capacity = buffer_capacity
-        self.retry_interval_ms = retry_interval_ms
+        self.flush_batch_size = flush_batch_size
+        self.max_buffer_records = max_buffer_records
+        self.max_buffer_bytes = max_buffer_bytes
+        self.flush_interval_ms = flush_interval_ms
+        self.retry_backoff_ms = retry_backoff_ms
+        self.max_retry_delay_ms = max_retry_delay_ms
+        self.overflow_retry_attempts = overflow_retry_attempts
+        self.shutdown_timeout_ms = shutdown_timeout_ms
+        self.overflow_policy = resolved_policy
         self.on_failure = on_failure
-        self._buffer: Deque[MetricRecord] = deque()
+        self.on_outcome = on_outcome
+
+        self._buffer: Deque[_BufferedMetricRecord] = deque()
+        self._inflight: Tuple[_BufferedMetricRecord, ...] = ()
+        self._buffered_bytes = 0
         self._buffer_lock = threading.RLock()
         self._flush_lock = asyncio.Lock()
         self._close_lock = asyncio.Lock()
         self._closed = False
         self._closing = False
         self._sink_closed = False
-        self.failure_count = 0
-        self._background_tasks: set[asyncio.Task[bool]] = set()
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._wake_event: Optional[asyncio.Event] = None
+        self._worker_task: Optional[asyncio.Task[None]] = None
+        self._stop_worker = False
+
+        self._health_state = PersistenceHealthState.HEALTHY
+        self._last_successful_write_time: Optional[datetime] = None
+        self._last_failure_time: Optional[datetime] = None
+        self._consecutive_failures = 0
+        self._lifetime_failures = 0
+        self._current_retry_delay_ms = retry_backoff_ms
+        self._outcomes = {outcome: 0 for outcome in PersistenceAddOutcome}
+        self._dropped_records = 0
+        self._last_close_result: Optional[PersistenceCloseResult] = None
 
     @property
     def buffered_count(self) -> int:
         with self._buffer_lock:
-            return len(self._buffer)
+            return len(self._buffer) + len(self._inflight)
+
+    @property
+    def buffered_bytes(self) -> int:
+        with self._buffer_lock:
+            return self._buffered_bytes
+
+    @property
+    def failure_count(self) -> int:
+        with self._buffer_lock:
+            return self._lifetime_failures
+
+    @property
+    def worker_task(self) -> Optional[asyncio.Task[None]]:
+        return self._worker_task
 
     @property
     def closed(self) -> bool:
         with self._buffer_lock:
             return self._closed
 
-    def _append(self, record: MetricRecord) -> tuple[bool, bool]:
+    async def start(self) -> None:
+        """Bind one event loop and start the sole automatic flush worker."""
+        loop = asyncio.get_running_loop()
+        with self._buffer_lock:
+            if self._closed:
+                return
+            if self._worker_task is not None and not self._worker_task.done():
+                if self._loop is not loop:
+                    raise RuntimeError(
+                        "Metrics writer is already bound to another loop"
+                    )
+                return
+            self._loop = loop
+            self._wake_event = asyncio.Event()
+            self._stop_worker = False
+            self._worker_task = loop.create_task(
+                self._worker_loop(),
+                name="mockx-metrics-flush-worker",
+            )
+        if not await self._check_sink_health():
+            self._signal_worker()
+
+    def _capacity_available(self, encoded_size_bytes: int) -> bool:
+        return (
+            len(self._buffer) + len(self._inflight)
+            < self.max_buffer_records
+            and self._buffered_bytes + encoded_size_bytes
+            <= self.max_buffer_bytes
+        )
+
+    def _can_fit_after_dropping_queued(
+        self,
+        encoded_size_bytes: int,
+    ) -> bool:
+        inflight_bytes = sum(
+            entry.encoded_size_bytes for entry in self._inflight
+        )
+        return (
+            len(self._inflight) + 1 <= self.max_buffer_records
+            and inflight_bytes + encoded_size_bytes <= self.max_buffer_bytes
+        )
+
+    def _drop_oldest_until_fits(self, encoded_size_bytes: int) -> int:
+        dropped = 0
+        while (
+            self._buffer
+            and not self._capacity_available(encoded_size_bytes)
+        ):
+            removed = self._buffer.popleft()
+            self._buffered_bytes -= removed.encoded_size_bytes
+            dropped += 1
+        return dropped
+
+    def _append(
+        self,
+        record: MetricRecord,
+    ) -> PersistenceAddOutcome:
+        try:
+            entry = _BufferedMetricRecord(
+                record=record,
+                encoded_size_bytes=record.encoded_size_bytes,
+                enqueued_monotonic_ns=time.monotonic_ns(),
+            )
+        except Exception:
+            logger.exception("Metric record size calculation failed")
+            return PersistenceAddOutcome.FAILED
+
         with self._buffer_lock:
             if self._closed or self._closing:
-                logger.warning(
-                    "Metric record rejected while writer is closing",
-                    extra={
-                        "metric_sink": type(self.sink).__name__,
-                        "buffer_size": len(self._buffer),
-                    },
-                )
-                return False, False
-            if len(self._buffer) >= self.buffer_capacity:
-                error = MetricsSinkError(
-                    "Metrics buffer capacity exhausted"
-                )
-                self._record_failure(error, len(self._buffer))
-                logger.error(
-                    "Metric record rejected because the persistence buffer is full",
-                    extra={"buffer_capacity": self.buffer_capacity},
-                )
-                return False, False
-            self._buffer.append(record)
-            return True, len(self._buffer) >= self.batch_size
+                return PersistenceAddOutcome.REJECTED_CLOSED
 
-    def add_nowait(self, record: MetricRecord) -> bool:
-        """Buffer a record and schedule a threshold flush when a loop exists."""
-        accepted, threshold_reached = self._append(record)
-        if not accepted:
-            return False
-        if not threshold_reached:
-            return True
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # Synchronous engine callers remain nonblocking.  The next explicit
-            # flush or shutdown will persist the threshold-sized batch.
-            return True
+            dropped = 0
+            if not self._capacity_available(entry.encoded_size_bytes):
+                if (
+                    self.overflow_policy
+                    == PersistenceOverflowPolicy.DROP_OLDEST
+                    and self._can_fit_after_dropping_queued(
+                        entry.encoded_size_bytes
+                    )
+                ):
+                    dropped = self._drop_oldest_until_fits(
+                        entry.encoded_size_bytes
+                    )
+                if not self._capacity_available(entry.encoded_size_bytes):
+                    if self._health_state not in {
+                        PersistenceHealthState.RETRYING,
+                        PersistenceHealthState.UNAVAILABLE,
+                    }:
+                        self._health_state = PersistenceHealthState.DEGRADED
+                    return PersistenceAddOutcome.REJECTED_FULL
 
-        task = loop.create_task(self.flush())
-        self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
-        return True
+            self._buffer.append(entry)
+            self._buffered_bytes += entry.encoded_size_bytes
+            if dropped:
+                self._dropped_records += dropped
+                self._health_state = PersistenceHealthState.DEGRADED
+                return PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST
+            if self.buffered_count >= self.flush_batch_size:
+                return PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
+            return PersistenceAddOutcome.ACCEPTED
 
-    async def add(self, record: MetricRecord) -> bool:
-        """Buffer one record, flushing synchronously at the batch threshold."""
-        accepted, threshold_reached = self._append(record)
-        if not accepted:
-            return False
-        if threshold_reached:
-            return await self.flush()
-        return True
-
-    async def flush(self) -> bool:
-        """Persist the current batch once, restoring it on write failure."""
-        async with self._flush_lock:
-            with self._buffer_lock:
-                if not self._buffer:
-                    return True
-                batch = tuple(self._buffer)
-                self._buffer.clear()
-
+    def _record_outcome(self, outcome: PersistenceAddOutcome) -> None:
+        with self._buffer_lock:
+            self._outcomes[outcome] += 1
+        if self.on_outcome is not None:
             try:
-                await self.sink.write(batch)
-            except Exception as exc:
-                with self._buffer_lock:
-                    newer_records = tuple(self._buffer)
-                    self._buffer = deque((*batch, *newer_records))
-                    buffer_size = len(self._buffer)
-                self._record_failure(exc, buffer_size)
-                logger.error(
-                    "Metrics flush failed; batch retained for retry",
-                    extra={
-                        "metric_sink": type(self.sink).__name__,
-                        "buffer_size": buffer_size,
-                    },
-                    exc_info=True,
-                )
-                self._schedule_retry()
-                return False
-            return True
+                self.on_outcome(outcome, 1)
+            except Exception:
+                logger.exception("Metrics outcome observer failed")
+        if outcome == PersistenceAddOutcome.REJECTED_CLOSED:
+            logger.warning(
+                "Metric record rejected while writer is closing",
+                extra={
+                    "metric_sink": type(self.sink).__name__,
+                    "buffer_size": self.buffered_count,
+                },
+            )
+        elif outcome == PersistenceAddOutcome.REJECTED_FULL:
+            logger.error(
+                "Metric record rejected because the persistence buffer is full",
+                extra={
+                    "max_buffer_records": self.max_buffer_records,
+                    "max_buffer_bytes": self.max_buffer_bytes,
+                },
+            )
 
-    def _schedule_retry(self) -> None:
-        if self._closing or self._closed:
+    def _signal_worker(self) -> None:
+        loop = self._loop
+        wake_event = self._wake_event
+        if loop is None or wake_event is None or loop.is_closed():
             return
         try:
-            loop = asyncio.get_running_loop()
+            running = asyncio.get_running_loop()
         except RuntimeError:
-            return
+            running = None
+        if running is loop:
+            wake_event.set()
+        else:
+            loop.call_soon_threadsafe(wake_event.set)
 
-        async def _retry() -> bool:
-            await asyncio.sleep(self.retry_interval_ms / 1000)
-            return await self.flush()
+    def add_nowait(
+        self,
+        record: MetricRecord,
+    ) -> PersistenceAddOutcome:
+        """Admit without blocking and wake the single worker when needed."""
+        outcome = self._append(record)
+        self._record_outcome(outcome)
+        if outcome in {
+            PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED,
+            PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST,
+            PersistenceAddOutcome.REJECTED_FULL,
+        }:
+            self._signal_worker()
+        return outcome
 
-        task = loop.create_task(_retry())
-        self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
+    async def add(
+        self,
+        record: MetricRecord,
+    ) -> PersistenceAddOutcome:
+        """Admit after bounded capacity retries where awaiting is safe."""
+        if self._worker_task is None:
+            await self.start()
+        outcome = self._append(record)
+        delay_ms = self.retry_backoff_ms
+        attempts = 0
+        while (
+            outcome == PersistenceAddOutcome.REJECTED_FULL
+            and attempts < self.overflow_retry_attempts
+        ):
+            self._signal_worker()
+            await asyncio.sleep(delay_ms / 1_000)
+            outcome = self._append(record)
+            attempts += 1
+            delay_ms = min(delay_ms * 2, self.max_retry_delay_ms)
+        self._record_outcome(outcome)
+        if outcome in {
+            PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED,
+            PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST,
+        }:
+            self._signal_worker()
+        return outcome
 
-    async def close(self) -> bool:
-        """Flush and close once; a failed final write leaves the writer retryable."""
+    def _take_batch(self) -> Tuple[_BufferedMetricRecord, ...]:
+        with self._buffer_lock:
+            if self._inflight:
+                raise RuntimeError(
+                    "Metrics writer already has an in-flight batch"
+                )
+            batch = tuple(
+                self._buffer.popleft()
+                for _ in range(
+                    min(self.flush_batch_size, len(self._buffer))
+                )
+            )
+            self._inflight = batch
+            return batch
+
+    def _restore_inflight(self) -> int:
+        with self._buffer_lock:
+            for entry in reversed(self._inflight):
+                self._buffer.appendleft(entry)
+            self._inflight = ()
+            return len(self._buffer)
+
+    def _complete_inflight(self) -> int:
+        with self._buffer_lock:
+            written = len(self._inflight)
+            self._buffered_bytes -= sum(
+                entry.encoded_size_bytes for entry in self._inflight
+            )
+            self._inflight = ()
+            return written
+
+    async def _write_one_batch(self) -> PersistenceFlushResult:
+        batch = self._take_batch()
+        if not batch:
+            return PersistenceFlushResult(
+                PersistenceFlushOutcome.NOTHING_TO_FLUSH,
+                records_written=0,
+                remaining_records=0,
+            )
+        try:
+            await self.sink.write(tuple(entry.record for entry in batch))
+        except Exception as exc:
+            buffer_size = self._restore_inflight()
+            self._record_failure(exc, buffer_size)
+            logger.error(
+                "Metrics flush failed; batch retained for retry",
+                extra={
+                    "metric_sink": type(self.sink).__name__,
+                    "buffer_size": buffer_size,
+                },
+                exc_info=True,
+            )
+            return PersistenceFlushResult(
+                PersistenceFlushOutcome.FAILED,
+                records_written=0,
+                remaining_records=buffer_size,
+                error=f"{type(exc).__name__}: {exc}",
+            )
+
+        written = self._complete_inflight()
+        self._record_successful_write()
+        return PersistenceFlushResult(
+            PersistenceFlushOutcome.FLUSHED,
+            records_written=written,
+            remaining_records=self.buffered_count,
+        )
+
+    async def flush(self) -> PersistenceFlushResult:
+        """Drain all admitted records, stopping on the first sink failure."""
+        if self.closed:
+            return PersistenceFlushResult(
+                PersistenceFlushOutcome.CLOSED,
+                records_written=0,
+                remaining_records=self.buffered_count,
+            )
+        total_written = 0
+        async with self._flush_lock:
+            if self.buffered_count == 0:
+                return PersistenceFlushResult(
+                    PersistenceFlushOutcome.NOTHING_TO_FLUSH,
+                    records_written=0,
+                    remaining_records=0,
+                )
+            while self.buffered_count:
+                result = await self._write_one_batch()
+                total_written += result.records_written
+                if not result.successful:
+                    return PersistenceFlushResult(
+                        result.outcome,
+                        records_written=total_written,
+                        remaining_records=result.remaining_records,
+                        error=result.error,
+                    )
+        return PersistenceFlushResult(
+            PersistenceFlushOutcome.FLUSHED,
+            records_written=total_written,
+            remaining_records=0,
+        )
+
+    async def _flush_automatic(self, *, include_partial: bool) -> bool:
+        async with self._flush_lock:
+            while self.buffered_count:
+                with self._buffer_lock:
+                    queued = len(self._buffer)
+                if not include_partial and queued < self.flush_batch_size:
+                    return True
+                result = await self._write_one_batch()
+                if not result.successful:
+                    return False
+        return True
+
+    async def _check_sink_health(self) -> bool:
+        checker = getattr(self.sink, "health_check", None)
+        if checker is None:
+            return True
+        try:
+            await checker()
+        except Exception as exc:
+            self._record_failure(exc, self.buffered_count)
+            return False
+        with self._buffer_lock:
+            if not self._buffer and not self._inflight:
+                self._consecutive_failures = 0
+                self._current_retry_delay_ms = self.retry_backoff_ms
+                self._health_state = PersistenceHealthState.HEALTHY
+        return True
+
+    def _advance_retry_delay(self) -> None:
+        with self._buffer_lock:
+            self._current_retry_delay_ms = min(
+                self._current_retry_delay_ms * 2,
+                self.max_retry_delay_ms,
+            )
+            if self._current_retry_delay_ms >= self.max_retry_delay_ms:
+                self._health_state = PersistenceHealthState.UNAVAILABLE
+
+    async def _worker_loop(self) -> None:
+        wake_event = self._wake_event
+        if wake_event is None:
+            raise RuntimeError("Metrics worker started without a wake event")
+        retrying = False
+        try:
+            while not self._stop_worker:
+                timeout_ms = (
+                    self._current_retry_delay_ms
+                    if retrying
+                    else self.flush_interval_ms
+                )
+                timed_out = False
+                try:
+                    await asyncio.wait_for(
+                        wake_event.wait(),
+                        timeout=timeout_ms / 1_000,
+                    )
+                except asyncio.TimeoutError:
+                    timed_out = True
+                wake_event.clear()
+                if self._stop_worker:
+                    break
+
+                if self.buffered_count:
+                    succeeded = await self._flush_automatic(
+                        include_partial=timed_out or retrying,
+                    )
+                    retrying = not succeeded
+                    if not succeeded:
+                        self._advance_retry_delay()
+                elif self._health_state in {
+                    PersistenceHealthState.RETRYING,
+                    PersistenceHealthState.DEGRADED,
+                    PersistenceHealthState.UNAVAILABLE,
+                }:
+                    succeeded = await self._check_sink_health()
+                    retrying = not succeeded
+                    if not succeeded:
+                        self._advance_retry_delay()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Metrics flush worker failed")
+            with self._buffer_lock:
+                self._health_state = PersistenceHealthState.UNAVAILABLE
+
+    async def close(self) -> PersistenceCloseResult:
+        """Seal admission, make one final drain attempt, and close the sink."""
         async with self._close_lock:
             if self._closed:
-                return True
+                previous = self._last_close_result
+                return PersistenceCloseResult(
+                    PersistenceCloseOutcome.ALREADY_CLOSED,
+                    records_written=0,
+                    unflushed_records=(
+                        previous.unflushed_records
+                        if previous is not None
+                        else self.buffered_count
+                    ),
+                    error=(previous.error if previous is not None else None),
+                )
             with self._buffer_lock:
                 self._closing = True
-            if not await self.flush():
-                with self._buffer_lock:
-                    self._closing = False
-                return False
-            try:
-                await self.sink.flush()
-                if not self._sink_closed:
-                    await self.sink.close()
-                    self._sink_closed = True
-            except Exception as exc:
-                self._record_failure(exc, self.buffered_count)
-                logger.error(
-                    "Metrics sink close failed",
-                    extra={
-                        "metric_sink": type(self.sink).__name__,
-                        "buffer_size": self.buffered_count,
-                    },
-                    exc_info=True,
+                self._stop_worker = True
+                initial_unflushed_records = (
+                    len(self._buffer) + len(self._inflight)
                 )
-                with self._buffer_lock:
-                    self._closing = False
-                return False
+            self._signal_worker()
+
+            async def _finalize() -> PersistenceCloseResult:
+                worker = self._worker_task
+                if worker is not None and not worker.done():
+                    await worker
+                flush_result = await self.flush()
+                if not flush_result.successful:
+                    return PersistenceCloseResult(
+                        PersistenceCloseOutcome.CLOSED_WITH_UNFLUSHED,
+                        records_written=flush_result.records_written,
+                        unflushed_records=flush_result.remaining_records,
+                        error=flush_result.error,
+                    )
+                try:
+                    await self.sink.flush()
+                    if not self._sink_closed:
+                        await self.sink.close()
+                        self._sink_closed = True
+                except Exception as exc:
+                    self._record_failure(exc, self.buffered_count)
+                    return PersistenceCloseResult(
+                        PersistenceCloseOutcome.SINK_CLOSE_FAILED,
+                        records_written=flush_result.records_written,
+                        unflushed_records=self.buffered_count,
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
+                return PersistenceCloseResult(
+                    PersistenceCloseOutcome.CLOSED,
+                    records_written=flush_result.records_written,
+                    unflushed_records=0,
+                )
+
+            try:
+                result = await asyncio.wait_for(
+                    _finalize(),
+                    timeout=self.shutdown_timeout_ms / 1_000,
+                )
+            except asyncio.TimeoutError:
+                worker = self._worker_task
+                if worker is not None and not worker.done():
+                    worker.cancel()
+                    try:
+                        await worker
+                    except asyncio.CancelledError:
+                        pass
+                result = PersistenceCloseResult(
+                    PersistenceCloseOutcome.TIMED_OUT,
+                    records_written=max(
+                        0,
+                        initial_unflushed_records - self.buffered_count,
+                    ),
+                    unflushed_records=self.buffered_count,
+                    error="Persistence shutdown timed out",
+                )
+
             with self._buffer_lock:
                 self._closed = True
                 self._closing = False
-            return True
+                self._health_state = PersistenceHealthState.CLOSED
+                self._last_close_result = result
+            return result
 
-    async def replace_sink(self, sink: MetricsSink) -> bool:
+    async def replace_sink(
+        self,
+        sink: MetricsSink,
+    ) -> PersistenceFlushResult:
         """Flush and close the current sink before replacing it."""
         async with self._close_lock:
             if self._closed:
                 raise RuntimeError("Cannot replace a sink on a closed writer")
-            if not await self.flush():
-                return False
+            result = await self.flush()
+            if not result.successful:
+                return result
             try:
                 await self.sink.flush()
                 await self.sink.close()
             except Exception as exc:
                 self._record_failure(exc, self.buffered_count)
-                logger.error(
-                    "Metrics sink replacement failed",
-                    extra={
-                        "metric_sink": type(self.sink).__name__,
-                        "buffer_size": self.buffered_count,
-                    },
-                    exc_info=True,
+                return PersistenceFlushResult(
+                    PersistenceFlushOutcome.FAILED,
+                    records_written=result.records_written,
+                    remaining_records=self.buffered_count,
+                    error=f"{type(exc).__name__}: {exc}",
                 )
-                return False
             self.sink = sink
             self._sink_closed = False
-            return True
+            await self._check_sink_health()
+            return result
+
+    def _record_successful_write(self) -> None:
+        with self._buffer_lock:
+            self._last_successful_write_time = datetime.now(timezone.utc)
+            self._consecutive_failures = 0
+            self._current_retry_delay_ms = self.retry_backoff_ms
+            self._health_state = PersistenceHealthState.HEALTHY
 
     def _record_failure(self, exc: BaseException, buffer_size: int) -> None:
-        self.failure_count += 1
+        with self._buffer_lock:
+            self._lifetime_failures += 1
+            self._consecutive_failures += 1
+            self._last_failure_time = datetime.now(timezone.utc)
+            self._health_state = (
+                PersistenceHealthState.UNAVAILABLE
+                if self._current_retry_delay_ms >= self.max_retry_delay_ms
+                else PersistenceHealthState.RETRYING
+            )
         if self.on_failure is not None:
             try:
                 self.on_failure(exc, buffer_size)
             except Exception:
                 logger.exception("Metrics failure observer failed")
 
+    def health_snapshot(self) -> PersistenceHealthSnapshot:
+        now_ns = time.monotonic_ns()
+        with self._buffer_lock:
+            oldest_entries = tuple(self._inflight[:1]) + tuple(self._buffer)[:1]
+            oldest_age = (
+                max(
+                    0.0,
+                    (
+                        now_ns
+                        - min(
+                            entry.enqueued_monotonic_ns
+                            for entry in oldest_entries
+                        )
+                    )
+                    / 1_000_000_000,
+                )
+                if oldest_entries
+                else None
+            )
+            close_outcome = (
+                self._last_close_result.outcome
+                if self._last_close_result is not None
+                else None
+            )
+            return PersistenceHealthSnapshot(
+                state=self._health_state,
+                last_successful_write_time=self._last_successful_write_time,
+                last_failure_time=self._last_failure_time,
+                consecutive_failures=self._consecutive_failures,
+                lifetime_failures=self._lifetime_failures,
+                buffered_records=len(self._buffer) + len(self._inflight),
+                buffered_bytes=self._buffered_bytes,
+                oldest_buffered_record_age_seconds=oldest_age,
+                accepted_records=(
+                    self._outcomes[PersistenceAddOutcome.ACCEPTED]
+                    + self._outcomes[
+                        PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
+                    ]
+                    + self._outcomes[
+                        PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST
+                    ]
+                ),
+                flush_required_records=self._outcomes[
+                    PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
+                ],
+                dropped_records=self._dropped_records,
+                rejected_closed_records=self._outcomes[
+                    PersistenceAddOutcome.REJECTED_CLOSED
+                ],
+                rejected_full_records=self._outcomes[
+                    PersistenceAddOutcome.REJECTED_FULL
+                ],
+                failed_records=self._outcomes[
+                    PersistenceAddOutcome.FAILED
+                ],
+                worker_running=(
+                    self._worker_task is not None
+                    and not self._worker_task.done()
+                ),
+                close_outcome=close_outcome,
+                unflushed_on_close=(
+                    self._last_close_result.unflushed_records
+                    if self._last_close_result is not None
+                    else 0
+                ),
+            )
+
     async def __aenter__(self) -> "BufferedMetricsWriter":
+        await self.start()
         return self
 
     async def __aexit__(self, exc_type, exc, traceback) -> None:
@@ -513,9 +1131,11 @@ class MetricsCollector:
         self.instruments = instruments
         self.persistence = persistence
         self._run_id: Optional[str] = None
+        self._run_ended = False
         self._metric_event_sequence = 0
         self._last_event_timestamp_ns: Optional[int] = None
         self._same_timestamp_ordinal = 0
+        self._persistence_run_baseline: Dict[str, int] = {}
         self._lock = threading.RLock()
         self._engine = None
         self._counts: Dict[str, int] = {
@@ -540,7 +1160,10 @@ class MetricsCollector:
             "invalid_latency_measurements": 0,
             "metric_sink_failures": 0,
             "self_trade_preventions": 0,
+            "scheduler_dead_letters": 0,
+            "scheduler_event_processing_limit_failures": 0,
         }
+        self._lifetime_counts = dict(self._counts)
         self._symbol_totals: Dict[str, Dict[str, int]] = {
             symbol: {
                 "traded_qty_lots": 0,
@@ -549,8 +1172,18 @@ class MetricsCollector:
             }
             for symbol in instruments.symbols
         }
+        self._lifetime_symbol_totals: Dict[str, Dict[str, int]] = {
+            symbol: dict(totals)
+            for symbol, totals in self._symbol_totals.items()
+        }
         self._latency_sums = {name: 0.0 for name in LATENCY_METRICS}
         self._latency_counts = {name: 0 for name in LATENCY_METRICS}
+        self._lifetime_latency_sums = {
+            name: 0.0 for name in LATENCY_METRICS
+        }
+        self._lifetime_latency_counts = {
+            name: 0 for name in LATENCY_METRICS
+        }
         self._submitted_order_ids: set[int] = set()
         self._accepted_order_ids: set[int] = set()
         self._filled_order_ids: set[int] = set()
@@ -572,6 +1205,8 @@ class MetricsCollector:
         self._prom_gauges: Dict[str, Any] = {}
         self._prom_histograms: Dict[str, Any] = {}
         self._prom_delivery_state_gauge = None
+        self._prom_persistence_state_gauge = None
+        self._prom_persistence_outcomes = None
         self._prom_self_trade_preventions = None
         self._prom_self_trade_prevented_quantity = None
         if prometheus_enabled and CollectorRegistry is not None:
@@ -579,6 +1214,7 @@ class MetricsCollector:
 
         if self.persistence is not None:
             self.persistence.on_failure = self.record_sink_failure
+            self.persistence.on_outcome = self.record_persistence_outcome
 
     @property
     def run_id(self) -> Optional[str]:
@@ -593,14 +1229,24 @@ class MetricsCollector:
             if self._run_id is not None:
                 raise RuntimeError("A metric persistence run is already active")
             self._run_id = run_id
+            self._run_ended = False
             self._metric_event_sequence = 0
             self._last_event_timestamp_ns = None
             self._same_timestamp_ordinal = 0
+            self._persistence_run_baseline = (
+                self._persistence_totals_locked()
+            )
 
     def end_run(self) -> None:
         """Clear the active run after its immutable records have flushed."""
         with self._lock:
             self._run_id = None
+            self._run_ended = True
+        self.reset_run_metrics()
+        for name in ("active_orders", "resting_orders", "order_book_levels"):
+            gauge = self._prom_gauges.get(name)
+            if gauge is not None:
+                gauge.set(0)
 
     def bind_engine(self, engine: object) -> None:
         """Bind authoritative gauge derivation without making metrics stateful."""
@@ -630,6 +1276,7 @@ class MetricsCollector:
     def attach_persistence(self, persistence: BufferedMetricsWriter) -> None:
         self.persistence = persistence
         persistence.on_failure = self.record_sink_failure
+        persistence.on_outcome = self.record_persistence_outcome
 
     def _init_prometheus(self) -> None:
         self.registry = CollectorRegistry()
@@ -656,6 +1303,10 @@ class MetricsCollector:
             "canceled_quantity": "Unexecuted quantity canceled successfully.",
             "invalid_latency_measurements": "Latency samples rejected as invalid.",
             "metric_sink_failures": "Metric persistence operations that failed.",
+            "scheduler_dead_letters": "Scheduler events retained as dead letters.",
+            "scheduler_event_processing_limit_failures": (
+                "Scheduler advances stopped by the event-processing limit."
+            ),
         }
         for name, help_text in counter_help.items():
             prometheus_name = (
@@ -674,6 +1325,8 @@ class MetricsCollector:
             "active_orders": "Current nonterminal orders.",
             "resting_orders": "Current orders physically resting in books.",
             "order_book_levels": "Current non-empty order book levels.",
+            "scheduler_pending_events": "Current scheduled event queue depth.",
+            "scheduler_failed": "Whether the scheduler is in FAILED state.",
         }.items():
             self._prom_gauges[name] = Gauge(
                 f"mockx_{name}",
@@ -691,6 +1344,11 @@ class MetricsCollector:
                 "fix_delivery_attempts",
                 "mockx_fix_delivery_attempts_total",
                 "Transport sender invocations for FIX deliveries.",
+            ),
+            (
+                "fix_delivery_retries",
+                "mockx_fix_delivery_retries_total",
+                "FIX delivery attempts after the first attempt.",
             ),
             (
                 "fix_delivery_failures",
@@ -771,6 +1429,36 @@ class MetricsCollector:
             "Aggregate queued WebSocket frames, excluding in-flight sends.",
             registry=self.registry,
         )
+        for name, help_text in {
+            "persistence_buffer_records": "Accepted buffered and in-flight records.",
+            "persistence_buffer_bytes": "Accepted buffered and in-flight logical bytes.",
+            "persistence_oldest_buffered_record_age_seconds": (
+                "Wall-clock age of the oldest accepted persistence record."
+            ),
+            "persistence_consecutive_failures": (
+                "Consecutive sink failures since the last successful probe/write."
+            ),
+            "persistence_lifetime_failures": "Process-lifetime sink failures.",
+            "persistence_dropped_records": "Process-lifetime overflow evictions.",
+            "persistence_rejected_records": "Process-lifetime rejected additions.",
+        }.items():
+            self._prom_gauges[name] = Gauge(
+                f"mockx_{name}",
+                help_text,
+                registry=self.registry,
+            )
+        self._prom_persistence_state_gauge = Gauge(
+            "mockx_persistence_state",
+            "Current persistence health state (exactly one state is 1).",
+            ("state",),
+            registry=self.registry,
+        )
+        self._prom_persistence_outcomes = Counter(
+            "mockx_persistence_add_outcomes_total",
+            "Persistence additions by fixed outcome enum.",
+            ("outcome",),
+            registry=self.registry,
+        )
         self._prom_self_trade_preventions = Counter(
             "mockx_self_trade_preventions_total",
             "Same-participant crossings canceled before trade creation.",
@@ -809,33 +1497,34 @@ class MetricsCollector:
             SIM_CANCEL_END_TO_END_LATENCY: (
                 "Simulated cancel report delivery minus FIX receive time."
             ),
-            REAL_MATCHING_DURATION: (
-                "Real monotonic duration of the matching function."
+            MATCH_LOOP_DURATION: "Monotonic duration of the match loop.",
+            BOOK_COMMIT_DURATION: (
+                "Monotonic duration of authoritative book mutations."
             ),
-            REAL_REPORT_SERIALIZATION_DURATION: (
-                "Real monotonic duration of FIX report serialization."
+            ENGINE_COMMAND_DURATION: (
+                "Monotonic duration of one non-noop engine command."
+            ),
+            REPORT_CREATION_DURATION: (
+                "Monotonic duration of immutable report construction."
+            ),
+            SERIALIZATION_DURATION: (
+                "Monotonic duration of outbound FIX construction."
             ),
         }
         for metric_name, help_text in duration_help.items():
+            buckets = (
+                (0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0,
+                 10.0, 50.0, 100.0, 500.0, 1_000.0)
+                if metric_name in SIMULATED_LATENCY_METRICS
+                else (1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1_000.0,
+                      5_000.0, 10_000.0, 50_000.0, 100_000.0,
+                      500_000.0, 1_000_000.0)
+            )
             self._prom_histograms[metric_name] = Histogram(
                 metric_name,
                 help_text,
                 registry=self.registry,
-                buckets=(
-                    0.000001,
-                    0.000005,
-                    0.00001,
-                    0.00005,
-                    0.0001,
-                    0.0005,
-                    0.001,
-                    0.005,
-                    0.01,
-                    0.05,
-                    0.1,
-                    0.5,
-                    1.0,
-                ),
+                buckets=buckets,
             )
 
     def record_order_submitted(
@@ -944,6 +1633,9 @@ class MetricsCollector:
                 self._symbol_totals[report.instrument.symbol][
                     "canceled_qty_lots"
                 ] += report.canceled_qty_lots
+                self._lifetime_symbol_totals[report.instrument.symbol][
+                    "canceled_qty_lots"
+                ] += report.canceled_qty_lots
                 canceled_display = report.instrument.quantity_decimal(
                     report.canceled_qty_lots
                 )
@@ -978,8 +1670,13 @@ class MetricsCollector:
             self._seen_trade_ids.add(identity)
             self._increment_locked("trades")
             totals = self._symbol_totals[trade.symbol]
+            lifetime_totals = self._lifetime_symbol_totals[trade.symbol]
             totals["traded_qty_lots"] += trade.qty_lots
             totals["traded_notional_tick_lots"] += (
+                trade.notional_tick_lots
+            )
+            lifetime_totals["traded_qty_lots"] += trade.qty_lots
+            lifetime_totals["traded_notional_tick_lots"] += (
                 trade.notional_tick_lots
             )
             instrument = self.instruments.require(trade.symbol)
@@ -1142,6 +1839,9 @@ class MetricsCollector:
     def record_fix_delivery_attempt(self) -> None:
         self._prom_increment("fix_delivery_attempts", 1)
 
+    def record_fix_delivery_retry(self) -> None:
+        self._prom_increment("fix_delivery_retries", 1)
+
     def record_fix_delivery_failure(self, *, permanent: bool = False) -> None:
         self._prom_increment("fix_delivery_failures", 1)
         if permanent:
@@ -1149,6 +1849,28 @@ class MetricsCollector:
 
     def record_fix_delivery_success(self) -> None:
         self._prom_increment("fix_delivery_successes", 1)
+
+    def update_scheduler_pending(self, count: int) -> None:
+        gauge = self._prom_gauges.get("scheduler_pending_events")
+        if gauge is not None:
+            gauge.set(max(0, count))
+
+    def update_scheduler_state(self, state: SchedulerState) -> None:
+        gauge = self._prom_gauges.get("scheduler_failed")
+        if gauge is not None:
+            gauge.set(1 if state == SchedulerState.FAILED else 0)
+
+    def record_scheduler_failure(self, failure: SchedulerFailure) -> None:
+        with self._lock:
+            self._increment_locked("scheduler_dead_letters")
+            if (
+                failure.status
+                == SchedulerFailureStatus.EVENT_PROCESSING_LIMIT_EXCEEDED
+            ):
+                self._increment_locked(
+                    "scheduler_event_processing_limit_failures"
+                )
+        self.update_scheduler_state(SchedulerState.FAILED)
 
     def update_fix_delivery_gauges(
         self,
@@ -1199,8 +1921,13 @@ class MetricsCollector:
         """Publish one already-validated immutable latency measurement."""
         if measurement.metric not in LATENCY_METRICS:
             raise ValueError(f"Unsupported latency metric: {measurement.metric}")
+        expected_unit = (
+            "ms"
+            if measurement.metric in SIMULATED_LATENCY_METRICS
+            else "us"
+        )
         if (
-            measurement.unit != "seconds"
+            measurement.unit != expected_unit
             or not math.isfinite(measurement.value)
             or measurement.value < 0.0
         ):
@@ -1214,11 +1941,15 @@ class MetricsCollector:
         with self._lock:
             self._latency_sums[measurement.metric] += measurement.value
             self._latency_counts[measurement.metric] += 1
+            self._lifetime_latency_sums[
+                measurement.metric
+            ] += measurement.value
+            self._lifetime_latency_counts[measurement.metric] += 1
             histogram = self._prom_histograms.get(measurement.metric)
             if histogram is not None:
                 histogram.observe(measurement.value)
         fields: Dict[str, object] = {
-            "duration_seconds": measurement.value,
+            f"duration_{expected_unit}": measurement.value,
         }
         if measurement.order_id is not None:
             fields["order_id"] = measurement.order_id
@@ -1263,6 +1994,47 @@ class MetricsCollector:
                 "buffer_size": buffer_size,
             },
         )
+
+    def record_persistence_outcome(
+        self,
+        outcome: PersistenceAddOutcome,
+        amount: int = 1,
+    ) -> None:
+        if self._prom_persistence_outcomes is not None:
+            self._prom_persistence_outcomes.labels(
+                outcome=outcome.value
+            ).inc(amount)
+        self.refresh_persistence_gauges()
+
+    def refresh_persistence_gauges(
+        self,
+    ) -> PersistenceHealthSnapshot:
+        health = self.persistence_health_snapshot()
+        values = {
+            "persistence_buffer_records": health.buffered_records,
+            "persistence_buffer_bytes": health.buffered_bytes,
+            "persistence_oldest_buffered_record_age_seconds": (
+                health.oldest_buffered_record_age_seconds or 0.0
+            ),
+            "persistence_consecutive_failures": health.consecutive_failures,
+            "persistence_lifetime_failures": health.lifetime_failures,
+            "persistence_dropped_records": health.dropped_records,
+            "persistence_rejected_records": (
+                health.rejected_closed_records
+                + health.rejected_full_records
+                + health.failed_records
+            ),
+        }
+        for name, value in values.items():
+            gauge = self._prom_gauges.get(name)
+            if gauge is not None:
+                gauge.set(value)
+        if self._prom_persistence_state_gauge is not None:
+            for state in PersistenceHealthState:
+                self._prom_persistence_state_gauge.labels(
+                    state=state.value
+                ).set(1 if health.state == state else 0)
+        return health
 
     def websocket_client_connected(self) -> None:
         with self._lock:
@@ -1365,28 +2137,80 @@ class MetricsCollector:
         self,
         update: MarketDataSnapshot,
     ) -> None:
-        if not update.bids or not update.asks:
-            self.refresh_engine_gauges()
-            return
+        """Persist one complete immutable book snapshot, including emptiness."""
         timestamp_ns = datetime_to_ns(update.timestamp)
         instrument = update.instrument
-        best_bid_ticks = update.bids[0].price_ticks
-        best_ask_ticks = update.asks[0].price_ticks
-        best_bid = instrument.price_decimal(best_bid_ticks)
-        best_ask = instrument.price_decimal(best_ask_ticks)
+        has_bid = bool(update.bids)
+        has_ask = bool(update.asks)
+        spread_valid = has_bid and has_ask
+        best_bid_ticks = update.bids[0].price_ticks if has_bid else None
+        best_ask_ticks = update.asks[0].price_ticks if has_ask else None
+        best_bid = (
+            instrument.format_price(best_bid_ticks)
+            if best_bid_ticks is not None
+            else ""
+        )
+        best_ask = (
+            instrument.format_price(best_ask_ticks)
+            if best_ask_ticks is not None
+            else ""
+        )
+        if best_bid_ticks is not None and best_ask_ticks is not None:
+            best_bid_decimal = instrument.price_decimal(best_bid_ticks)
+            best_ask_decimal = instrument.price_decimal(best_ask_ticks)
+            spread = instrument._format(
+                best_ask_decimal - best_bid_decimal,
+                instrument.price_display_precision,
+            )
+            mid_price = instrument._format(
+                (best_bid_decimal + best_ask_decimal) / Decimal(2),
+                instrument.price_display_precision,
+            )
+        else:
+            spread = ""
+            mid_price = ""
+
+        def level_payload(level) -> Dict[str, object]:
+            return {
+                "market_quantity": instrument.format_quantity(
+                    level.market_qty_lots
+                ),
+                "order_count": level.order_count,
+                "price": instrument.format_price(level.price_ticks),
+                "quantity": instrument.format_quantity(
+                    level.level_qty_lots
+                ),
+                "strategy_quantity": instrument.format_quantity(
+                    level.strategy_qty_lots
+                ),
+            }
+
         fields: Dict[str, object] = {
-            "best_bid_ticks": best_bid_ticks,
-            "best_ask_ticks": best_ask_ticks,
-            "spread_ticks": best_ask_ticks - best_bid_ticks,
-            "best_bid": instrument.format_price(best_bid_ticks),
-            "best_ask": instrument.format_price(best_ask_ticks),
-            "spread": format(best_ask - best_bid, "f"),
-            "mid_price": format((best_bid + best_ask) / Decimal(2), "f"),
+            "sequence": update.sequence,
+            "has_bid": has_bid,
+            "has_ask": has_ask,
+            "best_bid": best_bid,
+            "best_ask": best_ask,
+            "spread_valid": spread_valid,
+            "spread": spread,
+            "mid_price": mid_price,
+            "bid_depth": len(update.bids),
+            "ask_depth": len(update.asks),
+            "bids_json": json.dumps(
+                [level_payload(level) for level in update.bids],
+                separators=(",", ":"),
+                sort_keys=True,
+            ),
+            "asks_json": json.dumps(
+                [level_payload(level) for level in update.asks],
+                separators=(",", ":"),
+                sort_keys=True,
+            ),
             "tick_size": str(instrument.tick_size),
             "lot_size": str(instrument.lot_size),
         }
         self._create_point(
-            "book",
+            "book_snapshot",
             {"exchange": self.exchange_name, "symbol": update.symbol},
             fields,
             timestamp_ns,
@@ -1427,10 +2251,196 @@ class MetricsCollector:
             int(engine.order_book_level_count()),
         )
 
+    def persistence_health_snapshot(self) -> PersistenceHealthSnapshot:
+        if self.persistence is not None:
+            return self.persistence.health_snapshot()
+        return PersistenceHealthSnapshot(
+            state=PersistenceHealthState.DISABLED,
+            last_successful_write_time=None,
+            last_failure_time=None,
+            consecutive_failures=0,
+            lifetime_failures=0,
+            buffered_records=0,
+            buffered_bytes=0,
+            oldest_buffered_record_age_seconds=None,
+            accepted_records=0,
+            flush_required_records=0,
+            dropped_records=0,
+            rejected_closed_records=0,
+            rejected_full_records=0,
+            failed_records=0,
+            worker_running=False,
+            close_outcome=None,
+            unflushed_on_close=0,
+        )
+
+    def _persistence_totals_locked(self) -> Dict[str, int]:
+        health = self.persistence_health_snapshot()
+        return {
+            "accepted_records": health.accepted_records,
+            "flush_required_records": health.flush_required_records,
+            "dropped_records": health.dropped_records,
+            "rejected_closed_records": health.rejected_closed_records,
+            "rejected_full_records": health.rejected_full_records,
+            "failed_records": health.failed_records,
+            "lifetime_failures": health.lifetime_failures,
+        }
+
+    def run_persistence_snapshot(self) -> Dict[str, int]:
+        current = self._persistence_totals_locked()
+        with self._lock:
+            baseline = dict(self._persistence_run_baseline)
+        outcomes = {
+            name: max(0, value - baseline.get(name, 0))
+            for name, value in current.items()
+        }
+        outcomes["failures"] = outcomes.pop("lifetime_failures")
+        return outcomes
+
+    def current_run_scheduler_snapshot(self) -> Dict[str, int]:
+        with self._lock:
+            return {
+                "dead_letter_count": self._counts[
+                    "scheduler_dead_letters"
+                ],
+                "event_processing_limit_failures": self._counts[
+                    "scheduler_event_processing_limit_failures"
+                ],
+            }
+
+    def process_lifetime_snapshot(self) -> Dict[str, object]:
+        """Return cumulative process counters without current-state gauges."""
+        with self._lock:
+            counts = dict(self._lifetime_counts)
+            symbol_totals = {
+                symbol: dict(values)
+                for symbol, values in self._lifetime_symbol_totals.items()
+            }
+            latency_sums = dict(self._lifetime_latency_sums)
+            latency_counts = dict(self._lifetime_latency_counts)
+
+        def average(metric: str, multiplier: float) -> Optional[float]:
+            count = latency_counts[metric]
+            if count == 0:
+                return None
+            return latency_sums[metric] / count * multiplier
+
+        traded_quantity = Decimal(0)
+        traded_notional = Decimal(0)
+        canceled_quantity = Decimal(0)
+        for symbol, totals in symbol_totals.items():
+            instrument = self.instruments.require(symbol)
+            traded_quantity += instrument.quantity_decimal(
+                totals["traded_qty_lots"]
+            )
+            traded_notional += (
+                instrument.tick_size
+                * instrument.lot_size
+                * totals["traded_notional_tick_lots"]
+            )
+            canceled_quantity += instrument.quantity_decimal(
+                totals["canceled_qty_lots"]
+            )
+
+        return {
+            "scope": "process_lifetime",
+            "orders": {
+                "submitted": counts["orders_submitted"],
+                "accepted": counts["orders_accepted"],
+                "rejected": counts["orders_rejected"],
+                "canceled": counts["orders_canceled"],
+                "filled": counts["orders_filled"],
+                "partial_fill_events": counts["partial_fill_events"],
+                "cancel_requests": counts["cancel_requests"],
+                "cancel_rejects": counts["cancel_rejects"],
+            },
+            "trades": {
+                "count": counts["trades"],
+                "quantity": format(traded_quantity, "f"),
+                "notional": format(traded_notional, "f"),
+                "canceled_quantity": format(canceled_quantity, "f"),
+            },
+            "cancellations": {
+                "accepted": counts["cancel_accepted"],
+                "unknown_order": counts["cancel_unknown_order"],
+                "already_terminal": counts["cancel_already_terminal"],
+                "wrong_owner": counts["cancel_wrong_owner"],
+                "duplicate_request": counts["cancel_duplicate_request"],
+                "stale_run_generation": counts[
+                    "cancel_stale_run_generation"
+                ],
+            },
+            "reports": {
+                "created": counts["execution_reports"],
+                "delivery_failures": counts["report_delivery_failures"],
+            },
+            "latency": {
+                "average_match_loop_duration_us": average(
+                    MATCH_LOOP_DURATION, 1.0
+                ),
+                "average_book_commit_duration_us": average(
+                    BOOK_COMMIT_DURATION, 1.0
+                ),
+                "average_engine_command_duration_us": average(
+                    ENGINE_COMMAND_DURATION, 1.0
+                ),
+                "average_report_creation_duration_us": average(
+                    REPORT_CREATION_DURATION, 1.0
+                ),
+                "average_serialization_duration_us": average(
+                    SERIALIZATION_DURATION, 1.0
+                ),
+                "average_sim_inbound_latency_ms": average(
+                    SIM_INBOUND_LATENCY,
+                    1.0,
+                ),
+                "average_sim_engine_latency_ms": average(
+                    SIM_ENGINE_LATENCY,
+                    1.0,
+                ),
+                "average_sim_outbound_latency_ms": average(
+                    SIM_OUTBOUND_LATENCY,
+                    1.0,
+                ),
+                "average_sim_end_to_end_latency_ms": average(
+                    SIM_END_TO_END_LATENCY,
+                    1.0,
+                ),
+                "average_sim_cancel_inbound_latency_ms": average(
+                    SIM_CANCEL_INBOUND_LATENCY,
+                    1.0,
+                ),
+                "average_sim_cancel_engine_latency_ms": average(
+                    SIM_CANCEL_ENGINE_LATENCY,
+                    1.0,
+                ),
+                "average_sim_cancel_outbound_latency_ms": average(
+                    SIM_CANCEL_OUTBOUND_LATENCY,
+                    1.0,
+                ),
+                "average_sim_cancel_end_to_end_latency_ms": average(
+                    SIM_CANCEL_END_TO_END_LATENCY,
+                    1.0,
+                ),
+                "invalid_measurements": counts[
+                    "invalid_latency_measurements"
+                ],
+            },
+            "persistence_failures": counts["metric_sink_failures"],
+            "scheduler": {
+                "dead_letters": counts["scheduler_dead_letters"],
+                "event_processing_limit_failures": counts[
+                    "scheduler_event_processing_limit_failures"
+                ],
+            },
+        }
+
     def snapshot(self) -> MetricsSnapshot:
         """Create a non-mutating immutable snapshot."""
         active, resting, levels = self._authoritative_engine_counts()
         with self._lock:
+            if self._run_id is None and self._run_ended:
+                active = resting = levels = 0
             counts = dict(self._counts)
             symbol_totals = {
                 symbol: dict(values)
@@ -1494,45 +2504,52 @@ class MetricsCollector:
             resting_orders=resting,
             order_book_levels=levels,
             connected_sessions=counts["connected_sessions"],
-            average_real_matching_duration_us=average(
-                REAL_MATCHING_DURATION,
-                1_000_000.0,
+            average_match_loop_duration_us=average(
+                MATCH_LOOP_DURATION, 1.0
             ),
-            average_real_report_serialization_duration_us=average(
-                REAL_REPORT_SERIALIZATION_DURATION,
-                1_000_000.0,
+            average_book_commit_duration_us=average(
+                BOOK_COMMIT_DURATION, 1.0
+            ),
+            average_engine_command_duration_us=average(
+                ENGINE_COMMAND_DURATION, 1.0
+            ),
+            average_report_creation_duration_us=average(
+                REPORT_CREATION_DURATION, 1.0
+            ),
+            average_serialization_duration_us=average(
+                SERIALIZATION_DURATION, 1.0
             ),
             average_sim_inbound_latency_ms=average(
                 SIM_INBOUND_LATENCY,
-                1_000.0,
+                1.0,
             ),
             average_sim_engine_latency_ms=average(
                 SIM_ENGINE_LATENCY,
-                1_000.0,
+                1.0,
             ),
             average_sim_outbound_latency_ms=average(
                 SIM_OUTBOUND_LATENCY,
-                1_000.0,
+                1.0,
             ),
             average_sim_end_to_end_latency_ms=average(
                 SIM_END_TO_END_LATENCY,
-                1_000.0,
+                1.0,
             ),
             average_sim_cancel_inbound_latency_ms=average(
                 SIM_CANCEL_INBOUND_LATENCY,
-                1_000.0,
+                1.0,
             ),
             average_sim_cancel_engine_latency_ms=average(
                 SIM_CANCEL_ENGINE_LATENCY,
-                1_000.0,
+                1.0,
             ),
             average_sim_cancel_outbound_latency_ms=average(
                 SIM_CANCEL_OUTBOUND_LATENCY,
-                1_000.0,
+                1.0,
             ),
             average_sim_cancel_end_to_end_latency_ms=average(
                 SIM_CANCEL_END_TO_END_LATENCY,
-                1_000.0,
+                1.0,
             ),
             report_delivery_failures=counts["report_delivery_failures"],
             invalid_latency_measurements=counts[
@@ -1545,6 +2562,7 @@ class MetricsCollector:
     def prometheus_payload(self) -> bytes:
         if self.registry is None or generate_latest is None:
             raise RuntimeError("Prometheus support is disabled")
+        self.refresh_persistence_gauges()
         return generate_latest(self.registry)
 
     def get_orders_total(self) -> int:
@@ -1558,6 +2576,7 @@ class MetricsCollector:
 
     def _increment_locked(self, name: str, amount: int = 1) -> None:
         self._counts[name] += amount
+        self._lifetime_counts[name] += amount
         self._prom_increment(name, amount)
 
     def _prom_increment(self, name: str, amount: float) -> None:
@@ -1624,24 +2643,38 @@ class MetricsCollector:
                 persistence_timestamp_ns=timestamp_ns + timestamp_offset,
                 metric_event_bucket=metric_event_bucket,
             )
-            if not self.persistence.add_nowait(record):
+            outcome = self.persistence.add_nowait(record)
+            if outcome in {
+                PersistenceAddOutcome.REJECTED_CLOSED,
+                PersistenceAddOutcome.REJECTED_FULL,
+                PersistenceAddOutcome.FAILED,
+            }:
                 raise MetricsSinkError(
-                    "Metric persistence writer rejected an active-run record"
+                    "Metric persistence writer rejected an active-run record: "
+                    f"{outcome.value}"
                 )
 
             self._metric_event_sequence = metric_event_sequence
             self._last_event_timestamp_ns = timestamp_ns
             self._same_timestamp_ordinal = same_timestamp_ordinal
 
-    async def flush(self) -> bool:
+    async def flush(self) -> PersistenceFlushResult:
         if self.persistence is not None:
             return await self.persistence.flush()
-        return True
+        return PersistenceFlushResult(
+            PersistenceFlushOutcome.NOTHING_TO_FLUSH,
+            records_written=0,
+            remaining_records=0,
+        )
 
-    async def close(self) -> bool:
+    async def close(self) -> PersistenceCloseResult:
         if self.persistence is not None:
             return await self.persistence.close()
-        return True
+        return PersistenceCloseResult(
+            PersistenceCloseOutcome.CLOSED,
+            records_written=0,
+            unflushed_records=0,
+        )
 
 
 class LatencyTracker:
@@ -1940,7 +2973,7 @@ class LatencyTracker:
         self._publish(end_to_end)
         return True
 
-    def record_real_matching_duration(
+    def record_match_loop_duration(
         self,
         order_id: int,
         session_id: Optional[str],
@@ -1950,7 +2983,7 @@ class LatencyTracker:
         measurement = self._real_measurement(
             order_id=order_id,
             session_id=session_id,
-            metric=REAL_MATCHING_DURATION,
+            metric=MATCH_LOOP_DURATION,
             duration_ns=duration_ns,
             timestamp=timestamp,
         )
@@ -1958,11 +2991,11 @@ class LatencyTracker:
             with self._lock:
                 trace = self._find_order_trace_locked(order_id, None)
                 if trace is not None:
-                    trace.real_matching_duration_ns = duration_ns
+                    trace.match_loop_duration_ns = duration_ns
         self._publish(measurement)
         return measurement
 
-    def record_real_report_serialization_duration(
+    def record_serialization_duration(
         self,
         report: ExecutionReport,
         duration_ns: int,
@@ -1970,10 +3003,33 @@ class LatencyTracker:
         measurement = self._real_measurement(
             order_id=report.order_id,
             session_id=report.session_id,
-            metric=REAL_REPORT_SERIALIZATION_DURATION,
+            metric=SERIALIZATION_DURATION,
             duration_ns=duration_ns,
             timestamp=self.scheduler.current_time,
             report_exec_id=report.exec_id,
+        )
+        self._publish(measurement)
+        return measurement
+
+    def record_cpu_duration(
+        self,
+        metric: str,
+        order_id: Optional[int],
+        session_id: Optional[str],
+        duration_ns: int,
+        timestamp: datetime,
+        report_exec_id: Optional[str] = None,
+    ) -> Optional[LatencyMeasurement]:
+        """Record one explicitly named monotonic CPU-duration boundary."""
+        if metric not in CPU_DURATION_METRICS:
+            raise ValueError(f"Unsupported CPU duration metric: {metric}")
+        measurement = self._real_measurement(
+            order_id=order_id,
+            session_id=session_id,
+            metric=metric,
+            duration_ns=duration_ns,
+            timestamp=timestamp,
+            report_exec_id=report_exec_id,
         )
         self._publish(measurement)
         return measurement
@@ -2066,8 +3122,8 @@ class LatencyTracker:
         *,
         report_exec_id: Optional[str] = None,
     ) -> Optional[LatencyMeasurement]:
-        seconds = (end - start).total_seconds()
-        if not math.isfinite(seconds) or seconds < 0.0:
+        milliseconds = (end - start).total_seconds() * 1_000.0
+        if not math.isfinite(milliseconds) or milliseconds < 0.0:
             self.metrics.record_invalid_latency(
                 metric=metric,
                 order_id=trace.order_id,
@@ -2078,8 +3134,8 @@ class LatencyTracker:
             order_id=trace.order_id,
             session_id=trace.session_id,
             metric=metric,
-            value=seconds,
-            unit="seconds",
+            value=milliseconds,
+            unit="ms",
             timestamp=end,
             report_exec_id=report_exec_id,
             run_generation=trace.run_generation,
@@ -2094,8 +3150,8 @@ class LatencyTracker:
         *,
         report_exec_id: Optional[str] = None,
     ) -> Optional[LatencyMeasurement]:
-        seconds = (end - start).total_seconds()
-        if not math.isfinite(seconds) or seconds < 0.0:
+        milliseconds = (end - start).total_seconds() * 1_000.0
+        if not math.isfinite(milliseconds) or milliseconds < 0.0:
             self.metrics.record_invalid_latency(
                 metric=metric,
                 order_id=trace.order_id,
@@ -2106,8 +3162,8 @@ class LatencyTracker:
             order_id=trace.order_id,
             session_id=trace.session_id,
             metric=metric,
-            value=seconds,
-            unit="seconds",
+            value=milliseconds,
+            unit="ms",
             timestamp=end,
             report_exec_id=report_exec_id,
             run_generation=trace.run_generation,
@@ -2119,7 +3175,7 @@ class LatencyTracker:
     def _real_measurement(
         self,
         *,
-        order_id: int,
+        order_id: Optional[int],
         session_id: Optional[str],
         metric: str,
         duration_ns: int,
@@ -2137,8 +3193,8 @@ class LatencyTracker:
             order_id=order_id,
             session_id=session_id,
             metric=metric,
-            value=duration_ns / 1_000_000_000.0,
-            unit="seconds",
+            value=duration_ns / 1_000.0,
+            unit="us",
             timestamp=timestamp,
             report_exec_id=report_exec_id,
         )

@@ -431,7 +431,8 @@ async def test_session_reset_preserves_old_generation_ahead_of_new_reports():
         await exchange.fix_app.wait_for_ingress()
         await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
         ended = await exchange.lifecycle.end_session()
-        assert ended.final_stats.fix_delivery.queue_depth == 1
+        assert not hasattr(ended.final_stats, "fix_delivery")
+        assert exchange.fix_app.delivery_queue.snapshot().queue_depth == 1
 
         await exchange.lifecycle.start_session("new-run")
         exchange.fix_app.fromApp(_new_order("NEW", 2), session)

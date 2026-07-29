@@ -75,6 +75,9 @@ class HealthResponse(BaseModel):
 
 class ReadinessResponse(BaseModel):
     status: Literal["ready", "degraded", "not_ready"]
+    core_ready: bool
+    traffic_ready: bool
+    persistence_required: bool
     components: Dict[str, str]
 
 
@@ -171,6 +174,7 @@ class SessionsStats(BaseModel):
 
 
 class FixDeliveryStats(BaseModel):
+    scope: Literal["process_lifetime"] = "process_lifetime"
     enqueued: int
     queue_depth: int
     pending: int
@@ -181,7 +185,9 @@ class FixDeliveryStats(BaseModel):
     abandoned: int
     sessions_with_backlog: int
     attempts: int
+    retries: int
     failures: int
+    retained_delivered_records: int
     oldest_pending_age_seconds: Optional[float]
 
 
@@ -190,11 +196,20 @@ class BookStats(BaseModel):
 
 
 class LatencyStats(BaseModel):
-    average_real_matching_duration_us: Optional[float] = Field(
-        description="Mean wall-clock matching duration in microseconds"
+    average_match_loop_duration_us: Optional[float] = Field(
+        description="Mean monotonic match-loop duration in microseconds"
     )
-    average_real_report_serialization_duration_us: Optional[float] = Field(
-        description="Mean wall-clock FIX serialization duration in microseconds"
+    average_book_commit_duration_us: Optional[float] = Field(
+        description="Mean authoritative book-mutation duration in microseconds"
+    )
+    average_engine_command_duration_us: Optional[float] = Field(
+        description="Mean complete engine-command duration in microseconds"
+    )
+    average_report_creation_duration_us: Optional[float] = Field(
+        description="Mean immutable report-construction duration in microseconds"
+    )
+    average_serialization_duration_us: Optional[float] = Field(
+        description="Mean outbound FIX construction duration in microseconds"
     )
     average_sim_inbound_latency_ms: Optional[float] = Field(
         description="Mean configured simulated inbound latency in milliseconds"
@@ -224,8 +239,44 @@ class LatencyStats(BaseModel):
 
 
 class PersistenceStats(BaseModel):
-    failures: int
+    scope: Literal["operational"] = "operational"
+    required: bool
+    state: Literal[
+        "DISABLED",
+        "HEALTHY",
+        "RETRYING",
+        "DEGRADED",
+        "UNAVAILABLE",
+        "CLOSED",
+    ]
+    last_successful_write_time: Optional[datetime]
+    last_failure_time: Optional[datetime]
+    consecutive_failures: int
+    lifetime_failures: int
     buffered_records: int
+    buffered_bytes: int
+    oldest_buffered_record_age_seconds: Optional[float]
+    accepted_records: int
+    flush_required_records: int
+    dropped_records: int
+    rejected_closed_records: int
+    rejected_full_records: int
+    failed_records: int
+    worker_running: bool
+    close_outcome: Optional[str]
+    unflushed_on_close: int
+    current_run_outcomes: Dict[str, int]
+
+
+class RunPersistenceStats(BaseModel):
+    scope: Literal["current_run"] = "current_run"
+    accepted_records: int
+    flush_required_records: int
+    dropped_records: int
+    rejected_closed_records: int
+    rejected_full_records: int
+    failed_records: int
+    failures: int
 
 
 SchedulerMetadataValue = str | int | float | bool | None
@@ -249,15 +300,47 @@ class SchedulerFailureResponse(BaseModel):
 
 
 class SchedulerStats(BaseModel):
+    scope: Literal["current_run"] = "current_run"
     state: Literal["RUNNING", "FAILED", "STOPPED"]
     pending_events: int
     failure_count: int
     max_events_per_advance: int
     dead_letter: Optional[SchedulerFailureResponse]
+    dead_letter_count: int = 0
+    event_processing_limit_failures: int = 0
+
+
+class WebSocketStats(BaseModel):
+    scope: Literal["process_lifetime"] = "process_lifetime"
+    active_clients: int
+    queue_depth: int
+    snapshots_conflated: int
+    snapshots_dropped: int
+    slow_client_disconnects: int
+    send_failures: int
+    send_successes: int
+
+
+class RunStatsResponse(BaseModel):
+    generated_at: datetime
+    scope: Literal["current_run"] = "current_run"
+    run_active: bool
+    run_id: Optional[str]
+    run_generation: Optional[int]
+    orders: OrdersStats
+    trades: TradesStats
+    cancellations: CancellationStats
+    reports: ReportsStats
+    book: BookStats
+    latency: LatencyStats
+    persistence: RunPersistenceStats
+    scheduler: SchedulerStats
 
 
 class StatsResponse(BaseModel):
     generated_at: datetime
+    scope: Literal["current_run"] = "current_run"
+    run_active: bool
     run_id: Optional[str]
     run_generation: Optional[int]
     orders: OrdersStats
@@ -266,10 +349,12 @@ class StatsResponse(BaseModel):
     reports: ReportsStats
     sessions: SessionsStats
     fix_delivery: FixDeliveryStats
+    websocket: WebSocketStats
     book: BookStats
     latency: LatencyStats
     persistence: PersistenceStats
     scheduler: SchedulerStats
+    process_lifetime: Dict[str, object]
 
 
 class SessionBody(BaseModel):
@@ -295,7 +380,7 @@ class SessionEndResponse(BaseModel):
     status: Literal["session_ended", "no_active_session"]
     session_id: Optional[str]
     run_generation: Optional[int]
-    final_stats: Optional[StatsResponse]
+    final_stats: Optional[RunStatsResponse]
 
 
 class AdvanceTimeRequest(BaseModel):
@@ -612,7 +697,7 @@ class ExchangeAPI:
         if self.lifecycle is not None:
             self.lifecycle.bind_api(
                 close_websockets=self.close_websockets,
-                stats_builder=self._stats_response,
+                stats_builder=self._final_run_stats_response,
             )
         self._setup_routes()
 
@@ -644,11 +729,8 @@ class ExchangeAPI:
                 if self.config.scheduler.mode == "external"
                 else "ready"
             )
-        persistence_failures = (
-            self.metrics.snapshot().metric_sink_failures
-        )
-        if persistence_failures:
-            components["persistence"] = "degraded"
+        persistence_health = self.metrics.persistence_health_snapshot()
+        components["persistence"] = persistence_health.state.value.lower()
         if not getattr(self.lifecycle_manager, "fix_enabled", False):
             components["fix_delivery"] = "disabled"
         else:
@@ -667,7 +749,7 @@ class ExchangeAPI:
         if getattr(self.lifecycle_manager, "fix_enabled", False):
             critical_names.append("fix_gateway")
         ready_values = {"ready", "waiting_external"}
-        critical_ready = all(
+        core_ready = all(
             components.get(name) in ready_values
             for name in critical_names
         )
@@ -676,33 +758,111 @@ class ExchangeAPI:
             or self.lifecycle.state
             in {LifecycleState.STOPPED, LifecycleState.ACTIVE}
         )
-        if not self.app.state.ready or not critical_ready or not lifecycle_ready:
+        core_ready = bool(
+            self.app.state.ready and core_ready and lifecycle_ready
+        )
+        persistence_required = bool(
+            self.config.tsdb is not None and self.config.tsdb.enabled
+        )
+        persistence_ready = (
+            not persistence_required
+            or persistence_health.state.value == "HEALTHY"
+        )
+        traffic_ready = core_ready and persistence_ready
+        if not traffic_ready:
             return 503, ReadinessResponse(
                 status="not_ready",
+                core_ready=core_ready,
+                traffic_ready=False,
+                persistence_required=persistence_required,
                 components=components,
             )
         if "degraded" in components.values():
             return 200, ReadinessResponse(
                 status="degraded",
+                core_ready=True,
+                traffic_ready=True,
+                persistence_required=persistence_required,
                 components=components,
             )
         return 200, ReadinessResponse(
             status="ready",
+            core_ready=True,
+            traffic_ready=True,
+            persistence_required=persistence_required,
             components=components,
         )
 
-    def _stats_response(self) -> StatsResponse:
+    def _scheduler_stats_payload(self) -> Dict[str, object]:
+        payload = self.scheduler.diagnostics()
+        payload["scope"] = "current_run"
+        payload.update(self.metrics.current_run_scheduler_snapshot())
+        return payload
+
+    def _run_stats_payload(self, *, run_active: bool) -> Dict[str, object]:
         payload = self.metrics.snapshot().to_dict(
             run_id=self.metrics.run_id
         )
+        payload["scope"] = "current_run"
+        payload["run_active"] = run_active
         payload["run_generation"] = (
             self.lifecycle.run_generation
             if self.lifecycle is not None and self.lifecycle.run_id is not None
             else None
         )
-        payload["scheduler"] = self.scheduler.diagnostics()
+        payload["scheduler"] = self._scheduler_stats_payload()
+        payload["persistence"] = {
+            "scope": "current_run",
+            **self.metrics.run_persistence_snapshot(),
+        }
+        return payload
+
+    def _final_run_stats_response(self) -> RunStatsResponse:
+        return RunStatsResponse.model_validate(
+            self._run_stats_payload(run_active=False)
+        )
+
+    def _stats_response(self) -> StatsResponse:
+        payload = self._run_stats_payload(
+            run_active=self.metrics.run_id is not None
+        )
+        health = self.metrics.persistence_health_snapshot()
+        payload["persistence"] = {
+            "scope": "operational",
+            "required": bool(
+                self.config.tsdb is not None and self.config.tsdb.enabled
+            ),
+            "state": health.state.value,
+            "last_successful_write_time": health.last_successful_write_time,
+            "last_failure_time": health.last_failure_time,
+            "consecutive_failures": health.consecutive_failures,
+            "lifetime_failures": health.lifetime_failures,
+            "buffered_records": health.buffered_records,
+            "buffered_bytes": health.buffered_bytes,
+            "oldest_buffered_record_age_seconds": (
+                health.oldest_buffered_record_age_seconds
+            ),
+            "accepted_records": health.accepted_records,
+            "flush_required_records": health.flush_required_records,
+            "dropped_records": health.dropped_records,
+            "rejected_closed_records": health.rejected_closed_records,
+            "rejected_full_records": health.rejected_full_records,
+            "failed_records": health.failed_records,
+            "worker_running": health.worker_running,
+            "close_outcome": health.close_outcome,
+            "unflushed_on_close": health.unflushed_on_close,
+            "current_run_outcomes": self.metrics.run_persistence_snapshot(),
+        }
+        payload["process_lifetime"] = (
+            self.metrics.process_lifetime_snapshot()
+        )
+        payload["websocket"] = {
+            "scope": "process_lifetime",
+            **self.metrics.websocket_metrics_snapshot(),
+        }
         delivery = self.fix_app.delivery_queue.snapshot()
         payload["fix_delivery"] = {
+            "scope": "process_lifetime",
             "enqueued": delivery.enqueued,
             "queue_depth": delivery.queue_depth,
             "pending": delivery.pending,
@@ -713,7 +873,11 @@ class ExchangeAPI:
             "abandoned": delivery.abandoned,
             "sessions_with_backlog": delivery.sessions_with_backlog,
             "attempts": delivery.attempts,
+            "retries": delivery.retries,
             "failures": delivery.failures,
+            "retained_delivered_records": (
+                delivery.retained_delivered_records
+            ),
             "oldest_pending_age_seconds": (
                 delivery.oldest_pending_age_seconds
             ),
