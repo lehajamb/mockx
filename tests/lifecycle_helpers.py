@@ -1,3 +1,5 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Shared deterministic fixtures for focused order-lifecycle tests."""
 
 from datetime import datetime, timezone
@@ -9,10 +11,12 @@ from src.mockx.models import (
     ExecutionParams,
     ExecutionReport,
     NewOrderCommand,
+    OrderType,
     ProcessOrderCommand,
     Side,
     TimeInForce,
 )
+from tests.exact_helpers import TEST_INSTRUMENTS
 
 
 NOW = datetime(2026, 7, 25, tzinfo=timezone.utc)
@@ -24,7 +28,7 @@ def make_engine(
     engine_latency_ms: int = 0,
 ):
     scheduler = LatencyScheduler()
-    engine = MatchingEngine(
+    engine = exact_engine(
         ExecutionParams(
             network_latency_ms=network_latency_ms,
             engine_latency_ms=engine_latency_ms,
@@ -32,8 +36,8 @@ def make_engine(
             rand_seed=42,
         ),
         scheduler,
+        TEST_INSTRUMENTS,
     )
-    engine.add_symbol("TEST")
     reports = []
     delivered = []
     trades = []
@@ -49,25 +53,30 @@ def submit(
     engine: MatchingEngine,
     *,
     cl_ord_id: str,
+    participant_id: str,
     side: Side,
-    qty: float,
-    price: float | None,
+    qty: int,
+    price: int | None,
     tif: TimeInForce = TimeInForce.GTC,
     session_id: str | None = "FIX.4.4:CLIENT->MOCKX",
     session_alias: str | None = "CLIENT",
     process: bool = True,
 ) -> int:
     order_id = engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id=cl_ord_id,
             symbol="TEST",
             side=side,
-            qty=qty,
-            price=price,
+            order_type=(
+                OrderType.MARKET if price is None else OrderType.LIMIT
+            ),
+            order_qty_lots=qty,
+            price_ticks=price,
             tif=tif,
             submitted_at=NOW,
             session_id=session_id,
             session_alias=session_alias,
+            participant_id=participant_id,
         )
     )
     if process:
@@ -88,7 +97,7 @@ def cancel(
 ):
     order = engine.orders.get(order_id)
     result = engine.cancel_order(
-        CancelOrderCommand(
+        exact_cancel_command(
             cancel_cl_ord_id=(
                 cancel_cl_ord_id
                 or f"CXL-{orig_cl_ord_id or (order.cl_ord_id if order else 'UNKNOWN')}"
@@ -100,7 +109,7 @@ def cancel(
             ),
             symbol=order.symbol if order else "TEST",
             side=order.side if order else Side.BUY,
-            qty=order.qty if order else 1.0,
+            order_qty_lots=order.order_qty_lots if order else 1,
             requested_at=engine.scheduler.current_time,
             session_id=(
                 session_id
@@ -112,6 +121,7 @@ def cancel(
                 )
             ),
             session_alias=order.session_alias if order else None,
+            participant_id=order.participant_id if order else None,
             run_generation=engine.identifier_scope.generation,
         )
     )

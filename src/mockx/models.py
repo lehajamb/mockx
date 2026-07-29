@@ -3,10 +3,13 @@
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any, Optional, List, Dict, FrozenSet, Mapping, Tuple, Union
 from enum import Enum
 from types import MappingProxyType
 import math
+
+from .instruments import Instrument
 
 
 class Side(Enum):
@@ -24,6 +27,11 @@ class OrderStatus(Enum):
 class TimeInForce(Enum):
     GTC = "GTC"  # Good Till Cancel
     IOC = "IOC"  # Immediate Or Cancel
+
+
+class OrderType(str, Enum):
+    LIMIT = "LIMIT"
+    MARKET = "MARKET"
 
 
 class ExecutionType(str, Enum):
@@ -108,26 +116,6 @@ class SchedulerFailureStatus(str, Enum):
     EVENT_PROCESSING_LIMIT_EXCEEDED = "EVENT_PROCESSING_LIMIT_EXCEEDED"
 
 
-QUANTITY_EPSILON = 1e-9
-"""Tolerance for float quantity comparisons.
-
-Integer lots remain a future improvement; quantities are intentionally kept as
-floats in this remediation to preserve the existing public model.
-"""
-
-
-def _quantities_equal(left: float, right: float) -> bool:
-    return math.isclose(left, right, rel_tol=0.0, abs_tol=QUANTITY_EPSILON)
-
-
-def _normalize_quantity(value: float, *, context: str) -> float:
-    if not math.isfinite(value):
-        raise OrderBookInvariantError(f"{context} is not finite: {value}")
-    if value < -QUANTITY_EPSILON:
-        raise OrderBookInvariantError(f"{context} is negative: {value}")
-    return 0.0 if abs(value) <= QUANTITY_EPSILON else value
-
-
 TERMINAL_ORDER_STATUSES: FrozenSet[OrderStatus] = frozenset({
     OrderStatus.FILLED,
     OrderStatus.REJECTED,
@@ -195,6 +183,7 @@ class SessionIdentity:
     sender_comp_id: Optional[str] = None
     target_comp_id: Optional[str] = None
     alias: Optional[str] = None
+    participant_id: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.session_id:
@@ -231,10 +220,12 @@ class NewOrderCommand:
     cl_ord_id: str
     symbol: str
     side: Side
-    qty: float
-    price: Optional[float]
+    order_type: OrderType
+    order_qty_lots: int
+    price_ticks: Optional[int]
     tif: TimeInForce
     submitted_at: datetime
+    participant_id: str
     session_id: Optional[str] = None
     session_alias: Optional[str] = None
 
@@ -243,14 +234,29 @@ class NewOrderCommand:
             raise ValueError("ClOrdID is required")
         if not self.symbol:
             raise ValueError("Symbol is required")
-        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
-            raise ValueError("Order quantity must be positive and finite")
-        if self.price is not None and (
-            not math.isfinite(self.price) or self.price <= 0.0
+        if (
+            not isinstance(self.order_qty_lots, int)
+            or isinstance(self.order_qty_lots, bool)
+            or self.order_qty_lots <= 0
         ):
-            raise ValueError("Limit price must be positive and finite")
+            raise ValueError("Order quantity lots must be a positive integer")
+        if not isinstance(self.order_type, OrderType):
+            raise ValueError(f"Unsupported OrderType: {self.order_type}")
+        if self.order_type == OrderType.LIMIT:
+            if (
+                not isinstance(self.price_ticks, int)
+                or isinstance(self.price_ticks, bool)
+                or self.price_ticks <= 0
+            ):
+                raise ValueError("LIMIT orders require positive integer price ticks")
+        elif self.price_ticks is not None:
+            raise ValueError("MARKET orders cannot contain price ticks")
         if not isinstance(self.tif, TimeInForce):
             raise ValueError(f"Unsupported TimeInForce: {self.tif}")
+        if self.session_id is not None and not self.session_id:
+            raise ValueError("session_id cannot be empty")
+        if not self.participant_id:
+            raise ValueError("participant_id is required")
 
 
 @dataclass(frozen=True, slots=True)
@@ -263,8 +269,9 @@ class ParsedFixCommand:
     cl_ord_id: str
     symbol: str
     side: Side
-    qty: float
-    price: Optional[float] = None
+    order_type: Optional[OrderType] = None
+    order_qty_lots: int = 0
+    price_ticks: Optional[int] = None
     tif: Optional[TimeInForce] = None
     orig_cl_ord_id: Optional[str] = None
 
@@ -281,23 +288,29 @@ class ParsedFixCommand:
             raise ValueError("Symbol is required")
         if not isinstance(self.side, Side):
             raise ValueError(f"Unsupported Side: {self.side}")
-        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
-            raise ValueError("Order quantity must be positive and finite")
-        if self.price is not None and (
-            not math.isfinite(self.price) or self.price <= 0.0
+        if (
+            not isinstance(self.order_qty_lots, int)
+            or isinstance(self.order_qty_lots, bool)
+            or self.order_qty_lots <= 0
         ):
-            raise ValueError("Limit price must be positive and finite")
+            raise ValueError("Order quantity lots must be positive")
         if self.command_type == FixCommandType.NEW_ORDER:
             if self.tif is None:
                 raise ValueError("New orders require TimeInForce")
+            if self.order_type is None:
+                raise ValueError("New orders require OrderType")
             if self.orig_cl_ord_id is not None:
                 raise ValueError("New orders cannot contain OrigClOrdID")
         elif self.command_type == FixCommandType.CANCEL_ORDER:
             if not self.orig_cl_ord_id:
                 raise ValueError("Cancel requests require OrigClOrdID")
-            if self.price is not None or self.tif is not None:
+            if (
+                self.price_ticks is not None
+                or self.tif is not None
+                or self.order_type is not None
+            ):
                 raise ValueError(
-                    "Cancel requests cannot contain price or TimeInForce"
+                    "Cancel requests cannot contain order type, price, or TIF"
                 )
 
 
@@ -312,8 +325,9 @@ class FixIngressEnvelope:
     orig_cl_ord_id: Optional[str]
     symbol: str
     side: Side
-    qty: float
-    price: Optional[float]
+    order_type: Optional[OrderType]
+    order_qty_lots: int
+    price_ticks: Optional[int]
     tif: Optional[TimeInForce]
     ingress_sequence: int
     simulated_receive_timestamp: datetime
@@ -353,10 +367,11 @@ class CancelOrderCommand:
     orig_cl_ord_id: str
     symbol: str
     side: Side
-    qty: float
+    order_qty_lots: int
     requested_at: datetime
     session_id: str
     session_alias: Optional[str] = None
+    participant_id: Optional[str] = None
     run_generation: int = 0
     ingress_sequence: int = 0
     msg_seq_num: int = 0
@@ -395,35 +410,25 @@ class CancelReject:
         if not self.reject_id:
             raise ValueError("Cancel reject ID is required")
 
-    def __contains__(self, value: str) -> bool:
-        """Keep legacy ``"text" in result`` callers source-compatible."""
-        return value in self.text
-
-    def __str__(self) -> str:
-        return self.text
-
-
 @dataclass(slots=True)
 class Order:
-    """Mutable engine-owned order aggregate.
-
-    ``version`` advances when a lifecycle command invalidates queued work.
-    Initial processing is additionally protected by ``processed`` so replaying
-    an otherwise-current command is idempotent.
-    """
+    """Mutable engine-owned order aggregate using integer ticks and lots."""
 
     id: int
     cl_ord_id: str
     symbol: str
     side: Side
-    qty: float
-    price: Optional[float]  # None = market order
+    order_type: OrderType
+    order_qty_lots: int
+    price_ticks: Optional[int]
+    instrument: Instrument
     tif: TimeInForce
     ts_submitted: datetime  # Exchange timestamp
+    participant_id: str
     status: OrderStatus = OrderStatus.PENDING_NEW
-    filled_qty: float = 0.0
-    canceled_qty: float = 0.0
-    avg_fill_price: Optional[float] = None
+    filled_qty_lots: int = 0
+    canceled_qty_lots: int = 0
+    filled_notional_tick_lots: int = 0
     reject_reason: Optional[str] = None
     session_id: Optional[str] = None
     session_alias: Optional[str] = None
@@ -438,14 +443,41 @@ class Order:
             raise ValueError("ClOrdID is required")
         if not self.symbol:
             raise ValueError("Symbol is required")
-        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
-            raise ValueError("Order quantity must be positive and finite")
-        if self.price is not None and (
-            not math.isfinite(self.price) or self.price <= 0.0
+        if self.instrument.symbol != self.symbol:
+            raise ValueError("Order instrument does not match symbol")
+        if not self.participant_id:
+            raise ValueError("participant_id is required")
+        if (
+            not isinstance(self.order_qty_lots, int)
+            or isinstance(self.order_qty_lots, bool)
+            or self.order_qty_lots <= 0
         ):
-            raise ValueError("Limit price must be positive and finite")
+            raise ValueError("Order quantity lots must be positive")
+        if not isinstance(self.order_type, OrderType):
+            raise ValueError(f"Unsupported OrderType: {self.order_type}")
+        if self.order_type == OrderType.LIMIT:
+            if (
+                not isinstance(self.price_ticks, int)
+                or isinstance(self.price_ticks, bool)
+                or self.price_ticks <= 0
+            ):
+                raise ValueError("LIMIT orders require positive price ticks")
+        elif self.price_ticks is not None:
+            raise ValueError("MARKET orders cannot contain price ticks")
         if not isinstance(self.tif, TimeInForce):
             raise ValueError(f"Unsupported TimeInForce: {self.tif}")
+        for name, value in (
+            ("filled_qty_lots", self.filled_qty_lots),
+            ("canceled_qty_lots", self.canceled_qty_lots),
+            (
+                "filled_notional_tick_lots",
+                self.filled_notional_tick_lots,
+            ),
+        ):
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(f"{name} must be a non-negative integer")
+        if self.filled_qty_lots + self.canceled_qty_lots > self.order_qty_lots:
+            raise ValueError("Order quantities are over-allocated")
 
         # Capture the origin once. Execution status and later alias changes must
         # never move resting quantity between accounting categories.
@@ -462,112 +494,120 @@ class Order:
         return self._liquidity_category == LiquidityCategory.STRATEGY
 
     @property
-    def remaining_qty(self) -> float:
-        """Return live working quantity after fills and terminal cancellation."""
-        if not all(
-            math.isfinite(value)
-            for value in (self.qty, self.filled_qty, self.canceled_qty)
-        ):
+    def leaves_qty_lots(self) -> int:
+        """Return exact live working quantity."""
+        leaves = (
+            self.order_qty_lots
+            - self.filled_qty_lots
+            - self.canceled_qty_lots
+        )
+        if leaves < 0:
             raise OrderBookInvariantError(
-                f"Order {self.id} has non-finite quantities: "
-                f"qty={self.qty}, filled_qty={self.filled_qty}, "
-                f"canceled_qty={self.canceled_qty}"
+                f"Order {self.id} is over-allocated: "
+                f"order_qty_lots={self.order_qty_lots}, "
+                f"filled_qty_lots={self.filled_qty_lots}, "
+                f"canceled_qty_lots={self.canceled_qty_lots}"
             )
-        if self.qty <= QUANTITY_EPSILON:
-            raise OrderBookInvariantError(
-                f"Order {self.id} has non-positive quantity: {self.qty}"
-            )
-        if self.filled_qty < -QUANTITY_EPSILON:
-            raise OrderBookInvariantError(
-                f"Order {self.id} has negative filled quantity: "
-                f"{self.filled_qty}"
-            )
-        if self.canceled_qty < -QUANTITY_EPSILON:
-            raise OrderBookInvariantError(
-                f"Order {self.id} has negative canceled quantity: "
-                f"{self.canceled_qty}"
-            )
-        if (
-            self.filled_qty + self.canceled_qty
-            > self.qty + QUANTITY_EPSILON
-        ):
-            raise OrderBookInvariantError(
-                f"Order {self.id} is over-allocated: qty={self.qty}, "
-                f"filled_qty={self.filled_qty}, "
-                f"canceled_qty={self.canceled_qty}"
-            )
-        remaining = self.qty - self.filled_qty - self.canceled_qty
-        return _normalize_quantity(
-            remaining,
-            context=f"Order {self.id} remaining quantity",
+        return leaves
+
+    @property
+    def average_fill_price(self) -> Optional[Decimal]:
+        """Return the exact derived average price, never a binary float."""
+        if self.filled_qty_lots == 0:
+            return None
+        return (
+            self.instrument.tick_size
+            * Decimal(self.filled_notional_tick_lots)
+            / Decimal(self.filled_qty_lots)
         )
 
     def _preview_fill(
         self,
-        fill_qty: float,
-        fill_price: float,
-    ) -> Tuple[float, float, float]:
-        if not math.isfinite(fill_qty) or fill_qty <= 0.0:
-            raise InvalidBookMutation(
-                f"Fill quantity for order {self.id} must be positive and "
-                f"finite: {fill_qty}"
-            )
-        if not math.isfinite(fill_price):
-            raise InvalidBookMutation(
-                f"Fill price for order {self.id} must be finite: {fill_price}"
-            )
-
-        old_remaining = self.remaining_qty
-        if fill_qty > old_remaining + QUANTITY_EPSILON:
-            raise InvalidBookMutation(
-                f"Overfill for order {self.id}: fill_qty={fill_qty}, "
-                f"remaining_qty={old_remaining}"
-            )
-
-        applied_qty = min(fill_qty, old_remaining)
-        new_filled_qty = self.filled_qty + applied_qty
-        if _quantities_equal(new_filled_qty, self.qty):
-            new_filled_qty = self.qty
-        new_remaining_qty = _normalize_quantity(
-            self.qty - new_filled_qty - self.canceled_qty,
-            context=f"Order {self.id} post-fill remaining quantity",
-        )
-
-        if self.avg_fill_price is None:
-            new_avg_fill_price = fill_price
-        else:
-            total_value = (
-                self.avg_fill_price * self.filled_qty
-            ) + (fill_price * applied_qty)
-            new_avg_fill_price = total_value / new_filled_qty
-
-        return new_filled_qty, new_avg_fill_price, new_remaining_qty
-
-    def validate_fill(self, fill_qty: float, fill_price: float) -> None:
-        """Validate a fill without changing the order."""
-        self._preview_fill(fill_qty, fill_price)
-
-    def apply_fill(self, fill_qty: float, fill_price: float) -> float:
-        """Atomically update cumulative quantity and average fill price."""
-        old_remaining = self.remaining_qty
-        new_filled_qty, new_avg_fill_price, new_remaining_qty = (
-            self._preview_fill(fill_qty, fill_price)
-        )
-        self.filled_qty = new_filled_qty
-        self.avg_fill_price = new_avg_fill_price
-        return old_remaining - new_remaining_qty
-
-    def cancel_remaining(self) -> float:
-        """Move the complete live remainder into terminal canceled quantity."""
-        canceled = self.remaining_qty
-        if canceled <= QUANTITY_EPSILON:
-            return 0.0
-        self.canceled_qty += canceled
-        if _quantities_equal(
-            self.filled_qty + self.canceled_qty,
-            self.qty,
+        fill_qty_lots: int,
+        fill_price_ticks: int,
+    ) -> Tuple[int, int, int]:
+        if (
+            not isinstance(fill_qty_lots, int)
+            or isinstance(fill_qty_lots, bool)
+            or fill_qty_lots <= 0
         ):
-            self.canceled_qty = self.qty - self.filled_qty
+            raise InvalidBookMutation(
+                f"Fill lots for order {self.id} must be positive: "
+                f"{fill_qty_lots}"
+            )
+        if (
+            not isinstance(fill_price_ticks, int)
+            or isinstance(fill_price_ticks, bool)
+            or fill_price_ticks <= 0
+        ):
+            raise InvalidBookMutation(
+                f"Fill price ticks for order {self.id} must be positive: "
+                f"{fill_price_ticks}"
+            )
+
+        old_remaining = self.leaves_qty_lots
+        if fill_qty_lots > old_remaining:
+            raise InvalidBookMutation(
+                f"Overfill for order {self.id}: "
+                f"fill_qty_lots={fill_qty_lots}, "
+                f"leaves_qty_lots={old_remaining}"
+            )
+        new_filled_qty_lots = self.filled_qty_lots + fill_qty_lots
+        new_notional = (
+            self.filled_notional_tick_lots
+            + fill_price_ticks * fill_qty_lots
+        )
+        new_leaves = (
+            self.order_qty_lots
+            - new_filled_qty_lots
+            - self.canceled_qty_lots
+        )
+        return new_filled_qty_lots, new_notional, new_leaves
+
+    def validate_fill(
+        self,
+        fill_qty_lots: int,
+        fill_price_ticks: int,
+    ) -> None:
+        """Validate a fill without changing the order."""
+        self._preview_fill(fill_qty_lots, fill_price_ticks)
+
+    def apply_fill(
+        self,
+        fill_qty_lots: int,
+        fill_price_ticks: int,
+    ) -> int:
+        """Atomically update cumulative lots and exact notional."""
+        old_remaining = self.leaves_qty_lots
+        new_filled_qty, new_notional, new_remaining = self._preview_fill(
+            fill_qty_lots,
+            fill_price_ticks,
+        )
+        self.filled_qty_lots = new_filled_qty
+        self.filled_notional_tick_lots = new_notional
+        return old_remaining - new_remaining
+
+    def decrement_remaining(self, quantity_lots: int) -> int:
+        """Move an exact prevented/canceled quantity out of leaves."""
+        if (
+            not isinstance(quantity_lots, int)
+            or isinstance(quantity_lots, bool)
+            or quantity_lots <= 0
+        ):
+            raise InvalidBookMutation("Decrement quantity must be positive")
+        if quantity_lots > self.leaves_qty_lots:
+            raise InvalidBookMutation(
+                f"Order {self.id} decrement exceeds leaves"
+            )
+        self.canceled_qty_lots += quantity_lots
+        return quantity_lots
+
+    def cancel_remaining(self) -> int:
+        """Move the complete live remainder into terminal canceled quantity."""
+        canceled = self.leaves_qty_lots
+        if canceled <= 0:
+            return 0
+        self.canceled_qty_lots += canceled
         return canceled
 
     def validate_transition_to(self, new_status: OrderStatus) -> None:
@@ -607,6 +647,13 @@ class ExecutionParams:
         )
         if any(value is not None and value < 0 for value in delays):
             raise ValueError("Configured latencies cannot be negative")
+        if (
+            isinstance(self.reject_prob, bool)
+            or not isinstance(self.reject_prob, (int, float))
+            or not math.isfinite(float(self.reject_prob))
+            or not 0.0 <= float(self.reject_prob) <= 1.0
+        ):
+            raise ValueError("Reject probability must be between 0 and 1")
 
     @property
     def simulated_inbound_latency_ms(self) -> int:
@@ -626,8 +673,8 @@ class Fill:
 
     trade_id: int
     symbol: str
-    price: float
-    qty: float
+    price_ticks: int
+    qty_lots: int
     aggressor_order_id: int
     passive_order_id: int
     aggressor_side: Side
@@ -640,10 +687,18 @@ class Fill:
             raise ValueError("Fill TradeID must be positive")
         if not self.symbol:
             raise ValueError("Fill symbol is required")
-        if not math.isfinite(self.price) or self.price <= 0.0:
-            raise ValueError("Fill price must be positive and finite")
-        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
-            raise ValueError("Fill quantity must be positive and finite")
+        if (
+            not isinstance(self.price_ticks, int)
+            or isinstance(self.price_ticks, bool)
+            or self.price_ticks <= 0
+        ):
+            raise ValueError("Fill price ticks must be positive")
+        if (
+            not isinstance(self.qty_lots, int)
+            or isinstance(self.qty_lots, bool)
+            or self.qty_lots <= 0
+        ):
+            raise ValueError("Fill quantity lots must be positive")
         if (
             self.aggressor_order_id <= 0
             or self.passive_order_id <= 0
@@ -657,105 +712,75 @@ class Trade:
     """Represents an executed trade."""
     id: int
     symbol: str
-    price: float
-    qty: float
-    volume: float
+    price_ticks: int
+    qty_lots: int
+    notional_tick_lots: int
     buyer_order_id: int
     seller_order_id: int
     timestamp: datetime
     level: int
     buyer_session_alias: Optional[str]
     seller_session_alias: Optional[str]
+    buyer_participant_id: str
+    seller_participant_id: str
     aggressor_order_id: int
     passive_order_id: int
     aggressor_side: Side
     exchange_trade_id: Optional[str] = None
     run_generation: int = 0
 
+    def __post_init__(self) -> None:
+        if not self.buyer_participant_id or not self.seller_participant_id:
+            raise ValueError("Trades require buyer and seller participant IDs")
+        if self.buyer_participant_id == self.seller_participant_id:
+            raise ValueError("Self-trades are forbidden")
+
+
+@dataclass(frozen=True, slots=True)
+class SelfTradePrevention:
+    """Immutable audit event for one prevented self-cross."""
+
+    symbol: str
+    participant_id: str
+    aggressor_order_id: int
+    passive_order_id: int
+    prevented_qty_lots: int
+    timestamp: datetime
+
+    def __post_init__(self) -> None:
+        if not self.symbol or not self.participant_id:
+            raise ValueError("Self-trade prevention requires symbol and participant")
+        if (
+            self.aggressor_order_id <= 0
+            or self.passive_order_id <= 0
+            or self.aggressor_order_id == self.passive_order_id
+        ):
+            raise ValueError("Self-trade prevention requires distinct order IDs")
+        if self.prevented_qty_lots <= 0:
+            raise ValueError("Prevented quantity must be positive")
+
+
 @dataclass(frozen=True, slots=True)
 class BookFillResult:
     """Result of one authoritative fill mutation on a resting order."""
 
     order_id: int
-    fill_qty: float
-    remaining_qty: float
+    fill_qty_lots: int
+    leaves_qty_lots: int
     fully_filled: bool
     level_removed: bool
 
 
 @dataclass
 class BookLevel:
-    """Single FIFO price level with incrementally maintained quantities."""
+    """Single FIFO tick level with exact incrementally maintained lots."""
 
-    price: float
-    qty: float = 0.0
+    price_ticks: int
+    level_qty_lots: int = 0
     orders: deque[Order] = field(default_factory=deque)
-    strategy_qty: float = 0.0
-    market_qty: float = 0.0
+    strategy_qty_lots: int = 0
+    market_qty_lots: int = 0
     side: Optional[Side] = None
-
-    def _validate_cached_aggregates(self) -> None:
-        values = {
-            "qty": self.qty,
-            "strategy_qty": self.strategy_qty,
-            "market_qty": self.market_qty,
-        }
-        for name, value in values.items():
-            _normalize_quantity(
-                value,
-                context=f"Level {self.side} {self.price} {name}",
-            )
-        if not _quantities_equal(
-            self.qty,
-            self.strategy_qty + self.market_qty,
-        ):
-            raise OrderBookInvariantError(
-                f"Level {self.side} {self.price} category mismatch: "
-                f"qty={self.qty}, strategy_qty={self.strategy_qty}, "
-                f"market_qty={self.market_qty}"
-            )
-
-    def _updated_aggregates(
-        self,
-        order: Order,
-        delta: float,
-    ) -> Tuple[float, float, float]:
-        """Preview an aggregate delta; positive adds and negative subtracts."""
-        self._validate_cached_aggregates()
-        new_qty = _normalize_quantity(
-            self.qty + delta,
-            context=f"Level {self.side} {self.price} qty after mutation",
-        )
-        new_strategy_qty = self.strategy_qty
-        new_market_qty = self.market_qty
-        if order.liquidity_category == LiquidityCategory.STRATEGY:
-            new_strategy_qty = _normalize_quantity(
-                self.strategy_qty + delta,
-                context=(
-                    f"Level {self.side} {self.price} strategy_qty "
-                    "after mutation"
-                ),
-            )
-        else:
-            new_market_qty = _normalize_quantity(
-                self.market_qty + delta,
-                context=(
-                    f"Level {self.side} {self.price} market_qty "
-                    "after mutation"
-                ),
-            )
-
-        if not _quantities_equal(
-            new_qty,
-            new_strategy_qty + new_market_qty,
-        ):
-            raise OrderBookInvariantError(
-                f"Level {self.side} {self.price} post-mutation category "
-                f"mismatch for order {order.id}: qty={new_qty}, "
-                f"strategy_qty={new_strategy_qty}, "
-                f"market_qty={new_market_qty}"
-            )
-        return new_qty, new_strategy_qty, new_market_qty
 
     def _order_index(self, order: Order) -> Optional[int]:
         for index, queued_order in enumerate(self.orders):
@@ -763,244 +788,208 @@ class BookLevel:
                 return index
         return None
 
-    def _validate_level_lifecycle(
-        self,
-        aggregates: Tuple[float, float, float],
-        remaining_order_count: int,
-        order_id: int,
-    ) -> None:
-        qty, strategy_qty, market_qty = aggregates
-        if remaining_order_count == 0:
-            if not all(
-                _quantities_equal(value, 0.0)
-                for value in (qty, strategy_qty, market_qty)
-            ):
-                raise OrderBookInvariantError(
-                    f"Final order {order_id} would leave nonzero level "
-                    f"aggregates: side={self.side}, price={self.price}, "
-                    f"qty={qty}, strategy_qty={strategy_qty}, "
-                    f"market_qty={market_qty}"
-                )
-        elif qty <= QUANTITY_EPSILON:
+    def _validate_cached_aggregates(self) -> None:
+        if min(
+            self.level_qty_lots,
+            self.strategy_qty_lots,
+            self.market_qty_lots,
+        ) < 0:
             raise OrderBookInvariantError(
-                f"Mutation of order {order_id} would leave a zero-quantity "
-                f"level with {remaining_order_count} live orders: "
-                f"side={self.side}, price={self.price}, qty={qty}"
+                f"Negative aggregate at {self.side} {self.price_ticks}"
+            )
+        if (
+            self.level_qty_lots
+            != self.strategy_qty_lots + self.market_qty_lots
+        ):
+            raise OrderBookInvariantError(
+                f"Level category mismatch at {self.side} {self.price_ticks}: "
+                f"level_qty_lots={self.level_qty_lots}, "
+                f"strategy_qty_lots={self.strategy_qty_lots}, "
+                f"market_qty_lots={self.market_qty_lots}"
             )
 
-    def _validate_resting_order(self, order: Order) -> float:
-        if order.status in TERMINAL_ORDER_STATUSES:
+    def _updated_aggregates(
+        self,
+        order: Order,
+        delta_lots: int,
+    ) -> Tuple[int, int, int]:
+        self._validate_cached_aggregates()
+        level_qty = self.level_qty_lots + delta_lots
+        strategy_qty = self.strategy_qty_lots
+        market_qty = self.market_qty_lots
+        if order.liquidity_category == LiquidityCategory.STRATEGY:
+            strategy_qty += delta_lots
+        else:
+            market_qty += delta_lots
+        if min(level_qty, strategy_qty, market_qty) < 0:
             raise InvalidBookMutation(
-                f"Terminal order {order.id} cannot rest at "
-                f"{self.side} {self.price}: {order.status.value}"
+                f"Aggregate underflow for order {order.id} at "
+                f"{self.side} {self.price_ticks}"
             )
-        if order.status not in {
-            OrderStatus.PENDING_NEW,
-            OrderStatus.NEW,
-            OrderStatus.PARTIAL,
-        }:
+        if level_qty != strategy_qty + market_qty:
+            raise OrderBookInvariantError("Post-mutation category mismatch")
+        return level_qty, strategy_qty, market_qty
+
+    def _validate_resting_order(self, order: Order) -> int:
+        if order.status not in {OrderStatus.NEW, OrderStatus.PARTIAL}:
             raise InvalidBookMutation(
-                f"Order {order.id} is not eligible to rest in state "
-                f"{order.status.value}"
+                f"Order {order.id} cannot rest in state {order.status.value}"
             )
-        if order.price is None or not math.isfinite(order.price):
+        if order.order_type != OrderType.LIMIT or order.price_ticks is None:
             raise InvalidBookMutation(
-                f"Resting order {order.id} must have a finite limit price"
+                f"Resting order {order.id} must be a limit order"
             )
-        if order.price != self.price:
+        if order.price_ticks != self.price_ticks:
             raise InvalidBookMutation(
-                f"Order {order.id} price {order.price} does not match "
-                f"level price {self.price}"
+                f"Order {order.id} price ticks do not match level"
             )
         if self.side is not None and order.side != self.side:
             raise InvalidBookMutation(
-                f"Order {order.id} side {order.side.value} does not match "
-                f"level side {self.side.value}"
+                f"Order {order.id} side does not match level"
             )
-        remaining_qty = order.remaining_qty
-        if remaining_qty <= QUANTITY_EPSILON:
+        if order.leaves_qty_lots <= 0:
             raise InvalidBookMutation(
-                f"Order {order.id} has no positive remaining quantity"
+                f"Order {order.id} has no positive leaves"
             )
-        return remaining_qty
+        return order.leaves_qty_lots
 
     def add_order(self, order: Order) -> None:
-        """Append a live order exactly once and update one category."""
-        remaining_qty = self._validate_resting_order(order)
-        if any(queued.id == order.id for queued in self.orders):
+        leaves = self._validate_resting_order(order)
+        if self._order_index(order) is not None:
             raise InvalidBookMutation(
-                f"Duplicate order id {order.id} at "
-                f"{self.side or order.side} {self.price}"
+                f"Duplicate order id {order.id} at level {self.price_ticks}"
             )
-        if not self.orders and any(
-            not _quantities_equal(value, 0.0)
-            for value in (self.qty, self.strategy_qty, self.market_qty)
-        ):
-            raise OrderBookInvariantError(
-                f"Cannot add order {order.id} to an empty level with "
-                f"nonzero aggregates: side={self.side}, price={self.price}, "
-                f"qty={self.qty}, strategy_qty={self.strategy_qty}, "
-                f"market_qty={self.market_qty}"
-            )
-        aggregates = self._updated_aggregates(order, remaining_qty)
-        self._validate_level_lifecycle(
-            aggregates,
-            len(self.orders) + 1,
-            order.id,
-        )
-
-        # All checks are complete; the remaining assignments cannot fail.
+        aggregates = self._updated_aggregates(order, leaves)
         if self.side is None:
             self.side = order.side
         self.orders.append(order)
-        self.qty, self.strategy_qty, self.market_qty = aggregates
+        (
+            self.level_qty_lots,
+            self.strategy_qty_lots,
+            self.market_qty_lots,
+        ) = aggregates
 
     def apply_fill(
         self,
         order: Order,
-        fill_qty: float,
-        fill_price: Optional[float] = None,
-    ) -> Tuple[float, bool]:
-        """Apply one fill and its aggregate delta as a single mutation."""
+        fill_qty_lots: int,
+        fill_price_ticks: Optional[int] = None,
+    ) -> Tuple[int, bool]:
         queue_index = self._order_index(order)
         if queue_index is None:
             raise InvalidBookMutation(
-                f"Order {order.id} is not resting at "
-                f"{self.side} {self.price}"
+                f"Order {order.id} is not resting at level {self.price_ticks}"
             )
         self._validate_resting_order(order)
-        resolved_price = order.price if fill_price is None else fill_price
+        resolved_price = (
+            order.price_ticks
+            if fill_price_ticks is None
+            else fill_price_ticks
+        )
         if resolved_price is None:
-            raise InvalidBookMutation(
-                f"Resting order {order.id} has no fill price"
-            )
-
-        old_remaining_qty = order.remaining_qty
-        new_filled_qty, new_avg_fill_price, new_remaining_qty = (
-            order._preview_fill(fill_qty, resolved_price)
+            raise InvalidBookMutation("Fill price ticks are required")
+        old_leaves = order.leaves_qty_lots
+        new_filled, new_notional, new_leaves = order._preview_fill(
+            fill_qty_lots,
+            resolved_price,
         )
-        applied_qty = old_remaining_qty - new_remaining_qty
-        aggregates = self._updated_aggregates(order, -applied_qty)
-        fully_filled = new_remaining_qty == 0.0
-        self._validate_level_lifecycle(
-            aggregates,
-            len(self.orders) - int(fully_filled),
-            order.id,
-        )
-
-        # Commit only after every order and aggregate precondition succeeds.
-        order.filled_qty = new_filled_qty
-        order.avg_fill_price = new_avg_fill_price
-        self.qty, self.strategy_qty, self.market_qty = aggregates
+        applied = old_leaves - new_leaves
+        aggregates = self._updated_aggregates(order, -applied)
+        fully_filled = new_leaves == 0
+        order.filled_qty_lots = new_filled
+        order.filled_notional_tick_lots = new_notional
+        (
+            self.level_qty_lots,
+            self.strategy_qty_lots,
+            self.market_qty_lots,
+        ) = aggregates
         if fully_filled:
             del self.orders[queue_index]
-        return applied_qty, fully_filled
+        return applied, fully_filled
+
+    def decrement_order(self, order: Order, quantity_lots: int) -> bool:
+        """Apply an STP decrement while retaining a positive survivor."""
+        queue_index = self._order_index(order)
+        if queue_index is None:
+            raise InvalidBookMutation(
+                f"Order {order.id} is not resting at level {self.price_ticks}"
+            )
+        self._validate_resting_order(order)
+        if quantity_lots > order.leaves_qty_lots:
+            raise InvalidBookMutation("STP decrement exceeds passive leaves")
+        aggregates = self._updated_aggregates(order, -quantity_lots)
+        order.decrement_remaining(quantity_lots)
+        (
+            self.level_qty_lots,
+            self.strategy_qty_lots,
+            self.market_qty_lots,
+        ) = aggregates
+        removed = order.leaves_qty_lots == 0
+        if removed:
+            del self.orders[queue_index]
+        return removed
 
     def remove_order(self, order: Order) -> bool:
-        """Remove one live order using only its current remaining quantity."""
         queue_index = self._order_index(order)
         if queue_index is None:
             return False
-        remaining_qty = self._validate_resting_order(order)
-        aggregates = self._updated_aggregates(order, -remaining_qty)
-        self._validate_level_lifecycle(
-            aggregates,
-            len(self.orders) - 1,
-            order.id,
-        )
-
+        leaves = self._validate_resting_order(order)
+        aggregates = self._updated_aggregates(order, -leaves)
         del self.orders[queue_index]
-        self.qty, self.strategy_qty, self.market_qty = aggregates
+        (
+            self.level_qty_lots,
+            self.strategy_qty_lots,
+            self.market_qty_lots,
+        ) = aggregates
         return True
 
     def assert_invariants(self, expected_side: Optional[Side] = None) -> None:
-        """Detect, but never repair, price-level corruption."""
         side = expected_side or self.side
-        if side is None and self.orders:
-            side = self.orders[0].side
         if not self.orders:
             raise OrderBookInvariantError(
-                f"Empty price level retained: side={side}, price={self.price}, "
-                f"qty={self.qty}, strategy_qty={self.strategy_qty}, "
-                f"market_qty={self.market_qty}"
+                f"Empty price level retained: side={side}, "
+                f"price_ticks={self.price_ticks}"
             )
         if self.side is not None and side != self.side:
-            raise OrderBookInvariantError(
-                f"Level side mismatch at price {self.price}: "
-                f"cached={self.side}, expected={side}"
-            )
-
-        seen_ids = set()
-        expected_qty = 0.0
-        expected_strategy_qty = 0.0
-        expected_market_qty = 0.0
+            raise OrderBookInvariantError("Level side mismatch")
+        seen_ids: set[int] = set()
+        total = strategy = market = 0
         for order in self.orders:
             if order.id in seen_ids:
                 raise OrderBookInvariantError(
-                    f"Duplicate order id {order.id}: side={side}, "
-                    f"price={self.price}"
+                    f"Duplicate order id {order.id} in level"
                 )
             seen_ids.add(order.id)
-            if order.status in TERMINAL_ORDER_STATUSES:
+            if order.status not in {OrderStatus.NEW, OrderStatus.PARTIAL}:
                 raise OrderBookInvariantError(
-                    f"Terminal order {order.id} retained: side={side}, "
-                    f"price={self.price}, status={order.status.value}"
+                    f"Non-live order {order.id} retained"
                 )
-            if order.status not in {
-                OrderStatus.PENDING_NEW,
-                OrderStatus.NEW,
-                OrderStatus.PARTIAL,
-            }:
+            if order.price_ticks != self.price_ticks:
                 raise OrderBookInvariantError(
-                    f"Non-live order {order.id} retained: side={side}, "
-                    f"price={self.price}, status={order.status.value}"
-                )
-            remaining_qty = order.remaining_qty
-            if remaining_qty <= QUANTITY_EPSILON:
-                raise OrderBookInvariantError(
-                    f"Zero-quantity order {order.id} retained: side={side}, "
-                    f"price={self.price}, remaining_qty={remaining_qty}"
-                )
-            if order.price != self.price:
-                raise OrderBookInvariantError(
-                    f"Wrong-price order {order.id}: side={side}, "
-                    f"level_price={self.price}, order_price={order.price}"
+                    f"Wrong-price order {order.id} retained"
                 )
             if side is not None and order.side != side:
                 raise OrderBookInvariantError(
-                    f"Wrong-side order {order.id}: level_side={side.value}, "
-                    f"order_side={order.side.value}, price={self.price}"
+                    f"Wrong-side order {order.id} retained"
                 )
-
-            expected_qty += remaining_qty
+            leaves = order.leaves_qty_lots
+            if leaves <= 0:
+                raise OrderBookInvariantError(
+                    f"Zero-lot order {order.id} retained"
+                )
+            total += leaves
             if order.liquidity_category == LiquidityCategory.STRATEGY:
-                expected_strategy_qty += remaining_qty
+                strategy += leaves
             else:
-                expected_market_qty += remaining_qty
-
+                market += leaves
         self._validate_cached_aggregates()
-        if not _quantities_equal(self.qty, expected_qty):
+        if (
+            self.level_qty_lots,
+            self.strategy_qty_lots,
+            self.market_qty_lots,
+        ) != (total, strategy, market):
             raise OrderBookInvariantError(
-                f"Level quantity mismatch: side={side}, price={self.price}, "
-                f"cached_qty={self.qty}, calculated_qty={expected_qty}, "
-                f"order_ids={sorted(seen_ids)}"
-            )
-        if not _quantities_equal(
-            self.strategy_qty,
-            expected_strategy_qty,
-        ):
-            raise OrderBookInvariantError(
-                f"Strategy quantity mismatch: side={side}, price={self.price}, "
-                f"cached_strategy_qty={self.strategy_qty}, "
-                f"calculated_strategy_qty={expected_strategy_qty}, "
-                f"order_ids={sorted(seen_ids)}"
-            )
-        if not _quantities_equal(self.market_qty, expected_market_qty):
-            raise OrderBookInvariantError(
-                f"Market quantity mismatch: side={side}, price={self.price}, "
-                f"cached_market_qty={self.market_qty}, "
-                f"calculated_market_qty={expected_market_qty}, "
-                f"order_ids={sorted(seen_ids)}"
+                f"Level aggregate mismatch at {side} {self.price_ticks}"
             )
 
 
@@ -1028,15 +1017,15 @@ class OrderBook:
             side, level = self._order_index[order.id]
             raise InvalidBookMutation(
                 f"Duplicate order id {order.id}: already resting at "
-                f"{side.value} {level.price}"
+                f"{side.value} {level.price_ticks}"
             )
         if order.tif != TimeInForce.GTC:
             raise InvalidBookMutation(
                 f"IOC order {order.id} cannot rest in book {self.symbol}"
             )
-        if order.price is None or not math.isfinite(order.price):
+        if order.order_type != OrderType.LIMIT or order.price_ticks is None:
             raise InvalidBookMutation(
-                f"Resting order {order.id} must have a finite limit price"
+                f"Resting order {order.id} must have a limit price"
             )
 
         levels = self.bids if order.side == Side.BUY else self.asks
@@ -1044,19 +1033,19 @@ class OrderBook:
         insertion_index = len(levels)
         existing_level = None
         for index, level in enumerate(levels):
-            if level.price == order.price:
+            if level.price_ticks == order.price_ticks:
                 insertion_index = index
                 existing_level = level
                 break
             if (
-                (reverse and level.price < order.price)
-                or (not reverse and level.price > order.price)
+                (reverse and level.price_ticks < order.price_ticks)
+                or (not reverse and level.price_ticks > order.price_ticks)
             ):
                 insertion_index = index
                 break
 
         level = existing_level or BookLevel(
-            price=order.price,
+            price_ticks=order.price_ticks,
             side=order.side,
         )
         level.add_order(order)
@@ -1091,8 +1080,8 @@ class OrderBook:
     def validate_fill(
         self,
         order: Order,
-        fill_qty: float,
-        fill_price: Optional[float] = None,
+        fill_qty_lots: int,
+        fill_price_ticks: Optional[int] = None,
     ) -> None:
         """Validate a resting fill without changing any book state."""
         location = self._order_index.get(order.id)
@@ -1110,46 +1099,50 @@ class OrderBook:
         if self._level_identity_index(levels, level) is None:
             raise OrderBookInvariantError(
                 f"Indexed level missing for order {order.id}: "
-                f"side={side.value}, price={level.price}"
+                f"side={side.value}, price_ticks={level.price_ticks}"
             )
-        resolved_price = order.price if fill_price is None else fill_price
+        resolved_price = (
+            order.price_ticks
+            if fill_price_ticks is None
+            else fill_price_ticks
+        )
         if resolved_price is None:
             raise InvalidBookMutation(
                 f"Resting order {order.id} has no fill price"
             )
         level._validate_resting_order(order)
-        order.validate_fill(fill_qty, resolved_price)
-        old_remaining_qty = order.remaining_qty
-        _, _, new_remaining_qty = order._preview_fill(
-            fill_qty,
+        order.validate_fill(fill_qty_lots, resolved_price)
+        old_leaves = order.leaves_qty_lots
+        _, _, new_leaves = order._preview_fill(
+            fill_qty_lots,
             resolved_price,
         )
         level._updated_aggregates(
             order,
-            -(old_remaining_qty - new_remaining_qty),
+            -(old_leaves - new_leaves),
         )
 
     def apply_fill(
         self,
         order: Order,
-        fill_qty: float,
-        fill_price: Optional[float] = None,
+        fill_qty_lots: int,
+        fill_price_ticks: Optional[int] = None,
     ) -> BookFillResult:
         """Atomically fill one resting order and clean up its level/index."""
-        self.validate_fill(order, fill_qty, fill_price)
+        self.validate_fill(order, fill_qty_lots, fill_price_ticks)
         side, level = self._order_index[order.id]
         levels = self.bids if side == Side.BUY else self.asks
         level_index = self._level_identity_index(levels, level)
         if level_index is None:
             raise OrderBookInvariantError(
                 f"Indexed level vanished for order {order.id}: "
-                f"side={side.value}, price={level.price}"
+                f"side={side.value}, price_ticks={level.price_ticks}"
             )
 
-        applied_qty, fully_filled = level.apply_fill(
+        applied_lots, fully_filled = level.apply_fill(
             order,
-            fill_qty,
-            fill_price,
+            fill_qty_lots,
+            fill_price_ticks,
         )
         level_removed = False
         if fully_filled:
@@ -1160,11 +1153,32 @@ class OrderBook:
 
         return BookFillResult(
             order_id=order.id,
-            fill_qty=applied_qty,
-            remaining_qty=order.remaining_qty,
+            fill_qty_lots=applied_lots,
+            leaves_qty_lots=order.leaves_qty_lots,
             fully_filled=fully_filled,
             level_removed=level_removed,
         )
+
+    def decrement_order(self, order: Order, quantity_lots: int) -> bool:
+        """Apply an STP decrement to a resting order and clean indexes."""
+        location = self._order_index.get(order.id)
+        if location is None:
+            raise InvalidBookMutation(
+                f"Order {order.id} is not resting in book {self.symbol}"
+            )
+        side, level = location
+        levels = self.bids if side == Side.BUY else self.asks
+        level_index = self._level_identity_index(levels, level)
+        if level_index is None:
+            raise OrderBookInvariantError(
+                f"Indexed level missing for order {order.id}"
+            )
+        removed = level.decrement_order(order, quantity_lots)
+        if removed:
+            del self._order_index[order.id]
+            if not level.orders:
+                del levels[level_index]
+        return removed
 
     def remove_order(self, order: Order) -> bool:
         """Remove a resting order once; a non-resting removal is a no-op."""
@@ -1175,14 +1189,14 @@ class OrderBook:
         if level._order_index(order) is None:
             raise OrderBookInvariantError(
                 f"Order index points to a queue without order {order.id}: "
-                f"side={side.value}, price={level.price}"
+                f"side={side.value}, price_ticks={level.price_ticks}"
             )
         levels = self.bids if side == Side.BUY else self.asks
         level_index = self._level_identity_index(levels, level)
         if level_index is None:
             raise OrderBookInvariantError(
                 f"Indexed level missing while removing order {order.id}: "
-                f"side={side.value}, price={level.price}"
+                f"side={side.value}, price_ticks={level.price_ticks}"
             )
 
         removed = level.remove_order(order)
@@ -1200,30 +1214,23 @@ class OrderBook:
             f"{order.id}; use apply_fill"
         )
 
-    def get_best_bid(self) -> Optional[float]:
-        return self.bids[0].price if self.bids else None
+    def get_best_bid_ticks(self) -> Optional[int]:
+        return self.bids[0].price_ticks if self.bids else None
 
-    def get_best_ask(self) -> Optional[float]:
-        return self.asks[0].price if self.asks else None
-
-    def get_mid_price(self) -> Optional[float]:
-        bid = self.get_best_bid()
-        ask = self.get_best_ask()
-        if bid is not None and ask is not None:
-            return (bid + ask) / 2
-        return None
+    def get_best_ask_ticks(self) -> Optional[int]:
+        return self.asks[0].price_ticks if self.asks else None
 
     def is_resting(self, order_id: int) -> bool:
         return order_id in self._order_index
 
     def assert_invariants(self) -> None:
         """Validate every level, FIFO membership, and lookup entry."""
-        seen_orders: Dict[int, Tuple[Side, float, Order, BookLevel]] = {}
+        seen_orders: Dict[int, Tuple[Side, int, Order, BookLevel]] = {}
         for side, levels in (
             (Side.BUY, self.bids),
             (Side.SELL, self.asks),
         ):
-            prices = [level.price for level in levels]
+            prices = [level.price_ticks for level in levels]
             expected_prices = sorted(
                 prices,
                 reverse=side == Side.BUY,
@@ -1241,40 +1248,43 @@ class OrderBook:
                         raise OrderBookInvariantError(
                             f"Wrong-symbol order {order.id}: "
                             f"book={self.symbol}, order={order.symbol}, "
-                            f"side={side.value}, price={level.price}"
+                            f"side={side.value}, "
+                            f"price_ticks={level.price_ticks}"
                         )
                     if order.id in seen_orders:
                         other_side, other_price, _, _ = seen_orders[order.id]
                         raise OrderBookInvariantError(
                             f"Order {order.id} appears multiple times: "
                             f"{other_side.value} {other_price} and "
-                            f"{side.value} {level.price}"
+                            f"{side.value} {level.price_ticks}"
                         )
                     seen_orders[order.id] = (
                         side,
-                        level.price,
+                        level.price_ticks,
                         order,
                         level,
                     )
 
         if self.bids:
-            actual_best_bid = max(level.price for level in self.bids)
-            if self.get_best_bid() != actual_best_bid:
+            actual_best_bid = max(level.price_ticks for level in self.bids)
+            if self.get_best_bid_ticks() != actual_best_bid:
                 raise OrderBookInvariantError(
                     f"Best bid mismatch in {self.symbol}: "
-                    f"cached={self.get_best_bid()}, actual={actual_best_bid}"
+                    f"cached={self.get_best_bid_ticks()}, "
+                    f"actual={actual_best_bid}"
                 )
         if self.asks:
-            actual_best_ask = min(level.price for level in self.asks)
-            if self.get_best_ask() != actual_best_ask:
+            actual_best_ask = min(level.price_ticks for level in self.asks)
+            if self.get_best_ask_ticks() != actual_best_ask:
                 raise OrderBookInvariantError(
                     f"Best ask mismatch in {self.symbol}: "
-                    f"cached={self.get_best_ask()}, actual={actual_best_ask}"
+                    f"cached={self.get_best_ask_ticks()}, "
+                    f"actual={actual_best_ask}"
                 )
 
         if self.bids and self.asks:
-            best_bid = self.bids[0].price
-            best_ask = self.asks[0].price
+            best_bid = self.bids[0].price_ticks
+            best_ask = self.asks[0].price_ticks
             if best_bid >= best_ask:
                 raise OrderBookInvariantError(
                     f"Crossed or locked book in {self.symbol}: "
@@ -1304,29 +1314,27 @@ class OrderBook:
 class PriceLevelSnapshot:
     """Immutable public view of one non-empty order-book price level."""
 
-    price: float
-    qty: float
-    strategy_qty: float
-    market_qty: float
+    price_ticks: int
+    level_qty_lots: int
+    strategy_qty_lots: int
+    market_qty_lots: int
     order_count: int
 
     def __post_init__(self) -> None:
-        if not math.isfinite(self.price) or self.price <= 0.0:
-            raise ValueError("Snapshot price must be positive and finite")
+        if self.price_ticks <= 0:
+            raise ValueError("Snapshot price ticks must be positive")
         for name, value in (
-            ("qty", self.qty),
-            ("strategy_qty", self.strategy_qty),
-            ("market_qty", self.market_qty),
+            ("level_qty_lots", self.level_qty_lots),
+            ("strategy_qty_lots", self.strategy_qty_lots),
+            ("market_qty_lots", self.market_qty_lots),
         ):
-            if not math.isfinite(value) or value < 0.0:
-                raise ValueError(
-                    f"Snapshot {name} must be non-negative and finite"
-                )
-        if self.qty <= QUANTITY_EPSILON:
+            if value < 0:
+                raise ValueError(f"Snapshot {name} must be non-negative")
+        if self.level_qty_lots <= 0:
             raise ValueError("Empty price levels cannot be published")
-        if not _quantities_equal(
-            self.qty,
-            self.strategy_qty + self.market_qty,
+        if (
+            self.level_qty_lots
+            != self.strategy_qty_lots + self.market_qty_lots
         ):
             raise ValueError(
                 "Snapshot category quantities must sum to total quantity"
@@ -1340,18 +1348,18 @@ class TradeSnapshot:
     """Immutable trade payload published exactly with its committed action."""
 
     trade_id: str
-    price: float
-    qty: float
+    price_ticks: int
+    qty_lots: int
     aggressor_side: Side
     timestamp: datetime
 
     def __post_init__(self) -> None:
         if not self.trade_id:
             raise ValueError("Trade snapshot requires a trade_id")
-        if not math.isfinite(self.price) or self.price <= 0.0:
-            raise ValueError("Trade snapshot price must be positive and finite")
-        if not math.isfinite(self.qty) or self.qty <= QUANTITY_EPSILON:
-            raise ValueError("Trade snapshot quantity must be positive and finite")
+        if self.price_ticks <= 0:
+            raise ValueError("Trade snapshot price ticks must be positive")
+        if self.qty_lots <= 0:
+            raise ValueError("Trade snapshot quantity lots must be positive")
         if self.timestamp.tzinfo is None:
             raise ValueError("Trade snapshot timestamp must be timezone-aware")
         if self.timestamp.utcoffset() != timedelta(0):
@@ -1363,6 +1371,7 @@ class MarketDataSnapshot:
     """Immutable, globally sequenced view of committed exchange state."""
 
     symbol: str
+    instrument: Instrument
     sequence: int
     timestamp: datetime
     bids: Tuple[PriceLevelSnapshot, ...]
@@ -1381,27 +1390,14 @@ class MarketDataSnapshot:
             )
         if self.timestamp.utcoffset() != timedelta(0):
             raise ValueError("Market-data snapshot timestamp must be UTC")
-        bid_prices = tuple(level.price for level in self.bids)
-        ask_prices = tuple(level.price for level in self.asks)
+        if self.instrument.symbol != self.symbol:
+            raise ValueError("Snapshot instrument must match its symbol")
+        bid_prices = tuple(level.price_ticks for level in self.bids)
+        ask_prices = tuple(level.price_ticks for level in self.asks)
         if bid_prices != tuple(sorted(bid_prices, reverse=True)):
             raise ValueError("Snapshot bids must be sorted best to worst")
         if ask_prices != tuple(sorted(ask_prices)):
             raise ValueError("Snapshot asks must be sorted best to worst")
-
-    @property
-    def bid_levels(self) -> Tuple[PriceLevelSnapshot, ...]:
-        """Compatibility name for pre-remediation metrics integrations."""
-        return self.bids
-
-    @property
-    def ask_levels(self) -> Tuple[PriceLevelSnapshot, ...]:
-        """Compatibility name for pre-remediation metrics integrations."""
-        return self.asks
-
-
-# Compatibility alias retained for integrations that imported the old name.
-# The aliased model is now a deeply immutable snapshot, not a live-book event.
-MarketDataUpdate = MarketDataSnapshot
 
 @dataclass(frozen=True, slots=True)
 class ExecutionReport:
@@ -1411,23 +1407,25 @@ class ExecutionReport:
     order_id: int
     cl_ord_id: str
     symbol: str
+    instrument: Instrument
     side: Side
-    order_qty: float
-    order_price: Optional[float]
+    order_type: OrderType
+    order_qty_lots: int
+    order_price_ticks: Optional[int]
     tif: TimeInForce
     ord_status: OrderStatus
     exec_type: ExecutionType
-    leaves_qty: float
-    cum_qty: float
-    canceled_qty: float
-    avg_px: float
+    leaves_qty_lots: int
+    cum_qty_lots: int
+    canceled_qty_lots: int
+    filled_notional_tick_lots: int
     submitted_at: datetime
     timestamp: datetime
     order_version: int
     exchange_order_id: Optional[str] = None
     run_generation: int = 0
-    last_px: Optional[float] = None
-    last_qty: Optional[float] = None
+    last_price_ticks: Optional[int] = None
+    last_qty_lots: Optional[int] = None
     trade_id: Optional[int] = None
     exchange_trade_id: Optional[str] = None
     orig_cl_ord_id: Optional[str] = None
@@ -1435,21 +1433,39 @@ class ExecutionReport:
     text: Optional[str] = None
     session_id: Optional[str] = None
     session_alias: Optional[str] = None
+    participant_id: Optional[str] = None
     cancel_ingress_sequence: Optional[int] = None
 
     def __post_init__(self) -> None:
         """Reject inconsistent status, execution type, and quantity snapshots."""
-        legacy_exec_types = {
-            "PARTIAL": ExecutionType.TRADE,
-            "FILLED": ExecutionType.TRADE,
-            "CANCELLED": ExecutionType.CANCELED,
-        }
-        raw_exec_type = self.exec_type
         try:
-            resolved_exec_type = ExecutionType(raw_exec_type)
-        except ValueError:
-            resolved_exec_type = legacy_exec_types.get(str(raw_exec_type))
-        if resolved_exec_type is None:
+            resolved_exec_type = ExecutionType(self.exec_type)
+        except ValueError as exc:
+            raise ValueError(
+                f"Unsupported execution type: {self.exec_type}"
+            ) from exc
+        if (
+            self.instrument.symbol != self.symbol
+            and self.ord_status != OrderStatus.REJECTED
+        ):
+            raise ValueError("Execution report instrument must match symbol")
+        if self.order_type == OrderType.LIMIT:
+            if (
+                self.ord_status != OrderStatus.REJECTED
+                and (
+                    self.order_price_ticks is None
+                    or self.order_price_ticks <= 0
+                )
+            ):
+                raise ValueError("Limit report requires positive price ticks")
+            if (
+                self.order_price_ticks is not None
+                and self.order_price_ticks <= 0
+            ):
+                raise ValueError("Price ticks cannot be non-positive")
+        elif self.order_price_ticks is not None:
+            raise ValueError("Market report cannot contain price ticks")
+        if resolved_exec_type not in ORDER_STATUSES_BY_EXECUTION_TYPE:
             raise ValueError(f"Unsupported execution type: {self.exec_type}")
         object.__setattr__(self, "exec_type", resolved_exec_type)
 
@@ -1462,35 +1478,27 @@ class ExecutionReport:
                 f"ord_status={self.ord_status.value}"
             )
 
-        quantities = (
-            self.order_qty,
-            self.cum_qty,
-            self.leaves_qty,
-            self.canceled_qty,
-            self.avg_px,
-        )
-        if not all(math.isfinite(value) for value in quantities):
-            raise ValueError("Execution report quantities must be finite")
-        if self.order_qty < 0:
+        if self.order_qty_lots < 0:
             raise ValueError("Execution report OrderQty cannot be negative")
-        if (
-            self.cum_qty < 0
-            or self.leaves_qty < 0
-            or self.canceled_qty < 0
-            or self.avg_px < 0
-        ):
+        quantities = (
+            self.cum_qty_lots,
+            self.leaves_qty_lots,
+            self.canceled_qty_lots,
+            self.filled_notional_tick_lots,
+        )
+        if any(value < 0 for value in quantities):
             raise ValueError("Execution report quantities cannot be negative")
         if (
-            self.cum_qty > self.order_qty + QUANTITY_EPSILON
-            or self.leaves_qty > self.order_qty + QUANTITY_EPSILON
-            or self.canceled_qty > self.order_qty + QUANTITY_EPSILON
+            self.cum_qty_lots > self.order_qty_lots
+            or self.leaves_qty_lots > self.order_qty_lots
+            or self.canceled_qty_lots > self.order_qty_lots
         ):
             raise ValueError("Execution report quantities cannot exceed order quantity")
-        if not math.isclose(
-            self.cum_qty + self.leaves_qty + self.canceled_qty,
-            self.order_qty,
-            rel_tol=0.0,
-            abs_tol=QUANTITY_EPSILON,
+        if (
+            self.cum_qty_lots
+            + self.leaves_qty_lots
+            + self.canceled_qty_lots
+            != self.order_qty_lots
         ):
             raise ValueError(
                 "CumQty plus LeavesQty plus CanceledQty must equal OrderQty"
@@ -1499,49 +1507,44 @@ class ExecutionReport:
             raise ValueError("ExecID is required")
 
         if resolved_exec_type == ExecutionType.TRADE:
-            if (
-                self.last_qty is None
-                or not math.isfinite(self.last_qty)
-                or self.last_qty <= 0.0
-            ):
+            if self.last_qty_lots is None or self.last_qty_lots <= 0:
                 raise ValueError("TRADE reports require positive LastQty")
-            if self.last_qty > self.cum_qty + QUANTITY_EPSILON:
+            if self.last_qty_lots > self.cum_qty_lots:
                 raise ValueError("LastQty cannot exceed CumQty")
-            if (
-                self.last_px is None
-                or not math.isfinite(self.last_px)
-                or self.last_px <= 0.0
-            ):
+            if self.last_price_ticks is None or self.last_price_ticks <= 0:
                 raise ValueError("TRADE reports require positive LastPx")
             if self.trade_id is None:
                 raise ValueError("TRADE reports require a TradeID")
-        elif self.last_qty is not None or self.last_px is not None:
+        elif (
+            self.last_qty_lots is not None
+            or self.last_price_ticks is not None
+        ):
             raise ValueError(
                 "Only TRADE reports may contain LastQty or LastPx"
             )
 
         if self.ord_status == OrderStatus.NEW:
-            if not _quantities_equal(self.cum_qty, 0.0):
+            if self.cum_qty_lots != 0:
                 raise ValueError("NEW execution reports must have zero CumQty")
-            if not _quantities_equal(self.canceled_qty, 0.0):
+            if self.canceled_qty_lots != 0:
                 raise ValueError(
                     "NEW execution reports must have zero CanceledQty"
                 )
         elif self.ord_status == OrderStatus.PARTIAL:
-            if self.cum_qty <= QUANTITY_EPSILON:
+            if self.cum_qty_lots <= 0:
                 raise ValueError("PARTIAL reports require positive CumQty")
-            if self.leaves_qty <= QUANTITY_EPSILON:
+            if self.leaves_qty_lots <= 0:
                 raise ValueError("PARTIAL reports require positive LeavesQty")
-            if not _quantities_equal(self.canceled_qty, 0.0):
+            if self.canceled_qty_lots != 0:
                 raise ValueError(
                     "PARTIAL reports must have zero CanceledQty"
                 )
         elif self.ord_status == OrderStatus.FILLED:
-            if not _quantities_equal(self.cum_qty, self.order_qty):
+            if self.cum_qty_lots != self.order_qty_lots:
                 raise ValueError("FILLED reports require CumQty equal OrderQty")
-            if not _quantities_equal(self.leaves_qty, 0.0):
+            if self.leaves_qty_lots != 0:
                 raise ValueError("FILLED execution reports require zero LeavesQty")
-            if not _quantities_equal(self.canceled_qty, 0.0):
+            if self.canceled_qty_lots != 0:
                 raise ValueError(
                     "FILLED execution reports require zero CanceledQty"
                 )
@@ -1549,23 +1552,32 @@ class ExecutionReport:
             OrderStatus.CANCELLED,
             OrderStatus.REJECTED,
         }:
-            if not _quantities_equal(self.leaves_qty, 0.0):
+            if self.leaves_qty_lots != 0:
                 raise ValueError(
                     "Terminal non-fill reports require zero LeavesQty"
                 )
             if (
                 self.ord_status == OrderStatus.CANCELLED
-                and self.canceled_qty <= QUANTITY_EPSILON
+                and self.canceled_qty_lots <= 0
             ):
                 raise ValueError(
                     "CANCELLED reports require positive CanceledQty"
                 )
+        if self.cum_qty_lots == 0 and self.filled_notional_tick_lots != 0:
+            raise ValueError("Unfilled reports require zero filled notional")
+        if self.cum_qty_lots > 0 and self.filled_notional_tick_lots <= 0:
+            raise ValueError("Filled reports require positive filled notional")
 
-        if self.cum_qty <= QUANTITY_EPSILON:
-            if not _quantities_equal(self.avg_px, 0.0):
-                raise ValueError("Unfilled reports require zero AvgPx")
-        elif self.avg_px <= 0.0:
-            raise ValueError("Filled reports require positive AvgPx")
+    @property
+    def average_fill_price(self) -> Decimal:
+        """Return the exact unrounded average captured by this report."""
+        if self.cum_qty_lots == 0:
+            return Decimal(0)
+        return (
+            self.instrument.tick_size
+            * Decimal(self.filled_notional_tick_lots)
+            / Decimal(self.cum_qty_lots)
+        )
 
 
 def create_execution_report(
@@ -1574,8 +1586,8 @@ def create_execution_report(
     exec_type: Union[ExecutionType, str],
     timestamp: datetime,
     exec_id: str,
-    last_px: Optional[float] = None,
-    last_qty: Optional[float] = None,
+    last_price_ticks: Optional[int] = None,
+    last_qty_lots: Optional[int] = None,
     trade_id: Optional[int] = None,
     exchange_trade_id: Optional[str] = None,
     cl_ord_id: Optional[str] = None,
@@ -1584,15 +1596,8 @@ def create_execution_report(
     cancel_ingress_sequence: Optional[int] = None,
 ) -> ExecutionReport:
     """Capture and validate every execution-report value from ``order`` now."""
-    cum_qty = order.filled_qty
-    leaves_qty = order.remaining_qty
-    resolved_exec_type = {
-        "PARTIAL": ExecutionType.TRADE,
-        "FILLED": ExecutionType.TRADE,
-        "CANCELLED": ExecutionType.CANCELED,
-    }.get(str(exec_type), exec_type)
     try:
-        execution_type = ExecutionType(resolved_exec_type)
+        execution_type = ExecutionType(exec_type)
     except ValueError as exc:
         raise ValueError(f"Unsupported execution type: {exec_type}") from exc
 
@@ -1601,24 +1606,27 @@ def create_execution_report(
         order_id=order.id,
         cl_ord_id=cl_ord_id or order.cl_ord_id,
         symbol=order.symbol,
+        instrument=order.instrument,
         side=order.side,
-        order_qty=order.qty,
-        order_price=order.price,
+        order_type=order.order_type,
+        order_qty_lots=order.order_qty_lots,
+        order_price_ticks=order.price_ticks,
         tif=order.tif,
         ord_status=order.status,
-        exec_type=exec_type,
-        leaves_qty=leaves_qty,
-        cum_qty=cum_qty,
-        canceled_qty=order.canceled_qty,
-        avg_px=order.avg_fill_price or 0.0,
-        last_px=last_px,
-        last_qty=last_qty,
+        exec_type=execution_type,
+        leaves_qty_lots=order.leaves_qty_lots,
+        cum_qty_lots=order.filled_qty_lots,
+        canceled_qty_lots=order.canceled_qty_lots,
+        filled_notional_tick_lots=order.filled_notional_tick_lots,
+        last_price_ticks=last_price_ticks,
+        last_qty_lots=last_qty_lots,
         trade_id=trade_id,
         orig_cl_ord_id=orig_cl_ord_id,
         reject_reason=order.reject_reason,
         text=text,
         session_id=order.session_id,
         session_alias=order.session_alias,
+        participant_id=order.participant_id,
         cancel_ingress_sequence=cancel_ingress_sequence,
         submitted_at=order.ts_submitted,
         timestamp=timestamp,
@@ -1861,9 +1869,9 @@ class MetricsSnapshot:
     cancel_stale_run_generation: int
     execution_reports: int
     trades: int
-    traded_quantity: float
-    traded_notional: float
-    canceled_quantity: float
+    traded_quantity: str
+    traded_notional: str
+    canceled_quantity: str
     active_orders: int
     resting_orders: int
     order_book_levels: int
@@ -1962,16 +1970,3 @@ class MetricsSnapshot:
                 "buffered_records": self.buffered_metric_records,
             },
         }
-
-
-@dataclass(frozen=True, slots=True)
-class ExchangeConfig:
-    """Complete exchange configuration."""
-    exchange_name: str
-    symbols: List[str]
-    latency: Dict[str, int]
-    execution: Dict[str, float]
-    fix: Dict[str, Any]
-    admin_api: Dict[str, int]
-    prometheus: Dict[str, Any]
-    tsdb: Optional[Dict[str, Any]] = None

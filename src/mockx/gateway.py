@@ -8,8 +8,8 @@ import asyncio
 from concurrent.futures import Future
 from datetime import timedelta
 import logging
-from typing import Callable, Dict, Optional, Union
-import math
+from pathlib import Path
+from typing import Callable, Dict, Mapping, Optional, Union
 import threading
 
 from .identifiers import RunIdentifierScope
@@ -34,6 +34,7 @@ from .models import (
     FixIngressEnvelope,
     IngressBarrier,
     NewOrderCommand,
+    OrderType,
     OrderStatus,
     ParsedFixCommand,
     SessionIdentity,
@@ -45,6 +46,12 @@ from .fix_fields import cancel_reject_fields, execution_report_fields
 from .metrics import MetricsCollector, LatencyTracker
 from .engine import MatchingEngine
 from .latency import MonotonicClock, PerfCounterClock, monotonic_duration_ns
+from .validation import (
+    OrderNormalizer,
+    OrderValidationCode,
+    OrderValidationError,
+    RawOrderInput,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +59,61 @@ _FIX_APPLICATION_BASE = fix.Application if fix is not None else object
 
 
 RoutableReport = Union[ExecutionReport, CancelReject]
+
+
+def configured_fix_session_ids(config_path: str) -> set[str]:
+    """Read repeated QuickFIX SESSION blocks into stable SessionID strings."""
+    defaults: dict[str, str] = {}
+    sessions: list[dict[str, str]] = []
+    current: Optional[dict[str, str]] = None
+    section: Optional[str] = None
+    for line_number, raw_line in enumerate(
+        Path(config_path).read_text(encoding="utf-8").splitlines(),
+        start=1,
+    ):
+        line = raw_line.strip()
+        if not line or line.startswith(("#", ";")):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            if section == "SESSION" and current is not None:
+                sessions.append(current)
+            section = line[1:-1].strip().upper()
+            current = {} if section == "SESSION" else None
+            continue
+        if "=" not in line:
+            raise ValueError(
+                f"Invalid QuickFIX setting at {config_path}:{line_number}"
+            )
+        key, value = (part.strip() for part in line.split("=", 1))
+        if section == "DEFAULT":
+            defaults[key] = value
+        elif section == "SESSION" and current is not None:
+            current[key] = value
+    if section == "SESSION" and current is not None:
+        sessions.append(current)
+    if not sessions:
+        raise ValueError("QuickFIX settings contain no SESSION blocks")
+
+    result: set[str] = set()
+    for index, overrides in enumerate(sessions, start=1):
+        settings = {**defaults, **overrides}
+        missing = [
+            name
+            for name in ("BeginString", "SenderCompID", "TargetCompID")
+            if not settings.get(name)
+        ]
+        if missing:
+            raise ValueError(
+                f"QuickFIX SESSION {index} is missing: {', '.join(missing)}"
+            )
+        session_id = (
+            f"{settings['BeginString']}:"
+            f"{settings['SenderCompID']}->{settings['TargetCompID']}"
+        )
+        if session_id in result:
+            raise ValueError(f"Duplicate QuickFIX session: {session_id}")
+        result.add(session_id)
+    return result
 
 
 def report_destination_id(report: RoutableReport) -> Optional[str]:
@@ -178,6 +240,8 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         monotonic_clock: Optional[MonotonicClock] = None,
         lifecycle: Optional[ExchangeLifecycle] = None,
         delivery_queue: Optional[OutboundFixDeliveryQueue] = None,
+        order_normalizer: Optional[OrderNormalizer] = None,
+        session_participants: Optional[Mapping[str, str]] = None,
         delivery_retry_interval_ms: int = 1_000,
         delivery_max_attempts_per_cycle: int = 3,
     ):
@@ -189,6 +253,10 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         self.transport_sender = transport_sender or self._send_to_quickfix
         self.monotonic_clock = monotonic_clock or PerfCounterClock()
         self.lifecycle = lifecycle
+        self.order_normalizer = (
+            order_normalizer or OrderNormalizer(engine.instruments)
+        )
+        self.session_participants = dict(session_participants or {})
         self.delivery_queue = delivery_queue or OutboundFixDeliveryQueue(
             retry_interval_ms=delivery_retry_interval_ms,
             max_attempts_per_cycle=delivery_max_attempts_per_cycle,
@@ -204,6 +272,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             tuple[int, int], Future[FixIngressEnvelope]
         ] = {}
         self._pending_ingress: list[FixIngressEnvelope] = []
+        self._pending_lifecycle_actions: set[Future[None]] = set()
 
     def reset_run_state(self, identifiers: RunIdentifierScope) -> None:
         """Reset all run-local ingress state and install the new ID scope."""
@@ -376,6 +445,10 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             )
             return
 
+        completion: Future[None] = Future()
+        with self._ingress_lock:
+            self._pending_lifecycle_actions.add(completion)
+
         def _record_and_run():
             self.metrics.record_fix_message(
                 ref_msg_type,
@@ -385,20 +458,51 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             return action()
 
         if self.lifecycle is None:
-            loop.call_soon_threadsafe(_record_and_run)
+            def _execute_without_lifecycle() -> None:
+                try:
+                    _record_and_run()
+                except BaseException as exc:
+                    completion.set_exception(exc)
+                    raise
+                else:
+                    completion.set_result(None)
+
+            loop.call_soon_threadsafe(_execute_without_lifecycle)
             return
 
         async def _execute() -> None:
             try:
                 await self.lifecycle.execute_ingress(token, _record_and_run)
             except LifecycleIngressRejected as exc:
-                self._send_lifecycle_reject(
-                    sessionID,
-                    exc.code,
-                    ref_msg_type=ref_msg_type,
-                )
+                try:
+                    self._send_lifecycle_reject(
+                        sessionID,
+                        exc.code,
+                        ref_msg_type=ref_msg_type,
+                    )
+                except BaseException as send_exc:
+                    completion.set_exception(send_exc)
+                    raise
+                else:
+                    completion.set_result(None)
+            except BaseException as exc:
+                completion.set_exception(exc)
+                raise
+            else:
+                completion.set_result(None)
 
         loop.call_soon_threadsafe(lambda: loop.create_task(_execute()))
+
+    async def _await_lifecycle_actions(self) -> None:
+        """Wait for validation/lifecycle rejects scheduled by FIX callbacks."""
+        with self._ingress_lock:
+            pending = tuple(self._pending_lifecycle_actions)
+        if pending:
+            await asyncio.gather(
+                *(asyncio.wrap_future(future) for future in pending)
+            )
+        with self._ingress_lock:
+            self._pending_lifecycle_actions.difference_update(pending)
 
     def _submit_ingress(
         self,
@@ -436,8 +540,9 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     orig_cl_ord_id=parsed.orig_cl_ord_id,
                     symbol=parsed.symbol,
                     side=parsed.side,
-                    qty=parsed.qty,
-                    price=parsed.price,
+                    order_type=parsed.order_type,
+                    order_qty_lots=parsed.order_qty_lots,
+                    price_ticks=parsed.price_ticks,
                     tif=parsed.tif,
                     ingress_sequence=sequence,
                     simulated_receive_timestamp=(
@@ -597,6 +702,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         through_sequence: Optional[int] = None,
     ) -> IngressBarrier:
         """Acknowledge and schedule the captured FIX ingress high-water mark."""
+        await self._await_lifecycle_actions()
         observed = (
             self.lifecycle.token
             if self.lifecycle is not None
@@ -681,44 +787,67 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             )
             return
         try:
-            cl_ord_id = self._get_field(message, fix.ClOrdID())
-            symbol = self._get_field(message, fix.Symbol()).strip().upper()
-            side = self._get_field(message, fix.Side())
-            order_qty = self._get_field(message, fix.OrderQty())
-            ord_type = self._get_field(message, fix.OrdType())
             identity = self._session_identity(sessionID)
-
-            if side == fix.Side_BUY:
-                order_side = Side.BUY
-            elif side == fix.Side_SELL:
-                order_side = Side.SELL
+            cl_ord_id = self._get_field(message, fix.ClOrdID())
+            symbol = self._get_field(message, fix.Symbol())
+            side_value = self._get_field(message, fix.Side())
+            order_qty = self._get_field(message, fix.StringField(38))
+            ord_type = self._get_field(message, fix.OrdType())
+            if side_value == fix.Side_BUY:
+                raw_side = Side.BUY
+            elif side_value == fix.Side_SELL:
+                raw_side = Side.SELL
             else:
-                raise ValueError(f"Invalid side: {side}")
+                raw_side = side_value
 
-            price = None
+            raw_price = None
             if ord_type == fix.OrdType_LIMIT:
-                price = float(self._get_field(message, fix.Price()))
-            elif ord_type != fix.OrdType_MARKET:
-                raise ValueError(f"Unsupported order type: {ord_type}")
+                raw_order_type = OrderType.LIMIT
+                raw_price = self._get_field(message, fix.StringField(44))
+            elif ord_type == fix.OrdType_MARKET:
+                raw_order_type = OrderType.MARKET
+                if message.isSetField(fix.Price()):
+                    raw_price = self._get_field(message, fix.StringField(44))
+            else:
+                raw_order_type = ord_type
 
-            tif = TimeInForce.GTC
+            raw_tif = None
             if message.isSetField(fix.TimeInForce()):
                 tif_value = self._get_field(message, fix.TimeInForce())
                 if tif_value == fix.TimeInForce_IMMEDIATE_OR_CANCEL:
-                    tif = TimeInForce.IOC
-                elif tif_value != fix.TimeInForce_GOOD_TILL_CANCEL:
-                    raise ValueError(f"Unsupported TimeInForce: {tif_value}")
+                    raw_tif = TimeInForce.IOC
+                elif tif_value == fix.TimeInForce_GOOD_TILL_CANCEL:
+                    raw_tif = TimeInForce.GTC
+                else:
+                    raw_tif = tif_value
+
+            command = self.order_normalizer.normalize(
+                RawOrderInput(
+                    session_id=identity.session_id,
+                    participant_id=identity.participant_id,
+                    cl_ord_id=cl_ord_id,
+                    symbol=symbol,
+                    side=raw_side,
+                    order_type=raw_order_type,
+                    quantity=order_qty,
+                    price=raw_price,
+                    time_in_force=raw_tif,
+                    session_alias=identity.alias,
+                ),
+                submitted_at=self.engine.scheduler.current_time,
+            )
 
             parsed = ParsedFixCommand(
                 command_type=FixCommandType.NEW_ORDER,
                 session=identity,
                 msg_seq_num=msg_seq_num,
-                cl_ord_id=cl_ord_id,
-                symbol=symbol,
-                side=order_side,
-                qty=float(order_qty),
-                price=price,
-                tif=tif,
+                cl_ord_id=command.cl_ord_id,
+                symbol=command.symbol,
+                side=command.side,
+                order_type=command.order_type,
+                order_qty_lots=command.order_qty_lots,
+                price_ticks=command.price_ticks,
+                tif=command.tif,
             )
             self._submit_ingress(
                 parsed,
@@ -729,33 +858,76 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 ),
                 sessionID,
             )
-        except Exception as e:
-            logger.error(f"Error handling NewOrderSingle: {e}")
-            _cl_ord_id = cl_ord_id if 'cl_ord_id' in locals() else "UNKNOWN"
-            _symbol = symbol if 'symbol' in locals() else "UNKNOWN"
-            _side = order_side if 'order_side' in locals() else Side.BUY
-            _qty = float(order_qty) if 'order_qty' in locals() else 0.0
-            _price = price if 'price' in locals() else None
-            _tif = tif if 'tif' in locals() else TimeInForce.GTC
+        except OrderValidationError as exc:
+            logger.info("FIX order validation failed: %s", exc)
+            validation_code = exc.code
+            validation_message = exc.message
             _identity = (
                 identity
                 if "identity" in locals()
                 else self._session_identity(sessionID)
             )
-            _error_text = str(e)
-
-            def _reject():
-                self._send_input_rejection(
+            if exc.code == OrderValidationCode.INVALID_CL_ORD_ID:
+                self._schedule_lifecycle_action(
                     sessionID,
-                    cl_ord_id=_cl_ord_id,
-                    symbol=_symbol,
-                    side=_side,
-                    qty=_qty,
-                    price=_price,
-                    tif=_tif,
-                    session_id=_identity.session_id,
-                    session_alias=_identity.alias,
-                    text=_error_text,
+                    fix.MsgType_NewOrderSingle,
+                    token
+                    or IngressToken(
+                        LifecycleState.ACTIVE,
+                        self.identifier_scope.generation,
+                    ),
+                    lambda code=validation_code, message=validation_message: (
+                        self.send_business_reject(
+                        sessionID,
+                        f"{code.value}: {message}",
+                        ref_msg_type=fix.MsgType_NewOrderSingle,
+                        )
+                    ),
+                )
+                return
+
+            def _reject(
+                code=validation_code,
+                message=validation_message,
+                rejected_identity=_identity,
+                rejected_cl_ord_id=(
+                    cl_ord_id if "cl_ord_id" in locals() else "UNAVAILABLE"
+                ),
+                rejected_symbol=(
+                    str(symbol).strip().upper()
+                    if "symbol" in locals()
+                    else "UNKNOWN"
+                ),
+                rejected_side=(
+                    raw_side
+                    if "raw_side" in locals()
+                    and isinstance(raw_side, Side)
+                    else Side.BUY
+                ),
+                rejected_order_type=(
+                    raw_order_type
+                    if "raw_order_type" in locals()
+                    and isinstance(raw_order_type, OrderType)
+                    else OrderType.LIMIT
+                ),
+                rejected_tif=(
+                    raw_tif
+                    if "raw_tif" in locals()
+                    and isinstance(raw_tif, TimeInForce)
+                    else TimeInForce.GTC
+                ),
+            ):
+                self._send_input_rejection(
+                    cl_ord_id=rejected_cl_ord_id,
+                    symbol=rejected_symbol,
+                    side=rejected_side,
+                    order_type=rejected_order_type,
+                    tif=rejected_tif,
+                    session_id=rejected_identity.session_id,
+                    session_alias=rejected_identity.alias,
+                    participant_id=rejected_identity.participant_id,
+                    code=code.value,
+                    text=message,
                 )
 
             self._schedule_lifecycle_action(
@@ -767,6 +939,27 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     self.identifier_scope.generation,
                 ),
                 _reject,
+            )
+        except Exception as exc:
+            logger.info("Malformed FIX NewOrderSingle: %s", exc)
+            malformed_text = (
+                "INVALID_CL_ORD_ID: missing or unusable ClOrdID"
+                if "cl_ord_id" not in locals()
+                else f"INVALID_FIX_MESSAGE: {exc}"
+            )
+            self._schedule_lifecycle_action(
+                sessionID,
+                fix.MsgType_NewOrderSingle,
+                token
+                or IngressToken(
+                    LifecycleState.ACTIVE,
+                    self.identifier_scope.generation,
+                ),
+                lambda text=malformed_text: self.send_business_reject(
+                    sessionID,
+                    text,
+                    ref_msg_type=fix.MsgType_NewOrderSingle,
+                ),
             )
 
     def process_new_order_envelope(
@@ -782,34 +975,41 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             cl_ord_id=envelope.cl_ord_id,
             symbol=envelope.symbol,
             side=envelope.side,
-            qty=envelope.qty,
-            price=envelope.price,
+            order_type=envelope.order_type or OrderType.LIMIT,
+            order_qty_lots=envelope.order_qty_lots,
+            price_ticks=envelope.price_ticks,
             tif=envelope.tif or TimeInForce.GTC,
             submitted_at=envelope.simulated_receive_timestamp,
             session_id=envelope.session.session_id,
             session_alias=envelope.session.alias,
+            participant_id=envelope.session.participant_id,
         )
         if not self.session_registry.claim_cl_ord_id(
             command.session_id,
             command.cl_ord_id,
         ):
             self._send_input_rejection(
-                None,
                 cl_ord_id=command.cl_ord_id,
                 symbol=command.symbol,
                 side=command.side,
-                qty=command.qty,
-                price=command.price,
+                order_type=command.order_type,
+                order_qty_lots=command.order_qty_lots,
+                price_ticks=command.price_ticks,
                 tif=command.tif,
                 session_id=command.session_id,
                 session_alias=command.session_alias,
-                text=(
-                    "Duplicate ClOrdID in FIX session: "
-                    f"{command.cl_ord_id}"
-                ),
+                participant_id=command.participant_id,
+                code=OrderValidationCode.DUPLICATE_CL_ORD_ID.value,
+                text=f"Duplicate ClOrdID in session: {command.cl_ord_id}",
             )
             return None
-        order_id = self.engine.submit_order(command)
+        try:
+            order_id = self.engine.submit_order(command)
+        except Exception:
+            logger.exception(
+                "Validated FIX command failed during engine submission"
+            )
+            raise
         logger.debug(
             "Deterministic FIX order submitted: %s -> %s",
             command.cl_ord_id,
@@ -834,26 +1034,40 @@ class FIXApplication(_FIX_APPLICATION_BASE):
 
     def _send_input_rejection(
         self,
-        sessionID,
         *,
         cl_ord_id: str,
         symbol: str,
         side: Side,
-        qty: float,
-        price: Optional[float],
+        order_type: OrderType,
         tif: TimeInForce,
         session_id: Optional[str],
         session_alias: Optional[str],
+        participant_id: Optional[str],
+        code: str,
         text: str,
+        order_qty_lots: int = 0,
+        price_ticks: Optional[int] = None,
     ) -> None:
         """Build a terminal immutable snapshot for a malformed new order."""
         simulated_time = self.engine.scheduler.current_time
-        safe_qty = qty if math.isfinite(qty) and qty >= 0 else 0.0
-        safe_price = (
-            price
-            if price is not None and math.isfinite(price) and price > 0.0
+        instrument = self.engine.instruments.require(
+            self.engine.instruments.symbols[0]
+        )
+        safe_qty_lots = (
+            order_qty_lots
+            if isinstance(order_qty_lots, int)
+            and not isinstance(order_qty_lots, bool)
+            and order_qty_lots >= 0
+            else 0
+        )
+        safe_price_ticks = (
+            price_ticks
+            if isinstance(price_ticks, int)
+            and not isinstance(price_ticks, bool)
+            and price_ticks > 0
             else None
         )
+        rejection_text = f"{code}: {text}"
         exec_id = self.identifier_scope.next_exec_id()
         exchange_order_id = self.identifier_scope.next_order_id()
         report = ExecutionReport(
@@ -863,20 +1077,23 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             run_generation=self.identifier_scope.generation,
             cl_ord_id=cl_ord_id,
             symbol=symbol,
+            instrument=instrument,
             side=side,
-            order_qty=safe_qty,
-            order_price=safe_price,
+            order_type=order_type,
+            order_qty_lots=safe_qty_lots,
+            order_price_ticks=safe_price_ticks,
             tif=tif,
             ord_status=OrderStatus.REJECTED,
             exec_type=ExecutionType.REJECTED,
-            leaves_qty=0.0,
-            cum_qty=0.0,
-            canceled_qty=safe_qty,
-            avg_px=0.0,
-            reject_reason=text,
-            text=text,
+            leaves_qty_lots=0,
+            cum_qty_lots=0,
+            canceled_qty_lots=safe_qty_lots,
+            filled_notional_tick_lots=0,
+            reject_reason=rejection_text,
+            text=rejection_text,
             session_id=session_id,
             session_alias=session_alias,
+            participant_id=participant_id,
             submitted_at=simulated_time,
             timestamp=simulated_time,
             order_version=0,
@@ -914,15 +1131,25 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             cl_ord_id = self._get_field(message, fix.ClOrdID())
             orig_cl_ord_id = self._get_field(message, fix.OrigClOrdID())
             symbol = self._get_field(message, fix.Symbol()).strip().upper()
-            side = self._get_field(message, fix.Side())
-            qty = float(self._get_field(message, fix.OrderQty()))
+            side_value = self._get_field(message, fix.Side())
+            raw_qty = self._get_field(message, fix.StringField(38))
             identity = self._session_identity(sessionID)
-            if side == fix.Side_BUY:
+            self.order_normalizer._cl_ord_id(cl_ord_id)
+            self.order_normalizer._cl_ord_id(orig_cl_ord_id)
+            instrument = self.engine.instruments.get(symbol)
+            if instrument is None:
+                raise OrderValidationError(
+                    OrderValidationCode.UNKNOWN_SYMBOL,
+                    "symbol",
+                    f"unsupported symbol: {symbol}",
+                )
+            qty_lots = instrument.quantity_to_lots(raw_qty)
+            if side_value == fix.Side_BUY:
                 order_side = Side.BUY
-            elif side == fix.Side_SELL:
+            elif side_value == fix.Side_SELL:
                 order_side = Side.SELL
             else:
-                raise ValueError(f"Invalid side: {side}")
+                raise ValueError(f"Invalid side: {side_value}")
             parsed = ParsedFixCommand(
                 command_type=FixCommandType.CANCEL_ORDER,
                 session=identity,
@@ -931,7 +1158,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 orig_cl_ord_id=orig_cl_ord_id,
                 symbol=symbol,
                 side=order_side,
-                qty=qty,
+                order_qty_lots=qty_lots,
             )
             self._submit_ingress(
                 parsed,
@@ -968,16 +1195,17 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                         if "order_side" in locals()
                         else Side.BUY
                     ),
-                    qty=(
-                        qty
-                        if "qty" in locals()
-                        and math.isfinite(qty)
-                        and qty > 0
-                        else 1.0
+                    order_qty_lots=(
+                        qty_lots if "qty_lots" in locals() else 0
                     ),
                     requested_at=self.engine.scheduler.current_time,
                     session_id=sessionID.toString(),
                     session_alias=sessionID.getTargetCompID().getValue(),
+                    participant_id=(
+                        identity.participant_id
+                        if "identity" in locals()
+                        else None
+                    ),
                     run_generation=self.identifier_scope.generation,
                 )
                 rejection = create_cancel_reject(
@@ -1014,10 +1242,11 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             orig_cl_ord_id=envelope.orig_cl_ord_id or "",
             symbol=envelope.symbol,
             side=envelope.side,
-            qty=envelope.qty,
+            order_qty_lots=envelope.order_qty_lots,
             requested_at=envelope.simulated_receive_timestamp,
             session_id=envelope.session.session_id,
             session_alias=envelope.session.alias,
+            participant_id=envelope.session.participant_id,
             run_generation=envelope.run_generation,
             ingress_sequence=envelope.ingress_sequence,
             msg_seq_num=envelope.msg_seq_num,
@@ -1095,25 +1324,28 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         msg.setField(fix.OrderID(str(fields["OrderID"])))
         msg.setField(fix.Symbol(str(fields["Symbol"])))
         msg.setField(fix.Side(str(fields["Side"])))
-        msg.setField(fix.LeavesQty(float(fields["LeavesQty"])))
-        msg.setField(fix.CumQty(float(fields["CumQty"])))
-        msg.setField(fix.AvgPx(float(fields["AvgPx"])))
-        msg.setField(fix.OrderQty(float(fields["OrderQty"])))
+        msg.setField(fix.StringField(151, str(fields["LeavesQty"])))
+        msg.setField(fix.StringField(14, str(fields["CumQty"])))
+        msg.setField(fix.StringField(6, str(fields["AvgPx"])))
+        msg.setField(fix.StringField(38, str(fields["OrderQty"])))
+        msg.setField(fix.OrdType(str(fields["OrdType"])))
         msg.setField(fix.TimeInForce(str(fields["TimeInForce"])))
 
         # Optional fields
         if "OrigClOrdID" in fields:
             msg.setField(fix.OrigClOrdID(str(fields["OrigClOrdID"])))
         if "Price" in fields:
-            msg.setField(fix.Price(float(fields["Price"])))
+            msg.setField(fix.StringField(44, str(fields["Price"])))
         if "LastPx" in fields:
-            msg.setField(fix.LastPx(float(fields["LastPx"])))
+            msg.setField(fix.StringField(31, str(fields["LastPx"])))
         if "LastQty" in fields:
-            msg.setField(fix.LastQty(float(fields["LastQty"])))
+            msg.setField(fix.StringField(32, str(fields["LastQty"])))
         if "TradeID" in fields:
             msg.setField(fix.StringField(1003, str(fields["TradeID"])))
         if "Text" in fields:
             msg.setField(fix.Text(str(fields["Text"])))
+        if "OrdRejReason" in fields:
+            msg.setField(fix.OrdRejReason(int(fields["OrdRejReason"])))
 
         serialize_end_ns = self.monotonic_clock.now_ns()
         try:
@@ -1199,6 +1431,21 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             reject.setField(fix.RefMsgType(ref_msg_type))
         reject.setField(fix.Text(text))
         
+        fix.Session.sendToTarget(reject, sessionID)
+
+    def send_business_reject(
+        self,
+        sessionID,
+        text: str,
+        *,
+        ref_msg_type: str,
+    ) -> None:
+        """Send FIX BusinessMessageReject (35=j) for unusable application data."""
+        reject = fix.Message()
+        reject.getHeader().setField(fix.MsgType("j"))
+        reject.setField(fix.RefMsgType(ref_msg_type))
+        reject.setField(fix.BusinessRejectReason(5))
+        reject.setField(fix.Text(text))
         fix.Session.sendToTarget(reject, sessionID)
         
     def enqueue_report(
@@ -1472,14 +1719,20 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             raise ValueError("FIX MsgSeqNum must be positive")
         return value
 
-    @staticmethod
-    def _session_identity(sessionID) -> SessionIdentity:
+    def _session_identity(self, sessionID) -> SessionIdentity:
         """Convert a live QuickFIX SessionID to a domain-safe identity."""
+        session_id = sessionID.toString()
+        participant_id = self.session_participants.get(session_id)
+        if participant_id is None:
+            raise RuntimeError(
+                f"FIX session has no participant mapping: {session_id}"
+            )
         return SessionIdentity(
-            session_id=sessionID.toString(),
+            session_id=session_id,
             sender_comp_id=sessionID.getSenderCompID().getValue(),
             target_comp_id=sessionID.getTargetCompID().getValue(),
             alias=sessionID.getTargetCompID().getValue(),
+            participant_id=participant_id,
         )
 
 class FIXGateway:
@@ -1493,11 +1746,14 @@ class FIXGateway:
         latency_tracker: LatencyTracker,
         *,
         application: Optional[FIXApplication] = None,
+        session_participants: Optional[Mapping[str, str]] = None,
     ):
+        self.session_participants = dict(session_participants or {})
         self.application = application or FIXApplication(
             engine,
             metrics,
             latency_tracker,
+            session_participants=self.session_participants,
         )
 
         # FIX components
@@ -1526,6 +1782,21 @@ class FIXGateway:
 
             # Create FIX settings
             self.fix_settings = fix.SessionSettings(self.fix_cfg)
+            configured_sessions = configured_fix_session_ids(self.fix_cfg)
+            mapped_sessions = set(self.session_participants)
+            missing = sorted(configured_sessions - mapped_sessions)
+            extra = sorted(mapped_sessions - configured_sessions)
+            if missing or extra:
+                details = []
+                if missing:
+                    details.append(
+                        "missing participant mappings: " + ", ".join(missing)
+                    )
+                if extra:
+                    details.append(
+                        "unknown mapped FIX sessions: " + ", ".join(extra)
+                    )
+                raise ValueError("; ".join(details))
             # self.accept_port = self.get_session_setting("SocketAcceptPort")
         
             # Create store and log factories

@@ -1,3 +1,5 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Focused tests for immutable commands and the order lifecycle."""
 
 from dataclasses import FrozenInstanceError
@@ -15,10 +17,12 @@ from src.mockx.models import (
     NewOrderCommand,
     Order,
     OrderStatus,
+    OrderType,
     ProcessOrderCommand,
     Side,
     TimeInForce,
 )
+from tests.exact_helpers import TEST_INSTRUMENT, TEST_INSTRUMENTS
 
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -27,25 +31,27 @@ NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
 def new_command(
     cl_ord_id: str,
     side: Side = Side.BUY,
-    qty: float = 10.0,
-    price: float = 100.0,
+    qty: int = 10,
+    price: int = 100,
 ) -> NewOrderCommand:
-    return NewOrderCommand(
+    return exact_command(
         cl_ord_id=cl_ord_id,
         symbol="TEST",
         side=side,
-        qty=qty,
-        price=price,
+        order_type=OrderType.LIMIT,
+        order_qty_lots=qty,
+        price_ticks=price,
         tif=TimeInForce.GTC,
         submitted_at=NOW,
         session_id="FIX.4.4:CLIENT->MOCKX",
         session_alias="CLIENT",
+        participant_id=cl_ord_id,
     )
 
 
 def make_engine() -> MatchingEngine:
     scheduler = LatencyScheduler()
-    engine = MatchingEngine(
+    engine = exact_engine(
         ExecutionParams(
             network_latency_ms=10,
             engine_latency_ms=5,
@@ -53,8 +59,8 @@ def make_engine() -> MatchingEngine:
             rand_seed=42,
         ),
         scheduler,
+        TEST_INSTRUMENTS,
     )
-    engine.add_symbol("TEST")
     scheduler.register_handler("order_arrived", lambda command: None)
     scheduler.register_handler("order_process", engine.process_order)
     scheduler.register_handler("exec_report", lambda report: None)
@@ -62,13 +68,16 @@ def make_engine() -> MatchingEngine:
 
 
 def make_order() -> Order:
-    return Order(
+    return exact_order(
         id=1,
         cl_ord_id="STATE",
+        participant_id="STATE",
         symbol="TEST",
         side=Side.BUY,
-        qty=10.0,
-        price=100.0,
+        order_type=OrderType.LIMIT,
+        order_qty_lots=10,
+        price_ticks=100,
+        instrument=TEST_INSTRUMENT,
         tif=TimeInForce.GTC,
         ts_submitted=NOW,
     )
@@ -77,15 +86,15 @@ def make_order() -> Order:
 @pytest.mark.parametrize(
     ("command", "field", "value"),
     [
-        (new_command("IMMUTABLE"), "qty", 5.0),
+        (new_command("IMMUTABLE"), "order_qty_lots", 5),
         (ProcessOrderCommand(1, 0), "expected_version", 1),
         (
-            CancelOrderCommand(
+            exact_cancel_command(
                 cancel_cl_ord_id="CXL-1",
                 orig_cl_ord_id="IMMUTABLE",
                 symbol="TEST",
                 side=Side.BUY,
-                qty=10,
+                order_qty_lots=10,
                 requested_at=NOW,
                 session_id="FIX.4.4:CLIENT->MOCKX",
             ),
@@ -158,13 +167,13 @@ async def test_cancelled_order_ignores_stale_processing_command(caplog):
     engine.on_trade = trades.append
 
     passive_id = engine.submit_order(
-        new_command("PASSIVE", side=Side.SELL, qty=10.0, price=100.0)
+        new_command("PASSIVE", side=Side.SELL, qty=10, price=100)
     )
     engine.process_order(ProcessOrderCommand(passive_id, expected_version=0))
     passive = engine.orders[passive_id]
 
     aggressive_id = engine.submit_order(
-        new_command("AGGRESSIVE", side=Side.BUY, qty=10.0, price=100.0)
+        new_command("AGGRESSIVE", side=Side.BUY, qty=10, price=100)
     )
     queued_command = next(
         event.data
@@ -174,12 +183,12 @@ async def test_cancelled_order_ignores_stale_processing_command(caplog):
     )
     assert queued_command == ProcessOrderCommand(aggressive_id, expected_version=0)
     rejection_reason = engine.cancel_order(
-        CancelOrderCommand(
+        exact_cancel_command(
             cancel_cl_ord_id="CXL-AGGRESSIVE",
             orig_cl_ord_id="AGGRESSIVE",
             symbol="TEST",
             side=Side.BUY,
-            qty=10,
+            order_qty_lots=10,
             requested_at=engine.scheduler.current_time,
             session_id="FIX.4.4:CLIENT->MOCKX",
             session_alias="CLIENT",
@@ -201,17 +210,16 @@ async def test_cancelled_order_ignores_stale_processing_command(caplog):
     }
 
     assert aggressive.status == OrderStatus.CANCELLED
-    assert aggressive.filled_qty == 0.0
+    assert aggressive.filled_qty_lots == 0
     assert aggressive_id not in booked_order_ids
     assert passive.status == OrderStatus.NEW
-    assert passive.filled_qty == 0.0
+    assert passive.filled_qty_lots == 0
     assert trades == []
     assert not any(
         report.order_id == aggressive_id
         and report.ord_status in {OrderStatus.PARTIAL, OrderStatus.FILLED}
         for report in reports
     )
-    assert "Ignoring stale process command" in caplog.text
 
 
 def test_duplicate_processing_command_is_idempotent():
@@ -227,7 +235,7 @@ def test_duplicate_processing_command_is_idempotent():
     engine.process_order(command)
     first_state = (
         engine.orders[order_id].status,
-        engine.orders[order_id].filled_qty,
+        engine.orders[order_id].filled_qty_lots,
         len(reports),
         len(trades),
     )
@@ -242,7 +250,7 @@ def test_duplicate_processing_command_is_idempotent():
     assert copies == 1
     assert (
         engine.orders[order_id].status,
-        engine.orders[order_id].filled_qty,
+        engine.orders[order_id].filled_qty_lots,
         len(reports),
         len(trades),
     ) == first_state

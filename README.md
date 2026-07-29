@@ -11,7 +11,9 @@ InfluxDB persistence.
 - Deterministic scheduling with FIFO ordering for equal timestamps.
 - Inclusive time advancement: events exactly at the requested target execute.
 - Atomic order-book quantity accounting and invariant checks.
+- Exact integer tick/lot arithmetic in every authoritative matching path.
 - Limit and market orders with GTC and IOC lifecycle rules.
+- Mandatory participant ownership and unconditional self-cross prevention.
 - Stable-FIX-session-scoped `ClOrdID` identity and execution-report routing.
 - Atomic simulation lifecycle transitions and generation-aware public IDs.
 - One execution report per order side and per fill.
@@ -37,6 +39,14 @@ set.
 Supported orders are limit and market orders with GTC or IOC. Replace
 (`OrderCancelReplaceRequest`) is unsupported.
 
+All FIX and REST order values pass through one strict normalization boundary.
+Quantity must be positive, finite, and exactly divisible by the instrument lot
+size. A limit price must be positive, finite, and exactly divisible by the tick
+size. Market orders must omit price. Unsupported side, order type, or TIF values
+are rejected rather than defaulted; only a missing TIF defaults to GTC.
+`ClOrdID` must contain 1-64 visible ASCII characters with no surrounding
+whitespace.
+
 - An unfilled or partially filled IOC remainder is canceled and never rests.
 - A market-order remainder is canceled regardless of its supplied TIF.
 - A partially filled GTC limit remainder rests without regressing to `NEW`.
@@ -55,6 +65,31 @@ Supported orders are limit and market orders with GTC or IOC. Replace
   rejected orders return `TOO_LATE_TO_CANCEL`; canceled orders return
   `ALREADY_CANCELED`; unknown and foreign-session `OrigClOrdID` values remain
   distinct rejects.
+
+### Participant ownership and self-cross prevention
+
+Every accepted order has one immutable `participant_id`. REST callers provide
+it explicitly. FIX ownership is configured by exact QuickFIX session string in
+`fix.session_participants`; every session in the QuickFIX settings file must
+have exactly one mapping, and several sessions may map to the same participant.
+`session_alias` remains display metadata and never determines ownership.
+
+Self-trading cannot be enabled. When an aggressor first encounters a passive
+order owned by the same participant, MockX removes and cancels the passive
+order's complete remainder, cancels the aggressor's complete remainder, emits
+passive then aggressor cancellation Execution Reports, and stops matching that
+aggressor. It allocates no trade ID and records no trade or volume. Both reports
+use:
+
+```text
+SELF_TRADE_PREVENTION: canceled passive and aggressor; prevented_qty=<quantity>
+```
+
+Any earlier third-party fills remain in cumulative quantity and average price;
+both cancellation reports have zero leaves. Prometheus exposes only bounded
+symbol labels through `mockx_self_trade_preventions_total{symbol}` and
+`mockx_self_trade_prevented_quantity_total{symbol}`. Participant identity and
+both order IDs are retained only in audit/persistence fields.
 
 Public exchange identifiers include the successful simulation-run generation:
 
@@ -362,6 +397,7 @@ Core routes are stable across both instances:
 | GET | `/readyz` | Traffic readiness and component states |
 | GET | `/symbols` | Configured symbols |
 | GET | `/book/{symbol}` | Immutable current book snapshot |
+| POST | `/api/v1/orders` | Validate and enqueue one REST order |
 | GET | `/stats` | Typed process metrics snapshot |
 | GET | `/metrics` | Prometheus text exposition when enabled |
 | GET | `/ui/{symbol}` | Browser book UI |
@@ -377,16 +413,48 @@ Book response:
   "timestamp": "1970-01-01T00:00:02+00:00",
   "bids": [
     {
-      "price": 99.0,
-      "qty": 1.0,
-      "strategy_qty": 0.0,
-      "market_qty": 1.0,
+      "price": "99.00",
+      "qty": "1.000",
+      "strategy_qty": "0.000",
+      "market_qty": "1.000",
       "order_count": 1
     }
   ],
   "asks": []
 }
 ```
+
+Submit orders with `POST /api/v1/orders`. The request uses decimal strings so
+conversion never passes through binary floating point:
+
+```json
+{
+  "session_id": "REST:backtest-1",
+  "participant_id": "strategy-1",
+  "cl_ord_id": "ORDER-0001",
+  "symbol": "BTC-USDT",
+  "side": "BUY",
+  "order_type": "LIMIT",
+  "quantity": "0.125",
+  "price": "61234.50",
+  "time_in_force": "GTC"
+}
+```
+
+Accepted orders return HTTP 202 with the assigned public/internal identity and
+`PENDING_NEW`. Request-shape and field/value errors return a stable structured
+422 body. Session-scoped duplicate `ClOrdID` and other request-level business
+conflicts return 400; lifecycle conflicts remain 409. FIX maps malformed
+headers to Session Reject, unusable/missing `ClOrdID` to Business Message
+Reject, and identifiable semantic order failures to rejected Execution Reports.
+Rejection `Text` begins with the stable validation code. NaN and infinity are
+never copied into orders, JSON, metrics, or persistence.
+
+With the instrument above, `quantity: "0.0005"` is rejected as
+`OFF_LOT_QUANTITY`, `price: "61234.505"` as `OFF_TICK_PRICE`, and a MARKET
+order carrying any `price` as `PRICE_NOT_ALLOWED`. Zero, negative, NaN, and
+infinite values are rejected before an engine order is registered; unsupported
+order types and TIF values are rejected rather than defaulted.
 
 Unknown symbols return HTTP 404:
 
@@ -445,8 +513,8 @@ One committed matching action publishes one `market_data` message. Its
   "trades": [
     {
       "trade_id": "17",
-      "price": 100.0,
-      "qty": 2.0,
+      "price": "100.00",
+      "qty": "2.000",
       "aggressor_side": "BUY",
       "timestamp": "1970-01-01T00:00:02.001000+00:00"
     }
@@ -761,14 +829,23 @@ because they use the current origin.
 
 ## 12. Configuration
 
-Important YAML fields:
+Configuration is validated once after environment overrides are merged. Models
+are frozen and reject unknown fields. The following complete example is also
+executed by the test suite:
 
+<!-- validated-config-example -->
 ```yaml
 exchange_name: MockX-Local
-symbols: [BTC-USDT, ETH-USDT]
+instruments:
+  BTC-USDT:
+    tick_size: "0.01"
+    lot_size: "0.001"
+    price_display_precision: 2
+    quantity_display_precision: 3
 latency:
   network_ms: 0
   engine_ms: 1
+  session_delays: {}
 execution:
   reject_prob: 0.0
   random_seed: 42
@@ -780,6 +857,8 @@ fix:
   enabled: true
   delivery_retry_interval_ms: 1000
   delivery_max_attempts_per_cycle: 3
+  session_participants:
+    "FIX.4.4:MOCKX1->CLIENT1": "participant-1"
 scheduler:
   mode: external
   interval_ms: 10
@@ -798,10 +877,48 @@ websocket:
 cors_origins: []
 prometheus:
   enabled: true
+tsdb:
+  enabled: false
 ```
 
-Matching consumes all immediately executable liquidity. Partial fills occur
-naturally only when the book cannot fill the complete order.
+Validated ranges are:
+
+| Setting | Contract |
+|---|---|
+| exchange/instruments | Nonempty exchange name; nonempty normalized unique symbols; positive finite tick/lot decimals; display precision 0-18 and at least the increment scale |
+| ports/booleans | Ports 1-65535; booleans must be actual YAML booleans |
+| latency | Every main, directional, engine, and session delay is an integer 0-2,147,483,647 ms |
+| execution | Finite `reject_prob` 0-1; signed 64-bit integer seed; unknown/obsolete fields forbidden |
+| scheduler | `external` or `realtime`; interval 1-60,000 ms; advance 1-86,400,000 ms; event limit 1-1,000,000 |
+| WebSocket | All timing values finite and in (0, 86,400] seconds; heartbeat/market staleness exceed heartbeat; queue 1-100,000 |
+| FIX delivery | Retry 1-2,147,483,647 ms; attempts 1-10,000; enabled sessions require exact participant mappings |
+| InfluxDB | Batch 1-100,000; buffer from batch size to 1,000,000; retry/timeout 1-86,400,000 ms; enabled config requires URL, token, org, bucket |
+| admin/CORS | Valid host and port; origins are unique HTTP(S) origins; wildcard is forbidden |
+
+For example, startup fails before any component starts with a deterministic,
+field-sorted error such as:
+
+```text
+execution.reject_prob: Input should be less than or equal to 1; latency.engine_ms: Input should be greater than or equal to 0
+```
+
+### Exact ticks, lots, and serialization
+
+The instrument catalog is immutable. Boundary conversion uses `Decimal` and
+rejects off-tick prices and off-lot quantities without rounding. Converted
+ticks/lots must fit a signed 64-bit positive unit count. Matching comparisons,
+price-level keys, FIFO lookup, fill/cancel accounting, aggregates, and
+invariants use integers only. There are no float compatibility fields or
+optional min/max instrument settings.
+
+REST, WebSocket, stats, FIX numeric tags, and exact Influx display fields use
+canonical fixed-scale decimal strings; raw ticks/lots remain internal except
+for explicit persistence audit fields. Derived average prices use deterministic
+round-half-even display formatting. Values such as
+`0.30000000000000004` are never serialized.
+
+Matching consumes all immediately executable eligible liquidity. Partial fills
+occur naturally only when the book cannot fill the complete order.
 
 `execution.random_seed` is stored explicitly and must be an integer. Every
 successful start restores that seed and the epoch initial simulated time. For
@@ -810,7 +927,7 @@ simulated timestamps, event order, and local identifier suffixes repeat across
 runs. The generation prefix intentionally changes, and monotonic wall-clock
 latency measurements are not part of deterministic replay.
 
-Startup validation rejects missing fields, duplicate/empty symbols, invalid
+Startup validation rejects missing fields, duplicate/empty instruments, invalid
 ports, noninteger random seeds, unsupported scheduler modes, nonpositive
 intervals or FIX delivery retry settings, stale timeouts not greater than
 heartbeat cadence, invalid WebSocket queue/send/browser timing values,
@@ -818,9 +935,10 @@ nonpositive event-processing limits, wildcard CORS, and incomplete enabled
 TSDB configuration.
 
 `CFG_PATH` and `FIX_CONFIG_FILE` select the YAML and QuickFIX files.
-`INFLUXDB_URL`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET`
-override YAML and can enable the configured persistence contract in either
-instance.
+`INFLUXDB_URL`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET`,
+`INFLUXDB_ENABLED`, `INFLUXDB_BATCH_SIZE`, `INFLUXDB_BUFFER_CAPACITY`,
+`INFLUXDB_RETRY_INTERVAL_MS`, and `INFLUXDB_TIMEOUT_MS` override YAML. The
+merged result is validated by the same model before startup.
 
 ## 13. Examples
 
@@ -857,7 +975,8 @@ python -m pytest -q tests/test_readme_examples.py
 - FIX market-data requests are rejected; use REST/WebSocket.
 - No Prometheus server, Grafana, dashboard assets, OpenTelemetry, or cloud
   manifests are bundled.
-- Floating quantities remain for compatibility; integer lots are deferred.
+- Self-trading is always prevented by canceling both complete remainders; there
+  is no policy override.
 
 ## 15. Troubleshooting
 

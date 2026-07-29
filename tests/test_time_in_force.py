@@ -17,6 +17,7 @@ def test_unmatched_ioc_limit_cancels_and_never_rests(side):
     order_id = submit(
         engine,
         cl_ord_id=f"IOC-EMPTY-{side.value}",
+        participant_id=f"IOC-EMPTY-{side.value}",
         side=side,
         qty=10,
         price=100,
@@ -26,9 +27,9 @@ def test_unmatched_ioc_limit_cancels_and_never_rests(side):
     order = engine.orders[order_id]
     book = engine.books["TEST"]
     assert order.status == OrderStatus.CANCELLED
-    assert order.filled_qty == 0
-    assert order.remaining_qty == 0
-    assert order.canceled_qty == 10
+    assert order.filled_qty_lots == 0
+    assert order.leaves_qty_lots == 0
+    assert order.canceled_qty_lots == 10
     assert not book.is_resting(order_id)
     assert not book.bids
     assert not book.asks
@@ -55,6 +56,7 @@ def test_partially_filled_ioc_reports_trade_then_cancels_remainder(
     passive_id = submit(
         engine,
         cl_ord_id="IOC-PASSIVE",
+        participant_id="IOC-PASSIVE",
         side=passive_side,
         qty=5,
         price=100,
@@ -62,6 +64,7 @@ def test_partially_filled_ioc_reports_trade_then_cancels_remainder(
     aggressor_id = submit(
         engine,
         cl_ord_id="IOC-AGGRESSOR",
+        participant_id="IOC-AGGRESSOR",
         side=aggressor_side,
         qty=10,
         price=100,
@@ -74,10 +77,10 @@ def test_partially_filled_ioc_reports_trade_then_cancels_remainder(
 
     assert len(trades) == 1
     assert aggressor.status == OrderStatus.CANCELLED
-    assert aggressor.filled_qty == 5
-    assert aggressor.canceled_qty == 5
-    assert aggressor.remaining_qty == 0
-    assert aggressor.avg_fill_price == 100
+    assert aggressor.filled_qty_lots == 5
+    assert aggressor.canceled_qty_lots == 5
+    assert aggressor.leaves_qty_lots == 0
+    assert aggressor.average_fill_price == 100
     assert not engine.books["TEST"].is_resting(aggressor_id)
     assert [
         (report.exec_type, report.ord_status)
@@ -86,13 +89,13 @@ def test_partially_filled_ioc_reports_trade_then_cancels_remainder(
         (ExecutionType.TRADE, OrderStatus.PARTIAL),
         (ExecutionType.CANCELED, OrderStatus.CANCELLED),
     ]
-    assert aggressor_reports[0].last_qty == 5
-    assert aggressor_reports[0].last_px == 100
-    assert aggressor_reports[0].cum_qty == 5
-    assert aggressor_reports[0].leaves_qty == 5
-    assert aggressor_reports[1].cum_qty == 5
-    assert aggressor_reports[1].leaves_qty == 0
-    assert aggressor_reports[1].canceled_qty == 5
+    assert aggressor_reports[0].last_qty_lots == 5
+    assert aggressor_reports[0].last_price_ticks == 100
+    assert aggressor_reports[0].cum_qty_lots == 5
+    assert aggressor_reports[0].leaves_qty_lots == 5
+    assert aggressor_reports[1].cum_qty_lots == 5
+    assert aggressor_reports[1].leaves_qty_lots == 0
+    assert aggressor_reports[1].canceled_qty_lots == 5
     assert passive.status == OrderStatus.FILLED
     passive_trades = [
         report
@@ -108,6 +111,7 @@ def test_fully_filled_ioc_has_no_cancel_report_and_never_rests():
     submit(
         engine,
         cl_ord_id="IOC-FULL-PASSIVE",
+        participant_id="IOC-FULL-PASSIVE",
         side=Side.SELL,
         qty=10,
         price=100,
@@ -115,6 +119,7 @@ def test_fully_filled_ioc_has_no_cancel_report_and_never_rests():
     order_id = submit(
         engine,
         cl_ord_id="IOC-FULL",
+        participant_id="IOC-FULL",
         side=Side.BUY,
         qty=10,
         price=100,
@@ -124,7 +129,7 @@ def test_fully_filled_ioc_has_no_cancel_report_and_never_rests():
     order = engine.orders[order_id]
     own_reports = reports_for(reports, order_id)
     assert order.status == OrderStatus.FILLED
-    assert order.canceled_qty == 0
+    assert order.canceled_qty_lots == 0
     assert not engine.books["TEST"].is_resting(order_id)
     assert [report.exec_type for report in own_reports] == [
         ExecutionType.TRADE
@@ -136,6 +141,7 @@ def test_partial_gtc_limit_rests_without_new_regression():
     submit(
         engine,
         cl_ord_id="GTC-PASSIVE",
+        participant_id="GTC-PASSIVE",
         side=Side.SELL,
         qty=4,
         price=100,
@@ -143,6 +149,7 @@ def test_partial_gtc_limit_rests_without_new_regression():
     order_id = submit(
         engine,
         cl_ord_id="GTC-PARTIAL",
+        participant_id="GTC-PARTIAL",
         side=Side.BUY,
         qty=10,
         price=100,
@@ -151,9 +158,9 @@ def test_partial_gtc_limit_rests_without_new_regression():
     order = engine.orders[order_id]
     own_reports = reports_for(reports, order_id)
     assert order.status == OrderStatus.PARTIAL
-    assert order.filled_qty == 4
-    assert order.remaining_qty == 6
-    assert order.canceled_qty == 0
+    assert order.filled_qty_lots == 4
+    assert order.leaves_qty_lots == 6
+    assert order.canceled_qty_lots == 0
     assert engine.books["TEST"].is_resting(order_id)
     assert [
         (report.exec_type, report.ord_status)
@@ -171,6 +178,7 @@ def test_unfilled_gtc_limit_rests_with_one_new_report():
     order_id = submit(
         engine,
         cl_ord_id="GTC-NEW",
+        participant_id="GTC-NEW",
         side=Side.BUY,
         qty=10,
         price=99,
@@ -179,12 +187,12 @@ def test_unfilled_gtc_limit_rests_with_one_new_report():
     order = engine.orders[order_id]
     own_reports = reports_for(reports, order_id)
     assert order.status == OrderStatus.NEW
-    assert order.filled_qty == 0
-    assert order.remaining_qty == 10
-    assert order.canceled_qty == 0
+    assert order.filled_qty_lots == 0
+    assert order.leaves_qty_lots == 10
+    assert order.canceled_qty_lots == 0
     assert engine.books["TEST"].is_resting(order_id)
     assert len(own_reports) == 1
     assert own_reports[0].exec_type == ExecutionType.NEW
     assert own_reports[0].ord_status == OrderStatus.NEW
-    assert own_reports[0].cum_qty == 0
-    assert own_reports[0].leaves_qty == 10
+    assert own_reports[0].cum_qty_lots == 0
+    assert own_reports[0].leaves_qty_lots == 10

@@ -1,3 +1,4 @@
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Engine cancellation and immutable cancel-reject regression tests."""
 
 from dataclasses import FrozenInstanceError
@@ -31,6 +32,7 @@ def test_cancel_resting_unfilled_order_removes_live_quantity_once():
     order_id = submit(
         engine,
         cl_ord_id="CANCEL-NEW",
+        participant_id="CANCEL-NEW",
         side=Side.BUY,
         qty=10,
         price=99,
@@ -45,15 +47,15 @@ def test_cancel_resting_unfilled_order_removes_live_quantity_once():
     order = engine.orders[order_id]
     cancel_reports = successful_cancels(reports, order_id)
     assert order.status == OrderStatus.CANCELLED
-    assert order.filled_qty == 0
-    assert order.remaining_qty == 0
-    assert order.canceled_qty == 10
+    assert order.filled_qty_lots == 0
+    assert order.leaves_qty_lots == 0
+    assert order.canceled_qty_lots == 10
     assert not engine.books["TEST"].is_resting(order_id)
     assert len(cancel_reports) == 1
     assert cancel_reports[0].cl_ord_id == "CXL-CANCEL-NEW"
     assert cancel_reports[0].orig_cl_ord_id == "CANCEL-NEW"
-    assert cancel_reports[0].cum_qty == 0
-    assert cancel_reports[0].leaves_qty == 0
+    assert cancel_reports[0].cum_qty_lots == 0
+    assert cancel_reports[0].leaves_qty_lots == 0
     engine.books["TEST"].assert_invariants()
 
 
@@ -62,6 +64,7 @@ def test_cancel_partially_filled_resting_order_preserves_fills():
     resting_id = submit(
         engine,
         cl_ord_id="CANCEL-PARTIAL",
+        participant_id="CANCEL-PARTIAL",
         side=Side.SELL,
         qty=10,
         price=100,
@@ -69,25 +72,26 @@ def test_cancel_partially_filled_resting_order_preserves_fills():
     submit(
         engine,
         cl_ord_id="CANCEL-PARTIAL-HIT",
+        participant_id="CANCEL-PARTIAL-HIT",
         side=Side.BUY,
         qty=4,
         price=100,
     )
-    before_avg = engine.orders[resting_id].avg_fill_price
+    before_avg = engine.orders[resting_id].average_fill_price
 
     assert cancel(engine, resting_id) is None
 
     order = engine.orders[resting_id]
     cancel_report = successful_cancels(reports, resting_id)[0]
     assert order.status == OrderStatus.CANCELLED
-    assert order.filled_qty == 4
-    assert order.avg_fill_price == before_avg == 100
-    assert order.canceled_qty == 6
-    assert order.remaining_qty == 0
-    assert cancel_report.cum_qty == 4
-    assert cancel_report.avg_px == 100
-    assert cancel_report.leaves_qty == 0
-    assert cancel_report.canceled_qty == 6
+    assert order.filled_qty_lots == 4
+    assert order.average_fill_price == before_avg == 100
+    assert order.canceled_qty_lots == 6
+    assert order.leaves_qty_lots == 0
+    assert cancel_report.cum_qty_lots == 4
+    assert cancel_report.average_fill_price == 100
+    assert cancel_report.leaves_qty_lots == 0
+    assert cancel_report.canceled_qty_lots == 6
     assert not engine.books["TEST"].is_resting(resting_id)
     engine.books["TEST"].assert_invariants()
 
@@ -101,6 +105,7 @@ async def test_cancel_before_processing_invalidates_scheduled_command():
     order_id = submit(
         engine,
         cl_ord_id="CANCEL-PENDING",
+        participant_id="CANCEL-PENDING",
         side=Side.BUY,
         qty=5,
         price=100,
@@ -126,12 +131,12 @@ async def test_cancel_before_processing_invalidates_scheduled_command():
 
 def test_unknown_cancel_returns_immutable_routable_rejection():
     engine, reports, trades, _ = make_engine()
-    command = CancelOrderCommand(
+    command = exact_cancel_command(
         cancel_cl_ord_id="CXL-UNKNOWN",
         orig_cl_ord_id="UNKNOWN",
         symbol="TEST",
         side=Side.BUY,
-        qty=1,
+        order_qty_lots=1,
         requested_at=NOW,
         session_id="FIX.4.4:CLIENT->MOCKX",
         session_alias="CLIENT",
@@ -155,6 +160,7 @@ def test_filled_order_cancel_is_too_late_without_terminal_duplication():
     submit(
         engine,
         cl_ord_id="FILLED-PASSIVE",
+        participant_id="FILLED-PASSIVE",
         side=Side.SELL,
         qty=5,
         price=100,
@@ -162,6 +168,7 @@ def test_filled_order_cancel_is_too_late_without_terminal_duplication():
     filled_id = submit(
         engine,
         cl_ord_id="FILLED-AGGRESSOR",
+        participant_id="FILLED-AGGRESSOR",
         side=Side.BUY,
         qty=5,
         price=100,
@@ -192,6 +199,7 @@ def test_duplicate_cancel_rejects_and_does_not_mutate_book_twice():
     survivor_id = submit(
         engine,
         cl_ord_id="CANCEL-SURVIVOR",
+        participant_id="CANCEL-SURVIVOR",
         side=Side.BUY,
         qty=7,
         price=98,
@@ -199,6 +207,7 @@ def test_duplicate_cancel_rejects_and_does_not_mutate_book_twice():
     order_id = submit(
         engine,
         cl_ord_id="CANCEL-TWICE",
+        participant_id="CANCEL-TWICE",
         side=Side.BUY,
         qty=5,
         price=99,
@@ -218,10 +227,10 @@ def test_duplicate_cancel_rejects_and_does_not_mutate_book_twice():
 
     assert rejection.reason == CancelRejectReason.ALREADY_CANCELED
     assert len(successful_cancels(reports, order_id)) == 1
-    assert engine.orders[order_id].canceled_qty == 5
+    assert engine.orders[order_id].canceled_qty_lots == 5
     assert engine.books["TEST"].is_resting(survivor_id)
     assert not engine.books["TEST"].is_resting(order_id)
-    assert engine.books["TEST"].bids[0].qty == 7
+    assert engine.books["TEST"].bids[0].level_qty_lots == 7
     engine.books["TEST"].assert_invariants()
 
 
@@ -232,6 +241,7 @@ def test_session_scoped_duplicate_cl_ord_id_cancels_only_owner():
     order_a = submit(
         engine,
         cl_ord_id="SAME-ID",
+        participant_id="SAME-ID",
         side=Side.BUY,
         qty=5,
         price=99,
@@ -241,6 +251,7 @@ def test_session_scoped_duplicate_cl_ord_id_cancels_only_owner():
     order_b = submit(
         engine,
         cl_ord_id="SAME-ID",
+        participant_id="SAME-ID",
         side=Side.BUY,
         qty=7,
         price=98,
@@ -263,6 +274,7 @@ def test_cross_session_cancel_command_is_rejected():
     order_id = submit(
         engine,
         cl_ord_id="SESSION-OWNER",
+        participant_id="SESSION-OWNER",
         side=Side.SELL,
         qty=5,
         price=101,

@@ -1,7 +1,15 @@
 exchange_name: "MockX-Local"
-symbols:
-  - BTC-USDT
-  - ETH-USDT
+instruments:
+  BTC-USDT:
+    tick_size: "0.01"
+    lot_size: "0.001"
+    price_display_precision: 2
+    quantity_display_precision: 3
+  ETH-USDT:
+    tick_size: "0.01"
+    lot_size: "0.001"
+    price_display_precision: 2
+    quantity_display_precision: 3
 latency:
   network_ms: 0
   engine_ms: 1
@@ -16,6 +24,8 @@ fix:
   enabled: true
   delivery_retry_interval_ms: 1000
   delivery_max_attempts_per_cycle: 3
+  session_participants:
+    "FIX.4.4:MOCKX1->CLIENT1": "participant-1"
 scheduler:
   mode: "external"
   interval_ms: 10

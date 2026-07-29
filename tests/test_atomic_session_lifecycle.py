@@ -1,6 +1,7 @@
 """Atomic run lifecycle, replay, identifier, and ingress regressions."""
 
 from __future__ import annotations
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 
 import asyncio
 from datetime import timedelta
@@ -10,6 +11,7 @@ from httpx import ASGITransport, AsyncClient
 import pytest
 
 from src.mockx.api import market_data_message
+from src.mockx.configuration import validate_config
 from src.mockx.gateway import fix
 from src.mockx.lifecycle import (
     LifecycleError,
@@ -19,6 +21,7 @@ from src.mockx.lifecycle import (
 from src.mockx.main import MockExchange
 from src.mockx.models import (
     NewOrderCommand,
+    OrderType,
     SessionIdentity,
     Side,
     TimeInForce,
@@ -46,12 +49,13 @@ def _new_order(
     session_id: str | None = None,
     side: Side = Side.BUY,
 ) -> NewOrderCommand:
-    return NewOrderCommand(
+    return exact_command(
         cl_ord_id=cl_ord_id,
+        participant_id=cl_ord_id,
         symbol="TEST",
         side=side,
-        qty=1.0,
-        price=100.0,
+        order_qty_lots=1,
+        price_ticks=100,
         tif=TimeInForce.GTC,
         submitted_at=exchange.scheduler.current_time,
         session_id=session_id,
@@ -368,7 +372,7 @@ async def _rejection_pattern(
 async def test_rng_reseeds_and_replay_differs_only_by_generation_prefix():
     config = api_config()
     config["execution"]["reject_prob"] = 0.5
-    exchange = MockExchange(config)
+    exchange = MockExchange(validate_config(config, environ={}))
 
     first_outcomes, first_ids = await _rejection_pattern(
         exchange,
@@ -381,7 +385,7 @@ async def test_rng_reseeds_and_replay_differs_only_by_generation_prefix():
         12,
     )
 
-    fresh = MockExchange(config)
+    fresh = MockExchange(validate_config(config, environ={}))
     fresh_outcomes, _ = await _rejection_pattern(fresh, "fresh", 12)
     normalize = lambda value: re.sub(r"^G\d{8}", "G", value)
 
@@ -489,15 +493,17 @@ async def test_gateway_rejection_ids_use_the_active_generation():
     await exchange.lifecycle.execute_ingress(
         exchange.lifecycle.token,
         lambda: exchange.fix_app._send_input_rejection(
-            object(),
             cl_ord_id="BAD",
             symbol="TEST",
             side=Side.BUY,
-            qty=0.0,
-            price=None,
+            order_type=OrderType.LIMIT,
+            order_qty_lots=0,
+            price_ticks=None,
             tif=TimeInForce.GTC,
             session_id=SESSION_A,
             session_alias="CLIENT-A",
+            participant_id="participant-a",
+            code="INVALID_QUANTITY",
             text="bad input",
         ),
     )

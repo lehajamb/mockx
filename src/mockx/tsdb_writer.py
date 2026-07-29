@@ -27,6 +27,7 @@ class InfluxDBMetricsSink:
         token: str,
         org: str,
         bucket: str,
+        timeout_ms: int,
     ) -> None:
         if InfluxDBClient is None:
             raise RuntimeError(
@@ -34,7 +35,15 @@ class InfluxDBMetricsSink:
             )
         self.org = org
         self.bucket = bucket
-        self.client = InfluxDBClient(url=url, token=token, org=org)
+        if timeout_ms <= 0:
+            raise ValueError("InfluxDB timeout_ms must be positive")
+        self.timeout_seconds = timeout_ms / 1000
+        self.client = InfluxDBClient(
+            url=url,
+            token=token,
+            org=org,
+            timeout=timeout_ms,
+        )
         # The application-owned BufferedMetricsWriter provides batching.  A
         # synchronous write API gives an unambiguous success/failure boundary.
         self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
@@ -48,11 +57,14 @@ class InfluxDBMetricsSink:
             return
         points = [self._to_point(record) for record in records]
         try:
-            await asyncio.to_thread(
-                self.write_api.write,
-                bucket=self.bucket,
-                org=self.org,
-                record=points,
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.write_api.write,
+                    bucket=self.bucket,
+                    org=self.org,
+                    record=points,
+                ),
+                timeout=self.timeout_seconds,
             )
         except Exception as exc:
             raise MetricsSinkError("InfluxDB metric write failed") from exc
@@ -61,7 +73,10 @@ class InfluxDBMetricsSink:
         if self._closed:
             return
         try:
-            await asyncio.to_thread(self.write_api.flush)
+            await asyncio.wait_for(
+                asyncio.to_thread(self.write_api.flush),
+                timeout=self.timeout_seconds,
+            )
         except Exception as exc:
             raise MetricsSinkError("InfluxDB metric flush failed") from exc
 
@@ -70,8 +85,14 @@ class InfluxDBMetricsSink:
             if self._closed:
                 return
             try:
-                await asyncio.to_thread(self.write_api.close)
-                await asyncio.to_thread(self.client.close)
+                await asyncio.wait_for(
+                    asyncio.to_thread(self.write_api.close),
+                    timeout=self.timeout_seconds,
+                )
+                await asyncio.wait_for(
+                    asyncio.to_thread(self.client.close),
+                    timeout=self.timeout_seconds,
+                )
             except Exception as exc:
                 raise MetricsSinkError("InfluxDB metric close failed") from exc
             self._closed = True

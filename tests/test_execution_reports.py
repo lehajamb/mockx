@@ -1,3 +1,5 @@
+from tests.exact_helpers import exact_engine, exact_metrics
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Regression tests for immutable execution-report snapshots."""
 
 from dataclasses import FrozenInstanceError, replace
@@ -32,16 +34,17 @@ def make_order(
     order_id: int = 1,
     cl_ord_id: str = "SNAPSHOT",
     side: Side = Side.BUY,
-    qty: float = 10.0,
-    price: float = 100.0,
+    qty: int = 10,
+    price: int = 100,
 ) -> Order:
-    order = Order(
+    order = exact_order(
         id=order_id,
         cl_ord_id=cl_ord_id,
+        participant_id=cl_ord_id,
         symbol="TEST",
         side=side,
-        qty=qty,
-        price=price,
+        order_qty_lots=qty,
+        price_ticks=price,
         tif=TimeInForce.GTC,
         ts_submitted=NOW,
         session_id="FIX.4.4:CLIENT->MOCKX",
@@ -61,8 +64,10 @@ def new_report(order: Order):
 
 
 def fill_order(order: Order) -> None:
-    order.filled_qty = order.qty
-    order.avg_fill_price = order.price
+    order.filled_qty_lots = order.order_qty_lots
+    order.filled_notional_tick_lots = (
+        order.order_qty_lots * order.price_ticks
+    )
     order.transition_to(OrderStatus.FILLED)
 
 
@@ -74,9 +79,9 @@ def test_report_snapshot_does_not_follow_live_order_mutation():
 
     assert report.exec_type == "NEW"
     assert report.ord_status == OrderStatus.NEW
-    assert report.cum_qty == 0.0
-    assert report.leaves_qty == 10.0
-    assert report.avg_px == 0.0
+    assert report.cum_qty_lots == 0.0
+    assert report.leaves_qty_lots == 10.0
+    assert report.average_fill_price == 0.0
     assert not hasattr(report, "order")
 
 
@@ -85,10 +90,10 @@ def test_execution_report_is_frozen():
     report = new_report(order)
 
     with pytest.raises(FrozenInstanceError):
-        report.cum_qty = 5.0
+        report.cum_qty_lots = 5.0
 
     fill_order(order)
-    assert report.cum_qty == 0.0
+    assert report.cum_qty_lots == 0.0
     assert report.ord_status == OrderStatus.NEW
 
 
@@ -97,7 +102,7 @@ async def test_delayed_new_report_remains_new_when_delivered_after_fill():
     scheduler = LatencyScheduler()
     delivered = []
     scheduler.register_handler("exec_report", delivered.append)
-    engine = MatchingEngine(
+    engine = exact_engine(
         ExecutionParams(
             network_latency_ms=10,
             engine_latency_ms=5,
@@ -106,7 +111,6 @@ async def test_delayed_new_report_remains_new_when_delivered_after_fill():
         ),
         scheduler,
     )
-    engine.add_symbol("TEST")
     engine.on_execution_report = lambda report: (
         scheduler.schedule_execution_report(
             report,
@@ -118,12 +122,13 @@ async def test_delayed_new_report_remains_new_when_delivered_after_fill():
     scheduler.register_handler("order_process", engine.process_order)
 
     passive_id = engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id="PASSIVE",
+            participant_id="PASSIVE",
             symbol="TEST",
             side=Side.SELL,
-            qty=10.0,
-            price=100.0,
+            order_qty_lots=10,
+            price_ticks=100,
             tif=TimeInForce.GTC,
             submitted_at=NOW,
         )
@@ -138,12 +143,13 @@ async def test_delayed_new_report_remains_new_when_delivered_after_fill():
     )
 
     aggressive_id = engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id="AGGRESSIVE",
+            participant_id="AGGRESSIVE",
             symbol="TEST",
             side=Side.BUY,
-            qty=10.0,
-            price=100.0,
+            order_qty_lots=10,
+            price_ticks=100,
             tif=TimeInForce.GTC,
             submitted_at=NOW,
         )
@@ -159,16 +165,16 @@ async def test_delayed_new_report_remains_new_when_delivered_after_fill():
     assert passive_reports[0] is captured_new
     assert passive_reports[0].exec_type == "NEW"
     assert passive_reports[0].ord_status == OrderStatus.NEW
-    assert passive_reports[0].leaves_qty == 10.0
-    assert passive_reports[0].cum_qty == 0.0
+    assert passive_reports[0].leaves_qty_lots == 10.0
+    assert passive_reports[0].cum_qty_lots == 0.0
 
     fill_report = next(
         report
         for report in passive_reports
         if report.ord_status == OrderStatus.FILLED
     )
-    assert fill_report.leaves_qty == 0.0
-    assert fill_report.cum_qty == 10.0
+    assert fill_report.leaves_qty_lots == 0.0
+    assert fill_report.cum_qty_lots == 10.0
 
 
 def test_report_factory_rejects_inconsistent_state_and_quantities():
@@ -180,17 +186,21 @@ def test_report_factory_rejects_inconsistent_state_and_quantities():
         exec_type=ExecutionType.TRADE,
         timestamp=NOW,
         exec_id="G00000000-E00000002",
-        last_px=order.price,
-        last_qty=order.qty,
+        last_price_ticks=order.price_ticks,
+        last_qty_lots=order.order_qty_lots,
         trade_id=1,
     )
 
     invalid_reports = [
         lambda: replace(report, ord_status=OrderStatus.FILLED),
-        lambda: replace(filled_report, leaves_qty=1.0, cum_qty=9.0),
-        lambda: replace(report, cum_qty=-1.0, leaves_qty=11.0),
-        lambda: replace(report, leaves_qty=-1.0),
-        lambda: replace(report, leaves_qty=9.0),
+        lambda: replace(
+            filled_report,
+            leaves_qty_lots=1,
+            cum_qty_lots=9,
+        ),
+        lambda: replace(report, cum_qty_lots=-1, leaves_qty_lots=11),
+        lambda: replace(report, leaves_qty_lots=-1),
+        lambda: replace(report, leaves_qty_lots=9),
     ]
 
     for build_invalid_report in invalid_reports:
@@ -207,10 +217,10 @@ def test_fix_field_preparation_uses_only_report_snapshot():
 
     assert fields["ExecType"] == "0"
     assert fields["OrdStatus"] == "0"
-    assert fields["LeavesQty"] == 10.0
-    assert fields["CumQty"] == 0.0
-    assert fields["AvgPx"] == 0.0
-    assert fields["OrderQty"] == 10.0
+    assert fields["LeavesQty"] == "10.000"
+    assert fields["CumQty"] == "0.000"
+    assert fields["AvgPx"] == "0.00"
+    assert fields["OrderQty"] == "10.000"
     assert fields["ClOrdID"] == "SNAPSHOT"
 
 
@@ -225,8 +235,8 @@ def test_terminal_cleanup_uses_report_snapshot_status():
         exec_type=ExecutionType.TRADE,
         timestamp=NOW,
         exec_id="G00000000-E00000002",
-        last_px=order.price,
-        last_qty=order.qty,
+        last_price_ticks=order.price_ticks,
+        last_qty_lots=order.order_qty_lots,
         trade_id=1,
     )
     fake_exchange = SimpleNamespace(
@@ -252,7 +262,7 @@ def test_metrics_record_report_snapshot_not_live_order():
     report = new_report(order)
     fill_order(order)
 
-    collector = MetricsCollector("TEST-EXCHANGE")
+    collector = exact_metrics("TEST-EXCHANGE")
     captured = {}
 
     def capture_point(measurement, tags, fields, timestamp_ns):
@@ -268,7 +278,9 @@ def test_metrics_record_report_snapshot_not_live_order():
 
     assert captured["measurement"] == "orders"
     assert captured["tags"]["status"] == "NEW"
-    assert captured["fields"]["qty"] == 10.0
-    assert captured["fields"]["filled_qty"] == 0.0
-    assert captured["fields"]["avg_fill_price"] == 0.0
+    assert captured["fields"]["order_qty_lots"] == 10
+    assert captured["fields"]["filled_qty_lots"] == 0
+    assert captured["fields"]["quantity"] == "10.000"
+    assert captured["fields"]["filled_quantity"] == "0.000"
+    assert captured["fields"]["average_fill_price"] == "0.00"
     assert captured["timestamp_ns"] == int(NOW.timestamp() * 1_000_000_000)

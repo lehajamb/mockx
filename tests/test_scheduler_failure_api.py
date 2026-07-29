@@ -1,3 +1,4 @@
+from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """API and engine integration tests for scheduler fail-stop behavior."""
 
 import asyncio
@@ -5,6 +6,7 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
+from src.mockx.configuration import validate_config
 from src.mockx.latency import SchedulerFailedError
 from src.mockx.main import MockExchange
 from src.mockx.models import (
@@ -21,12 +23,13 @@ from .api_helpers import api_config, make_exchange
 
 def _submit_scheduled_limit_order(exchange: MockExchange) -> int:
     return exchange.engine.submit_order(
-        NewOrderCommand(
+        exact_command(
             cl_ord_id="FAIL-AFTER-CLAIM",
+            participant_id="FAIL-AFTER-CLAIM",
             symbol="TEST",
             side=Side.BUY,
-            qty=2.0,
-            price=100.0,
+            order_qty_lots=2,
+            price_ticks=100,
             tif=TimeInForce.GTC,
             submitted_at=exchange.scheduler.current_time,
             session_id="FIX.4.4:CLIENT->MOCKX",
@@ -126,7 +129,7 @@ def test_post_mutation_engine_failure_cannot_look_healthy(
 
         monkeypatch.setattr(
             exchange.engine,
-            "_process_limit_order",
+            "_run_matching",
             fail_after_claim,
         )
         exchange.scheduler.register_handler("later", later_events.append)
@@ -146,12 +149,12 @@ def test_post_mutation_engine_failure_cannot_look_healthy(
 
         with pytest.raises(SchedulerFailedError):
             exchange.engine.cancel_order(
-                CancelOrderCommand(
+                exact_cancel_command(
                     cancel_cl_ord_id="CXL-FAILED",
                     orig_cl_ord_id=order.cl_ord_id,
                     symbol=order.symbol,
                     side=order.side,
-                    qty=order.qty,
+                    order_qty_lots=order.order_qty_lots,
                     requested_at=exchange.scheduler.current_time,
                     session_id=order.session_id or "TEST-SESSION",
                     session_alias=order.session_alias,
@@ -179,7 +182,7 @@ async def test_realtime_scheduler_freezes_after_failure_and_resumes_on_reset():
     config = api_config()
     config["scheduler"]["mode"] = "realtime"
     config["scheduler"]["interval_ms"] = 1
-    exchange = MockExchange(config)
+    exchange = MockExchange(validate_config(config, environ={}))
     later_events = []
 
     exchange.scheduler.register_handler(
