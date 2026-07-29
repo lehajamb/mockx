@@ -56,7 +56,7 @@ def make_instrumented_engine():
     engine.on_cancel_request = metrics.record_cancel_request
     engine.on_cancel_reject = metrics.record_cancel_reject
     engine.on_cancel_outcome = metrics.record_cancel_outcome
-    engine.on_matching_duration = tracker.record_real_matching_duration
+    engine.on_cpu_duration = tracker.record_cpu_duration
     return engine, metrics, reports, trades
 
 

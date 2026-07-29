@@ -176,26 +176,40 @@ def test_environment_overrides_merge_then_validate():
             "INFLUXDB_TOKEN": "token",
             "INFLUXDB_ORG": "org",
             "INFLUXDB_BUCKET": "bucket",
-            "INFLUXDB_BATCH_SIZE": "25",
-            "INFLUXDB_BUFFER_CAPACITY": "50",
-            "INFLUXDB_RETRY_INTERVAL_MS": "250",
+            "INFLUXDB_FLUSH_BATCH_SIZE": "25",
+            "INFLUXDB_MAX_BUFFER_RECORDS": "50",
+            "INFLUXDB_MAX_BUFFER_BYTES": "4096",
+            "INFLUXDB_FLUSH_INTERVAL_MS": "100",
+            "INFLUXDB_RETRY_BACKOFF_MS": "250",
+            "INFLUXDB_MAX_RETRY_DELAY_MS": "1000",
+            "INFLUXDB_OVERFLOW_RETRY_ATTEMPTS": "4",
+            "INFLUXDB_SHUTDOWN_TIMEOUT_MS": "750",
+            "INFLUXDB_OVERFLOW_POLICY": "drop_oldest",
             "INFLUXDB_TIMEOUT_MS": "500",
         },
     )
 
     assert config.tsdb is not None
     assert config.tsdb.enabled is True
-    assert config.tsdb.batch_size == 25
-    assert config.tsdb.buffer_capacity == 50
-    assert config.tsdb.retry_interval_ms == 250
+    assert config.tsdb.flush_batch_size == 25
+    assert config.tsdb.max_buffer_records == 50
+    assert config.tsdb.max_buffer_bytes == 4096
+    assert config.tsdb.flush_interval_ms == 100
+    assert config.tsdb.retry_backoff_ms == 250
+    assert config.tsdb.max_retry_delay_ms == 1000
+    assert config.tsdb.overflow_retry_attempts == 4
+    assert config.tsdb.shutdown_timeout_ms == 750
+    assert config.tsdb.overflow_policy == "drop_oldest"
     assert config.tsdb.timeout_ms == 500
 
     with pytest.raises(ConfigurationError) as caught:
         validate_config(
             raw,
-            environ={"INFLUXDB_BATCH_SIZE": "not-an-integer"},
+            environ={"INFLUXDB_FLUSH_BATCH_SIZE": "not-an-integer"},
         )
-    assert caught.value.issues[0].path == "environment.INFLUXDB_BATCH_SIZE"
+    assert caught.value.issues[0].path == (
+        "environment.INFLUXDB_FLUSH_BATCH_SIZE"
+    )
 
 
 def test_every_shipped_yaml_passes_strict_validation():

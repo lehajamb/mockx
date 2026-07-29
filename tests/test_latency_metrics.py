@@ -11,8 +11,8 @@ from src.mockx.gateway import FIXApplication
 from src.mockx.latency import LatencyScheduler
 from src.mockx.metrics import (
     LatencyTracker,
+    MATCH_LOOP_DURATION,
     MetricsCollector,
-    REAL_MATCHING_DURATION,
     SIM_END_TO_END_LATENCY,
     SIM_ENGINE_LATENCY,
     SIM_INBOUND_LATENCY,
@@ -36,9 +36,14 @@ SESSION_ID = "FIX.4.4:MOCKX->CLIENT"
 class FakeMonotonicClock:
     def __init__(self, *values):
         self.values = iter(values)
+        self.last = values[-1] if values else 0
 
     def now_ns(self):
-        return next(self.values)
+        try:
+            self.last = next(self.values)
+        except StopIteration:
+            self.last += 1
+        return self.last
 
 
 def wire_stack(*, inbound_ms=5, engine_ms=3, outbound_ms=7, clock=None):
@@ -82,7 +87,7 @@ def wire_stack(*, inbound_ms=5, engine_ms=3, outbound_ms=7, clock=None):
     engine.on_order_submitted = submitted
     engine.on_execution_report = reported
     engine.on_trade = metrics.record_trade
-    engine.on_matching_duration = tracker.record_real_matching_duration
+    engine.on_cpu_duration = tracker.record_cpu_duration
     scheduler.register_handler("order_arrived", lambda command: tracker.order_arrived(command.order_id))
     scheduler.register_handler("order_process", process)
 
@@ -101,7 +106,7 @@ def wire_stack(*, inbound_ms=5, engine_ms=3, outbound_ms=7, clock=None):
 
 @pytest.mark.asyncio
 async def test_simulated_and_real_latency_clocks_are_separate():
-    clock = FakeMonotonicClock(1_000, 201_000)
+    clock = FakeMonotonicClock(0, 1_000, 201_000)
     scheduler, engine, metrics, tracker, _, _ = wire_stack(clock=clock)
     engine.submit_order(
         exact_command(
@@ -124,15 +129,15 @@ async def test_simulated_and_real_latency_clocks_are_separate():
         sample.metric: sample.value
         for sample in tracker.measurements
     }
-    assert values[SIM_INBOUND_LATENCY] == pytest.approx(0.005)
-    assert values[SIM_ENGINE_LATENCY] == pytest.approx(0.003)
-    assert values[SIM_OUTBOUND_LATENCY] == pytest.approx(0.007)
-    assert values[SIM_END_TO_END_LATENCY] == pytest.approx(0.015)
-    assert values[REAL_MATCHING_DURATION] == pytest.approx(0.0002)
+    assert values[SIM_INBOUND_LATENCY] == pytest.approx(5.0)
+    assert values[SIM_ENGINE_LATENCY] == pytest.approx(3.0)
+    assert values[SIM_OUTBOUND_LATENCY] == pytest.approx(7.0)
+    assert values[SIM_END_TO_END_LATENCY] == pytest.approx(15.0)
+    assert values[MATCH_LOOP_DURATION] == pytest.approx(200.0)
     snapshot = metrics.snapshot()
     assert snapshot.average_sim_inbound_latency_ms == pytest.approx(5.0)
     assert snapshot.average_sim_outbound_latency_ms == pytest.approx(7.0)
-    assert snapshot.average_real_matching_duration_us == pytest.approx(200.0)
+    assert snapshot.average_match_loop_duration_us == pytest.approx(200.0)
 
 
 @pytest.mark.asyncio
@@ -167,9 +172,9 @@ async def test_simulated_end_to_end_is_delivery_minus_submission():
         if item.metric == SIM_END_TO_END_LATENCY
     )
     assert sample.value == pytest.approx(
-        (scheduler.current_time - submitted_at).total_seconds()
+        (scheduler.current_time - submitted_at).total_seconds() * 1_000
     )
-    assert sample.value == pytest.approx(0.018)
+    assert sample.value == pytest.approx(18.0)
 
 
 def test_negative_simulated_latency_is_rejected_not_absolute(caplog):
@@ -201,15 +206,15 @@ def test_fake_monotonic_clock_duration_is_exact_without_sleep():
     sample = tracker.measure_real_duration(
         order_id=1,
         session_id=SESSION_ID,
-        metric=REAL_MATCHING_DURATION,
+        metric=MATCH_LOOP_DURATION,
         start_ns=10_000,
         end_ns=210_000,
         timestamp=scheduler.current_time,
     )
 
     assert sample is not None
-    assert sample.value == pytest.approx(0.0002)
-    assert metrics.snapshot().average_real_matching_duration_us == pytest.approx(
+    assert sample.value == pytest.approx(200.0)
+    assert metrics.snapshot().average_match_loop_duration_us == pytest.approx(
         200.0
     )
 

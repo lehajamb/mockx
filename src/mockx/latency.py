@@ -188,6 +188,24 @@ class LatencyScheduler:
         self._failure_cause: Optional[BaseException] = None
         self._generation = 0
         self._next_sequence = 0
+        self.on_queue_depth_change: Optional[Callable[[int], None]] = None
+        self.on_failure: Optional[Callable[[SchedulerFailure], None]] = None
+        self.on_state_change: Optional[Callable[[SchedulerState], None]] = None
+
+    @staticmethod
+    def _notify_observer(callback: Optional[Callable], *args: object) -> None:
+        if callback is None:
+            return
+        try:
+            callback(*args)
+        except Exception:
+            logger.exception("Scheduler observability callback failed")
+
+    def _notify_depth(self) -> None:
+        self._notify_observer(
+            self.on_queue_depth_change,
+            len(self.event_queue),
+        )
 
     @property
     def failure_cause(self) -> Optional[BaseException]:
@@ -254,6 +272,8 @@ class LatencyScheduler:
         self.failure_count += 1
         self._failure_cause = cause
         self.state = SchedulerState.FAILED
+        self._notify_observer(self.on_failure, failure)
+        self._notify_observer(self.on_state_change, self.state)
         logger.error(
             "Scheduler entered FAILED state at event %s (%s): %s",
             event.event_id,
@@ -284,6 +304,7 @@ class LatencyScheduler:
         )
         self._next_sequence += 1
         heapq.heappush(self.event_queue, event)
+        self._notify_depth()
         logger.debug(f"Scheduled {event_type} at {event_time} (in {delay_ms}ms)")
         return event.event_id
 
@@ -377,6 +398,7 @@ class LatencyScheduler:
 
             if budget[0] >= self.max_events_per_advance:
                 event = heapq.heappop(self.event_queue)
+                self._notify_depth()
                 cause = EventProcessingLimitExceeded(
                     "Event processing limit of "
                     f"{self.max_events_per_advance} exceeded during one "
@@ -389,6 +411,7 @@ class LatencyScheduler:
                 )
 
             event = heapq.heappop(self.event_queue)
+            self._notify_depth()
             handler = self.event_handlers.get(event.event_type)
             if handler is None:
                 cause = EventHandlerNotRegistered(
@@ -462,6 +485,7 @@ class LatencyScheduler:
         """Clear all scheduled events."""
         self.ensure_running()
         self.event_queue.clear()
+        self._notify_depth()
 
     def get_pending_count(self) -> int:
         """Get number of pending events."""
@@ -488,11 +512,14 @@ class LatencyScheduler:
         self.dead_letter = None
         self.failure_count = 0
         self._failure_cause = None
+        self._notify_depth()
+        self._notify_observer(self.on_state_change, self.state)
         logger.info(f"Latency scheduler reset. Time set to {self.current_time}.")
 
     def stop(self) -> None:
         """Stop scheduler work without discarding failure diagnostics."""
         self.state = SchedulerState.STOPPED
+        self._notify_observer(self.on_state_change, self.state)
 
     def diagnostics(self) -> Dict[str, object]:
         """Return one immutable-data scheduler observability snapshot."""

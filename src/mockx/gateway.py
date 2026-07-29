@@ -43,7 +43,11 @@ from .models import (
     create_cancel_reject,
 )
 from .fix_fields import cancel_reject_fields, execution_report_fields
-from .metrics import MetricsCollector, LatencyTracker
+from .metrics import (
+    MetricsCollector,
+    LatencyTracker,
+    SERIALIZATION_DURATION,
+)
 from .engine import MatchingEngine
 from .latency import MonotonicClock, PerfCounterClock, monotonic_duration_ns
 from .validation import (
@@ -244,6 +248,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         session_participants: Optional[Mapping[str, str]] = None,
         delivery_retry_interval_ms: int = 1_000,
         delivery_max_attempts_per_cycle: int = 3,
+        delivery_terminal_retention_records: int = 10_000,
     ):
         super().__init__()
         self.engine = engine
@@ -260,6 +265,9 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         self.delivery_queue = delivery_queue or OutboundFixDeliveryQueue(
             retry_interval_ms=delivery_retry_interval_ms,
             max_attempts_per_cycle=delivery_max_attempts_per_cycle,
+            terminal_retention_records=(
+                delivery_terminal_retention_records
+            ),
         )
         self._draining_sessions: set[str] = set()
         self._draining_sessions_lock = threading.Lock()
@@ -287,6 +295,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             self._pending_ingress.clear()
             self._next_ingress_sequence = 0
             self.identifier_scope = identifiers
+        self.delivery_queue.begin_generation(identifiers.generation)
 
     def onCreate(self, sessionID):
         """Called when a new session is created."""
@@ -386,6 +395,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         msg_type_field = fix.MsgType()
         message.getHeader().getField(msg_type_field)
         msg_type = msg_type_field.getValue()
+        ref_seq_num = self._resolve_ref_seq_num(message, sessionID)
         
         logger.debug(f"App message from {sessionID}: {msg_type}")
         token = (
@@ -403,31 +413,47 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     sessionID,
                     rejection,
                     ref_msg_type=msg_type,
+                    ref_seq_num=ref_seq_num,
                 )
                 return
 
         try:
             if msg_type == fix.MsgType_NewOrderSingle:
-                self.handle_new_order_single(message, sessionID, token)
+                self.handle_new_order_single(
+                    message, sessionID, token, ref_seq_num
+                )
             elif msg_type == fix.MsgType_OrderCancelRequest:
-                self.handle_order_cancel_request(message, sessionID, token)
+                self.handle_order_cancel_request(
+                    message, sessionID, token, ref_seq_num
+                )
             elif msg_type == fix.MsgType_MarketDataRequest:
-                self.handle_market_data_request(message, sessionID, token)
+                self.handle_market_data_request(
+                    message, sessionID, token, ref_seq_num
+                )
             else:
                 logger.warning(f"Unsupported message type: {msg_type}")
                 self._schedule_lifecycle_action(
                     sessionID,
                     msg_type,
                     token,
-                    lambda: self.send_reject(
+                    lambda: self.send_business_reject(
                         sessionID,
                         f"Unsupported message type: {msg_type}",
                         ref_msg_type=msg_type,
+                        ref_seq_num=ref_seq_num,
+                        business_reject_reason=3,
                     ),
+                    ref_seq_num=ref_seq_num,
                 )
         except Exception as e:
             logger.error(f"Error processing message: {e}")
-            self.send_reject(sessionID, str(e), ref_msg_type=msg_type)
+            self.send_business_reject(
+                sessionID,
+                str(e),
+                ref_msg_type=msg_type,
+                ref_seq_num=ref_seq_num,
+                business_reject_reason=5,
+            )
 
     def _schedule_lifecycle_action(
         self,
@@ -435,13 +461,19 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         ref_msg_type: str,
         token: IngressToken,
         action: Callable[[], object],
+        *,
+        ref_seq_num: Optional[int] = None,
     ) -> None:
+        resolved_ref_seq_num = ref_seq_num or self._session_ref_seq_num(
+            sessionID
+        )
         loop = self.loop
         if loop is None or loop.is_closed():
             self._send_lifecycle_reject(
                 sessionID,
                 "LIFECYCLE_FAILED",
                 ref_msg_type=ref_msg_type,
+                ref_seq_num=resolved_ref_seq_num,
             )
             return
 
@@ -479,6 +511,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                         sessionID,
                         exc.code,
                         ref_msg_type=ref_msg_type,
+                        ref_seq_num=resolved_ref_seq_num,
                     )
                 except BaseException as send_exc:
                     completion.set_exception(send_exc)
@@ -521,6 +554,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     if parsed.command_type == FixCommandType.NEW_ORDER
                     else fix.MsgType_OrderCancelRequest
                 ),
+                ref_seq_num=parsed.msg_seq_num,
             )
             raise LifecycleIngressRejected("LIFECYCLE_FAILED")
 
@@ -573,6 +607,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                         if parsed.command_type == FixCommandType.NEW_ORDER
                         else fix.MsgType_OrderCancelRequest
                     ),
+                    ref_seq_num=parsed.msg_seq_num,
                 )
             except Exception as exc:
                 with self._ingress_lock:
@@ -743,7 +778,8 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         sessionID,
         text: str,
         *,
-        ref_msg_type: Optional[str],
+        ref_msg_type: str,
+        ref_seq_num: int,
     ) -> None:
         previous = getattr(
             self._metric_suppression,
@@ -752,10 +788,12 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         )
         self._metric_suppression.suppress_to_app = True
         try:
-            self.send_reject(
+            self.send_business_reject(
                 sessionID,
                 text,
                 ref_msg_type=ref_msg_type,
+                ref_seq_num=ref_seq_num,
+                business_reject_reason=4,
             )
         finally:
             self._metric_suppression.suppress_to_app = previous
@@ -765,8 +803,12 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         message,
         sessionID,
         token: Optional[IngressToken] = None,
+        ref_seq_num: Optional[int] = None,
     ):
         """Parse NewOrderSingle into immutable data and enqueue it centrally."""
+        resolved_ref_seq_num = ref_seq_num or self._resolve_ref_seq_num(
+            message, sessionID
+        )
         try:
             msg_seq_num = self._get_msg_seq_num(message)
         except Exception as exc:
@@ -783,7 +825,11 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     sessionID,
                     error_text,
                     ref_msg_type=fix.MsgType_NewOrderSingle,
+                    ref_seq_num=resolved_ref_seq_num,
+                    ref_tag_id=34,
+                    session_reject_reason=1,
                 ),
+                ref_seq_num=resolved_ref_seq_num,
             )
             return
         try:
@@ -878,11 +924,14 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     ),
                     lambda code=validation_code, message=validation_message: (
                         self.send_business_reject(
-                        sessionID,
-                        f"{code.value}: {message}",
-                        ref_msg_type=fix.MsgType_NewOrderSingle,
+                            sessionID,
+                            f"{code.value}: {message}",
+                            ref_msg_type=fix.MsgType_NewOrderSingle,
+                            ref_seq_num=msg_seq_num,
+                            business_reject_reason=5,
                         )
                     ),
+                    ref_seq_num=msg_seq_num,
                 )
                 return
 
@@ -939,6 +988,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     self.identifier_scope.generation,
                 ),
                 _reject,
+                ref_seq_num=msg_seq_num,
             )
         except Exception as exc:
             logger.info("Malformed FIX NewOrderSingle: %s", exc)
@@ -959,7 +1009,10 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     sessionID,
                     text,
                     ref_msg_type=fix.MsgType_NewOrderSingle,
+                    ref_seq_num=msg_seq_num,
+                    business_reject_reason=5,
                 ),
+                ref_seq_num=msg_seq_num,
             )
 
     def process_new_order_envelope(
@@ -1106,8 +1159,12 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         message,
         sessionID,
         token: Optional[IngressToken] = None,
+        ref_seq_num: Optional[int] = None,
     ):
         """Parse OrderCancelRequest into immutable data and enqueue it."""
+        resolved_ref_seq_num = ref_seq_num or self._resolve_ref_seq_num(
+            message, sessionID
+        )
         try:
             msg_seq_num = self._get_msg_seq_num(message)
         except Exception as exc:
@@ -1124,7 +1181,11 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     sessionID,
                     error_text,
                     ref_msg_type=fix.MsgType_OrderCancelRequest,
+                    ref_seq_num=resolved_ref_seq_num,
+                    ref_tag_id=34,
+                    session_reject_reason=1,
                 ),
+                ref_seq_num=resolved_ref_seq_num,
             )
             return
         try:
@@ -1227,6 +1288,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     self.identifier_scope.generation,
                 ),
                 _reject_parse_error,
+                ref_seq_num=msg_seq_num,
             )
 
     def process_cancel_envelope(self, envelope: FixIngressEnvelope) -> None:
@@ -1268,6 +1330,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         message,
         sessionID,
         token: Optional[IngressToken] = None,
+        ref_seq_num: Optional[int] = None,
     ):
         """Handle MarketDataRequest (35=V) message."""
         # For now, send a simple reject as market data is handled via REST/WebSocket
@@ -1284,6 +1347,10 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 sessionID,
                 req_id,
                 "Market data available via REST API",
+            ),
+            ref_seq_num=(
+                ref_seq_num
+                or self._resolve_ref_seq_num(message, sessionID)
             ),
         )
         
@@ -1356,13 +1423,13 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             )
         except ValueError:
             self.metrics.record_invalid_latency(
-                metric="mockx_real_report_serialization_duration_seconds",
+                metric=SERIALIZATION_DURATION,
                 order_id=report.order_id,
                 session_id=report.session_id,
             )
         else:
             try:
-                self.latency_tracker.record_real_report_serialization_duration(
+                self.latency_tracker.record_serialization_duration(
                     report,
                     duration_ns,
                 )
@@ -1383,6 +1450,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         cancel_reject: CancelReject,
     ):
         """Serialize one immutable OrderCancelReject."""
+        serialize_start_ns = self.monotonic_clock.now_ns()
         fields = cancel_reject_fields(cancel_reject)
         reject = fix.Message()
         reject.getHeader().setField(fix.MsgType(fix.MsgType_OrderCancelReject))
@@ -1404,6 +1472,31 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         reject.setField(fix.CxlRejReason(int(fields["CxlRejReason"])))
         reject.setField(fix.Text(str(fields["Text"])))
 
+        serialize_end_ns = self.monotonic_clock.now_ns()
+        try:
+            duration_ns = monotonic_duration_ns(
+                serialize_start_ns,
+                serialize_end_ns,
+                context=(
+                    f"cancel reject {cancel_reject.reject_id} serialization"
+                ),
+            )
+        except ValueError:
+            self.metrics.record_invalid_latency(
+                metric=SERIALIZATION_DURATION,
+                order_id=cancel_reject.order_id,
+                session_id=cancel_reject.session_id,
+            )
+        else:
+            self.latency_tracker.record_cpu_duration(
+                SERIALIZATION_DURATION,
+                cancel_reject.order_id,
+                cancel_reject.session_id,
+                duration_ns,
+                self.engine.scheduler.current_time,
+                cancel_reject.reject_id,
+            )
+
         return reject
 
     def send_market_data_reject(self, sessionID, md_req_id: str, text: str):
@@ -1417,20 +1510,72 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         
         fix.Session.sendToTarget(reject, sessionID)
         
+    @staticmethod
+    def _build_session_reject(
+        *,
+        text: str,
+        ref_seq_num: int,
+        ref_msg_type: str,
+        session_reject_reason: int,
+        ref_tag_id: Optional[int] = None,
+    ):
+        """Build one dictionary-complete FIX session Reject."""
+        if ref_seq_num <= 0:
+            raise ValueError("RefSeqNum must be positive")
+        if not ref_msg_type:
+            raise ValueError("RefMsgType is required")
+        reject = fix.Message()
+        reject.getHeader().setField(fix.MsgType(fix.MsgType_Reject))
+        reject.setField(fix.RefSeqNum(ref_seq_num))
+        reject.setField(fix.RefMsgType(ref_msg_type))
+        if ref_tag_id is not None:
+            reject.setField(fix.RefTagID(ref_tag_id))
+        reject.setField(fix.SessionRejectReason(session_reject_reason))
+        reject.setField(fix.Text(text))
+        return reject
+
+    @staticmethod
+    def _build_business_reject(
+        *,
+        text: str,
+        ref_msg_type: str,
+        business_reject_reason: int,
+        ref_seq_num: Optional[int] = None,
+        business_reject_ref_id: Optional[str] = None,
+    ):
+        """Build one dictionary-complete BusinessMessageReject."""
+        if not ref_msg_type:
+            raise ValueError("RefMsgType is required")
+        if ref_seq_num is not None and ref_seq_num <= 0:
+            raise ValueError("RefSeqNum must be positive when supplied")
+        reject = fix.Message()
+        reject.getHeader().setField(fix.MsgType("j"))
+        if ref_seq_num is not None:
+            reject.setField(fix.RefSeqNum(ref_seq_num))
+        reject.setField(fix.RefMsgType(ref_msg_type))
+        if business_reject_ref_id:
+            reject.setField(fix.BusinessRejectRefID(business_reject_ref_id))
+        reject.setField(fix.BusinessRejectReason(business_reject_reason))
+        reject.setField(fix.Text(text))
+        return reject
+
     def send_reject(
         self,
         sessionID,
         text: str,
         *,
-        ref_msg_type: Optional[str] = None,
-    ):
-        """Send generic Reject (35=3) message."""
-        reject = fix.Message()
-        reject.getHeader().setField(fix.MsgType(fix.MsgType_Reject))
-        if ref_msg_type is not None:
-            reject.setField(fix.RefMsgType(ref_msg_type))
-        reject.setField(fix.Text(text))
-        
+        ref_seq_num: int,
+        ref_msg_type: str,
+        session_reject_reason: int,
+        ref_tag_id: Optional[int] = None,
+    ) -> None:
+        reject = self._build_session_reject(
+            text=text,
+            ref_seq_num=ref_seq_num,
+            ref_msg_type=ref_msg_type,
+            session_reject_reason=session_reject_reason,
+            ref_tag_id=ref_tag_id,
+        )
         fix.Session.sendToTarget(reject, sessionID)
 
     def send_business_reject(
@@ -1439,13 +1584,17 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         text: str,
         *,
         ref_msg_type: str,
+        business_reject_reason: int,
+        ref_seq_num: Optional[int] = None,
+        business_reject_ref_id: Optional[str] = None,
     ) -> None:
-        """Send FIX BusinessMessageReject (35=j) for unusable application data."""
-        reject = fix.Message()
-        reject.getHeader().setField(fix.MsgType("j"))
-        reject.setField(fix.RefMsgType(ref_msg_type))
-        reject.setField(fix.BusinessRejectReason(5))
-        reject.setField(fix.Text(text))
+        reject = self._build_business_reject(
+            text=text,
+            ref_msg_type=ref_msg_type,
+            business_reject_reason=business_reject_reason,
+            ref_seq_num=ref_seq_num,
+            business_reject_ref_id=business_reject_ref_id,
+        )
         fix.Session.sendToTarget(reject, sessionID)
         
     def enqueue_report(
@@ -1489,6 +1638,8 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             ),
         )
         if fresh:
+            if record is None:
+                raise RuntimeError("Fresh FIX delivery has no retained record")
             self.metrics.record_fix_delivery_enqueued()
             self.engine.scheduler.schedule_event(
                 "fix_delivery_due",
@@ -1565,6 +1716,8 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     simulated_timestamp=self.engine.scheduler.current_time,
                 )
                 self.metrics.record_fix_delivery_attempt()
+                if attempted.attempt_count > 1:
+                    self.metrics.record_fix_delivery_retry()
                 self._refresh_delivery_metrics()
                 try:
                     result = self.transport_sender(
@@ -1718,6 +1871,29 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         if value <= 0:
             raise ValueError("FIX MsgSeqNum must be positive")
         return value
+
+    @staticmethod
+    def _session_ref_seq_num(sessionID) -> int:
+        """Use QuickFIX sequence state only when the inbound header is unusable."""
+        if fix is not None:
+            try:
+                session = fix.Session.lookupSession(sessionID)
+                if session is not None:
+                    value = int(session.getExpectedTargetNum())
+                    if value > 0:
+                        return value
+            except Exception:
+                logger.debug(
+                    "Unable to read QuickFIX target sequence fallback",
+                    exc_info=True,
+                )
+        return 1
+
+    def _resolve_ref_seq_num(self, message, sessionID) -> int:
+        try:
+            return self._get_msg_seq_num(message)
+        except Exception:
+            return self._session_ref_seq_num(sessionID)
 
     def _session_identity(self, sessionID) -> SessionIdentity:
         """Convert a live QuickFIX SessionID to a domain-safe identity."""

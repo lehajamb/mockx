@@ -1747,7 +1747,9 @@ class FixDeliveryQueueSnapshot:
     abandoned: int
     sessions_with_backlog: int
     attempts: int
+    retries: int
     failures: int
+    retained_delivered_records: int
     oldest_pending_age_seconds: Optional[float]
 
 SchedulerMetadataScalar = Optional[Union[str, int, float, bool]]
@@ -1812,7 +1814,7 @@ class OrderLatencyTrace:
     sim_processed_at: Optional[datetime] = None
     sim_report_created_at: Optional[datetime] = None
     sim_report_delivered_at: Optional[datetime] = None
-    real_matching_duration_ns: Optional[int] = None
+    match_loop_duration_ns: Optional[int] = None
 
 
 @dataclass(slots=True)
@@ -1876,8 +1878,11 @@ class MetricsSnapshot:
     resting_orders: int
     order_book_levels: int
     connected_sessions: int
-    average_real_matching_duration_us: Optional[float]
-    average_real_report_serialization_duration_us: Optional[float]
+    average_match_loop_duration_us: Optional[float]
+    average_book_commit_duration_us: Optional[float]
+    average_engine_command_duration_us: Optional[float]
+    average_report_creation_duration_us: Optional[float]
+    average_serialization_duration_us: Optional[float]
     average_sim_inbound_latency_ms: Optional[float]
     average_sim_engine_latency_ms: Optional[float]
     average_sim_outbound_latency_ms: Optional[float]
@@ -1933,11 +1938,20 @@ class MetricsSnapshot:
                 "levels": self.order_book_levels,
             },
             "latency": {
-                "average_real_matching_duration_us": (
-                    self.average_real_matching_duration_us
+                "average_match_loop_duration_us": (
+                    self.average_match_loop_duration_us
                 ),
-                "average_real_report_serialization_duration_us": (
-                    self.average_real_report_serialization_duration_us
+                "average_book_commit_duration_us": (
+                    self.average_book_commit_duration_us
+                ),
+                "average_engine_command_duration_us": (
+                    self.average_engine_command_duration_us
+                ),
+                "average_report_creation_duration_us": (
+                    self.average_report_creation_duration_us
+                ),
+                "average_serialization_duration_us": (
+                    self.average_serialization_duration_us
                 ),
                 "average_sim_inbound_latency_ms": (
                     self.average_sim_inbound_latency_ms

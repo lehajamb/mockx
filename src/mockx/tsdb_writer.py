@@ -80,6 +80,22 @@ class InfluxDBMetricsSink:
         except Exception as exc:
             raise MetricsSinkError("InfluxDB metric flush failed") from exc
 
+    async def health_check(self) -> None:
+        """Verify current Influx reachability without writing a record."""
+        if self._closed:
+            raise MetricsSinkError("InfluxDB metrics sink is closed")
+        try:
+            healthy = await asyncio.wait_for(
+                asyncio.to_thread(self.client.ping),
+                timeout=self.timeout_seconds,
+            )
+        except Exception as exc:
+            raise MetricsSinkError(
+                "InfluxDB metrics health check failed"
+            ) from exc
+        if not healthy:
+            raise MetricsSinkError("InfluxDB metrics sink is unavailable")
+
     async def close(self) -> None:
         async with self._close_lock:
             if self._closed:

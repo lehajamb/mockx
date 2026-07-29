@@ -206,6 +206,7 @@ async def test_nonzero_cancel_stages_apply_all_configured_latency():
             sample
             for sample in exchange.latency_tracker.measurements
             if sample.report_exec_id == cancel_report.exec_id
+            and "sim_cancel_" in sample.metric
         ]
         assert len(correlated) == 3
         assert all(
@@ -410,8 +411,8 @@ async def test_cancel_delivery_failure_is_retained_for_bounded_retry():
             if "sim_cancel_" in sample.metric
         }
         assert cancel_metrics == {
-            "mockx_sim_cancel_inbound_latency_seconds",
-            "mockx_sim_cancel_engine_latency_seconds",
+                "mockx_sim_cancel_inbound_latency_ms",
+                "mockx_sim_cancel_engine_latency_ms",
         }
         assert exchange.latency_tracker.cancels
     finally:
