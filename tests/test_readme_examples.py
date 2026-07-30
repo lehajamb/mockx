@@ -56,6 +56,61 @@ def test_submit_orders_help_matches_readme_flags():
     assert "--port" not in result.stdout
 
 
+def test_local_fix_example_identity_matches_local_acceptor():
+    client = (ROOT / "examples" / "fix_client.cfg").read_text(
+        encoding="utf-8"
+    )
+    acceptor = (ROOT / "configs" / "mockx1.cfg").read_text(
+        encoding="utf-8"
+    )
+
+    assert "SenderCompID=CLIENT1" in client
+    assert "TargetCompID=MOCKX1" in client
+    assert "SenderCompID=MOCKX1" in acceptor
+    assert "TargetCompID=CLIENT1" in acceptor
+
+def test_docker_fix_example_identity_matches_docker_acceptor():
+    client = (ROOT / "examples" / "fix_client_docker.cfg").read_text(
+        encoding="utf-8"
+    )
+    acceptor = (ROOT / "configs" / "mockx1-docker.cfg").read_text(
+        encoding="utf-8"
+    )
+
+    assert "SenderCompID=liquidity_bot" in client
+    assert "TargetCompID=MOCKX1" in client
+    assert "SenderCompID=MOCKX1" in acceptor
+    assert "TargetCompID=liquidity_bot" in acceptor
+
+
+
+def test_report_tracker_waits_for_every_expected_outcome():
+    from examples.fix_support import ReportTracker
+
+    tracker = ReportTracker(
+        {
+            "EXAMPLE-0001": {"CANCELLED"},
+            "EXAMPLE-0002": {"CANCELLED"},
+            "EXAMPLE-0003": {"NEW"},
+        }
+    )
+
+    tracker.record("EXAMPLE-0001", "NEW")
+    tracker.record("EXAMPLE-0001", "CANCELLED")
+    tracker.record("EXAMPLE-0002", "CANCELLED")
+    assert not tracker.complete
+    assert not tracker.wait(0)
+
+    tracker.record("EXAMPLE-0003", "NEW")
+    assert tracker.complete
+    assert tracker.wait(0)
+    tracker.expect("EXAMPLE-DYNAMIC", {"NEW"})
+    assert not tracker.complete
+    tracker.record("EXAMPLE-DYNAMIC", "NEW")
+    assert tracker.complete
+
+
+
 def test_readme_documents_actual_routes_and_external_clock_step():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     for route in (
@@ -82,6 +137,11 @@ def test_readme_local_config_and_example_files_exist():
         "examples/fix_client.cfg",
         "examples/submit_orders.py",
     ):
+        "examples/fix_client_docker.cfg",
+        "examples/live_acceptor.cfg",
+        "examples/live_client.cfg",
+        "examples/live_exchange.yml",
+        "examples/live_market.py",
         assert (ROOT / relative).is_file()
 
 

@@ -397,7 +397,8 @@ curl -f http://localhost:8001/readyz
 curl -f -X POST http://localhost:8001/api/v1/session/start \
   -H "Content-Type: application/json" \
   -d '{"run_id":"docker-quickstart"}'
-python examples/submit_orders.py --fix-config examples/fix_client.cfg
+python examples/submit_orders.py \
+  --fix-config examples/fix_client_docker.cfg
 curl -f -X POST http://localhost:8001/admin/advance-time \
   -H "Content-Type: application/json" \
   -d '{"milliseconds":2000}'
@@ -1067,7 +1068,7 @@ maintained.
 
 ## 13. Examples
 
-The supported order example interface is:
+The bounded local FIX contract-check interface is:
 
 ```text
 python examples/submit_orders.py --help
@@ -1075,14 +1076,49 @@ python examples/submit_orders.py --fix-config examples/fix_client.cfg
 ```
 
 It waits for FIX logon, creates unique IDs within the run, submits three
-orders, prints acknowledgements/fills, times out with a nonzero exit status on
-connection or report failure, and always stops the initiator. It does not
-advance MockX implicitly; use the time-control API in external mode.
+orders, and waits for every expected outcome. The crossing pair intentionally
+demonstrates mandatory self-trade prevention; it does not produce a fill. The
+client times out with a nonzero exit status on connection or report failure
+and always stops the initiator. It does not advance MockX implicitly; use the
+time-control API in external mode. Against Docker MockX-1, use
+`examples/fix_client_docker.cfg` instead.
+
+For a continuously moving two-participant market, start the dedicated local
+exchange in terminal 1:
+
+```bash
+python -m src.mockx.cli \
+  --config examples/live_exchange.yml \
+  --fix-config examples/live_acceptor.cfg
+```
+
+Then start the FIX market driver in terminal 2:
+
+```bash
+python examples/live_market.py \
+  --config examples/live_exchange.yml \
+  --fix-config examples/live_client.cfg
+```
+
+Open `http://127.0.0.1:8001/ui/BTC-USDT`. The driver logs on distinct
+`liquidity_bot` and `taker_bot` participants, starts its own named simulation
+session, maintains an exact eight-level maker ladder, submits taker flow, and
+advances the external clock until acknowledgements arrive. It runs until
+Ctrl+C by default; `--cycles N` provides a bounded test run. It refuses to
+replace an active simulation and ends only the session it started.
+
+The page keeps the live 20-level tables and adds a 120-snapshot best-bid/ask
+history chart plus cumulative 20-level depth. Charts load Highcharts Core
+13.0.0 and its accessibility module from the Highcharts CDN; the tables remain
+usable if the CDN is unavailable. Highcharts requires an appropriate license:
+the bundled demo is intended only for qualifying personal or educational
+non-commercial use. See the
+[Highcharts license terms](https://shop.highcharts.com/license-eula).
 
 For an in-process contract check without external services, run:
 
 ```bash
-python -m pytest -q tests/test_readme_examples.py
+python -m pytest -q tests/test_readme_examples.py tests/test_live_demo.py
 ```
 
 ## 14. Known limitations

@@ -4,142 +4,230 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ symbol }} Order Book - MockX</title>
+    <script defer src="https://code.highcharts.com/13.0.0/highcharts.js"></script>
+    <script defer src="https://code.highcharts.com/13.0.0/modules/accessibility.js"></script>
     <style>
+        :root {
+            color-scheme: dark;
+            --background: #111419;
+            --panel: #1b2028;
+            --panel-border: #2d3541;
+            --muted: #9aa5b1;
+            --bid: #4caf78;
+            --ask: #f06464;
+            --accent: #f4c95d;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Courier New', monospace;
-            background-color: #1a1a1a;
-            color: #e0e0e0;
+            background: var(--background);
+            color: #e7edf3;
+            font-family: "Courier New", monospace;
             margin: 0;
-            padding: 20px;
+            padding: 24px;
         }
-        
+
         .container {
-            max-width: 800px;
             margin: 0 auto;
+            max-width: 1400px;
         }
-        
+
         h1 {
+            color: var(--bid);
+            margin: 0 0 22px;
             text-align: center;
-            color: #4CAF50;
-            margin-bottom: 30px;
         }
-        
+
         .stats {
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 18px;
+            display: flex;
+            flex-wrap: wrap;
+            font-size: 16px;
+            gap: 12px 28px;
+            justify-content: center;
+            margin-bottom: 22px;
         }
-        
-        .stats span {
-            margin: 0 15px;
-        }
-        
+
         .mid-price {
-            color: #FFC107;
+            color: var(--accent);
             font-weight: bold;
         }
-        
+
         .spread {
-            color: #9C27B0;
+            color: #c58cff;
         }
-        
+
+        .chart-warning {
+            background: #503d13;
+            border: 1px solid #8c6a1d;
+            border-radius: 6px;
+            color: #ffe29a;
+            margin-bottom: 16px;
+            padding: 10px 14px;
+        }
+
+        .chart-warning[hidden] {
+            display: none;
+        }
+
+        .charts-container,
         .book-container {
-            display: flex;
-            justify-content: space-between;
-            gap: 20px;
+            display: grid;
+            gap: 18px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-bottom: 18px;
         }
-        
+
+        .panel,
         .book-side {
-            flex: 1;
-            background-color: #2a2a2a;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
             border-radius: 8px;
-            padding: 20px;
+            min-width: 0;
+            padding: 16px;
         }
-        
-        .book-side h2 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .bids h2 {
-            color: #4CAF50;
-        }
-        
-        .asks h2 {
-            color: #F44336;
-        }
-        
-        table {
+
+        .chart {
+            height: 340px;
             width: 100%;
-            border-collapse: collapse;
         }
-        
-        th, td {
+
+        .book-side {
+            max-height: 520px;
+            overflow: auto;
+        }
+
+        .book-side h2 {
+            margin: 4px 0 16px;
+            text-align: center;
+        }
+
+        .bids h2 {
+            color: var(--bid);
+        }
+
+        .asks h2 {
+            color: var(--ask);
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border-bottom: 1px solid #343d49;
             padding: 8px;
             text-align: right;
-            border-bottom: 1px solid #444;
         }
-        
+
         th {
-            background-color: #333;
-            font-weight: bold;
+            background: var(--panel);
             position: sticky;
             top: 0;
+            z-index: 1;
         }
-        
+
         .bid-row {
-            color: #81C784;
+            color: #81c995;
         }
-        
+
         .ask-row {
-            color: #EF5350;
+            color: #ff8585;
         }
-        
+
         .best-price {
-            background-color: #3a3a3a;
+            background: #29313b;
             font-weight: bold;
         }
-        
+
         .connection-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
             border-radius: 5px;
-            font-size: 14px;
+            font-size: 13px;
+            padding: 9px 14px;
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            z-index: 10;
         }
-        
+
         .connected {
-            background-color: #4CAF50;
+            background: #2e8b57;
             color: white;
         }
-        
+
         .disconnected {
-            background-color: #F44336;
+            background: #b74343;
             color: white;
         }
-        
+
         .timestamp {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 10px;
             text-align: center;
-            margin-top: 20px;
-            font-size: 14px;
-            color: #888;
+        }
+
+        @media (max-width: 900px) {
+            body {
+                padding: 16px;
+            }
+
+            .charts-container,
+            .book-container {
+                grid-template-columns: 1fr;
+            }
+
+            .connection-status {
+                position: static;
+                text-align: center;
+                margin: 0 auto 16px;
+                width: fit-content;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="connection-status disconnected" id="connection-status">
+        Disconnected
+    </div>
+
+    <main class="container">
         <h1>{{ symbol }} Order Book</h1>
-        
+
         <div class="stats">
             <span class="spread">Spread: <span id="spread">-</span></span>
             <span class="mid-price">Mid: <span id="mid-price">{{ mid_price if mid_price else '-' }}</span></span>
             <span>Best Bid: <span id="best-bid">{{ best_bid if best_bid else '-' }}</span></span>
             <span>Best Ask: <span id="best-ask">{{ best_ask if best_ask else '-' }}</span></span>
         </div>
-        
-        <div class="book-container">
-            <div class="book-side">
+
+        <div class="chart-warning" id="chart-warning" hidden>
+            Charts unavailable. The live order-book tables will continue to update.
+        </div>
+
+        <section class="charts-container" aria-label="Market charts">
+            <div class="panel">
+                <div
+                    class="chart"
+                    id="top-of-book-chart"
+                    aria-label="Best bid and ask history"
+                ></div>
+            </div>
+            <div class="panel">
+                <div
+                    class="chart"
+                    id="market-depth-chart"
+                    aria-label="Cumulative market depth"
+                ></div>
+            </div>
+        </section>
+
+        <section class="book-container" aria-label="Order book levels">
+            <div class="book-side bids">
                 <h2>BIDS</h2>
                 <table>
                     <thead>
@@ -160,8 +248,8 @@
                     </tbody>
                 </table>
             </div>
-            
-            <div class="book-side">
+
+            <div class="book-side asks">
                 <h2>ASKS</h2>
                 <table>
                     <thead>
@@ -182,29 +270,38 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-        
+        </section>
+
         <div class="timestamp" id="timestamp">Last Update: -</div>
-    </div>
-    
-    <div class="connection-status disconnected" id="connection-status">
-        Disconnected
-    </div>
-    
+    </main>
+
     <script>
-        const symbol = "{{ symbol }}";
+        const symbol = {{ symbol | tojson }};
+        const INITIAL_BOOK = {{ initial_book | tojson }};
         const WS_TIMING = {{ websocket_timing | tojson }};
+        const HISTORY_LIMIT = 120;
+        const DEPTH_LEVEL_LIMIT = 20;
         const MARKET_DATA_STALE_MS = WS_TIMING.marketDataStaleMs;
         const HEARTBEAT_STALE_MS = WS_TIMING.heartbeatStaleMs;
         const FALLBACK_POLL_MS = WS_TIMING.fallbackPollMs;
         const RECONNECT_INITIAL_MS = WS_TIMING.reconnectInitialMs;
         const MAX_RECONNECT_MS = WS_TIMING.reconnectMaxMs;
         const STALENESS_CHECK_MS = WS_TIMING.stalenessCheckMs;
+        const COLORS = {
+            bid: '#4caf78',
+            ask: '#f06464',
+            grid: '#303946',
+            label: '#b7c0ca'
+        };
         const state = {
             socket: null,
             lastHeartbeatAt: 0,
             lastMarketDataAt: 0,
             lastSequence: null,
+            lastRenderedSequence: null,
+            history: [],
+            topBookChart: null,
+            depthChart: null,
             fallbackTimer: null,
             reconnectTimer: null,
             reconnectAttempt: 0
@@ -224,37 +321,248 @@
                 now - state.lastMarketDataAt <= MARKET_DATA_STALE_MS;
             return !socketOpen || !marketDataFresh;
         }
-        
+
+        function numeric(value) {
+            if (value === null || value === undefined) {
+                return null;
+            }
+            const parsed = Number.parseFloat(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function initializeCharts() {
+            if (typeof window.Highcharts === 'undefined') {
+                document.getElementById('chart-warning').hidden = false;
+                return;
+            }
+
+            Highcharts.setOptions({
+                chart: {
+                    animation: false,
+                    backgroundColor: 'transparent',
+                    style: { fontFamily: '"Courier New", monospace' }
+                },
+                credits: { enabled: true },
+                lang: { noData: 'Waiting for market data' },
+                title: { style: { color: '#e7edf3' } },
+                xAxis: {
+                    gridLineColor: COLORS.grid,
+                    labels: { style: { color: COLORS.label } },
+                    lineColor: COLORS.grid,
+                    tickColor: COLORS.grid
+                },
+                yAxis: {
+                    gridLineColor: COLORS.grid,
+                    labels: { style: { color: COLORS.label } },
+                    title: { style: { color: COLORS.label } }
+                },
+                legend: { itemStyle: { color: '#e7edf3' } },
+                tooltip: {
+                    backgroundColor: '#111419',
+                    borderColor: '#46505e',
+                    style: { color: '#e7edf3' }
+                }
+            });
+
+            state.topBookChart = Highcharts.chart('top-of-book-chart', {
+                title: { text: 'Best Bid / Ask History' },
+                accessibility: {
+                    description: (
+                        'Best bid and best ask by market-data sequence.'
+                    )
+                },
+                xAxis: { title: { text: 'Sequence' } },
+                yAxis: { title: { text: 'Price' } },
+                tooltip: {
+                    shared: true,
+                    formatter: function() {
+                        const timestamp = this.points &&
+                            this.points[0] &&
+                            this.points[0].point.custom
+                            ? this.points[0].point.custom.timestamp
+                            : '';
+                        const values = (this.points || []).map(
+                            point => (
+                                `<span style="color:${point.color}">` +
+                                `${point.series.name}</span>: ` +
+                                `<b>${point.y}</b>`
+                            )
+                        );
+                        return `Sequence ${this.x}<br/>${timestamp}<br/>` +
+                            values.join('<br/>');
+                    }
+                },
+                series: [
+                    {
+                        type: 'line',
+                        name: 'Best Bid',
+                        color: COLORS.bid,
+                        connectNulls: false,
+                        marker: { enabled: false },
+                        data: []
+                    },
+                    {
+                        type: 'line',
+                        name: 'Best Ask',
+                        color: COLORS.ask,
+                        connectNulls: false,
+                        marker: { enabled: false },
+                        data: []
+                    }
+                ]
+            });
+
+            state.depthChart = Highcharts.chart('market-depth-chart', {
+                title: { text: 'Cumulative Market Depth' },
+                accessibility: {
+                    description: (
+                        'Cumulative bid and ask quantity across the nearest ' +
+                        `${DEPTH_LEVEL_LIMIT} levels.`
+                    )
+                },
+                xAxis: { title: { text: 'Price' } },
+                yAxis: {
+                    min: 0,
+                    title: { text: 'Cumulative Quantity' }
+                },
+                tooltip: {
+                    shared: false,
+                    pointFormat: (
+                        '<span style="color:{series.color}">' +
+                        '{series.name}</span><br/>' +
+                        'Price: <b>{point.x}</b><br/>' +
+                        'Cumulative: <b>{point.y}</b>'
+                    )
+                },
+                plotOptions: {
+                    area: {
+                        marker: { enabled: false },
+                        fillOpacity: 0.22,
+                        lineWidth: 2,
+                        step: 'center'
+                    }
+                },
+                series: [
+                    {
+                        type: 'area',
+                        name: 'Bid Depth',
+                        color: COLORS.bid,
+                        data: []
+                    },
+                    {
+                        type: 'area',
+                        name: 'Ask Depth',
+                        color: COLORS.ask,
+                        data: []
+                    }
+                ]
+            });
+        }
+
+        function renderTable(bodyId, levels, rowClass) {
+            const body = document.getElementById(bodyId);
+            body.replaceChildren();
+            levels.slice(0, DEPTH_LEVEL_LIMIT).forEach((level, index) => {
+                const row = document.createElement('tr');
+                row.className =
+                    `${rowClass} ${index === 0 ? 'best-price' : ''}`;
+                const price = document.createElement('td');
+                const quantity = document.createElement('td');
+                const orders = document.createElement('td');
+                price.textContent = level.price;
+                quantity.textContent = level.qty;
+                orders.textContent =
+                    level.order_count ?? level.orders ?? '';
+                row.append(price, quantity, orders);
+                body.appendChild(row);
+            });
+        }
+
+        function recordHistory(data) {
+            const sequence = Number(data.sequence);
+            if (
+                state.lastRenderedSequence !== null &&
+                sequence < state.lastRenderedSequence
+            ) {
+                state.history = [];
+                state.lastRenderedSequence = null;
+            }
+            if (sequence === state.lastRenderedSequence) {
+                return false;
+            }
+            state.lastRenderedSequence = sequence;
+            state.history.push({
+                sequence,
+                timestamp: data.timestamp,
+                bid: data.bids.length ? numeric(data.bids[0].price) : null,
+                ask: data.asks.length ? numeric(data.asks[0].price) : null
+            });
+            if (state.history.length > HISTORY_LIMIT) {
+                state.history.splice(
+                    0,
+                    state.history.length - HISTORY_LIMIT
+                );
+            }
+            return true;
+        }
+
+        function historySeries(side) {
+            return state.history.map(point => ({
+                x: point.sequence,
+                y: point[side],
+                custom: { timestamp: point.timestamp }
+            }));
+        }
+
+        function cumulativeDepth(levels, side) {
+            let cumulative = 0;
+            const points = levels
+                .slice(0, DEPTH_LEVEL_LIMIT)
+                .map(level => {
+                    const price = numeric(level.price);
+                    const quantity = numeric(level.qty);
+                    if (price === null || quantity === null) {
+                        return null;
+                    }
+                    cumulative += quantity;
+                    return [price, cumulative];
+                })
+                .filter(point => point !== null);
+            return side === 'bid' ? points.reverse() : points;
+        }
+
+        function updateCharts(data) {
+            const historyChanged = recordHistory(data);
+            if (state.topBookChart && historyChanged) {
+                state.topBookChart.series[0].setData(
+                    historySeries('bid'),
+                    false
+                );
+                state.topBookChart.series[1].setData(
+                    historySeries('ask'),
+                    false
+                );
+                state.topBookChart.redraw();
+            }
+            if (state.depthChart) {
+                state.depthChart.series[0].setData(
+                    cumulativeDepth(data.bids, 'bid'),
+                    false
+                );
+                state.depthChart.series[1].setData(
+                    cumulativeDepth(data.asks, 'ask'),
+                    false
+                );
+                state.depthChart.redraw();
+            }
+        }
+
         function updateBook(data) {
-            // Update bids
-            const bidsBody = document.getElementById('bids-tbody');
-            bidsBody.innerHTML = '';
-            data.bids.forEach((bid, index) => {
-                const row = document.createElement('tr');
-                row.className = `bid-row ${index === 0 ? 'best-price' : ''}`;
-                row.innerHTML = `
-                    <td>${bid.price}</td>
-                    <td>${bid.qty}</td>
-                    <td>${bid.order_count ?? bid.orders ?? ''}</td>
-                `;
-                bidsBody.appendChild(row);
-            });
-            
-            // Update asks
-            const asksBody = document.getElementById('asks-tbody');
-            asksBody.innerHTML = '';
-            data.asks.forEach((ask, index) => {
-                const row = document.createElement('tr');
-                row.className = `ask-row ${index === 0 ? 'best-price' : ''}`;
-                row.innerHTML = `
-                    <td>${ask.price}</td>
-                    <td>${ask.qty}</td>
-                    <td>${ask.order_count ?? ask.orders ?? ''}</td>
-                `;
-                asksBody.appendChild(row);
-            });
-            
-            // Update stats without retaining values from a disappeared side.
+            data.bids = Array.isArray(data.bids) ? data.bids : [];
+            data.asks = Array.isArray(data.asks) ? data.asks : [];
+            renderTable('bids-tbody', data.bids, 'bid-row');
+            renderTable('asks-tbody', data.asks, 'ask-row');
+
             const bestBid = data.bids.length > 0 ? data.bids[0].price : null;
             const bestAsk = data.asks.length > 0 ? data.asks[0].price : null;
             const bestBidElement = document.getElementById('best-bid');
@@ -282,8 +590,8 @@
                 spreadElement.textContent = '-';
                 midElement.textContent = '-';
             }
-            
-            // Update timestamp
+
+            updateCharts(data);
             document.getElementById('timestamp').textContent =
                 `Last Update: ${data.timestamp} · Sequence ${data.sequence}`;
         }
@@ -304,9 +612,13 @@
                     throw new Error(`HTTP ${response.status}`);
                 }
                 const data = await response.json();
+                const sequenceRegressed =
+                    state.lastSequence !== null &&
+                    data.sequence < state.lastSequence;
                 if (
                     state.lastSequence === null ||
-                    data.sequence >= state.lastSequence
+                    data.sequence > state.lastSequence ||
+                    sequenceRegressed
                 ) {
                     state.lastSequence = data.sequence;
                     updateBook(data);
@@ -337,14 +649,12 @@
         }
 
         async function handleMarketData(data) {
-            if (state.lastSequence !== null) {
-                if (data.sequence <= state.lastSequence) {
-                    return;
-                }
-            }
-            state.lastSequence = data.sequence;
             state.lastMarketDataAt = Date.now();
             disableFallback();
+            if (data.sequence === state.lastSequence) {
+                return;
+            }
+            state.lastSequence = data.sequence;
             updateBook(data);
         }
 
@@ -380,22 +690,22 @@
             socket.onopen = function() {
                 state.reconnectAttempt = 0;
                 state.lastHeartbeatAt = Date.now();
-                // The server's first message is an authoritative current
-                // snapshot, so a prior connection's sequence is no longer
-                // needed for gap detection.
                 state.lastSequence = null;
                 updateConnectionStatus('Connected, awaiting data', true);
             };
 
             socket.onmessage = async function(event) {
-                const data = JSON.parse(event.data);
-
-                if (data.type === 'market_data') {
-                    await handleMarketData(data);
-                } else if (data.type === 'heartbeat') {
-                    state.lastHeartbeatAt = Date.now();
-                } else if (data.type === 'error') {
-                    console.error(`${data.code}: ${data.message}`);
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'market_data') {
+                        await handleMarketData(data);
+                    } else if (data.type === 'heartbeat') {
+                        state.lastHeartbeatAt = Date.now();
+                    } else if (data.type === 'error') {
+                        console.error(`${data.code}: ${data.message}`);
+                    }
+                } catch (error) {
+                    console.error('Invalid WebSocket message:', error);
                 }
             };
 
@@ -427,8 +737,15 @@
             }
         }
 
-        connect();
-        window.setInterval(checkStaleness, STALENESS_CHECK_MS);
+        function initialize() {
+            initializeCharts();
+            updateBook(INITIAL_BOOK);
+            state.lastSequence = INITIAL_BOOK.sequence;
+            connect();
+            window.setInterval(checkStaleness, STALENESS_CHECK_MS);
+        }
+
+        window.addEventListener('DOMContentLoaded', initialize);
     </script>
 </body>
 </html>

@@ -226,7 +226,8 @@ def test_browser_uses_current_origin_and_market_data_freshness_policy():
     assert "localhost" not in script
     assert "lastMarketDataAt" in script
     assert "lastHeartbeatAt" in script
-    assert "data.sequence <= state.lastSequence" in script
+    assert "data.sequence === state.lastSequence" in script
+    assert "data.sequence <= state.lastSequence" not in script
     assert "enableFallback()" in script
     assert "disableFallback()" in script
 
@@ -237,6 +238,12 @@ def test_browser_uses_current_origin_and_market_data_freshness_policy():
     assert "refreshFromRest" not in market_data_handler
     assert "state.lastSequence = data.sequence" in market_data_handler
 
+
+    duplicate_check = market_data_handler.index(
+        "data.sequence === state.lastSequence"
+    )
+    assert market_data_handler.index("state.lastMarketDataAt") < duplicate_check
+    assert market_data_handler.index("disableFallback()") < duplicate_check
 
 def test_browser_clears_missing_side_and_derived_statistics():
     template = (
@@ -281,3 +288,70 @@ def test_browser_timing_values_are_rendered_from_server_configuration():
     }
     for key, value in expected.items():
         assert re.search(rf'"{key}"\s*:\s*{value}(?:\.0)?', html)
+
+
+def test_book_ui_renders_initial_snapshot_and_highcharts_contract():
+    exchange = make_exchange()
+    process_order(exchange, "UI-BID", Side.BUY, 2, 100)
+
+    with TestClient(exchange.app) as client:
+        response = client.get("/ui/TEST")
+
+    assert response.status_code == 200
+    html = response.text
+    assert "https://code.highcharts.com/13.0.0/highcharts.js" in html
+    assert (
+        "https://code.highcharts.com/13.0.0/modules/accessibility.js"
+        in html
+    )
+    assert 'id="top-of-book-chart"' in html
+    assert 'id="market-depth-chart"' in html
+    assert 'id="chart-warning"' in html
+    assert "const HISTORY_LIMIT = 120" in html
+    assert "const DEPTH_LEVEL_LIMIT = 20" in html
+    assert "function cumulativeDepth" in html
+    assert "sequence < state.lastRenderedSequence" in html
+    assert "sequence === state.lastRenderedSequence" in html
+    assert "Charts unavailable" in html
+    assert re.search(r'"sequence"\s*:\s*1', html)
+    assert re.search(r'"price"\s*:\s*"100.00"', html)
+    assert re.search(r'"qty"\s*:\s*"2.000"', html)
+    assert "connectNulls: false" in html
+    assert ".slice(0, DEPTH_LEVEL_LIMIT)" in html
+    assert "side === 'bid' ? points.reverse() : points" in html
+    assert "@media (max-width: 900px)" in html
+    assert "credits: { enabled: true }" in html
+    assert "\u00c2" not in html
+
+
+def test_book_ui_initial_tables_are_limited_to_twenty_levels():
+    exchange = make_exchange()
+    for index in range(25):
+        process_order(
+            exchange,
+            f"UI-BID-{index}",
+            Side.BUY,
+            1,
+            100 - index,
+        )
+        process_order(
+            exchange,
+            f"UI-ASK-{index}",
+            Side.SELL,
+            1,
+            200 + index,
+        )
+
+    with TestClient(exchange.app) as client:
+        response = client.get("/ui/TEST")
+
+    assert response.status_code == 200
+    html = response.text
+    bid_body = html.split('id="bids-tbody">', 1)[1].split(
+        "</tbody>", 1
+    )[0]
+    ask_body = html.split('id="asks-tbody">', 1)[1].split(
+        "</tbody>", 1
+    )[0]
+    assert bid_body.count("<tr") == 20
+    assert ask_body.count("<tr") == 20
