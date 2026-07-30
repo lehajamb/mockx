@@ -1051,6 +1051,9 @@ class ExchangeAPI:
                 if best_bid is not None and best_ask is not None
                 else None
             )
+            initial_book = BookSnapshotResponse.model_validate(
+                _book_payload(snapshot)
+            ).model_dump(mode="json")
             return self.templates.TemplateResponse(
                 request=request,
                 name="book.html",
@@ -1066,7 +1069,7 @@ class ExchangeAPI:
                             ),
                             "orders": level.order_count,
                         }
-                        for level in snapshot.bids[:10]
+                        for level in snapshot.bids[:20]
                     ],
                     "asks": [
                         {
@@ -1078,11 +1081,12 @@ class ExchangeAPI:
                             ),
                             "orders": level.order_count,
                         }
-                        for level in snapshot.asks[:10]
+                        for level in snapshot.asks[:20]
                     ],
                     "best_bid": best_bid,
                     "best_ask": best_ask,
                     "mid_price": mid_price,
+                    "initial_book": initial_book,
                     "websocket_timing": self.websocket_browser_timing,
                 },
             )

@@ -4,9 +4,14 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import sys
 import threading
+import uuid
+
+try:
+    from examples.fix_support import ReportTracker
+except ModuleNotFoundError:
+    from fix_support import ReportTracker
 
 try:
     import quickfix as fix
@@ -24,7 +29,8 @@ class FIXClient(ApplicationBase):
         super().__init__()
         self.session_id = None
         self.logged_on = threading.Event()
-        self.report_received = threading.Event()
+        self.report_tracker = ReportTracker({})
+        self._id_prefix = uuid.uuid4().hex[:8].upper()
         self._next_order_id = 1
 
     def onCreate(self, sessionID):
@@ -71,10 +77,13 @@ class FIXClient(ApplicationBase):
             "4": "CANCELLED",
             "8": "REJECTED",
         }
+        status_name = status_map.get(
+            ord_status.getValue(), ord_status.getValue()
+        )
         print(
             f"ExecutionReport {cl_ord_id.getValue()}: "
             f"exec_type={exec_type.getValue()} "
-            f"status={status_map.get(ord_status.getValue(), ord_status.getValue())}"
+            f"status={status_name}"
         )
         if message.isSetField(fix.LastPx().getField()):
             last_px = fix.LastPx()
@@ -86,7 +95,7 @@ class FIXClient(ApplicationBase):
             text = fix.Text()
             message.getField(text)
             print(f"  text={text.getValue()}")
-        self.report_received.set()
+        self.report_tracker.record(cl_ord_id.getValue(), status_name)
 
     def send_order(
         self,
@@ -94,12 +103,16 @@ class FIXClient(ApplicationBase):
         side,
         qty: float,
         price: float | None,
+        expected_statuses: set[str],
     ) -> str:
         if self.session_id is None:
             raise RuntimeError("FIX session is not logged on")
 
-        cl_ord_id = f"EXAMPLE-{self._next_order_id:04d}"
+        cl_ord_id = (
+            f"EXAMPLE-{self._id_prefix}-{self._next_order_id:04d}"
+        )
         self._next_order_id += 1
+        self.report_tracker.expect(cl_ord_id, expected_statuses)
         message = fix.Message()
         message.getHeader().setField(
             fix.MsgType(fix.MsgType_NewOrderSingle)
@@ -116,9 +129,7 @@ class FIXClient(ApplicationBase):
         message.setField(
             fix.TimeInForce(fix.TimeInForce_GOOD_TILL_CANCEL)
         )
-        message.setField(
-            fix.TransactTime(datetime.now(timezone.utc).replace(tzinfo=None))
-        )
+        message.setField(fix.TransactTime())
         fix.Session.sendToTarget(message, self.session_id)
         print(
             f"Submitted {cl_ord_id}: {side} {qty} "
@@ -166,36 +177,55 @@ def main(argv: list[str] | None = None) -> int:
         print("--timeout must be positive", file=sys.stderr)
         return 2
 
-    settings = fix.SessionSettings(args.fix_config)
-    app = FIXClient()
-    store_factory = fix.FileStoreFactory(settings)
-    log_factory = fix.FileLogFactory(settings)
-    initiator = fix.SocketInitiator(
-        app,
-        store_factory,
-        settings,
-        log_factory,
-    )
-
+    initiator = None
     try:
+        settings = fix.SessionSettings(args.fix_config)
+        app = FIXClient()
+        store_factory = fix.FileStoreFactory(settings)
+        log_factory = fix.FileLogFactory(settings)
+        initiator = fix.SocketInitiator(
+            app,
+            store_factory,
+            settings,
+            log_factory,
+        )
         initiator.start()
         print("Connecting to exchange...")
         if not app.logged_on.wait(args.timeout):
             print("FIX logon timed out", file=sys.stderr)
             return 1
 
-        # One passive order, one crossing order, and one non-crossing order.
-        app.send_order(args.symbol, fix.Side_SELL, 5.0, 100.0)
-        app.send_order(args.symbol, fix.Side_BUY, 2.0, 100.0)
-        app.send_order(args.symbol, fix.Side_BUY, 1.0, 99.0)
+        # The crossing pair intentionally demonstrates mandatory self-trade
+        # prevention; the final bid remains live on the book.
+        app.send_order(
+            args.symbol,
+            fix.Side_SELL,
+            5.0,
+            100.0,
+            {"CANCELLED"},
+        )
+        app.send_order(
+            args.symbol,
+            fix.Side_BUY,
+            2.0,
+            100.0,
+            {"CANCELLED"},
+        )
+        app.send_order(
+            args.symbol,
+            fix.Side_BUY,
+            1.0,
+            99.0,
+            {"NEW"},
+        )
         print(
             "Orders are queued. If MockX uses the external clock, run the "
             "documented /admin/advance-time command now."
         )
-        if not app.report_received.wait(args.timeout):
+        if not app.report_tracker.wait(args.timeout):
             print(
-                "No execution report arrived before timeout; verify readiness "
-                "and advance simulated time",
+                "Expected order outcomes did not arrive before timeout; "
+                "verify readiness and advance simulated time",
                 file=sys.stderr,
             )
             return 1
@@ -204,7 +234,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FIX client failed: {exc}", file=sys.stderr)
         return 1
     finally:
-        initiator.stop()
+        if initiator is not None:
+            initiator.stop()
 
 
 if __name__ == "__main__":
