@@ -1,21 +1,22 @@
-"""Reusable assertions for persisted Influx metric identities."""
+"""Reusable assertions for persisted QuestDB metric identities."""
 
 from src.mockx.metrics import MetricRecord
 
 
-def influx_identity(
+def questdb_identity(
     record: MetricRecord,
-) -> tuple[str, tuple[tuple[str, str], ...], int]:
-    """Return the exact measurement/tag/timestamp identity used by InfluxDB."""
+) -> tuple[str, int, str, int]:
+    """Return the exact WAL deduplication identity used by QuestDB."""
     return (
-        record.measurement,
-        tuple(sorted(record.tags)),
-        record.persistence_timestamp_ns,
+        record.table,
+        record.timestamp_ns,
+        record.run_id,
+        record.metric_event_sequence,
     )
 
 
-def assert_unique_influx_identities(
+def assert_unique_questdb_identities(
     records: tuple[MetricRecord, ...] | list[MetricRecord],
 ) -> None:
-    identities = [influx_identity(record) for record in records]
+    identities = [questdb_identity(record) for record in records]
     assert len(identities) == len(set(identities))

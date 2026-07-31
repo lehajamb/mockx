@@ -27,7 +27,7 @@ def published_ports(service):
 def test_compose_has_unique_real_service_ports_and_readiness_checks():
     compose = load_compose()
     services = compose["services"]
-    assert set(services) == {"influxdb", "mockx", "live-market"}
+    assert set(services) == {"questdb", "mockx", "live-market"}
 
     all_host_ports = [
         host
@@ -39,16 +39,25 @@ def test_compose_has_unique_real_service_ports_and_readiness_checks():
         (4001, 4001),
         (8001, 8000),
     ]
-    assert published_ports(services["influxdb"]) == [(8086, 8086)]
+    assert published_ports(services["questdb"]) == [
+        (9000, 9000),
+        (8812, 8812),
+        (9003, 9003),
+    ]
     assert published_ports(services["live-market"]) == []
 
     mockx_health = " ".join(services["mockx"]["healthcheck"]["test"])
-    influx_health = " ".join(
-        services["influxdb"]["healthcheck"]["test"]
+    questdb_health = " ".join(
+        services["questdb"]["healthcheck"]["test"]
     )
     assert "http://localhost:8000/readyz" in mockx_health
-    assert "influx ping" in influx_health
-    assert services["mockx"]["depends_on"]["influxdb"]["condition"] == (
+    assert "http://localhost:9003" in questdb_health
+    assert services["questdb"]["healthcheck"]["test"][0] == "CMD-SHELL"
+    assert (
+        '--user "$${QDB_HTTP_USER}:$${QDB_HTTP_PASSWORD}"'
+        in questdb_health
+    )
+    assert services["mockx"]["depends_on"]["questdb"]["condition"] == (
         "service_healthy"
     )
     assert services["live-market"]["depends_on"]["mockx"]["condition"] == (
@@ -96,7 +105,7 @@ def test_docker_image_contains_live_demo_and_ignores_runtime_artifacts():
         assert ignored in dockerignore
 
 
-def test_docker_live_config_loads_with_compose_influx_environment():
+def test_docker_live_config_loads_with_compose_questdb_environment():
     compose = load_compose()
     environ = {
         key: str(value)
@@ -111,18 +120,34 @@ def test_docker_live_config_loads_with_compose_influx_environment():
     assert config.admin_api.host == "0.0.0.0"
     assert config.scheduler.mode == "external"
     assert config.scheduler.max_events_per_advance == 100_000
-    assert config.tsdb is not None
-    assert config.tsdb.enabled
-    assert config.tsdb.url == "http://influxdb:8086"
-    assert config.tsdb.bucket == "mockx"
+    assert config.questdb is not None
+    assert config.questdb.enabled
+    assert config.questdb.url == "http://questdb:9000"
+    assert config.questdb.health_url == "http://questdb:9003"
+    assert config.questdb.username == "mockx-user"
+    assert config.questdb.password == "mockx-password"
 
 
-def test_compose_persists_influx_data_in_named_volume():
+def test_compose_persists_questdb_data_in_named_volume():
     compose = load_compose()
-    influxdb = compose["services"]["influxdb"]
+    questdb = compose["services"]["questdb"]
 
-    assert "influxdb-data:/var/lib/influxdb2" in influxdb["volumes"]
-    assert "influxdb-data" in compose["volumes"]
+    assert "questdb-data:/var/lib/questdb" in questdb["volumes"]
+    assert "questdb-data" in compose["volumes"]
+
+
+def test_compose_pins_questdb_and_disables_schema_auto_creation():
+    questdb = load_compose()["services"]["questdb"]
+
+    assert questdb["image"] == "questdb/questdb:9.4.3"
+    assert questdb["environment"] == {
+        "QDB_HTTP_USER": "mockx-user",
+        "QDB_HTTP_PASSWORD": "mockx-password",
+        "QDB_PG_USER": "mockx-user",
+        "QDB_PG_PASSWORD": "mockx-password",
+        "QDB_LINE_AUTO_CREATE_NEW_TABLES": "false",
+        "QDB_LINE_AUTO_CREATE_NEW_COLUMNS": "false",
+    }
 
 
 def test_scheduler_processing_limit_defaults_and_validates(tmp_path):

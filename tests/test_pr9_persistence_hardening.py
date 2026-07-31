@@ -25,11 +25,8 @@ def record(number: int, *, payload: str = "value") -> MetricRecord:
         {"kind": "test"},
         {"number": number, "payload": payload},
         run_id="pr9-buffer",
-        event_type="bounded",
         metric_event_sequence=number,
         event_timestamp_ns=number * 1_000,
-        persistence_timestamp_ns=number * 1_000,
-        metric_event_bucket=0,
     )
 
 
@@ -75,7 +72,7 @@ async def test_writer_rejects_after_close_and_caller_observes_rejection():
     metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run("closed-caller")
     with pytest.raises(MetricsSinkError, match="REJECTED_CLOSED"):
-        metrics._create_point("caller", {}, {"value": 1}, 1_000)
+        metrics._create_record("caller", {}, {"value": 1}, 1_000)
     assert writer.health_snapshot().rejected_closed_records == 2
 
 

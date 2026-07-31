@@ -111,142 +111,108 @@ SIMULATED_LATENCY_METRICS = frozenset(
 )
 CPU_DURATION_METRICS = LATENCY_METRICS - SIMULATED_LATENCY_METRICS
 
-METRIC_IDENTITY_TAGS = frozenset(
-    {"run_id", "event_type", "metric_event_bucket"}
-)
-METRIC_IDENTITY_FIELDS = frozenset(
+METRIC_IDENTITY_SYMBOLS = frozenset({"run_id"})
+METRIC_IDENTITY_COLUMNS = frozenset(
     {"metric_event_sequence", "event_timestamp_ns"}
 )
-MAX_INFLUX_INTEGER = (1 << 63) - 1
+MAX_QUESTDB_LONG = (1 << 63) - 1
 
 
 @dataclass(frozen=True, slots=True)
 class MetricRecord:
-    """One immutable persistence record independent of an InfluxDB client."""
+    """One immutable record shaped for a QuestDB ILP row."""
 
-    measurement: str
-    tags: Tuple[Tuple[str, str], ...]
-    fields: Tuple[Tuple[str, Any], ...]
-    event_timestamp_ns: int
-    persistence_timestamp_ns: int
+    table: str
+    symbols: Tuple[Tuple[str, str], ...]
+    columns: Tuple[Tuple[str, Any], ...]
+    timestamp_ns: int
 
     @classmethod
     def create(
         cls,
-        measurement: str,
-        tags: Mapping[str, object],
-        fields: Mapping[str, object],
+        table: str,
+        symbols: Mapping[str, object],
+        columns: Mapping[str, object],
         *,
         run_id: str,
-        event_type: str,
         metric_event_sequence: int,
         event_timestamp_ns: int,
-        persistence_timestamp_ns: int,
-        metric_event_bucket: int,
     ) -> "MetricRecord":
-        if not measurement:
-            raise ValueError("Metric measurement is required")
+        if not table:
+            raise ValueError("Metric table is required")
         if not run_id:
             raise ValueError("Metric run_id is required")
-        if not event_type:
-            raise ValueError("Metric event_type is required")
         if (
             not isinstance(metric_event_sequence, int)
             or isinstance(metric_event_sequence, bool)
-            or not 1 <= metric_event_sequence <= MAX_INFLUX_INTEGER
+            or not 1 <= metric_event_sequence <= MAX_QUESTDB_LONG
         ):
             raise ValueError(
-                "metric_event_sequence must be a positive Influx integer"
+                "metric_event_sequence must be a positive QuestDB LONG"
             )
-        if (
-            not isinstance(metric_event_bucket, int)
-            or isinstance(metric_event_bucket, bool)
-            or metric_event_bucket < 0
-        ):
-            raise ValueError("metric_event_bucket cannot be negative")
 
         event_timestamp_ns = int(event_timestamp_ns)
-        persistence_timestamp_ns = int(persistence_timestamp_ns)
-        if (
-            event_timestamp_ns < 0
-            or persistence_timestamp_ns > MAX_INFLUX_INTEGER
-        ):
+        if not 0 <= event_timestamp_ns <= MAX_QUESTDB_LONG:
             raise ValueError(
-                "Metric timestamps must fit the non-negative Influx range"
-            )
-        if event_timestamp_ns % 1_000:
-            raise ValueError(
-                "Metric event timestamps must be microsecond-aligned"
-            )
-        timestamp_offset = persistence_timestamp_ns - event_timestamp_ns
-        if not 0 <= timestamp_offset < 1_000:
-            raise ValueError(
-                "Metric persistence timestamp must remain within the "
-                "original simulated microsecond"
+                "Metric timestamps must fit a non-negative QuestDB LONG"
             )
 
-        reserved_tags = METRIC_IDENTITY_TAGS.intersection(tags)
-        if reserved_tags:
+        reserved_symbols = METRIC_IDENTITY_SYMBOLS.intersection(symbols)
+        if reserved_symbols:
             raise ValueError(
-                "Metric domain tags use reserved identity names: "
-                + ", ".join(sorted(reserved_tags))
+                "Metric domain symbols use reserved identity names: "
+                + ", ".join(sorted(reserved_symbols))
             )
-        reserved_fields = METRIC_IDENTITY_FIELDS.intersection(fields)
-        if reserved_fields:
+        reserved_columns = METRIC_IDENTITY_COLUMNS.intersection(columns)
+        if reserved_columns:
             raise ValueError(
-                "Metric domain fields use reserved identity names: "
-                + ", ".join(sorted(reserved_fields))
+                "Metric domain columns use reserved identity names: "
+                + ", ".join(sorted(reserved_columns))
             )
 
-        record_tags = dict(tags)
-        record_tags.update(
-            run_id=run_id,
-            event_type=event_type,
-            metric_event_bucket=metric_event_bucket,
-        )
-        record_fields = dict(fields)
-        record_fields.update(
+        record_symbols = dict(symbols)
+        record_symbols["run_id"] = run_id
+        record_columns = dict(columns)
+        record_columns.update(
             metric_event_sequence=metric_event_sequence,
             event_timestamp_ns=event_timestamp_ns,
         )
         return cls(
-            measurement=measurement,
-            tags=tuple(
+            table=table,
+            symbols=tuple(
                 sorted(
                     (key, str(value))
-                    for key, value in record_tags.items()
+                    for key, value in record_symbols.items()
                 )
             ),
-            fields=tuple(sorted(record_fields.items())),
-            event_timestamp_ns=event_timestamp_ns,
-            persistence_timestamp_ns=persistence_timestamp_ns,
+            columns=tuple(sorted(record_columns.items())),
+            timestamp_ns=event_timestamp_ns,
         )
 
     @property
-    def tag_map(self) -> Dict[str, str]:
-        return dict(self.tags)
+    def symbol_map(self) -> Dict[str, str]:
+        return dict(self.symbols)
 
     @property
-    def field_map(self) -> Dict[str, Any]:
-        return dict(self.fields)
+    def column_map(self) -> Dict[str, Any]:
+        return dict(self.columns)
 
     @property
     def metric_event_sequence(self) -> int:
-        return int(self.field_map["metric_event_sequence"])
+        return int(self.column_map["metric_event_sequence"])
 
     @property
     def run_id(self) -> str:
-        return self.tag_map["run_id"]
+        return self.symbol_map["run_id"]
 
     @property
     def encoded_size_bytes(self) -> int:
         """Return a deterministic logical payload size for buffer limits."""
         payload = {
-            "measurement": self.measurement,
-            "tags": self.tags,
-            "fields": self.fields,
-            "event_timestamp_ns": self.event_timestamp_ns,
-            "persistence_timestamp_ns": self.persistence_timestamp_ns,
+            "table": self.table,
+            "symbols": self.symbols,
+            "columns": self.columns,
+            "timestamp_ns": self.timestamp_ns,
         }
         return len(
             json.dumps(
@@ -1134,7 +1100,6 @@ class MetricsCollector:
         self._run_ended = False
         self._metric_event_sequence = 0
         self._last_event_timestamp_ns: Optional[int] = None
-        self._same_timestamp_ordinal = 0
         self._persistence_run_baseline: Dict[str, int] = {}
         self._lock = threading.RLock()
         self._engine = None
@@ -1232,7 +1197,6 @@ class MetricsCollector:
             self._run_ended = False
             self._metric_event_sequence = 0
             self._last_event_timestamp_ns = None
-            self._same_timestamp_ordinal = 0
             self._persistence_run_baseline = (
                 self._persistence_totals_locked()
             )
@@ -1603,7 +1567,7 @@ class MetricsCollector:
             fields["price"] = report.instrument.format_price(
                 report.order_price_ticks
             )
-        self._create_point(
+        self._create_record(
             "orders",
             tags,
             fields,
@@ -1710,7 +1674,7 @@ class MetricsCollector:
             tags.update(strategy_side="sell", has_strategy="true")
         else:
             tags.update(strategy_side="none", has_strategy="false")
-        self._create_point(
+        self._create_record(
             "trades",
             tags,
             {
@@ -1767,7 +1731,7 @@ class MetricsCollector:
                         )
                     )
                 )
-        self._create_point(
+        self._create_record(
             "self_trade_prevention",
             {
                 "exchange": self.exchange_name,
@@ -1965,7 +1929,7 @@ class MetricsCollector:
             fields["cl_ord_id"] = measurement.cl_ord_id
         if measurement.orig_cl_ord_id is not None:
             fields["orig_cl_ord_id"] = measurement.orig_cl_ord_id
-        self._create_point(
+        self._create_record(
             "latency",
             {
                 "exchange": self.exchange_name,
@@ -2112,7 +2076,7 @@ class MetricsCollector:
         direction: str,
         timestamp_ns: int,
     ) -> None:
-        self._create_point(
+        self._create_record(
             "fix_messages",
             {
                 "exchange": self.exchange_name,
@@ -2126,7 +2090,7 @@ class MetricsCollector:
     def record_fix_connection(self, count: int, timestamp_ns: int) -> None:
         """Compatibility method; callers should pass the absolute count."""
         self.set_connected_sessions(max(0, count))
-        self._create_point(
+        self._create_record(
             "fix_connections",
             {"exchange": self.exchange_name},
             {"count": max(0, count)},
@@ -2209,7 +2173,7 @@ class MetricsCollector:
             "tick_size": str(instrument.tick_size),
             "lot_size": str(instrument.lot_size),
         }
-        self._create_point(
+        self._create_record(
             "book_snapshot",
             {"exchange": self.exchange_name, "symbol": update.symbol},
             fields,
@@ -2222,7 +2186,7 @@ class MetricsCollector:
         self.refresh_engine_gauges()
 
     def update_pending_events(self, count: int, timestamp_ns: int) -> None:
-        self._create_point(
+        self._create_record(
             "pending_events",
             {"exchange": self.exchange_name},
             {"count": count},
@@ -2584,11 +2548,11 @@ class MetricsCollector:
         if counter is not None:
             counter.inc(amount)
 
-    def _create_point(
+    def _create_record(
         self,
-        measurement: str,
-        tags: Dict[str, object],
-        fields: Dict[str, object],
+        table: str,
+        symbols: Dict[str, object],
+        columns: Dict[str, object],
         timestamp_ns: int,
     ) -> None:
         if self.persistence is None:
@@ -2601,11 +2565,6 @@ class MetricsCollector:
             raise ValueError(
                 "Metric event timestamp must be a non-negative integer"
             )
-        if timestamp_ns % 1_000:
-            raise ValueError(
-                "Metric event timestamp must be microsecond-aligned"
-            )
-
         with self._lock:
             run_id = self._run_id
             if run_id is None:
@@ -2613,35 +2572,25 @@ class MetricsCollector:
                     "Cannot persist metrics without an active simulation run"
                 )
 
-            if self._last_event_timestamp_ns is None:
-                same_timestamp_ordinal = 0
-            elif timestamp_ns < self._last_event_timestamp_ns:
+            if (
+                self._last_event_timestamp_ns is not None
+                and timestamp_ns < self._last_event_timestamp_ns
+            ):
                 raise ValueError(
                     "Metric event timestamp is backdated relative to the "
                     "persistence sequence"
                 )
-            elif timestamp_ns == self._last_event_timestamp_ns:
-                same_timestamp_ordinal = self._same_timestamp_ordinal + 1
-            else:
-                same_timestamp_ordinal = 0
 
             metric_event_sequence = self._metric_event_sequence + 1
-            if metric_event_sequence > MAX_INFLUX_INTEGER:
+            if metric_event_sequence > MAX_QUESTDB_LONG:
                 raise OverflowError("Metric event sequence exhausted")
-            metric_event_bucket, timestamp_offset = divmod(
-                same_timestamp_ordinal,
-                1_000,
-            )
             record = MetricRecord.create(
-                measurement,
-                tags,
-                fields,
+                table,
+                symbols,
+                columns,
                 run_id=run_id,
-                event_type=measurement,
                 metric_event_sequence=metric_event_sequence,
                 event_timestamp_ns=timestamp_ns,
-                persistence_timestamp_ns=timestamp_ns + timestamp_offset,
-                metric_event_bucket=metric_event_bucket,
             )
             outcome = self.persistence.add_nowait(record)
             if outcome in {
@@ -2656,7 +2605,6 @@ class MetricsCollector:
 
             self._metric_event_sequence = metric_event_sequence
             self._last_event_timestamp_ns = timestamp_ns
-            self._same_timestamp_ordinal = same_timestamp_ordinal
 
     async def flush(self) -> PersistenceFlushResult:
         if self.persistence is not None:

@@ -265,22 +265,22 @@ def test_metrics_record_report_snapshot_not_live_order():
     collector = exact_metrics("TEST-EXCHANGE")
     captured = {}
 
-    def capture_point(measurement, tags, fields, timestamp_ns):
+    def capture_record(table, symbols, columns, timestamp_ns):
         captured.update(
-            measurement=measurement,
-            tags=tags,
-            fields=fields,
+            table=table,
+            symbols=symbols,
+            columns=columns,
             timestamp_ns=timestamp_ns,
         )
 
-    collector._create_point = capture_point
+    collector._create_record = capture_record
     collector.record_order(report)
 
-    assert captured["measurement"] == "orders"
-    assert captured["tags"]["status"] == "NEW"
-    assert captured["fields"]["order_qty_lots"] == 10
-    assert captured["fields"]["filled_qty_lots"] == 0
-    assert captured["fields"]["quantity"] == "10.000"
-    assert captured["fields"]["filled_quantity"] == "0.000"
-    assert captured["fields"]["average_fill_price"] == "0.00"
+    assert captured["table"] == "orders"
+    assert captured["symbols"]["status"] == "NEW"
+    assert captured["columns"]["order_qty_lots"] == 10
+    assert captured["columns"]["filled_qty_lots"] == 0
+    assert captured["columns"]["quantity"] == "10.000"
+    assert captured["columns"]["filled_quantity"] == "0.000"
+    assert captured["columns"]["average_fill_price"] == "0.00"
     assert captured["timestamp_ns"] == int(NOW.timestamp() * 1_000_000_000)

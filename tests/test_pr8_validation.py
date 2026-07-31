@@ -69,7 +69,7 @@ def valid_config() -> dict:
         },
         "cors_origins": [],
         "prometheus": {"enabled": True},
-        "tsdb": {"enabled": False},
+        "questdb": {"enabled": False},
     }
 
 
@@ -117,12 +117,37 @@ def test_negative_session_latency_is_rejected():
     assert caught.value.issues[0].path == "latency.session_delays"
 
 
-def test_incomplete_enabled_influx_is_rejected():
+def test_incomplete_enabled_questdb_is_rejected():
     raw = valid_config()
-    raw["tsdb"] = {"enabled": True, "url": "http://localhost:8086"}
+    raw["questdb"] = {"enabled": True, "url": "http://localhost:9000"}
 
-    with pytest.raises(ConfigurationError, match="token, org, bucket"):
+    with pytest.raises(ConfigurationError, match="health_url"):
         validate_config(raw, environ={})
+
+
+def test_questdb_authentication_requires_username_and_password_together():
+    raw = valid_config()
+    raw["questdb"] = {
+        "enabled": True,
+        "url": "http://localhost:9000",
+        "health_url": "http://localhost:9003",
+        "username": "mockx-user",
+    }
+
+    with pytest.raises(ConfigurationError, match="configured together"):
+        validate_config(raw, environ={})
+
+
+def test_obsolete_persistence_yaml_is_rejected_without_an_alias():
+    raw = valid_config()
+    raw.pop("questdb")
+    obsolete_key = "ts" + "db"
+    raw[obsolete_key] = {"enabled": False}
+
+    with pytest.raises(ConfigurationError) as caught:
+        validate_config(raw, environ={})
+
+    assert caught.value.issues[0].path == obsolete_key
 
 
 @pytest.mark.parametrize(
@@ -171,45 +196,59 @@ def test_environment_overrides_merge_then_validate():
     config = validate_config(
         raw,
         environ={
-            "INFLUXDB_ENABLED": "true",
-            "INFLUXDB_URL": "http://localhost:8086",
-            "INFLUXDB_TOKEN": "token",
-            "INFLUXDB_ORG": "org",
-            "INFLUXDB_BUCKET": "bucket",
-            "INFLUXDB_FLUSH_BATCH_SIZE": "25",
-            "INFLUXDB_MAX_BUFFER_RECORDS": "50",
-            "INFLUXDB_MAX_BUFFER_BYTES": "4096",
-            "INFLUXDB_FLUSH_INTERVAL_MS": "100",
-            "INFLUXDB_RETRY_BACKOFF_MS": "250",
-            "INFLUXDB_MAX_RETRY_DELAY_MS": "1000",
-            "INFLUXDB_OVERFLOW_RETRY_ATTEMPTS": "4",
-            "INFLUXDB_SHUTDOWN_TIMEOUT_MS": "750",
-            "INFLUXDB_OVERFLOW_POLICY": "drop_oldest",
-            "INFLUXDB_TIMEOUT_MS": "500",
+            "QUESTDB_ENABLED": "true",
+            "QUESTDB_URL": "http://localhost:9000",
+            "QUESTDB_HEALTH_URL": "http://localhost:9003",
+            "QUESTDB_USERNAME": "mockx-user",
+            "QUESTDB_PASSWORD": "mockx-password",
+            "QUESTDB_FLUSH_BATCH_SIZE": "25",
+            "QUESTDB_MAX_BUFFER_RECORDS": "50",
+            "QUESTDB_MAX_BUFFER_BYTES": "4096",
+            "QUESTDB_FLUSH_INTERVAL_MS": "100",
+            "QUESTDB_RETRY_BACKOFF_MS": "250",
+            "QUESTDB_MAX_RETRY_DELAY_MS": "1000",
+            "QUESTDB_OVERFLOW_RETRY_ATTEMPTS": "4",
+            "QUESTDB_SHUTDOWN_TIMEOUT_MS": "750",
+            "QUESTDB_OVERFLOW_POLICY": "drop_oldest",
+            "QUESTDB_REQUEST_TIMEOUT_MS": "500",
         },
     )
 
-    assert config.tsdb is not None
-    assert config.tsdb.enabled is True
-    assert config.tsdb.flush_batch_size == 25
-    assert config.tsdb.max_buffer_records == 50
-    assert config.tsdb.max_buffer_bytes == 4096
-    assert config.tsdb.flush_interval_ms == 100
-    assert config.tsdb.retry_backoff_ms == 250
-    assert config.tsdb.max_retry_delay_ms == 1000
-    assert config.tsdb.overflow_retry_attempts == 4
-    assert config.tsdb.shutdown_timeout_ms == 750
-    assert config.tsdb.overflow_policy == "drop_oldest"
-    assert config.tsdb.timeout_ms == 500
+    assert config.questdb is not None
+    assert config.questdb.enabled is True
+    assert config.questdb.flush_batch_size == 25
+    assert config.questdb.max_buffer_records == 50
+    assert config.questdb.max_buffer_bytes == 4096
+    assert config.questdb.flush_interval_ms == 100
+    assert config.questdb.retry_backoff_ms == 250
+    assert config.questdb.max_retry_delay_ms == 1000
+    assert config.questdb.overflow_retry_attempts == 4
+    assert config.questdb.shutdown_timeout_ms == 750
+    assert config.questdb.overflow_policy == "drop_oldest"
+    assert config.questdb.request_timeout_ms == 500
 
     with pytest.raises(ConfigurationError) as caught:
         validate_config(
             raw,
-            environ={"INFLUXDB_FLUSH_BATCH_SIZE": "not-an-integer"},
+            environ={"QUESTDB_FLUSH_BATCH_SIZE": "not-an-integer"},
         )
     assert caught.value.issues[0].path == (
-        "environment.INFLUXDB_FLUSH_BATCH_SIZE"
+        "environment.QUESTDB_FLUSH_BATCH_SIZE"
     )
+
+
+def test_obsolete_database_environment_is_ignored_without_an_alias():
+    obsolete_prefix = "IN" + "FLUXDB_"
+    config = validate_config(
+        valid_config(),
+        environ={
+            f"{obsolete_prefix}ENABLED": "true",
+            f"{obsolete_prefix}URL": "http://localhost:8086",
+        },
+    )
+
+    assert config.questdb is not None
+    assert config.questdb.enabled is False
 
 
 def test_every_shipped_yaml_passes_strict_validation():

@@ -762,7 +762,7 @@ class ExchangeAPI:
             self.app.state.ready and core_ready and lifecycle_ready
         )
         persistence_required = bool(
-            self.config.tsdb is not None and self.config.tsdb.enabled
+            self.config.questdb is not None and self.config.questdb.enabled
         )
         persistence_ready = (
             not persistence_required
@@ -830,7 +830,8 @@ class ExchangeAPI:
         payload["persistence"] = {
             "scope": "operational",
             "required": bool(
-                self.config.tsdb is not None and self.config.tsdb.enabled
+                self.config.questdb is not None
+                and self.config.questdb.enabled
             ),
             "state": health.state.value,
             "last_successful_write_time": health.last_successful_write_time,

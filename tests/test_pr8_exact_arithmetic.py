@@ -272,7 +272,7 @@ def test_partial_fills_and_cancel_preserve_integer_conservation():
     assert not engine.books["TEST"].is_resting(passive_id)
 
 
-def test_fix_rest_websocket_and_influx_values_are_canonical_strings():
+def test_fix_rest_websocket_and_questdb_values_are_canonical_strings():
     instruments = catalog(
         tick_size="0.1",
         lot_size="0.1",
@@ -318,16 +318,16 @@ def test_fix_rest_websocket_and_influx_values_are_canonical_strings():
         instruments=instruments,
         prometheus_enabled=False,
     )
-    points = []
-    metrics._create_point = lambda measurement, tags, values, timestamp: (
-        points.append((measurement, tags, values, timestamp))
+    records = []
+    metrics._create_record = lambda table, symbols, values, timestamp: (
+        records.append((table, symbols, values, timestamp))
     )
     metrics.bind_engine(engine)
     assert metrics.record_trade(trades[0])
     trade_fields = next(
         values
-        for measurement, _, values, _ in points
-        if measurement == "trades"
+        for table, _, values, _ in records
+        if table == "trades"
     )
     assert trade_fields["price_ticks"] == 3
     assert trade_fields["qty_lots"] == 3

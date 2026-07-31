@@ -1,24 +1,26 @@
 services:
-  influxdb:
-    image: influxdb:2.7
+  questdb:
+    image: questdb/questdb:9.4.3
     environment:
-      DOCKER_INFLUXDB_INIT_MODE: setup
-      DOCKER_INFLUXDB_INIT_USERNAME: mockx-user
-      DOCKER_INFLUXDB_INIT_PASSWORD: mockx-password
-      DOCKER_INFLUXDB_INIT_ORG: mockx-org
-      DOCKER_INFLUXDB_INIT_BUCKET: mockx
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: mockx-token
+      QDB_HTTP_USER: mockx-user
+      QDB_HTTP_PASSWORD: mockx-password
+      QDB_PG_USER: mockx-user
+      QDB_PG_PASSWORD: mockx-password
+      QDB_LINE_AUTO_CREATE_NEW_TABLES: "false"
+      QDB_LINE_AUTO_CREATE_NEW_COLUMNS: "false"
     ports:
-      - "8086:8086"
+      - "9000:9000"
+      - "8812:8812"
+      - "9003:9003"
     volumes:
-      - influxdb-data:/var/lib/influxdb2
+      - questdb-data:/var/lib/questdb
     healthcheck:
       test:
-        - CMD
-        - influx
-        - ping
-        - --host
-        - http://localhost:8086
+        - CMD-SHELL
+        - >-
+          curl --fail --silent --show-error
+          --user "$${QDB_HTTP_USER}:$${QDB_HTTP_PASSWORD}"
+          http://localhost:9003
       interval: 5s
       timeout: 3s
       retries: 10
@@ -30,26 +32,26 @@ services:
     environment:
       CFG_PATH: /opt/mockx/examples/live_exchange_docker.yml
       FIX_CONFIG_FILE: /opt/mockx/examples/live_acceptor.cfg
-      INFLUXDB_ENABLED: "true"
-      INFLUXDB_URL: http://influxdb:8086
-      INFLUXDB_TOKEN: mockx-token
-      INFLUXDB_ORG: mockx-org
-      INFLUXDB_BUCKET: mockx
-      INFLUXDB_FLUSH_BATCH_SIZE: "1000"
-      INFLUXDB_MAX_BUFFER_RECORDS: "10000"
-      INFLUXDB_MAX_BUFFER_BYTES: "67108864"
-      INFLUXDB_FLUSH_INTERVAL_MS: "1000"
-      INFLUXDB_RETRY_BACKOFF_MS: "1000"
-      INFLUXDB_MAX_RETRY_DELAY_MS: "30000"
-      INFLUXDB_OVERFLOW_RETRY_ATTEMPTS: "3"
-      INFLUXDB_SHUTDOWN_TIMEOUT_MS: "10000"
-      INFLUXDB_OVERFLOW_POLICY: reject_new
-      INFLUXDB_TIMEOUT_MS: "10000"
+      QUESTDB_ENABLED: "true"
+      QUESTDB_URL: http://questdb:9000
+      QUESTDB_HEALTH_URL: http://questdb:9003
+      QUESTDB_USERNAME: mockx-user
+      QUESTDB_PASSWORD: mockx-password
+      QUESTDB_FLUSH_BATCH_SIZE: "1000"
+      QUESTDB_MAX_BUFFER_RECORDS: "10000"
+      QUESTDB_MAX_BUFFER_BYTES: "67108864"
+      QUESTDB_FLUSH_INTERVAL_MS: "1000"
+      QUESTDB_RETRY_BACKOFF_MS: "1000"
+      QUESTDB_MAX_RETRY_DELAY_MS: "30000"
+      QUESTDB_OVERFLOW_RETRY_ATTEMPTS: "3"
+      QUESTDB_SHUTDOWN_TIMEOUT_MS: "10000"
+      QUESTDB_OVERFLOW_POLICY: reject_new
+      QUESTDB_REQUEST_TIMEOUT_MS: "10000"
     ports:
       - "4001:4001"
       - "8001:8000"
     depends_on:
-      influxdb:
+      questdb:
         condition: service_healthy
     healthcheck:
       test:
@@ -87,4 +89,4 @@ services:
     stop_grace_period: 30s
 
 volumes:
-  influxdb-data:
+  questdb-data:

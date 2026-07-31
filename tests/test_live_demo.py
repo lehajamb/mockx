@@ -78,7 +78,7 @@ def test_live_demo_configs_have_reversed_sessions_and_distinct_owners():
 
     assert config.scheduler.mode == "external"
     assert config.admin_api.port == 8001
-    assert config.tsdb is None
+    assert config.questdb is None
     assert acceptor_ids == reversed_client_ids
     assert {
         session["AllowUnknownMsgFields"] for session in client
@@ -121,7 +121,7 @@ def test_docker_live_demo_uses_compose_service_addresses():
 
     assert config.admin_api.host == "0.0.0.0"
     assert config.admin_api.port == 8000
-    assert config.tsdb is None
+    assert config.questdb is None
     assert acceptor_ids == reversed_client_ids
     assert {session["SocketConnectHost"] for session in client} == {
         "mockx"

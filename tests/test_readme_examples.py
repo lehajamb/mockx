@@ -132,6 +132,29 @@ def test_readme_documents_actual_routes_and_external_clock_step():
     assert "Grafana is intentionally not included" in readme
 
 
+def test_readme_documents_only_the_questdb_persistence_contract():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    obsolete_database_name = "In" + "fluxDB"
+    obsolete_config_key = "ts" + "db:"
+
+    assert "QuestDB 9.4.3" in readme
+    assert "TIMESTAMP_NS" in readme
+    assert "(timestamp, run_id, metric_event_sequence)" in readme
+    assert "questdb-data" in readme
+    assert obsolete_database_name not in readme
+    assert obsolete_config_key not in readme
+
+
+def test_readme_authenticates_the_questdb_health_example():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert (
+        "curl --fail --user mockx-user:mockx-password "
+        "http://localhost:9003"
+    ) in readme
+    assert "curl -f http://localhost:9003" not in readme
+
+
 def test_readme_local_config_and_example_files_exist():
     for relative in (
         "configs/mockx-local.yml",

@@ -411,12 +411,12 @@ class PrometheusConfig(StrictConfigModel):
     enabled: StrictBool = True
 
 
-class InfluxConfig(StrictConfigModel):
+class QuestDBConfig(StrictConfigModel):
     enabled: StrictBool = True
     url: Optional[str] = None
-    token: Optional[str] = None
-    org: Optional[str] = None
-    bucket: Optional[str] = None
+    health_url: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
     flush_batch_size: StrictInt = Field(default=1_000, ge=1, le=100_000)
     max_buffer_records: StrictInt = Field(
         default=10_000,
@@ -454,9 +454,13 @@ class InfluxConfig(StrictConfigModel):
         le=86_400_000,
     )
     overflow_policy: str = "reject_new"
-    timeout_ms: StrictInt = Field(default=10_000, ge=1, le=86_400_000)
+    request_timeout_ms: StrictInt = Field(
+        default=10_000,
+        ge=1,
+        le=86_400_000,
+    )
 
-    @field_validator("url", "token", "org", "bucket")
+    @field_validator("url", "health_url", "username", "password")
     @classmethod
     def strip_optional_strings(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
@@ -472,7 +476,7 @@ class InfluxConfig(StrictConfigModel):
         return value
 
     @model_validator(mode="after")
-    def validate_enabled_contract(self) -> "InfluxConfig":
+    def validate_enabled_contract(self) -> "QuestDBConfig":
         if self.max_buffer_records < self.flush_batch_size:
             raise ValueError(
                 "max_buffer_records must be at least flush_batch_size"
@@ -484,17 +488,31 @@ class InfluxConfig(StrictConfigModel):
         if self.enabled:
             missing = [
                 name
-                for name in ("url", "token", "org", "bucket")
+                for name in ("url", "health_url")
                 if not getattr(self, name)
             ]
             if missing:
                 raise ValueError(
-                    "enabled Influx configuration is missing: "
+                    "enabled QuestDB configuration is missing: "
                     + ", ".join(missing)
                 )
-            parsed = urlsplit(self.url or "")
-            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-                raise ValueError("url must be an absolute HTTP(S) URL")
+            for name in ("url", "health_url"):
+                parsed = urlsplit(getattr(self, name) or "")
+                if (
+                    parsed.scheme not in {"http", "https"}
+                    or not parsed.netloc
+                    or parsed.path not in {"", "/"}
+                    or parsed.query
+                    or parsed.fragment
+                ):
+                    raise ValueError(
+                        f"{name} must be an absolute HTTP(S) URL without "
+                        "a path, query, or fragment"
+                    )
+        if (self.username is None) != (self.password is None):
+            raise ValueError(
+                "QuestDB username and password must be configured together"
+            )
         return self
 
 
@@ -511,7 +529,7 @@ class ExchangeConfig(StrictConfigModel):
     websocket: WebSocketConfig = Field(default_factory=WebSocketConfig)
     cors_origins: tuple[str, ...] = ()
     prometheus: PrometheusConfig = Field(default_factory=PrometheusConfig)
-    tsdb: Optional[InfluxConfig] = None
+    questdb: Optional[QuestDBConfig] = None
 
     @field_validator("exchange_name")
     @classmethod
@@ -563,24 +581,24 @@ class ExchangeConfig(StrictConfigModel):
         return tuple(result)
 
 _ENV_OVERRIDES: Mapping[str, tuple[str, str]] = {
-    "INFLUXDB_URL": ("url", "text"),
-    "INFLUXDB_TOKEN": ("token", "text"),
-    "INFLUXDB_ORG": ("org", "text"),
-    "INFLUXDB_BUCKET": ("bucket", "text"),
-    "INFLUXDB_ENABLED": ("enabled", "bool"),
-    "INFLUXDB_FLUSH_BATCH_SIZE": ("flush_batch_size", "int"),
-    "INFLUXDB_MAX_BUFFER_RECORDS": ("max_buffer_records", "int"),
-    "INFLUXDB_MAX_BUFFER_BYTES": ("max_buffer_bytes", "int"),
-    "INFLUXDB_FLUSH_INTERVAL_MS": ("flush_interval_ms", "int"),
-    "INFLUXDB_RETRY_BACKOFF_MS": ("retry_backoff_ms", "int"),
-    "INFLUXDB_MAX_RETRY_DELAY_MS": ("max_retry_delay_ms", "int"),
-    "INFLUXDB_OVERFLOW_RETRY_ATTEMPTS": (
+    "QUESTDB_URL": ("url", "text"),
+    "QUESTDB_HEALTH_URL": ("health_url", "text"),
+    "QUESTDB_USERNAME": ("username", "text"),
+    "QUESTDB_PASSWORD": ("password", "text"),
+    "QUESTDB_ENABLED": ("enabled", "bool"),
+    "QUESTDB_FLUSH_BATCH_SIZE": ("flush_batch_size", "int"),
+    "QUESTDB_MAX_BUFFER_RECORDS": ("max_buffer_records", "int"),
+    "QUESTDB_MAX_BUFFER_BYTES": ("max_buffer_bytes", "int"),
+    "QUESTDB_FLUSH_INTERVAL_MS": ("flush_interval_ms", "int"),
+    "QUESTDB_RETRY_BACKOFF_MS": ("retry_backoff_ms", "int"),
+    "QUESTDB_MAX_RETRY_DELAY_MS": ("max_retry_delay_ms", "int"),
+    "QUESTDB_OVERFLOW_RETRY_ATTEMPTS": (
         "overflow_retry_attempts",
         "int",
     ),
-    "INFLUXDB_SHUTDOWN_TIMEOUT_MS": ("shutdown_timeout_ms", "int"),
-    "INFLUXDB_OVERFLOW_POLICY": ("overflow_policy", "text"),
-    "INFLUXDB_TIMEOUT_MS": ("timeout_ms", "int"),
+    "QUESTDB_SHUTDOWN_TIMEOUT_MS": ("shutdown_timeout_ms", "int"),
+    "QUESTDB_OVERFLOW_POLICY": ("overflow_policy", "text"),
+    "QUESTDB_REQUEST_TIMEOUT_MS": ("request_timeout_ms", "int"),
 }
 
 
@@ -629,13 +647,13 @@ def merge_environment(
         name: environ[name] for name in _ENV_OVERRIDES if name in environ
     }
     if supplied:
-        tsdb = dict(merged.get("tsdb") or {})
-        if "enabled" not in tsdb and "INFLUXDB_ENABLED" not in supplied:
-            tsdb["enabled"] = True
+        questdb = dict(merged.get("questdb") or {})
+        if "enabled" not in questdb and "QUESTDB_ENABLED" not in supplied:
+            questdb["enabled"] = True
         for name, raw in supplied.items():
             field_name, kind = _ENV_OVERRIDES[name]
-            tsdb[field_name] = _parse_override(name, raw, kind)
-        merged["tsdb"] = tsdb
+            questdb[field_name] = _parse_override(name, raw, kind)
+        merged["questdb"] = questdb
     return merged
 
 
