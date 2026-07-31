@@ -7,9 +7,11 @@ import argparse
 from dataclasses import dataclass, replace
 from pathlib import Path
 import random
+import signal
 import sys
 import threading
 import time
+from types import FrameType
 from typing import Callable, Iterable, Optional
 
 import httpx
@@ -416,6 +418,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Admin API base URL (defaults to the YAML host and port)",
     )
+    parser.add_argument(
+        "--ui-base-url",
+        default=None,
+        help=(
+            "Browser-facing UI base URL printed after startup "
+            "(defaults to the admin API base URL)"
+        ),
+    )
     parser.add_argument("--symbol", default="BTC-USDT")
     parser.add_argument("--run-id", default="live-fix-demo")
     parser.add_argument("--mid-price", default="100.00")
@@ -437,7 +447,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def _base_url(config, override: Optional[str]) -> str:
     if override:
-        return override
+        return override.rstrip("/")
     host = config.admin_api.host
     if host == "0.0.0.0":
         host = "127.0.0.1"
@@ -475,7 +485,13 @@ def run(argv: list[str] | None = None) -> int:
         print(f"Invalid live demo configuration: {exc}", file=sys.stderr)
         return 2
 
-    admin = DemoAdmin(_base_url(config, args.base_url), args.timeout)
+    admin_base_url = _base_url(config, args.base_url)
+    ui_base_url = (
+        args.ui_base_url.rstrip("/")
+        if args.ui_base_url
+        else admin_base_url
+    )
+    admin = DemoAdmin(admin_base_url, args.timeout)
     initiator = None
     started_session = False
     interrupted = False
@@ -509,10 +525,7 @@ def run(argv: list[str] | None = None) -> int:
             f"Started {started['session_id']} generation "
             f"{started['run_generation']}"
         )
-        print(
-            f"Open {_base_url(config, args.base_url)}/ui/"
-            f"{instrument.symbol}"
-        )
+        print(f"Open {ui_base_url}/ui/{instrument.symbol}")
 
         rng = random.Random(args.seed)
         market = LiveMarket(
@@ -575,8 +588,25 @@ def run(argv: list[str] | None = None) -> int:
             sys.stdout.flush()
 
 
+def _termination_requested(
+    signal_number: int,
+    frame: Optional[FrameType],
+) -> None:
+    """Translate container termination into the normal cleanup path."""
+
+    del signal_number, frame
+    raise KeyboardInterrupt
+
+
 def main(argv: list[str] | None = None) -> int:
-    return run(argv)
+    previous_handler = signal.signal(
+        signal.SIGTERM,
+        _termination_requested,
+    )
+    try:
+        return run(argv)
+    finally:
+        signal.signal(signal.SIGTERM, previous_handler)
 
 
 if __name__ == "__main__":

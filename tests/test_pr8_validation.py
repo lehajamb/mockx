@@ -219,22 +219,25 @@ def test_every_shipped_yaml_passes_strict_validation():
 
 
 @pytest.mark.parametrize(
-    ("yaml_name", "fix_name"),
+    ("yaml_path", "fix_path"),
     [
-        ("mockx-local.yml", "mockx1.cfg"),
-        ("mockx1.yml", "mockx1-docker.cfg"),
-        ("mockx2.yml", "mockx2-docker.cfg"),
+        ("configs/mockx-local.yml", "configs/mockx1.cfg"),
+        ("examples/live_exchange.yml", "examples/live_acceptor.cfg"),
+        (
+            "examples/live_exchange_docker.yml",
+            "examples/live_acceptor.cfg",
+        ),
     ],
 )
 def test_every_shipped_fix_session_has_exact_participant_mapping(
-    yaml_name,
-    fix_name,
+    yaml_path,
+    fix_path,
 ):
-    raw = yaml.safe_load((ROOT / "configs" / yaml_name).read_text(encoding="utf-8"))
+    raw = yaml.safe_load((ROOT / yaml_path).read_text(encoding="utf-8"))
     config = validate_config(raw, environ={})
 
     assert set(config.fix.session_participants) == configured_fix_session_ids(
-        str(ROOT / "configs" / fix_name)
+        str(ROOT / fix_path)
     )
 
 

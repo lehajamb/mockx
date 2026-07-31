@@ -69,18 +69,20 @@ def test_local_fix_example_identity_matches_local_acceptor():
     assert "SenderCompID=MOCKX1" in acceptor
     assert "TargetCompID=CLIENT1" in acceptor
 
-def test_docker_fix_example_identity_matches_docker_acceptor():
-    client = (ROOT / "examples" / "fix_client_docker.cfg").read_text(
+def test_docker_live_fix_identity_matches_live_acceptor():
+    client = (ROOT / "examples" / "live_client_docker.cfg").read_text(
         encoding="utf-8"
     )
-    acceptor = (ROOT / "configs" / "mockx1-docker.cfg").read_text(
+    acceptor = (ROOT / "examples" / "live_acceptor.cfg").read_text(
         encoding="utf-8"
     )
 
     assert "SenderCompID=liquidity_bot" in client
-    assert "TargetCompID=MOCKX1" in client
-    assert "SenderCompID=MOCKX1" in acceptor
+    assert "SenderCompID=taker_bot" in client
+    assert "TargetCompID=MOCKX_DEMO" in client
+    assert "SenderCompID=MOCKX_DEMO" in acceptor
     assert "TargetCompID=liquidity_bot" in acceptor
+    assert "TargetCompID=taker_bot" in acceptor
 
 
 
@@ -136,12 +138,13 @@ def test_readme_local_config_and_example_files_exist():
         "configs/mockx1.cfg",
         "examples/fix_client.cfg",
         "examples/submit_orders.py",
-    ):
-        "examples/fix_client_docker.cfg",
         "examples/live_acceptor.cfg",
         "examples/live_client.cfg",
+        "examples/live_client_docker.cfg",
         "examples/live_exchange.yml",
+        "examples/live_exchange_docker.yml",
         "examples/live_market.py",
+    ):
         assert (ROOT / relative).is_file()
 
 

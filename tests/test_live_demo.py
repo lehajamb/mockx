@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import random
 from pathlib import Path
+import signal
 from types import SimpleNamespace
 import subprocess
 import sys
+
+import pytest
 
 from examples import live_market as live_module
 from examples.fix_support import FixReport, _transact_time, fix
@@ -85,6 +88,51 @@ def test_live_demo_configs_have_reversed_sessions_and_distinct_owners():
         "FIX.4.4:MOCKX_DEMO->taker_bot",
     }
     assert len(set(config.fix.session_participants.values())) == 2
+
+
+def test_docker_live_demo_uses_compose_service_addresses():
+    config = load_config(
+        ROOT / "examples" / "live_exchange_docker.yml",
+        environ={},
+    )
+    acceptor = _quickfix_sessions(
+        ROOT / "examples" / "live_acceptor.cfg"
+    )
+    client = _quickfix_sessions(
+        ROOT / "examples" / "live_client_docker.cfg"
+    )
+
+    acceptor_ids = {
+        (
+            session["BeginString"],
+            session["SenderCompID"],
+            session["TargetCompID"],
+        )
+        for session in acceptor
+    }
+    reversed_client_ids = {
+        (
+            session["BeginString"],
+            session["TargetCompID"],
+            session["SenderCompID"],
+        )
+        for session in client
+    }
+
+    assert config.admin_api.host == "0.0.0.0"
+    assert config.admin_api.port == 8000
+    assert config.tsdb is None
+    assert acceptor_ids == reversed_client_ids
+    assert {session["SocketConnectHost"] for session in client} == {
+        "mockx"
+    }
+    assert {session["SocketConnectPort"] for session in client} == {
+        "4001"
+    }
+    assert set(config.fix.session_participants) == {
+        "FIX.4.4:MOCKX_DEMO->liquidity_bot",
+        "FIX.4.4:MOCKX_DEMO->taker_bot",
+    }
 
 
 def test_ladder_is_exact_symmetric_and_non_crossing():
@@ -205,6 +253,7 @@ def test_live_market_help_is_available():
     assert "--cycles" in result.stdout
     assert "--fix-config" in result.stdout
     assert "--base-url" in result.stdout
+    assert "--ui-base-url" in result.stdout
 
 
 def test_quickfix_helper_uses_native_utc_timestamp_constructor():
@@ -212,6 +261,29 @@ def test_quickfix_helper_uses_native_utc_timestamp_constructor():
         return
 
     assert _transact_time().getString()
+
+
+def test_termination_handler_interrupts_the_driver():
+    with pytest.raises(KeyboardInterrupt):
+        live_module._termination_requested(signal.SIGTERM, None)
+
+
+def test_main_installs_and_restores_sigterm_handler(monkeypatch):
+    calls = []
+    previous_handler = object()
+
+    def fake_signal(signal_number, handler):
+        calls.append((signal_number, handler))
+        return previous_handler
+
+    monkeypatch.setattr(live_module.signal, "signal", fake_signal)
+    monkeypatch.setattr(live_module, "run", lambda argv: 7)
+
+    assert live_module.main(["ignored"]) == 7
+    assert calls == [
+        (signal.SIGTERM, live_module._termination_requested),
+        (signal.SIGTERM, previous_handler),
+    ]
 
 
 def _fix_report(
@@ -473,7 +545,7 @@ def _install_run_fakes(monkeypatch, market_action="ok"):
     return events, FakeAdmin, FakeInitiator, FakeMarket
 
 
-def _run_fake_driver():
+def _run_fake_driver(*extra_args):
     return live_module.run(
         [
             "--config",
@@ -484,6 +556,7 @@ def _run_fake_driver():
             "2",
             "--interval",
             "0",
+            *extra_args,
         ]
     )
 
@@ -509,6 +582,27 @@ def test_finite_run_waits_for_readiness_and_logons_then_cleans_up(
     assert markets.takes == 2
     assert admins.instances[0].ended == ["live-fix-demo"]
     assert admins.instances[0].closed
+    assert initiators.instances[0].stopped
+
+
+def test_ui_base_url_changes_only_the_printed_browser_address(
+    monkeypatch,
+    capsys,
+):
+    events, admins, initiators, markets = _install_run_fakes(monkeypatch)
+
+    assert (
+        _run_fake_driver(
+            "--ui-base-url",
+            "http://localhost:8001/",
+        )
+        == 0
+    )
+
+    output = capsys.readouterr().out
+    assert "Open http://localhost:8001/ui/BTC-USDT" in output
+    assert admins.instances[0].base_url == "http://127.0.0.1:8001"
+    assert markets.reconciliations == 2
     assert initiators.instances[0].stopped
 
 
