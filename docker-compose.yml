@@ -1,81 +1,6 @@
 services:
-  mockx1:
-    build: .
-    container_name: mockx1
-    volumes:
-      - ./configs/mockx1.yml:/opt/mockx1/config.yml:ro
-      - ./configs/mockx1-docker.cfg:/opt/mockx1/fix.cfg:ro
-      - ./configs/FIX44.xml:/opt/mockx1/FIX44.xml:ro
-      - ./logs/mockx1:/opt/mockx1/logs
-      - ./store/mockx1:/opt/mockx1/store
-    environment:
-      CFG_PATH: /opt/mockx1/config.yml
-      FIX_CONFIG_FILE: /opt/mockx1/fix.cfg
-      INFLUXDB_URL: http://influxdb:8086
-      INFLUXDB_TOKEN: mockx-token
-      INFLUXDB_ORG: mockx-org
-      INFLUXDB_BUCKET: mockx
-      INFLUXDB_FLUSH_BATCH_SIZE: "1000"
-      INFLUXDB_MAX_BUFFER_RECORDS: "10000"
-      INFLUXDB_MAX_BUFFER_BYTES: "67108864"
-      INFLUXDB_FLUSH_INTERVAL_MS: "1000"
-      INFLUXDB_RETRY_BACKOFF_MS: "1000"
-      INFLUXDB_MAX_RETRY_DELAY_MS: "30000"
-      INFLUXDB_OVERFLOW_RETRY_ATTEMPTS: "3"
-      INFLUXDB_SHUTDOWN_TIMEOUT_MS: "10000"
-      INFLUXDB_OVERFLOW_POLICY: reject_new
-    ports:
-      - "4001:4001"
-      - "8001:8000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/readyz"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
-    networks:
-      - mockx-net
-
-  mockx2:
-    build: .
-    container_name: mockx2
-    volumes:
-      - ./configs/mockx2.yml:/opt/mockx2/config.yml:ro
-      - ./configs/mockx2-docker.cfg:/opt/mockx2/fix.cfg:ro
-      - ./configs/FIX44.xml:/opt/mockx2/FIX44.xml:ro
-      - ./logs/mockx2:/opt/mockx2/logs
-      - ./store/mockx2:/opt/mockx2/store
-    environment:
-      CFG_PATH: /opt/mockx2/config.yml
-      FIX_CONFIG_FILE: /opt/mockx2/fix.cfg
-      INFLUXDB_URL: http://influxdb:8086
-      INFLUXDB_TOKEN: mockx-token
-      INFLUXDB_ORG: mockx-org
-      INFLUXDB_BUCKET: mockx
-      INFLUXDB_FLUSH_BATCH_SIZE: "1000"
-      INFLUXDB_MAX_BUFFER_RECORDS: "10000"
-      INFLUXDB_MAX_BUFFER_BYTES: "67108864"
-      INFLUXDB_FLUSH_INTERVAL_MS: "1000"
-      INFLUXDB_RETRY_BACKOFF_MS: "1000"
-      INFLUXDB_MAX_RETRY_DELAY_MS: "30000"
-      INFLUXDB_OVERFLOW_RETRY_ATTEMPTS: "3"
-      INFLUXDB_SHUTDOWN_TIMEOUT_MS: "10000"
-      INFLUXDB_OVERFLOW_POLICY: reject_new
-    ports:
-      - "4002:4002"
-      - "8002:8000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/readyz"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
-    networks:
-      - mockx-net
-
   influxdb:
     image: influxdb:2.7
-    container_name: influxdb
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: mockx-user
@@ -87,11 +12,79 @@ services:
       - "8086:8086"
     volumes:
       - influxdb-data:/var/lib/influxdb2
-    networks:
-      - mockx-net
+    healthcheck:
+      test:
+        - CMD
+        - influx
+        - ping
+        - --host
+        - http://localhost:8086
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
-networks:
-  mockx-net:
+  mockx:
+    build: .
+    image: mockx-live-demo:local
+    environment:
+      CFG_PATH: /opt/mockx/examples/live_exchange_docker.yml
+      FIX_CONFIG_FILE: /opt/mockx/examples/live_acceptor.cfg
+      INFLUXDB_ENABLED: "true"
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: mockx-token
+      INFLUXDB_ORG: mockx-org
+      INFLUXDB_BUCKET: mockx
+      INFLUXDB_FLUSH_BATCH_SIZE: "1000"
+      INFLUXDB_MAX_BUFFER_RECORDS: "10000"
+      INFLUXDB_MAX_BUFFER_BYTES: "67108864"
+      INFLUXDB_FLUSH_INTERVAL_MS: "1000"
+      INFLUXDB_RETRY_BACKOFF_MS: "1000"
+      INFLUXDB_MAX_RETRY_DELAY_MS: "30000"
+      INFLUXDB_OVERFLOW_RETRY_ATTEMPTS: "3"
+      INFLUXDB_SHUTDOWN_TIMEOUT_MS: "10000"
+      INFLUXDB_OVERFLOW_POLICY: reject_new
+      INFLUXDB_TIMEOUT_MS: "10000"
+    ports:
+      - "4001:4001"
+      - "8001:8000"
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8000/readyz
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  live-market:
+    image: mockx-live-demo:local
+    pull_policy: never
+    environment:
+      PYTHONUNBUFFERED: "1"
+    entrypoint:
+      - python
+      - examples/live_market.py
+    command:
+      - --config
+      - examples/live_exchange_docker.yml
+      - --fix-config
+      - examples/live_client_docker.cfg
+      - --base-url
+      - http://mockx:8000
+      - --ui-base-url
+      - http://localhost:8001
+    depends_on:
+      mockx:
+        condition: service_healthy
+    init: true
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
 
 volumes:
   influxdb-data:

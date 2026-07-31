@@ -382,36 +382,53 @@ curl -f -X POST http://127.0.0.1:8001/api/v1/session/end
 
 ## 6. Docker quick start
 
-Docker Compose runs two exchanges and InfluxDB:
+Docker Compose builds the MockX image and starts a complete live demo:
+InfluxDB 2.7, one MockX exchange, and the continuous two-session FIX market
+driver from `examples/live_market.py`.
+
+```bash
+docker compose up --build
+```
+
+The driver starts only after InfluxDB and MockX pass their health checks. It
+then owns the simulation session, maintains the maker ladder, submits taker
+flow, and advances the external clock continuously. Open the live book at
+`http://localhost:8001/ui/BTC-USDT`.
+
+To run in the background and follow the market cycles:
 
 ```bash
 docker compose up --build -d
 docker compose ps
+docker compose logs -f live-market
 ```
 
-The container health checks use each service's internal
-`http://localhost:8000/readyz`. For MockX-1:
+The published development endpoints are:
 
 ```bash
 curl -f http://localhost:8001/readyz
-curl -f -X POST http://localhost:8001/api/v1/session/start \
-  -H "Content-Type: application/json" \
-  -d '{"run_id":"docker-quickstart"}'
-python examples/submit_orders.py \
-  --fix-config examples/fix_client_docker.cfg
-curl -f -X POST http://localhost:8001/admin/advance-time \
-  -H "Content-Type: application/json" \
-  -d '{"milliseconds":2000}'
 curl -f http://localhost:8001/book/BTC-USDT
-curl -f -X POST http://localhost:8001/api/v1/session/end
+curl -f http://localhost:8086/ping
 ```
 
-The Docker MockX-1 configuration gives `liquidity_bot` a 1000 ms inbound
-session delay, so the Docker example advances 2000 ms.
+Stop and remove the containers while retaining InfluxDB data with:
+
+```bash
+docker compose down
+```
+
+To also delete the `influxdb-data` volume and reset the demo database:
+
+```bash
+docker compose down -v
+```
+
+The bundled InfluxDB username, password, organization, bucket, and token are
+development-only values and must not be reused in a production deployment.
 
 ## 7. REST API
 
-Core routes are stable across both instances:
+Core routes are stable across local and Docker deployments:
 
 | Method | Route | Contract |
 |---|---|---|
@@ -800,12 +817,13 @@ exposes the gauges and cumulative WebSocket counts under
 `websocket.scope="process_lifetime"`, outside the run-local business fields.
 
 Compose does not deploy a Prometheus server, Grafana, provisioning, or
-prebuilt dashboards. Scrape `mockx1:8000/metrics` and
-`mockx2:8000/metrics` from an independently deployed Prometheus if desired.
+prebuilt dashboards. Scrape `mockx:8000/metrics` from an independently
+deployed Prometheus on the Compose network if desired.
 Grafana is intentionally not included.
 
-Compose does deploy InfluxDB 2.7 on host port 8086. Both exchange
-configurations use the same org, bucket, and environment override contract.
+Compose does deploy InfluxDB 2.7 on host port 8086. The exchange receives its
+org, bucket, token, and writer settings through the supported environment
+override contract.
 Persistence admission is explicit: `ACCEPTED`,
 `ACCEPTED_FLUSH_REQUIRED`, `ACCEPTED_DROPPED_OLDEST`, `REJECTED_CLOSED`,
 `REJECTED_FULL`, or `FAILED`. `add_nowait()` never blocks and never reports
@@ -931,20 +949,19 @@ as order, execution, and exchange trade IDs, as fields.
 Prometheus collectors are per application instance, so multiple exchanges in
 one Python process do not register duplicate global collectors.
 
-## 11. Multi-instance deployment
+## 11. Docker live-demo topology
 
 | Service | Container port | Host port | Purpose |
 |---|---:|---:|---|
-| MockX-1 FIX | 4001 | 4001 | FIX 4.4 acceptor |
-| MockX-1 API | 8000 | 8001 | REST, WebSocket, UI, `/metrics` |
-| MockX-2 FIX | 4002 | 4002 | FIX 4.4 acceptor |
-| MockX-2 API | 8000 | 8002 | REST, WebSocket, UI, `/metrics` |
-| InfluxDB | 8086 | 8086 | Optional metric persistence |
+| MockX FIX | 4001 | 4001 | FIX 4.4 acceptor |
+| MockX API | 8000 | 8001 | REST, WebSocket, UI, `/metrics` |
+| Live market | - | - | Two-session FIX market driver |
+| InfluxDB | 8086 | 8086 | Metric persistence |
 
-The exchange name labels metrics and distinguishes instances. Both instances
-expose the same API contract. Their latency and random-execution profiles
-differ intentionally. Browser WebSocket URLs work for either mapped API port
-because they use the current origin.
+Compose service discovery provides the driver with `mockx:4001` for FIX and
+`http://mockx:8000` for administration. The browser-facing API stays on
+`http://localhost:8001`, and browser WebSocket URLs use that current origin.
+InfluxDB state is stored in the named `influxdb-data` volume.
 
 ## 12. Configuration
 
@@ -1080,8 +1097,7 @@ orders, and waits for every expected outcome. The crossing pair intentionally
 demonstrates mandatory self-trade prevention; it does not produce a fill. The
 client times out with a nonzero exit status on connection or report failure
 and always stops the initiator. It does not advance MockX implicitly; use the
-time-control API in external mode. Against Docker MockX-1, use
-`examples/fix_client_docker.cfg` instead.
+time-control API in external mode.
 
 For a continuously moving two-participant market, start the dedicated local
 exchange in terminal 1:
@@ -1106,6 +1122,12 @@ session, maintains an exact eight-level maker ladder, submits taker flow, and
 advances the external clock until acknowledgements arrive. It runs until
 Ctrl+C by default; `--cycles N` provides a bounded test run. It refuses to
 replace an active simulation and ends only the session it started.
+
+The Docker equivalent packages the server and driver configurations into the
+image and runs the complete workflow with `docker compose up --build`, as
+shown in the Docker quick start. The driver uses the internal service address
+for API calls while `--ui-base-url` prints the host URL that can be opened in
+a browser.
 
 The page keeps the live 20-level tables and adds a 120-snapshot best-bid/ask
 history chart plus cumulative 20-level depth. Charts load Highcharts Core

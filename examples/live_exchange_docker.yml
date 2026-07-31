@@ -1,21 +1,16 @@
-exchange_name: "MockX-2"
+exchange_name: "MockX-Live-Demo"
 instruments:
   BTC-USDT:
     tick_size: "0.01"
     lot_size: "0.001"
     price_display_precision: 2
     quantity_display_precision: 3
-  ETH-USDT:
-    tick_size: "0.01"
-    lot_size: "0.001"
-    price_display_precision: 2
-    quantity_display_precision: 3
 latency:
-  network_ms: 100
-  engine_ms: 20
+  network_ms: 0
+  engine_ms: 1
 execution:
-  reject_prob: 0.02
-  random_seed: 84
+  reject_prob: 0.0
+  random_seed: 42
 admin_api:
   host: "0.0.0.0"
   port: 8000
@@ -26,7 +21,8 @@ fix:
   delivery_max_attempts_per_cycle: 3
   delivery_terminal_retention_records: 10000
   session_participants:
-    "FIX.4.4:MOCKX2->CLIENT2": "participant-2"
+    "FIX.4.4:MOCKX_DEMO->liquidity_bot": "demo-liquidity"
+    "FIX.4.4:MOCKX_DEMO->taker_bot": "demo-taker"
 scheduler:
   mode: "external"
   interval_ms: 10
@@ -45,19 +41,3 @@ websocket:
 cors_origins: []
 prometheus:
   enabled: true
-tsdb:
-  enabled: true
-  url: "http://influxdb:8086"
-  token: "mockx-token"
-  org: "mockx-org"
-  bucket: "mockx"
-  flush_batch_size: 1000
-  max_buffer_records: 10000
-  max_buffer_bytes: 67108864
-  flush_interval_ms: 1000
-  retry_backoff_ms: 1000
-  max_retry_delay_ms: 30000
-  overflow_retry_attempts: 3
-  shutdown_timeout_ms: 10000
-  overflow_policy: "reject_new"
-  timeout_ms: 10000
