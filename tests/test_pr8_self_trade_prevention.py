@@ -310,9 +310,9 @@ def test_prevention_metrics_and_persistence_are_exact_and_bounded_label():
         instruments=instruments,
         prometheus_enabled=True,
     )
-    points = []
-    metrics._create_point = lambda measurement, tags, values, timestamp: (
-        points.append((measurement, tags, values, timestamp))
+    records = []
+    metrics._create_record = lambda table, symbols, values, timestamp: (
+        records.append((table, symbols, values, timestamp))
     )
     metrics.bind_engine(engine)
     engine.on_execution_report = lambda report: (
@@ -353,8 +353,8 @@ def test_prevention_metrics_and_persistence_are_exact_and_bounded_label():
 
     values = next(
         values
-        for measurement, _, values, _ in points
-        if measurement == "self_trade_prevention"
+        for table, _, values, _ in records
+        if table == "self_trade_prevention"
     )
     assert values == {
         "participant_id": "private-owner-id",

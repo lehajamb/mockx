@@ -30,13 +30,13 @@ from tests.test_fix_delivery_queue import NOW, SESSION, report
 NOW_UTC = datetime(2026, 7, 29, tzinfo=timezone.utc)
 
 
-def enabled_tsdb() -> dict[str, object]:
+def enabled_questdb() -> dict[str, object]:
     return {
         "enabled": True,
-        "url": "http://localhost:8086",
-        "token": "token",
-        "org": "org",
-        "bucket": "bucket",
+        "url": "http://localhost:9000",
+        "health_url": "http://localhost:9003",
+        "username": "user",
+        "password": "password",
         "flush_batch_size": 10,
         "max_buffer_records": 20,
         "max_buffer_bytes": 1_000_000,
@@ -46,7 +46,7 @@ def enabled_tsdb() -> dict[str, object]:
         "overflow_retry_attempts": 1,
         "shutdown_timeout_ms": 1_000,
         "overflow_policy": "reject_new",
-        "timeout_ms": 1_000,
+        "request_timeout_ms": 1_000,
     }
 
 
@@ -59,15 +59,15 @@ def test_persistence_capacity_and_retry_relationships_validate(
     value: int,
 ):
     raw = api_config()
-    raw["tsdb"] = {**enabled_tsdb(), field: value}
+    raw["questdb"] = {**enabled_questdb(), field: value}
     with pytest.raises(ConfigurationError):
         validate_config(raw, environ={})
 
 
 def test_obsolete_persistence_yaml_keys_are_rejected():
     raw = api_config()
-    raw["tsdb"] = {
-        **enabled_tsdb(),
+    raw["questdb"] = {
+        **enabled_questdb(),
         "batch_size": 10,
         "buffer_capacity": 20,
     }
@@ -123,11 +123,11 @@ async def test_bid_ask_empty_and_depth_shrink_are_complete_snapshots():
         item
         for batch in sink.writes
         for item in batch
-        if item.measurement == "book_snapshot"
+        if item.table == "book_snapshot"
     ]
     assert len(records) == 5
     bid_only, ask_only, empty, deep, shrunk = (
-        item.field_map for item in records
+        item.column_map for item in records
     )
     assert (bid_only["has_bid"], bid_only["has_ask"]) == (True, False)
     assert (bid_only["best_bid"], bid_only["best_ask"]) == ("100.00", "")
@@ -166,10 +166,10 @@ async def test_run_start_persists_initial_empty_snapshot_per_symbol():
             item
             for batch in sink.writes
             for item in batch
-            if item.measurement == "book_snapshot"
+            if item.table == "book_snapshot"
         ]
         assert len(snapshots) == len(exchange.engine.books) == 1
-        fields = snapshots[0].field_map
+        fields = snapshots[0].column_map
         assert fields["sequence"] == 0
         assert fields["has_bid"] is fields["has_ask"] is False
         assert json.loads(fields["bids_json"]) == []
@@ -310,13 +310,18 @@ class ToggleSink(InMemoryMetricsSink):
 
 
 @pytest.mark.asyncio
-async def test_required_persistence_readiness_recovers_but_history_remains():
+async def test_required_persistence_readiness_recovers_but_history_remains(
+    monkeypatch,
+):
     raw = api_config()
-    raw["tsdb"] = enabled_tsdb()
-    exchange = MockExchange(validate_config(raw, environ={}))
+    raw["questdb"] = enabled_questdb()
     sink = ToggleSink()
+    monkeypatch.setattr(
+        "src.mockx.main.QuestDBMetricsSink",
+        lambda **kwargs: sink,
+    )
+    exchange = MockExchange(validate_config(raw, environ={}))
     assert exchange.metrics_persistence is not None
-    exchange.metrics_persistence.sink = sink
     await exchange.start_components()
     try:
         sink.fail = True
@@ -325,11 +330,8 @@ async def test_required_persistence_readiness_recovers_but_history_remains():
             {},
             {"value": 1},
             run_id="health",
-            event_type="health",
             metric_event_sequence=1,
             event_timestamp_ns=1_000,
-            persistence_timestamp_ns=1_000,
-            metric_event_bucket=0,
         )
         assert exchange.metrics_persistence.add_nowait(logical) == (
             PersistenceAddOutcome.ACCEPTED

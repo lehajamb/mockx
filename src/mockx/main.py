@@ -35,7 +35,7 @@ from .models import (
     SchedulerState,
     Trade,
 )
-from .tsdb_writer import InfluxDBMetricsSink
+from .questdb_writer import QuestDBMetricsSink
 from .validation import OrderNormalizer
 
 
@@ -86,30 +86,30 @@ class MockExchange:
         self.instruments = InstrumentCatalog.from_config(self.config)
         self.order_normalizer = OrderNormalizer(self.instruments)
 
-        self.tsdb_writer = None
+        self.questdb_writer = None
         self.metrics_persistence = None
-        tsdb_config = self.config.tsdb
-        if tsdb_config is not None and tsdb_config.enabled:
-            self.tsdb_writer = InfluxDBMetricsSink(
-                url=tsdb_config.url or "",
-                token=tsdb_config.token or "",
-                org=tsdb_config.org or "",
-                bucket=tsdb_config.bucket or "",
-                timeout_ms=tsdb_config.timeout_ms,
+        questdb_config = self.config.questdb
+        if questdb_config is not None and questdb_config.enabled:
+            self.questdb_writer = QuestDBMetricsSink(
+                url=questdb_config.url or "",
+                health_url=questdb_config.health_url or "",
+                username=questdb_config.username,
+                password=questdb_config.password,
+                request_timeout_ms=questdb_config.request_timeout_ms,
             )
             self.metrics_persistence = BufferedMetricsWriter(
-                self.tsdb_writer,
-                flush_batch_size=tsdb_config.flush_batch_size,
-                max_buffer_records=tsdb_config.max_buffer_records,
-                max_buffer_bytes=tsdb_config.max_buffer_bytes,
-                flush_interval_ms=tsdb_config.flush_interval_ms,
-                retry_backoff_ms=tsdb_config.retry_backoff_ms,
-                max_retry_delay_ms=tsdb_config.max_retry_delay_ms,
+                self.questdb_writer,
+                flush_batch_size=questdb_config.flush_batch_size,
+                max_buffer_records=questdb_config.max_buffer_records,
+                max_buffer_bytes=questdb_config.max_buffer_bytes,
+                flush_interval_ms=questdb_config.flush_interval_ms,
+                retry_backoff_ms=questdb_config.retry_backoff_ms,
+                max_retry_delay_ms=questdb_config.max_retry_delay_ms,
                 overflow_retry_attempts=(
-                    tsdb_config.overflow_retry_attempts
+                    questdb_config.overflow_retry_attempts
                 ),
-                shutdown_timeout_ms=tsdb_config.shutdown_timeout_ms,
-                overflow_policy=tsdb_config.overflow_policy,
+                shutdown_timeout_ms=questdb_config.shutdown_timeout_ms,
+                overflow_policy=questdb_config.overflow_policy,
             )
 
         self.metrics = MetricsCollector(

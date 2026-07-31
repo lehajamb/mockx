@@ -42,7 +42,7 @@ def test_disabled_persistence_is_noncritical_despite_historical_failure():
     exchange = make_exchange()
     with TestClient(exchange.app) as client:
         exchange.metrics.record_sink_failure(
-            RuntimeError("influx unavailable"),
+            RuntimeError("questdb unavailable"),
             1,
         )
         response = client.get("/readyz")

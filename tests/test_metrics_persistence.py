@@ -33,11 +33,8 @@ def record(number):
         {"sequence": number},
         {"value": float(number)},
         run_id="buffer-test",
-        event_type="test",
         metric_event_sequence=number,
         event_timestamp_ns=number * 1_000,
-        persistence_timestamp_ns=number * 1_000,
-        metric_event_bucket=0,
     )
 
 
@@ -102,7 +99,7 @@ async def test_collector_shutdown_flushes_attached_writer():
     writer = BufferedMetricsWriter(sink, flush_batch_size=3)
     metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run("shutdown")
-    metrics._create_point(
+    metrics._create_record(
         "shutdown",
         {"exchange": "TEST"},
         {"value": 1.0},
@@ -112,7 +109,7 @@ async def test_collector_shutdown_flushes_attached_writer():
     assert (await metrics.close()).successful
 
     assert len(sink.writes) == 1
-    assert sink.writes[0][0].measurement == "shutdown"
+    assert sink.writes[0][0].table == "shutdown"
     assert sink.close_calls == 1
 
 

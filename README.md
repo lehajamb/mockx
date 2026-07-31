@@ -4,7 +4,7 @@ MockX is a deterministic, FIX-speaking mock exchange for strategy tests and
 simulation. It provides a price-time-priority order book, an externally
 controlled simulated clock, FIX order entry, typed REST administration,
 immutable WebSocket market data, process metrics, and optional buffered
-InfluxDB persistence.
+QuestDB persistence.
 
 ## 1. What MockX implements
 
@@ -21,7 +21,7 @@ InfluxDB persistence.
 - A global per-exchange market-data sequence.
 - FastAPI liveness, readiness, REST, WebSocket, UI, stats, and Prometheus
   exposition on one API port.
-- Optional buffered InfluxDB writes that flush at session end and shutdown.
+- Optional acknowledged QuestDB writes that flush at session end and shutdown.
 
 MockX is a simulator, not a production trading venue.
 
@@ -383,14 +383,14 @@ curl -f -X POST http://127.0.0.1:8001/api/v1/session/end
 ## 6. Docker quick start
 
 Docker Compose builds the MockX image and starts a complete live demo:
-InfluxDB 2.7, one MockX exchange, and the continuous two-session FIX market
+QuestDB 9.4.3, one MockX exchange, and the continuous two-session FIX market
 driver from `examples/live_market.py`.
 
 ```bash
 docker compose up --build
 ```
 
-The driver starts only after InfluxDB and MockX pass their health checks. It
+The driver starts only after QuestDB and MockX pass their health checks. It
 then owns the simulation session, maintains the maker ladder, submits taker
 flow, and advances the external clock continuously. Open the live book at
 `http://localhost:8001/ui/BTC-USDT`.
@@ -408,23 +408,23 @@ The published development endpoints are:
 ```bash
 curl -f http://localhost:8001/readyz
 curl -f http://localhost:8001/book/BTC-USDT
-curl -f http://localhost:8086/ping
+curl --fail --user mockx-user:mockx-password http://localhost:9003
 ```
 
-Stop and remove the containers while retaining InfluxDB data with:
+Stop and remove the containers while retaining QuestDB data with:
 
 ```bash
 docker compose down
 ```
 
-To also delete the `influxdb-data` volume and reset the demo database:
+To also delete the `questdb-data` volume and reset the demo database:
 
 ```bash
 docker compose down -v
 ```
 
-The bundled InfluxDB username, password, organization, bucket, and token are
-development-only values and must not be reused in a production deployment.
+Open the QuestDB Web Console at `http://localhost:9000`. The bundled username
+and password are development-only values and must not be reused in production.
 
 ## 7. REST API
 
@@ -821,9 +821,10 @@ prebuilt dashboards. Scrape `mockx:8000/metrics` from an independently
 deployed Prometheus on the Compose network if desired.
 Grafana is intentionally not included.
 
-Compose does deploy InfluxDB 2.7 on host port 8086. The exchange receives its
-org, bucket, token, and writer settings through the supported environment
-override contract.
+Compose deploys QuestDB 9.4.3 with its Web Console and REST/ILP endpoint on
+port 9000, PostgreSQL wire endpoint on 8812, and health endpoint on 9003. The
+exchange receives credentials and writer settings through the supported
+environment override contract.
 Persistence admission is explicit: `ACCEPTED`,
 `ACCEPTED_FLUSH_REQUIRED`, `ACCEPTED_DROPPED_OLDEST`, `REJECTED_CLOSED`,
 `REJECTED_FULL`, or `FAILED`. `add_nowait()` never blocks and never reports
@@ -839,16 +840,16 @@ reports `ACCEPTED_DROPPED_OLDEST`; it never evicts an in-flight or
 delivery-required record. Async `add()` may wait for the configured bounded
 retry attempts; `add_nowait()` immediately applies the policy. Failed batches
 are restored in original order with their immutable run ID, sequence,
-timestamp, bucket, and event identity. Runtime retry uses exponential backoff
-capped at `max_retry_delay_ms`.
+designated timestamp, symbols, and columns. Runtime retry uses exponential
+backoff capped at `max_retry_delay_ms`.
 
 ```yaml
-tsdb:
+questdb:
   enabled: true
-  url: http://influxdb:8086
-  token: mockx-token
-  org: mockx-org
-  bucket: mockx
+  url: http://questdb:9000
+  health_url: http://questdb:9003
+  username: mockx-user
+  password: mockx-password
   flush_batch_size: 1000
   max_buffer_records: 10000
   max_buffer_bytes: 67108864
@@ -858,7 +859,7 @@ tsdb:
   overflow_retry_attempts: 3
   shutdown_timeout_ms: 10000
   overflow_policy: reject_new
-  timeout_ms: 10000
+  request_timeout_ms: 10000
 ```
 
 Session end performs an explicit drain and fails with
@@ -879,54 +880,45 @@ fixed state label and bounded outcome labels.
 Persistence is optional only when disabled. When enabled it is required for
 traffic readiness: `/readyz` returns 503 unless persistence is `HEALTHY`.
 The response separately reports `core_ready`, `traffic_ready`, and
-`persistence_required`, so matching health remains visible during an Influx
+`persistence_required`, so matching health remains visible during a QuestDB
 outage. Disabled persistence is non-critical.
 
-Every logical Influx record has a deterministic identity. Influx identifies a
-point by its measurement, complete tag set, and timestamp, so domain IDs stored
-as fields are not sufficient when several records occur at the same simulated
-time. MockX assigns the following metadata centrally before a record enters the
-asynchronous buffer:
+Every logical QuestDB row has a deterministic identity. All eight tables use
+the actual event time as their designated `TIMESTAMP_NS` value and store the
+same integer nanosecond value in `event_timestamp_ns`. `run_id` is a `SYMBOL`,
+and `metric_event_sequence` is a one-based, contiguous `LONG` allocated across
+all persistence tables within the run.
 
-| Influx value | Meaning |
-|---|---|
-| `run_id` tag | Stable caller-provided identity for the simulation run |
-| `event_type` tag | Bounded logical type, equal to the measurement name |
-| `metric_event_bucket` tag | Low-cardinality overflow bucket for dense timestamps |
-| `metric_event_sequence` field | One-based, contiguous persistence order within the run |
-| `event_timestamp_ns` field | Exact original simulated Unix timestamp in nanoseconds |
-| `_time` | Collision-free persistence identity timestamp |
+Tables are daily-partitioned WAL tables with deduplication enabled on
+`(timestamp, run_id, metric_event_sequence)`. Events at the same timestamp
+remain distinct because their sequences differ. A retry sends the same keys,
+so QuestDB upserts the replay rather than adding a duplicate. There are no
+artificial timestamp offsets or overflow buckets.
 
-Python simulated timestamps have microsecond resolution. For the zero-based
-occurrence `ordinal` at one exact simulated timestamp, MockX derives:
+MockX pre-creates `orders`, `trades`, `self_trade_prevention`, `latency`,
+`fix_messages`, `fix_connections`, `book_snapshot`, and `pending_events`.
+Categorical columns are `SYMBOL`; identifiers, JSON, and exact display values
+are `VARCHAR`; ticks, lots, counters, and sequences are `LONG`; flags are
+`BOOLEAN`; and latency values are `DOUBLE`. The bundled server disables ILP
+table and column auto-creation, so an unexpected producer field fails visibly
+instead of changing the schema.
 
-```text
-_time = event_timestamp_ns + (ordinal % 1000)
-metric_event_bucket = ordinal // 1000
-```
+Use QuestDB SQL in the Web Console to inspect a run or reconstruct global
+cross-table ordering:
 
-The nanosecond tie-break therefore never crosses into the next representable
-simulated timestamp. The first 1,000 records use bucket `0`; another bucket is
-introduced only for each additional block of 1,000 records at that same
-timestamp. `metric_event_sequence` remains a field rather than a per-event tag,
-avoiding one Influx series per event. The bucket values are reused across
-timestamps, so ordinary workloads add only the constant bucket value `0`.
+```sql
+SELECT timestamp, run_id, metric_event_sequence, event_timestamp_ns,
+       exchange, symbol, price, quantity
+FROM trades
+WHERE run_id = 'quickstart'
+ORDER BY metric_event_sequence;
 
-Queries that need simulated time must use `event_timestamp_ns`, while `_time`
-is the persistence identity timestamp. Queries that need authoritative
-cross-measurement event order should pivot fields and sort by
-`metric_event_sequence`, for example:
-
-```flux
-from(bucket: "mockx")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r.run_id == "quickstart")
-  |> pivot(
-      rowKey: ["_time", "_measurement", "metric_event_bucket"],
-      columnKey: ["_field"],
-      valueColumn: "_value",
-  )
-  |> sort(columns: ["metric_event_sequence"])
+SELECT 'orders' table_name, timestamp, metric_event_sequence
+FROM orders WHERE run_id = 'quickstart'
+UNION ALL
+SELECT 'trades', timestamp, metric_event_sequence
+FROM trades WHERE run_id = 'quickstart'
+ORDER BY metric_event_sequence;
 ```
 
 Every committed book update is persisted as one immutable `book_snapshot`,
@@ -940,11 +932,12 @@ an older two-sided/deeper record. A depth shrink therefore cannot leave stale
 levels appearing current.
 
 Failed writes retain the same immutable records in the buffer. Retrying a
-flush does not allocate new sequences, timestamps, or buckets. Replaying the
+flush does not allocate new sequences or timestamps. Replaying the
 same logical run with the same `run_id` and inputs intentionally reproduces
 the same identities; use a distinct `run_id` for a distinct logical run.
-Order, trade, and latency points also retain their available domain IDs, such
-as order, execution, and exchange trade IDs, as fields.
+Order, trade, and latency rows also retain their available domain IDs, such as
+order, execution, and exchange trade IDs, as `VARCHAR` or `LONG` columns
+according to their domain type.
 
 Prometheus collectors are per application instance, so multiple exchanges in
 one Python process do not register duplicate global collectors.
@@ -956,12 +949,14 @@ one Python process do not register duplicate global collectors.
 | MockX FIX | 4001 | 4001 | FIX 4.4 acceptor |
 | MockX API | 8000 | 8001 | REST, WebSocket, UI, `/metrics` |
 | Live market | - | - | Two-session FIX market driver |
-| InfluxDB | 8086 | 8086 | Metric persistence |
+| QuestDB Web/REST/ILP | 9000 | 9000 | Console, SQL, and ingestion |
+| QuestDB PostgreSQL | 8812 | 8812 | SQL wire protocol |
+| QuestDB health | 9003 | 9003 | Process health |
 
 Compose service discovery provides the driver with `mockx:4001` for FIX and
 `http://mockx:8000` for administration. The browser-facing API stays on
 `http://localhost:8001`, and browser WebSocket URLs use that current origin.
-InfluxDB state is stored in the named `influxdb-data` volume.
+QuestDB state is stored in the named `questdb-data` volume.
 
 ## 12. Configuration
 
@@ -1014,7 +1009,7 @@ websocket:
 cors_origins: []
 prometheus:
   enabled: true
-tsdb:
+questdb:
   enabled: false
 ```
 
@@ -1029,7 +1024,7 @@ Validated ranges are:
 | scheduler | `external` or `realtime`; interval 1-60,000 ms; advance 1-86,400,000 ms; event limit 1-1,000,000 |
 | WebSocket | All timing values finite and in (0, 86,400] seconds; heartbeat/market staleness exceed heartbeat; queue 1-100,000 |
 | FIX delivery | Retry 1-2,147,483,647 ms; attempts 1-10,000; retained delivered payloads 1-1,000,000; enabled sessions require exact participant mappings |
-| InfluxDB | Batch 1-100,000; record capacity from batch size to 1,000,000; byte capacity 1-1 GiB; interval/backoff/retry/shutdown/timeout 1-86,400,000 ms; max retry at least initial backoff; policy `reject_new` or `drop_oldest`; enabled config requires URL, token, org, bucket |
+| QuestDB | Batch 1-100,000; record capacity from batch size to 1,000,000; byte capacity 1-1 GiB; interval/backoff/retry/shutdown/request timeout 1-86,400,000 ms; max retry at least initial backoff; policy `reject_new` or `drop_oldest`; enabled config requires REST/ILP and health URLs; username/password are optional but must be paired |
 | admin/CORS | Valid host and port; origins are unique HTTP(S) origins; wildcard is forbidden |
 
 For example, startup fails before any component starts with a deterministic,
@@ -1048,7 +1043,7 @@ price-level keys, FIFO lookup, fill/cancel accounting, aggregates, and
 invariants use integers only. There are no float compatibility fields or
 optional min/max instrument settings.
 
-REST, WebSocket, stats, FIX numeric tags, and exact Influx display fields use
+REST, WebSocket, stats, FIX numeric tags, and exact QuestDB display columns use
 canonical fixed-scale decimal strings; raw ticks/lots remain internal except
 for explicit persistence audit fields. Derived average prices use deterministic
 round-half-even display formatting. Values such as
@@ -1069,16 +1064,16 @@ ports, noninteger random seeds, unsupported scheduler modes, nonpositive
 intervals or FIX delivery retry settings, stale timeouts not greater than
 heartbeat cadence, invalid WebSocket queue/send/browser timing values,
 nonpositive event-processing limits, wildcard CORS, and incomplete enabled
-TSDB configuration.
+QuestDB configuration.
 
 `CFG_PATH` and `FIX_CONFIG_FILE` select the YAML and QuickFIX files.
-`INFLUXDB_URL`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET`,
-`INFLUXDB_ENABLED`, `INFLUXDB_FLUSH_BATCH_SIZE`,
-`INFLUXDB_MAX_BUFFER_RECORDS`, `INFLUXDB_MAX_BUFFER_BYTES`,
-`INFLUXDB_FLUSH_INTERVAL_MS`, `INFLUXDB_RETRY_BACKOFF_MS`,
-`INFLUXDB_MAX_RETRY_DELAY_MS`, `INFLUXDB_OVERFLOW_RETRY_ATTEMPTS`,
-`INFLUXDB_SHUTDOWN_TIMEOUT_MS`, `INFLUXDB_OVERFLOW_POLICY`, and
-`INFLUXDB_TIMEOUT_MS` override YAML. The merged result is validated by the
+`QUESTDB_URL`, `QUESTDB_HEALTH_URL`, `QUESTDB_USERNAME`, `QUESTDB_PASSWORD`,
+`QUESTDB_ENABLED`, `QUESTDB_FLUSH_BATCH_SIZE`,
+`QUESTDB_MAX_BUFFER_RECORDS`, `QUESTDB_MAX_BUFFER_BYTES`,
+`QUESTDB_FLUSH_INTERVAL_MS`, `QUESTDB_RETRY_BACKOFF_MS`,
+`QUESTDB_MAX_RETRY_DELAY_MS`, `QUESTDB_OVERFLOW_RETRY_ATTEMPTS`,
+`QUESTDB_SHUTDOWN_TIMEOUT_MS`, `QUESTDB_OVERFLOW_POLICY`, and
+`QUESTDB_REQUEST_TIMEOUT_MS` override YAML. The merged result is validated by the
 same model before startup. Obsolete YAML buffer keys are rejected and obsolete
 environment variable names are not recognized; no compatibility aliases are
 maintained.
@@ -1197,7 +1192,7 @@ The browser says `HTTP fallback` while heartbeats continue:
 Session end returns `METRICS_FLUSH_FAILED`:
 
 - The buffered records were retained rather than discarded.
-- Restore the configured InfluxDB sink and retry session end; the active run
+- Restore the configured QuestDB sink and retry session end; the active run
   remains open. Shutdown is different: it seals admission and reports its one
   final attempt and exact unflushed count in persistence diagnostics.
 
