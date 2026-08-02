@@ -525,11 +525,50 @@
   </div>
 </section>
 
+<!-- ================= GLIMPSE / SOUPBINTCP ================= -->
+<section class="section" id="glimpse-delivery">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-bid">3.8</span>
+      <h2 class="h2">GLIMPSE and SoupBinTCP recovery</h2>
+      <p class="lede">
+        The optional process-lifetime listener supplies a point-in-time resting
+        book that is synchronized to the existing run-scoped ITCH sequence.
+        Snapshot copying is lifecycle-serialized; encoding and TCP delivery are not.
+      </p>
+    </div>
+    <div class="rule-grid">
+      <div class="rule-card">
+        <span class="tag tag-amber">Atomic cut</span>
+        <h4>Book plus next ITCH sequence</h4>
+        <p>The lifecycle validates every book and copies FIFO order scalars together with the Mold next-message sequence. The final <code class="ref">G</code> tells clients which buffered ITCH message to apply first.</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-queue">Sequenced spin</span>
+        <h4>R / H / A / G</h4>
+        <p>Soup sequence 1 starts directories, current trading actions, all live resting orders at leaves quantity, and the end marker. Every higher-level message has its own Soup <code class="ref">S</code> envelope.</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-bid">Backpressure</span>
+        <h4>Bounded and isolated</h4>
+        <p>Per-connection writes have timeouts. Interrupted immutable spins are replayed by named session within strict TTL, session-count, connection-count, and byte limits; no client I/O holds the lifecycle lock.</p>
+      </div>
+    </div>
+    <div class="source-ref">
+      Service: <code>glimpse_service.py</code>. Snapshot encoder:
+      <code>glimpse_encoder.py</code>. Framing and fixed fields:
+      <code>soupbintcp_transport.py</code>. The current state model emits only
+      <code>R</code>, <code>H/T</code>, unattributed <code>A</code>, and
+      final <code>G</code>.
+    </div>
+  </div>
+</section>
+
 <!-- ================= PERSISTENCE ================= -->
 <section class="section" id="persistence">
   <div class="wrap">
     <div class="section-head">
-      <span class="tag">3.8</span>
+      <span class="tag">3.9</span>
       <h2 class="h2">QuestDB persistence (optional)</h2>
       <p class="lede">
         When enabled, every committed book update, trade, order, STP event, latency sample,

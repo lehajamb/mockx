@@ -1115,6 +1115,22 @@ class MetricsCollector:
         }
         self._itch_state = "disabled"
         self._itch_next_sequence_number = 1
+        self._glimpse_counts: Dict[str, int] = {
+            "glimpse_connections_accepted": 0,
+            "glimpse_fresh_sessions": 0,
+            "glimpse_resumed_sessions": 0,
+            "glimpse_completed_sessions": 0,
+            "glimpse_rejected_sessions": 0,
+            "glimpse_sequenced_messages": 0,
+            "glimpse_sequenced_bytes": 0,
+            "glimpse_heartbeats_sent": 0,
+            "glimpse_timeouts": 0,
+            "glimpse_failures": 0,
+        }
+        self._glimpse_state = "disabled"
+        self._glimpse_active_connections = 0
+        self._glimpse_cached_sessions = 0
+        self._glimpse_cached_bytes = 0
 
         self.registry = None
         self._prom_counters: Dict[str, Any] = {}
@@ -1394,6 +1410,95 @@ class MetricsCollector:
             "Next ITCH message sequence expected in the Mold session.",
             registry=self.registry,
         )
+        for name, metric_name, help_text in (
+            (
+                "glimpse_connections_accepted",
+                "mockx_glimpse_connections_accepted_total",
+                "SoupBinTCP client connections admitted by GLIMPSE.",
+            ),
+            (
+                "glimpse_fresh_sessions",
+                "mockx_glimpse_fresh_sessions_total",
+                "Fresh point-in-time GLIMPSE spins created.",
+            ),
+            (
+                "glimpse_resumed_sessions",
+                "mockx_glimpse_resumed_sessions_total",
+                "Interrupted GLIMPSE spins resumed from cache.",
+            ),
+            (
+                "glimpse_completed_sessions",
+                "mockx_glimpse_completed_sessions_total",
+                "GLIMPSE spins completed with Soup End of Session.",
+            ),
+            (
+                "glimpse_rejected_sessions",
+                "mockx_glimpse_rejected_sessions_total",
+                "GLIMPSE login requests rejected or refused by capacity.",
+            ),
+            (
+                "glimpse_sequenced_messages",
+                "mockx_glimpse_sequenced_messages_total",
+                "Higher-level GLIMPSE messages sent in Soup sequenced packets.",
+            ),
+            (
+                "glimpse_sequenced_bytes",
+                "mockx_glimpse_sequenced_bytes_total",
+                "Wire bytes successfully drained in Soup sequenced packets.",
+            ),
+            (
+                "glimpse_heartbeats_sent",
+                "mockx_glimpse_heartbeats_sent_total",
+                "Idle SoupBinTCP server heartbeats sent.",
+            ),
+            (
+                "glimpse_timeouts",
+                "mockx_glimpse_timeouts_total",
+                "GLIMPSE login, client-idle, write, or shutdown timeouts.",
+            ),
+            (
+                "glimpse_failures",
+                "mockx_glimpse_failures_total",
+                "Unexpected GLIMPSE listener, snapshot, or connection failures.",
+            ),
+        ):
+            self._prom_counters[name] = Counter(
+                metric_name,
+                help_text,
+                registry=self.registry,
+            )
+        for name, metric_name, help_text in (
+            (
+                "glimpse_active_connections",
+                "mockx_glimpse_active_connections",
+                "Currently admitted SoupBinTCP connections.",
+            ),
+            (
+                "glimpse_cached_sessions",
+                "mockx_glimpse_cached_sessions",
+                "Immutable GLIMPSE spins retained for active delivery or resume.",
+            ),
+            (
+                "glimpse_cached_bytes",
+                "mockx_glimpse_cached_bytes",
+                "Soup sequenced wire bytes retained in the GLIMPSE replay cache.",
+            ),
+            (
+                "glimpse_ready",
+                "mockx_glimpse_ready",
+                "Whether the process-lifetime GLIMPSE listener is ready.",
+            ),
+            (
+                "glimpse_degraded",
+                "mockx_glimpse_degraded",
+                "Whether the GLIMPSE listener failed to bind or run.",
+            ),
+        ):
+            self._prom_gauges[name] = Gauge(
+                metric_name,
+                help_text,
+                registry=self.registry,
+            )
         for name, help_text in {
             "persistence_buffer_records": "Accepted buffered and in-flight records.",
             "persistence_buffer_bytes": (
@@ -2099,6 +2204,58 @@ class MetricsCollector:
                 **self._itch_counts,
                 "state": self._itch_state,
                 "next_sequence_number": self._itch_next_sequence_number,
+            }
+
+    def record_glimpse_count(self, name: str, amount: int = 1) -> None:
+        if amount < 0:
+            raise ValueError("GLIMPSE metric increments cannot be negative")
+        key = f"glimpse_{name}"
+        with self._lock:
+            if key not in self._glimpse_counts:
+                raise KeyError(f"Unknown GLIMPSE metric: {name}")
+            self._glimpse_counts[key] += amount
+            self._prom_increment(key, amount)
+
+    def update_glimpse_state(self, state: str) -> None:
+        with self._lock:
+            self._glimpse_state = state
+            ready = self._prom_gauges.get("glimpse_ready")
+            degraded = self._prom_gauges.get("glimpse_degraded")
+            if ready is not None:
+                ready.set(1 if state == "ready" else 0)
+            if degraded is not None:
+                degraded.set(1 if state == "degraded" else 0)
+
+    def update_glimpse_active_connections(self, active: int) -> None:
+        if active < 0:
+            raise ValueError("GLIMPSE active connections cannot be negative")
+        with self._lock:
+            self._glimpse_active_connections = active
+            gauge = self._prom_gauges.get("glimpse_active_connections")
+            if gauge is not None:
+                gauge.set(active)
+
+    def update_glimpse_cache(self, sessions: int, wire_bytes: int) -> None:
+        if sessions < 0 or wire_bytes < 0:
+            raise ValueError("GLIMPSE cache gauges cannot be negative")
+        with self._lock:
+            self._glimpse_cached_sessions = sessions
+            self._glimpse_cached_bytes = wire_bytes
+            session_gauge = self._prom_gauges.get("glimpse_cached_sessions")
+            byte_gauge = self._prom_gauges.get("glimpse_cached_bytes")
+            if session_gauge is not None:
+                session_gauge.set(sessions)
+            if byte_gauge is not None:
+                byte_gauge.set(wire_bytes)
+
+    def glimpse_metrics_snapshot(self) -> Dict[str, object]:
+        with self._lock:
+            return {
+                **self._glimpse_counts,
+                "state": self._glimpse_state,
+                "active_connections": self._glimpse_active_connections,
+                "cached_sessions": self._glimpse_cached_sessions,
+                "cached_bytes": self._glimpse_cached_bytes,
             }
 
     def record_fix_message(

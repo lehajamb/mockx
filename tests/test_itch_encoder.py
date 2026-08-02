@@ -117,8 +117,13 @@ class TestPriceToITCH:
     def test_nonrepresentable_tick_and_overflow(self):
         with pytest.raises(ValueError, match="not exactly representable"):
             _price_to_itch(1, Decimal("0.00001"))
-        with pytest.raises(ValueError, match="unsigned 32-bit"):
+        with pytest.raises(ValueError, match="maximum"):
             _price_to_itch(0x100000000, Decimal("0.0001"))
+
+    def test_specified_price4_maximum_is_enforced(self):
+        assert _price_to_itch(200_000, Decimal("1")) == 2_000_000_000
+        with pytest.raises(ValueError, match="200000.0000"):
+            _price_to_itch(200_001, Decimal("1"))
 
 
 class TestSharesFromLots:

@@ -1,5 +1,19 @@
 # MockX Documentation Changelog
 
+## 2026-08-02 - GLIMPSE 5.0 / SoupBinTCP snapshot recovery
+
+- Added an optional process-lifetime GLIMPSE 5.0 listener over SoupBinTCP 4.1.
+  Each fresh sequence-1 login captures the authoritative resting book and the
+  current Mold next-message sequence atomically, then streams `R`, `H`, `A`,
+  and final `G` messages without holding the lifecycle lock during TCP I/O.
+- Added strict Soup framing, fixed-width authentication, wall-clock heartbeats,
+  login/client/write timeouts, clean End of Session, and bounded interrupted-
+  spin replay by named session and next expected Soup sequence.
+- Added readiness, typed `/stats`, and unlabeled Prometheus observability;
+  listener failure degrades only GLIMPSE and is retried at the next run start.
+- Documented the dual-feed recovery algorithm and tightened Price(4) to the
+  specified maximum display value `200000.0000`.
+
 ## 2026-08-02 — ITCH/MoldUDP64 architectural rework
 
 - Added the experimental downstream-only ITCH 5.0 feed as a run-owned

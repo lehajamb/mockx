@@ -332,6 +332,26 @@ class ITCHStats(BaseModel):
     last_error: Optional[str]
 
 
+class GlimpseStats(BaseModel):
+    scope: Literal["process_lifetime"] = "process_lifetime"
+    enabled: bool
+    state: Literal["disabled", "idle", "ready", "degraded", "stopped"]
+    active_connections: int
+    cached_sessions: int
+    cached_bytes: int
+    connections_accepted: int
+    fresh_sessions: int
+    resumed_sessions: int
+    completed_sessions: int
+    rejected_sessions: int
+    sequenced_messages: int
+    sequenced_bytes: int
+    heartbeats_sent: int
+    timeouts: int
+    failures: int
+    last_error: Optional[str]
+
+
 class RunStatsResponse(BaseModel):
     generated_at: datetime
     scope: Literal["current_run"] = "current_run"
@@ -362,6 +382,7 @@ class StatsResponse(BaseModel):
     fix_delivery: FixDeliveryStats
     websocket: WebSocketStats
     itch: ITCHStats
+    glimpse: GlimpseStats
     book: BookStats
     latency: LatencyStats
     persistence: PersistenceStats
@@ -655,6 +676,7 @@ class ExchangeAPI:
         self.app.state.accepting_admin = False
         self.app.state.lifecycle_started = False
         itch_feed = getattr(lifecycle_manager, "itch_feed", None)
+        glimpse_service = getattr(lifecycle_manager, "glimpse_service", None)
         self.app.state.component_status = {
             "engine": "not_ready",
             "scheduler": "not_ready",
@@ -665,6 +687,11 @@ class ExchangeAPI:
                 "not_ready" if self.metrics.persistence is not None else "disabled"
             ),
             "itch": (itch_feed.state.value if itch_feed is not None else "disabled"),
+            "glimpse": (
+                glimpse_service.state.value
+                if glimpse_service is not None
+                else "disabled"
+            ),
         }
 
         origins = config.cors_origins
@@ -854,6 +881,32 @@ class ExchangeAPI:
             payload["itch"] = {
                 "scope": "process_lifetime",
                 **itch_feed.diagnostics(),
+            }
+        glimpse_service = getattr(self.lifecycle_manager, "glimpse_service", None)
+        if glimpse_service is None:
+            payload["glimpse"] = {
+                "scope": "process_lifetime",
+                "enabled": False,
+                "state": "disabled",
+                "active_connections": 0,
+                "cached_sessions": 0,
+                "cached_bytes": 0,
+                "connections_accepted": 0,
+                "fresh_sessions": 0,
+                "resumed_sessions": 0,
+                "completed_sessions": 0,
+                "rejected_sessions": 0,
+                "sequenced_messages": 0,
+                "sequenced_bytes": 0,
+                "heartbeats_sent": 0,
+                "timeouts": 0,
+                "failures": 0,
+                "last_error": None,
+            }
+        else:
+            payload["glimpse"] = {
+                "scope": "process_lifetime",
+                **glimpse_service.diagnostics(),
             }
         delivery = self.fix_app.delivery_queue.snapshot()
         payload["fix_delivery"] = {
