@@ -20,6 +20,7 @@ from .latency import (
     SchedulerFailedError,
 )
 from .instruments import InstrumentCatalog
+from .itch_delivery import ITCHFeedPublisher
 from .lifecycle import ExchangeLifecycle, LifecycleState
 from .metrics import (
     BufferedMetricsWriter,
@@ -78,13 +79,14 @@ class MockExchange:
 
         self.scheduler = LatencyScheduler(
             session_delays=dict(latency_config.session_delays),
-            max_events_per_advance=(
-                self.config.scheduler.max_events_per_advance
-            ),
+            max_events_per_advance=(self.config.scheduler.max_events_per_advance),
         )
         self.monotonic_clock = PerfCounterClock()
         self.instruments = InstrumentCatalog.from_config(self.config)
-        self.order_normalizer = OrderNormalizer(self.instruments)
+        self.order_normalizer = OrderNormalizer(
+            self.instruments,
+            itch_compatible=self.config.itch.enabled,
+        )
 
         self.questdb_writer = None
         self.metrics_persistence = None
@@ -105,9 +107,7 @@ class MockExchange:
                 flush_interval_ms=questdb_config.flush_interval_ms,
                 retry_backoff_ms=questdb_config.retry_backoff_ms,
                 max_retry_delay_ms=questdb_config.max_retry_delay_ms,
-                overflow_retry_attempts=(
-                    questdb_config.overflow_retry_attempts
-                ),
+                overflow_retry_attempts=(questdb_config.overflow_retry_attempts),
                 shutdown_timeout_ms=questdb_config.shutdown_timeout_ms,
                 overflow_policy=questdb_config.overflow_policy,
             )
@@ -131,6 +131,22 @@ class MockExchange:
         )
         self.metrics.bind_engine(self.engine)
 
+        self.itch_feed: Optional[ITCHFeedPublisher] = None
+        if self.config.itch.enabled:
+            if self.config.moldudp64 is None:
+                raise ValueError("Enabled ITCH requires MoldUDP64 configuration")
+            self.itch_feed = ITCHFeedPublisher(
+                self.instruments,
+                self.scheduler,
+                self.config.itch,
+                self.config.moldudp64,
+                self.metrics,
+                on_state_change=self._on_itch_state,
+            )
+            self.metrics.update_itch_state("idle", 1)
+        else:
+            self.metrics.update_itch_state("disabled", 1)
+
         self.session_registry = SessionRegistry()
         self.fix_app = FIXApplication(
             self.engine,
@@ -140,9 +156,7 @@ class MockExchange:
             monotonic_clock=self.monotonic_clock,
             order_normalizer=self.order_normalizer,
             session_participants=self.config.fix.session_participants,
-            delivery_retry_interval_ms=(
-                self.config.fix.delivery_retry_interval_ms
-            ),
+            delivery_retry_interval_ms=(self.config.fix.delivery_retry_interval_ms),
             delivery_max_attempts_per_cycle=(
                 self.config.fix.delivery_max_attempts_per_cycle
             ),
@@ -155,14 +169,13 @@ class MockExchange:
             self.metrics,
             self.latency_tracker,
             self.fix_app,
+            self.itch_feed,
         )
         self.fix_app.lifecycle = self.lifecycle
         self.fix_gateway: Optional[FIXGateway] = None
         if self.fix_enabled:
             if not self.fix_cfg or not os.path.isfile(self.fix_cfg):
-                raise ValueError(
-                    f"FIX config file does not exist: {self.fix_cfg}"
-                )
+                raise ValueError(f"FIX config file does not exist: {self.fix_cfg}")
             self.fix_gateway = FIXGateway(
                 self.fix_cfg,
                 self.engine,
@@ -217,21 +230,25 @@ class MockExchange:
             "cancel_engine_process",
             self._handle_cancel_process,
         )
+        if self.itch_feed is not None:
+            self.scheduler.register_handler(
+                self.itch_feed.HEARTBEAT_EVENT,
+                self.itch_feed.handle_heartbeat,
+            )
 
         self.engine.on_execution_report = self._on_execution_report
         self.engine.on_market_data_update = self._on_market_data_update
         self.engine.on_trade = self._on_trade
-        self.engine.on_self_trade_prevention = (
-            self.metrics.record_self_trade_prevention
+        self.engine.on_self_trade_prevention = self.metrics.record_self_trade_prevention
+        self.engine.on_displayed_order_event = (
+            self.itch_feed.publish if self.itch_feed is not None else None
         )
         self.engine.on_order_submitted = self._on_order_submitted
         self.engine.on_cancel_request = self.metrics.record_cancel_request
         self.engine.on_cancel_reject = self.metrics.record_cancel_reject
         self.engine.on_cancel_outcome = self.metrics.record_cancel_outcome
         self.engine.on_cpu_duration = self.latency_tracker.record_cpu_duration
-        self.scheduler.on_queue_depth_change = (
-            self.metrics.update_scheduler_pending
-        )
+        self.scheduler.on_queue_depth_change = self.metrics.update_scheduler_pending
         self.scheduler.on_failure = self.metrics.record_scheduler_failure
         self.scheduler.on_state_change = self.metrics.update_scheduler_state
         self.metrics.update_scheduler_pending(self.scheduler.get_pending_count())
@@ -257,11 +274,13 @@ class MockExchange:
             )
             state.component_status["scheduler"] = "starting"
             state.component_status["metrics"] = "ready"
+            state.component_status["itch"] = (
+                self.itch_feed.state.value if self.itch_feed is not None else "disabled"
+            )
             if self.metrics.persistence is not None:
                 await self.metrics.persistence.start()
                 state.component_status["persistence"] = (
-                    self.metrics.persistence.health_snapshot()
-                    .state.value.lower()
+                    self.metrics.persistence.health_snapshot().state.value.lower()
                 )
             else:
                 state.component_status["persistence"] = "disabled"
@@ -270,15 +289,11 @@ class MockExchange:
             # This handoff is deliberately before QuickFIX accepts traffic.
             self.fix_app.loop = self.loop
             state.component_status["scheduler"] = (
-                "waiting_external"
-                if self.scheduler_mode == "external"
-                else "ready"
+                "waiting_external" if self.scheduler_mode == "external" else "ready"
             )
 
             if not self._callbacks_registered:
-                raise RuntimeError(
-                    "Engine callbacks must be registered before startup"
-                )
+                raise RuntimeError("Engine callbacks must be registered before startup")
 
             if self.fix_enabled:
                 state.component_status["fix_gateway"] = "starting"
@@ -336,6 +351,13 @@ class MockExchange:
                     pass
                 finally:
                     self._scheduler_task = None
+            if self.itch_feed is not None:
+                try:
+                    self.itch_feed.shutdown(self.scheduler.current_time)
+                except Exception:
+                    logger.exception("ITCH shutdown failed")
+                    state.component_status["itch"] = "degraded"
+
             self.scheduler.stop()
             state.component_status["scheduler"] = "stopped"
 
@@ -350,12 +372,8 @@ class MockExchange:
                     logger.error(
                         "Metrics persistence did not close cleanly",
                         extra={
-                            "persistence_close_outcome": (
-                                metrics_closed.outcome.value
-                            ),
-                            "unflushed_records": (
-                                metrics_closed.unflushed_records
-                            ),
+                            "persistence_close_outcome": (metrics_closed.outcome.value),
+                            "unflushed_records": (metrics_closed.unflushed_records),
                         },
                     )
                     state.component_status["persistence"] = "closed"
@@ -375,6 +393,11 @@ class MockExchange:
                 self.lifecycle.run_id = None
                 self.lifecycle._publish(LifecycleState.STOPPED)
             logger.info("%s stopped", self.config.exchange_name)
+
+    def _on_itch_state(self, state: str) -> None:
+        api = getattr(self, "api", None)
+        if api is not None:
+            api.app.state.component_status["itch"] = state
 
     def _on_order_submitted(self, order_id: int, command) -> None:
         self.metrics.record_order_submitted(order_id, command)
@@ -446,9 +469,7 @@ class MockExchange:
             running_loop = None
 
         if running_loop is loop:
-            task = loop.create_task(
-                self.api.broadcast_market_data(snapshot)
-            )
+            task = loop.create_task(self.api.broadcast_market_data(snapshot))
             task.add_done_callback(self._log_broadcast_result)
         elif loop.is_running():
             future = asyncio.run_coroutine_threadsafe(
@@ -478,9 +499,7 @@ class MockExchange:
                 raise
             except SchedulerFailedError:
                 self.app.state.component_status["scheduler"] = "failed"
-                logger.exception(
-                    "Realtime scheduler entered fail-stop state"
-                )
+                logger.exception("Realtime scheduler entered fail-stop state")
 
     async def _run_api(self) -> None:
         admin_config = self.config.admin_api

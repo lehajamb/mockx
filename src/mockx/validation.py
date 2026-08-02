@@ -74,8 +74,14 @@ _VISIBLE_ASCII = re.compile(r"^[\x21-\x7e]{1,64}$")
 class OrderNormalizer:
     """The sole conversion boundary from transport values to integer domain."""
 
-    def __init__(self, instruments: InstrumentCatalog):
+    def __init__(
+        self,
+        instruments: InstrumentCatalog,
+        *,
+        itch_compatible: bool = False,
+    ):
         self.instruments = instruments
+        self.itch_compatible = itch_compatible
 
     @staticmethod
     def _identifier(
@@ -185,6 +191,12 @@ class OrderNormalizer:
             quantity_lots = instrument.quantity_to_lots(raw.quantity)
         except InstrumentConversionError as exc:
             raise OrderValidationError(exc.code, "quantity", str(exc)) from exc
+        if self.itch_compatible and quantity_lots > 0xFFFFFFFF:
+            raise OrderValidationError(
+                OrderValidationCode.NUMBER_OUT_OF_RANGE,
+                "quantity",
+                "quantity exceeds the ITCH unsigned 32-bit share field",
+            )
 
         price_ticks = None
         if order_type == OrderType.LIMIT:
@@ -198,6 +210,18 @@ class OrderNormalizer:
                 price_ticks = instrument.price_to_ticks(raw.price)
             except InstrumentConversionError as exc:
                 raise OrderValidationError(exc.code, "price", str(exc)) from exc
+            if self.itch_compatible:
+                scaled_tick = instrument.tick_size * 10_000
+                wire_price = scaled_tick * price_ticks
+                if (
+                    wire_price != wire_price.to_integral_value()
+                    or wire_price > 0xFFFFFFFF
+                ):
+                    raise OrderValidationError(
+                        OrderValidationCode.NUMBER_OUT_OF_RANGE,
+                        "price",
+                        "price exceeds the ITCH unsigned 32-bit Price(4) field",
+                    )
         elif raw.price is not None:
             raise OrderValidationError(
                 OrderValidationCode.PRICE_NOT_ALLOWED,

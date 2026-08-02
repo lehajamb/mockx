@@ -41,3 +41,8 @@ websocket:
 cors_origins: []
 prometheus:
   enabled: true
+itch:
+  enabled: false
+  market_category: " "
+  financial_status: " "
+  round_lot_size: 1

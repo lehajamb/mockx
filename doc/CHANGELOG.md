@@ -1,5 +1,28 @@
 # MockX Documentation Changelog
 
+## 2026-08-02 — ITCH/MoldUDP64 architectural rework
+
+- Added the experimental downstream-only ITCH 5.0 feed as a run-owned
+  `MockExchange` subsystem. The feed publishes non-attributed Add Order (`A`),
+  Order Executed (`E`), Order Executed With Price (`C`), and Delete Order (`D`)
+  messages from authoritative displayed-book events.
+- Documented the exact conversion contract: one internal lot is one ITCH share,
+  and Price(4) is `price_ticks × tick_size × 10,000`. ITCH-enabled instruments
+  must have an exactly representable tick size and all encoded values must fit
+  their unsigned wire fields.
+- Documented run-local Mold sessions, message-count sequence progression,
+  scheduler-driven idle heartbeats, end-of-session behavior, configuration,
+  readiness degradation, diagnostics, and bounded Prometheus metrics.
+- Updated the scheduler animation to show `fix_delivery_due`, WebSocket
+  publication after the engine update, displayed-order publication after a
+  successful book mutation, and generation-qualified `itch_heartbeat` events.
+- Added deterministic wire-level book-equivalence, transport, lifecycle,
+  degradation, bounds, and event-isolation coverage in
+  `tests/test_itch_integration.py`, `tests/test_moldudp64_transport.py`, and
+  `tests/test_displayed_order_events.py`.
+- Kept `doc/mockx-engine-scheduler.html` unchanged as explicitly labelled
+  historical content.
+
 ## Files created
 
 | File | Purpose |
@@ -32,21 +55,21 @@
 The old page (`doc/mockx-engine-scheduler.html`) describes an earlier version. Key differences:
 
 ### New behavior documented (not in old page)
-1. **Self-Trade Prevention (STP)** — Every order carries `participant_id`. Same-participant cross → both remainders cancelled, no trade recorded, passive report first. Source: `engine.py:274-329`.
-2. **Cancel pipeline** — Old page describes version-based cancel protection only. Real pipeline has 4 stages: `cancel_received` → `cancel_arrived_at_exchange` → `cancel_engine_process` → `fix_delivery_due`, each with configurable latency. Source: `latency.py:347-374`, README.
-3. **FIX ingress sequencing** — Deterministic 4-key ordering: `(simulated_receive_timestamp, SessionID, MsgSeqNum, ingress_sequence)`. Source: `models.py:336-343`.
+1. **Self-Trade Prevention (STP)** — Every order carries `participant_id`. Same-participant cross → both remainders cancelled, no trade recorded, passive report first. Source: `MatchingEngine._match_order`.
+2. **Cancel pipeline** — Old page describes version-based cancel protection only. Real pipeline has 4 stages: `cancel_received` → `cancel_arrived_at_exchange` → `cancel_engine_process` → `fix_delivery_due`, each with configurable latency. Source: `LatencyScheduler.register_handler`, README.
+3. **FIX ingress sequencing** — Deterministic 4-key ordering: `(simulated_receive_timestamp, SessionID, MsgSeqNum, ingress_sequence)`. Source: `FIXIngressCommand.ordering_key`.
 4. **FIX reliable delivery queue** — 5 explicit states, bounded retry cycles, per-session FIFO, logon-triggered drain, terminal retention pruning. Source: `delivery.py`, README.
 5. **Exchange lifecycle state machine** — STOPPED/STARTING/ACTIVE/ENDING/FAILED with async-lock serialization. Old page only mentions scheduler FAILED state. Source: `lifecycle.py`.
 6. **Run generation identifiers** — `G{generation:08d}-O/E/T/R/D{counter:08d}` format. Old page uses simple numeric IDs like "ORD-1042". Source: `identifiers.py`.
-7. **Order book strategy/market accounting** — `BookLevel` tracks `strategy_qty_lots` and `market_qty_lots` separately via `LiquidityCategory`. Source: `models.py:774-993`.
+7. **Order book strategy/market accounting** — `BookLevel` tracks `strategy_qty_lots` and `market_qty_lots` separately via `LiquidityCategory`. Source: `BookLevel` and `OrderBook`.
 8. **QuestDB persistence** — 8 tables, deduplication, daily WAL partitions, flush/retry semantics. Entirely new subsystem. Source: `questdb_writer.py`.
 9. **WebSocket market data** — Per-symbol streaming, immutable snapshots, conflation, heartbeat, slow-client protection. Entirely new subsystem. Source: `websocket_delivery.py`.
 10. **REST API** — `POST /api/v1/orders`, `GET /book/{symbol}`, `POST /api/v1/session/*`, `POST /admin/advance-time`, `GET /stats`, `GET /metrics`. Not in old page.
-11. **Cancel resolution details** — Six `CancellationOutcome` values, eight cancel-reject conditions, session-mismatch detection. Source: `engine.py:670-862`, `models.py:80-88`.
-12. **Rejection pipeline** — Simulated RNG rejection during `process_order()`. Source: `engine.py:207-214`.
+11. **Cancel resolution details** — Six `CancellationOutcome` values, eight cancel-reject conditions, session-mismatch detection. Source: `MatchingEngine.cancel_order`, `CancellationOutcome`.
+12. **Rejection pipeline** — Simulated RNG rejection during `process_order()`. Source: `MatchingEngine.process_order`.
 13. **Instrument validation boundary** — `OFF_TICK_PRICE`, `OFF_LOT_QUANTITY`, `PRICE_NOT_ALLOWED`, `UNKNOWN_SYMBOL` errors. Source: `validation.py`, `instruments.py`.
-14. **Two-clock strict separation** — Simulated clock (`latency.py:181`) vs. monotonic real clock (`latency.py:124`). Separate metric axes (ms vs. µs).
-15. **Event processing budget** — `max_events_per_advance` (default 100,000) forms a per-advancement event budget. Exceeding it generates a dead-letter with `EVENT_PROCESSING_LIMIT_EXCEEDED`. Source: `latency.py:37, 399-411`.
+14. **Two-clock strict separation** — Simulated clock (`LatencyScheduler.current_time`) vs. monotonic real clock. Separate metric axes (ms vs. µs).
+15. **Event processing budget** — `max_events_per_advance` (default 100,000) forms a per-advancement event budget. Exceeding it generates a dead-letter with `EVENT_PROCESSING_LIMIT_EXCEEDED`. Source: `LatencyScheduler._process_until`.
 
 ### Behavior confirmed consistent with old page
 1. Two-event scheduling: `order_arrived` + `order_process` with inbound and engine latency.

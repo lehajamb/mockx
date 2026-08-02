@@ -131,7 +131,7 @@
           <div class="pq-tick" style="left:25%">T+10</div>
           <div class="pq-tick" style="left:42%">T+15</div>
           <div class="pq-tick" style="left:70%">T+25</div>
-          <div class="pq-tick" style="left:90%">T+35</div>
+          <div class="pq-tick" style="left:90%">T+2000</div>
 
           <div class="pq-pin" id="pinArrive" style="left:25%">
             <div class="pq-pin-dot"></div>
@@ -143,11 +143,11 @@
           </div>
           <div class="pq-pin report" id="pinReport" style="left:70%">
             <div class="pq-pin-dot"></div>
-            <div class="pq-pin-label">exec_report ×6</div>
+            <div class="pq-pin-label">fix_delivery_due ×6</div>
           </div>
-          <div class="pq-pin report" id="pinSnapshot" style="left:90%">
+          <div class="pq-pin report" id="pinHeartbeat" style="left:90%">
             <div class="pq-pin-dot"></div>
-            <div class="pq-pin-label">snapshot</div>
+            <div class="pq-pin-label">itch_heartbeat</div>
           </div>
         </div>
 
@@ -167,7 +167,7 @@
     <div class="callout-grid">
       <div class="callout">
         <h4><span class="tag tag-queue">Sequence tie-breaking</span></h4>
-        <p>Two events at the exact same simulated millisecond execute in the order they were queued — the <code class="ref">sequence</code> field breaks the tie. This is how a passive fill's report always beats the aggressor's, even though both have the same timestamp.</p>
+        <p>Two events at the exact same simulated millisecond execute in the order they were queued — the <code class="ref">sequence</code> field breaks the tie. Passive then aggressor FIX delivery records retain engine order, and a same-time ITCH heartbeat is deterministic.</p>
       </div>
       <div class="callout">
         <h4><span class="tag tag-queue">Inclusive advancement</span></h4>
@@ -176,9 +176,9 @@
     </div>
     <div class="source-ref">
       <code>ScheduledEvent</code>: <code>models.py</code> (scheduled event dataclass).
-      Queue structure: <code>latency.py:180 (event_queue as List[ScheduledEvent])</code>.
-      Heap operations: <code>latency.py:306 (heappush)</code>, <code>:413 (heappop)</code>.
-      <code>run_until()</code>: <code>latency.py:456-472</code>.
+      Queue structure and heap operations: <code>LatencyScheduler</code> in
+      <code>latency.py</code>. Event model: <code>ScheduledEvent</code> in
+      <code>models.py</code>.
     </div>
   </div>
 </section>
@@ -201,7 +201,7 @@
         <div class="latency-seg sess">sess</div>
         <div class="latency-seg inb">inbound (arrival_delay)</div>
         <div class="latency-seg eng">engine</div>
-        <div class="latency-seg out">outbound (exec_report)</div>
+        <div class="latency-seg out">outbound (fix_delivery_due)</div>
         <div class="latency-seg rest">remaining</div>
       </div>
       <div class="legend">
@@ -233,8 +233,8 @@
     <div class="notes">
       <div><span class="c">// </span>arrival_delay = (network_ms // 2 if inbound_ms is None else inbound_ms) + session_delay_ms</div>
       <div><span class="c">// </span>total_delay = arrival_delay + engine_ms</div>
-      <div><span class="c">// </span>Source: <code>latency.py:311-345 (schedule_order_processing)</code></div>
-      <div><span class="c">// </span>session_alias maps to per-session delays: <code>latency.py:183</code></div>
+      <div><span class="c">// </span>Source: <code>LatencyScheduler.schedule_order_processing()</code></div>
+      <div><span class="c">// </span><code>session_alias</code> maps through <code>LatencyScheduler.session_delays</code></div>
     </div>
   </div>
 </section>
@@ -320,8 +320,8 @@
       </div>
     </div>
     <div class="source-ref">
-      Cancel scheduling: <code>latency.py:347-374 (schedule_cancel_processing)</code>.
-      Cancel stages documented in: <code>README.md:135-155 (Deterministic FIX ingress and cancel latency)</code>.
+      Cancel scheduling: <code>LatencyScheduler.schedule_cancel_processing()</code>.
+      Full contract: README “Deterministic FIX ingress and cancel latency”.
     </div>
   </div>
 </section>
@@ -364,9 +364,9 @@
       </div>
     </div>
     <div class="source-ref">
-      <code>FixDeliveryState</code>: <code>models.py:63-70</code>.
+      <code>FixDeliveryState</code>: <code>models.py</code>.
       <code>OutboundFixDeliveryQueue</code>: <code>delivery.py</code>.
-      Full specification: <code>README.md:158-212 (Reliable FIX application delivery)</code>.
+      Full specification: README “Reliable FIX application delivery”.
     </div>
   </div>
 </section>
@@ -411,10 +411,10 @@
       </div>
     </div>
     <div class="source-ref">
-      Failure state: <code>latency.py:249-284 (_fail_event)</code>.
+      Failure state: <code>LatencyScheduler._fail_event()</code>.
       Dead letter: <code>SchedulerFailure</code> dataclass in <code>models.py</code>.
-      <code>SchedulerFailureStatus</code>: <code>models.py:111-116</code>.
-      Processing limit: <code>latency.py:37 (DEFAULT_MAX_EVENTS_PER_ADVANCE)</code>, <code>:399-411</code>.
+      <code>SchedulerFailureStatus</code>: <code>models.py</code>.
+      Processing limit: <code>DEFAULT_MAX_EVENTS_PER_ADVANCE</code> in <code>latency.py</code>.
     </div>
   </div>
 </section>
@@ -475,8 +475,52 @@
     </div>
     <div class="source-ref">
       WebSocket registry: <code>websocket_delivery.py</code>.
-      Market data snapshot creation: <code>engine.py:604-654 (_create_market_data_snapshot, _send_market_data_update)</code>.
-      Full specification: <code>README.md:524-619 (WebSocket protocol)</code>.
+      Market data snapshot creation: <code>MatchingEngine._send_market_data_update()</code>.
+      Full specification: README “WebSocket protocol”.
+    </div>
+  </div>
+</section>
+
+<!-- ================= ITCH / MOLDUDP64 ================= -->
+<section class="section" id="itch-delivery">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-bid">3.7</span>
+      <h2 class="h2">ITCH and MoldUDP64 delivery</h2>
+      <p class="lede">
+        The optional publisher is owned by <code class="ref">MockExchange</code>
+        and starts one fresh downstream session per run. It receives only the
+        engine's authoritative displayed-order events; it does not infer book
+        state from FIX reports or duplicate the book in a cache.
+      </p>
+    </div>
+    <div class="rule-grid">
+      <div class="rule-card">
+        <span class="tag tag-amber">Engine commit time</span>
+        <h4>A / E-or-C / D</h4>
+        <p>Displayed events publish immediately after successful mutation and invariant validation. Each fill maps to one passive-side execution using the engine trade ID as Match Number.</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-queue">Message sequence</span>
+        <h4>Advance by Message Count</h4>
+        <p>A data packet carries the sequence of its first message and advances by its count. Heartbeat count 0 and end count 0xffff carry the current next sequence without consuming it.</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-bid">Idle heartbeat</span>
+        <h4>Scheduler-qualified</h4>
+        <p><code class="ref">itch_heartbeat</code> contains the run generation. An interval containing data suppresses its heartbeat; an idle interval sends one and schedules the next check.</p>
+      </div>
+    </div>
+    <div class="source-ref">
+      Publisher: <code>itch_delivery.py</code>. Encoder:
+      <code>itch_encoder.py</code>. Packetization and socket ownership:
+      <code>moldudp64_transport.py</code>. This is downstream-only; request and
+      retransmission service are not implemented. Field layouts and packet
+      semantics follow the official
+      <a href="https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/NQTVITCHspecification.pdf">TotalView-ITCH 5.0</a>
+      and
+      <a href="https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/moldudp64.pdf">MoldUDP64</a>
+      specifications.
     </div>
   </div>
 </section>
@@ -485,7 +529,7 @@
 <section class="section" id="persistence">
   <div class="wrap">
     <div class="section-head">
-      <span class="tag">3.7</span>
+      <span class="tag">3.8</span>
       <h2 class="h2">QuestDB persistence (optional)</h2>
       <p class="lede">
         When enabled, every committed book update, trade, order, STP event, latency sample,
@@ -519,7 +563,8 @@
       </p>
     </div>
     <div class="source-ref">
-      Writer: <code>questdb_writer.py</code>. Full specification: <code>README.md:824-941 (Metrics and observability → QuestDB)</code>.
+      Writer: <code>questdb_writer.py</code>. Full specification: README
+      “Metrics and observability”.
     </div>
   </div>
 </section>
@@ -548,7 +593,7 @@
     arrive: document.getElementById("pinArrive"),
     process: document.getElementById("pinProcess"),
     report: document.getElementById("pinReport"),
-    snapshot: document.getElementById("pinSnapshot"),
+    heartbeat: document.getElementById("pinHeartbeat"),
   };
 
   let pqSpeed = 1;
@@ -584,23 +629,23 @@
     pins.process.classList.add("popped");
     pqLogLine("T+15", "a", "order_process fires → engine.process_order(): reject check → match → remainder.");
     await pqWait(500);
-    pqLogLine("T+15", "a", "3 fills computed. Each produces passive+aggressor report pairs. 6 reports queued.");
+    pqLogLine("T+15", "a", "3 fills computed. Six client reports enter the FIX delivery queue; three passive displayed executions enter ITCH.");
     await pqWait(450);
-    pqLogLine("T+15", "", "MarketDataSnapshot created. Symbol book update. Global sequence incremented.");
+    pqLogLine("T+15", "", "After invariants: ITCH E/C messages send immediately and the immutable WebSocket snapshot is enqueued. FIX records wait until outbound due time.");
     await pqWait(400);
 
     await movePQ(70);
     pins.report.classList.add("popped");
-    pqLogLine("T+25", "g", "exec_report ×6 fire in FIFO sequence order → outbound FIX delivery queue. (outbound=" + 10 + "ms)");
+    pqLogLine("T+25", "g", "fix_delivery_due ×6 fire in FIFO order → records become eligible for QuickFIX submission. (outbound=" + 10 + "ms)");
     await pqWait(350);
     pqLogLine("T+25", "", "Each report PENDING → DUE after outbound latency → transport send attempted once session connected.");
     await pqWait(400);
 
     await movePQ(90);
-    pins.snapshot.classList.add("popped");
-    pqLogLine("T+25+", "", "WebSocket snapshot broadcast to /ws/{symbol} subscribers. Immutable data, sequence included.");
+    pins.heartbeat.classList.add("popped");
+    pqLogLine("T+2000", "", "After one full idle interval, itch_heartbeat sends Message Count=0 with the current next message sequence and schedules the next check.");
     await pqWait(300);
-    pqLogLine("✓", "g", "All events processed. Scheduler queue empty. Simulated time at T+25.");
+    pqLogLine("✓", "g", "Scenario complete. The recurring heartbeat remains scheduled for the next idle interval.");
 
     pqRunBtn.disabled = false;
   }

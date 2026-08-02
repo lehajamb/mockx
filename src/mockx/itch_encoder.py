@@ -59,7 +59,12 @@ CROSS_TYPE_IPO_HALTED = b"H"
 
 def _pad_ascii(value: str, length: int) -> bytes:
     """Left-justify ASCII and pad on the right with spaces."""
-    encoded = value.encode("ascii")
+    if not isinstance(value, str):
+        raise ValueError("Fixed-width ASCII values must be strings")
+    try:
+        encoded = value.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise ValueError(f"Value {value!r} must contain only ASCII") from exc
     if len(encoded) > length:
         raise ValueError(
             f"ASCII string {value!r} is longer than {length} bytes: "
@@ -75,12 +80,42 @@ def _price_to_itch(price_ticks: int, tick_size: Decimal) -> int:
     MockX internal: price = tick_size * price_ticks
     ITCH wire: price * 10^4 as unsigned 32-bit big-endian.
     """
-    return int(tick_size * 10000 * price_ticks)
+    if not isinstance(price_ticks, int) or isinstance(price_ticks, bool):
+        raise ValueError("price_ticks must be an integer")
+    scaled_tick = tick_size * Decimal(10_000)
+    if scaled_tick != scaled_tick.to_integral_value():
+        raise ValueError(
+            f"tick size {tick_size} is not exactly representable as ITCH Price(4)"
+        )
+    value = int(scaled_tick) * price_ticks
+    if not 0 <= value <= 0xFFFFFFFF:
+        raise ValueError("ITCH Price(4) must fit an unsigned 32-bit integer")
+    return value
 
 
-def _shares_from_lots(qty_lots: int, lot_size: Decimal) -> int:
-    """Convert MockX lot quantity to ITCH integer shares."""
-    return int(lot_size * qty_lots)
+def _shares_from_lots(qty_lots: int) -> int:
+    """Map one MockX integer lot to exactly one ITCH share."""
+    if not isinstance(qty_lots, int) or isinstance(qty_lots, bool):
+        raise ValueError("qty_lots must be an integer")
+    if not 0 <= qty_lots <= 0xFFFFFFFF:
+        raise ValueError("ITCH shares must fit an unsigned 32-bit integer")
+    return qty_lots
+
+
+def _uint(value: int, bits: int, field_name: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field_name} must be an integer")
+    if not 0 <= value <= (1 << bits) - 1:
+        raise ValueError(f"{field_name} must fit an unsigned {bits}-bit integer")
+    return value
+
+
+def _fixed_bytes(value: bytes, length: int, field_name: str) -> bytes:
+    if not isinstance(value, bytes) or len(value) != length:
+        raise ValueError(f"{field_name} must be exactly {length} byte(s)")
+    if not value.isascii():
+        raise ValueError(f"{field_name} must contain only ASCII bytes")
+    return value
 
 
 def _nanos_since_midnight(ts: datetime) -> int:
@@ -120,8 +155,9 @@ class ITCHEncoder:
     def _tick_size(self, symbol: str) -> Decimal:
         return self._instruments.require(symbol).tick_size
 
-    def _lot_size(self, symbol: str) -> Decimal:
-        return self._instruments.require(symbol).lot_size
+    @property
+    def symbols(self) -> tuple[str, ...]:
+        return tuple(self._locate_codes)
 
     # ------------------------------------------------------------------
     # 1.1 System Event Message (12 bytes)
@@ -133,6 +169,8 @@ class ITCHEncoder:
         timestamp: datetime,
         tracking_number: int = 0,
     ) -> bytes:
+        _uint(tracking_number, 16, "tracking_number")
+        _fixed_bytes(event_code, 1, "event_code")
         return (
             MSG_SYSTEM_EVENT
             + struct.pack(">HH", 0, tracking_number)
@@ -151,7 +189,7 @@ class ITCHEncoder:
         *,
         market_category: bytes = b" ",
         financial_status: bytes = b" ",
-        round_lot_size: int = 100,
+        round_lot_size: int = 1,
         round_lots_only: bytes = b"N",
         issue_classification: bytes = b"C",
         issue_sub_type: bytes = b"  ",
@@ -164,7 +202,24 @@ class ITCHEncoder:
         inverse_indicator: bytes = b"N",
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(round_lot_size, 32, "round_lot_size")
+        _uint(etp_leverage_factor, 32, "etp_leverage_factor")
+        for value, length, name in (
+            (market_category, 1, "market_category"),
+            (financial_status, 1, "financial_status"),
+            (round_lots_only, 1, "round_lots_only"),
+            (issue_classification, 1, "issue_classification"),
+            (issue_sub_type, 2, "issue_sub_type"),
+            (authenticity, 1, "authenticity"),
+            (short_sale_threshold, 1, "short_sale_threshold"),
+            (ipo_flag, 1, "ipo_flag"),
+            (luld_tier, 1, "luld_tier"),
+            (etp_flag, 1, "etp_flag"),
+            (inverse_indicator, 1, "inverse_indicator"),
+        ):
+            _fixed_bytes(value, length, name)
         return (
             MSG_STOCK_DIRECTORY
             + struct.pack(">HH", locate, tracking_number)
@@ -198,7 +253,10 @@ class ITCHEncoder:
         reason: bytes = b"    ",
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _fixed_bytes(trading_state, 1, "trading_state")
+        _fixed_bytes(reason, 4, "reason")
         return (
             MSG_STOCK_TRADING_ACTION
             + struct.pack(">HH", locate, tracking_number)
@@ -224,11 +282,14 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(order_ref_num, 64, "order_ref_num")
         tick_size = self._tick_size(symbol)
-        lot_size = self._lot_size(symbol)
-        shares = _shares_from_lots(qty_lots, lot_size)
+        shares = _shares_from_lots(qty_lots)
         itch_price = _price_to_itch(price_ticks, tick_size)
+        if not isinstance(side, Side):
+            raise ValueError("side must be a Side value")
         buy_sell = b"B" if side == Side.BUY else b"S"
         return (
             MSG_ADD_ORDER_NO_MPID
@@ -257,11 +318,14 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(order_ref_num, 64, "order_ref_num")
         tick_size = self._tick_size(symbol)
-        lot_size = self._lot_size(symbol)
-        shares = _shares_from_lots(qty_lots, lot_size)
+        shares = _shares_from_lots(qty_lots)
         itch_price = _price_to_itch(price_ticks, tick_size)
+        if not isinstance(side, Side):
+            raise ValueError("side must be a Side value")
         buy_sell = b"B" if side == Side.BUY else b"S"
         return (
             MSG_ADD_ORDER_MPID
@@ -272,7 +336,7 @@ class ITCHEncoder:
             + struct.pack(">I", shares)
             + _pad_ascii(symbol, 8)
             + struct.pack(">I", itch_price)
-            + _pad_ascii(attribution[:4], 4)
+            + _pad_ascii(attribution, 4)
         )
 
     # ------------------------------------------------------------------
@@ -289,9 +353,11 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
-        lot_size = self._lot_size(symbol)
-        exec_shares = _shares_from_lots(executed_qty_lots, lot_size)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(order_ref_num, 64, "order_ref_num")
+        _uint(match_number, 64, "match_number")
+        exec_shares = _shares_from_lots(executed_qty_lots)
         return (
             MSG_ORDER_EXECUTED
             + struct.pack(">HH", locate, tracking_number)
@@ -317,10 +383,12 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(order_ref_num, 64, "order_ref_num")
+        _uint(match_number, 64, "match_number")
         tick_size = self._tick_size(symbol)
-        lot_size = self._lot_size(symbol)
-        exec_shares = _shares_from_lots(executed_qty_lots, lot_size)
+        exec_shares = _shares_from_lots(executed_qty_lots)
         itch_price = _price_to_itch(execution_price_ticks, tick_size)
         printable = b"Y" if is_printable else b"N"
         return (
@@ -347,9 +415,10 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
-        lot_size = self._lot_size(symbol)
-        cancelled_shares = _shares_from_lots(cancelled_qty_lots, lot_size)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(order_ref_num, 64, "order_ref_num")
+        cancelled_shares = _shares_from_lots(cancelled_qty_lots)
         return (
             MSG_ORDER_CANCEL
             + struct.pack(">HH", locate, tracking_number)
@@ -370,7 +439,9 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(order_ref_num, 64, "order_ref_num")
         return (
             MSG_ORDER_DELETE
             + struct.pack(">HH", locate, tracking_number)
@@ -393,10 +464,12 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(orig_order_ref_num, 64, "orig_order_ref_num")
+        _uint(new_order_ref_num, 64, "new_order_ref_num")
         tick_size = self._tick_size(symbol)
-        lot_size = self._lot_size(symbol)
-        shares = _shares_from_lots(new_qty_lots, lot_size)
+        shares = _shares_from_lots(new_qty_lots)
         itch_price = _price_to_itch(new_price_ticks, tick_size)
         return (
             MSG_ORDER_REPLACE
@@ -422,10 +495,11 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(match_number, 64, "match_number")
         tick_size = self._tick_size(symbol)
-        lot_size = self._lot_size(symbol)
-        shares = _shares_from_lots(qty_lots, lot_size)
+        shares = _shares_from_lots(qty_lots)
         itch_price = _price_to_itch(price_ticks, tick_size)
         return (
             MSG_TRADE_NON_CROSS
@@ -454,10 +528,12 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(match_number, 64, "match_number")
+        _fixed_bytes(cross_type, 1, "cross_type")
         tick_size = self._tick_size(symbol)
-        lot_size = self._lot_size(symbol)
-        shares = _shares_from_lots(qty_lots, lot_size)
+        shares = _uint(qty_lots, 64, "shares")
         itch_price = _price_to_itch(cross_price_ticks, tick_size)
         return (
             MSG_CROSS_TRADE
@@ -482,7 +558,9 @@ class ITCHEncoder:
         *,
         tracking_number: int = 0,
     ) -> bytes:
-        locate = self._locate(symbol)
+        locate = _uint(self._locate(symbol), 16, "stock_locate")
+        _uint(tracking_number, 16, "tracking_number")
+        _uint(match_number, 64, "match_number")
         return (
             MSG_BROKEN_TRADE
             + struct.pack(">HH", locate, tracking_number)

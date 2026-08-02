@@ -1,370 +1,389 @@
-"""ITCH 5.0 + MoldUDP64 delivery integration layer.
-
-Wires the ITCH encoder and MoldUDP64 transport to the matching engine's
-observer callbacks.  Tracks per-order state to emit the correct sequence
-of Add Order, Order Executed, Order Cancel, Order Delete, and Trade
-messages.
-
-This module follows the same observer-chaining pattern as
-websocket_delivery.py — it decorates engine.on_execution_report,
-engine.on_trade, and engine.on_market_data_update (chaining through
-any existing handlers) so that existing WebSocket and REST paths are
-undisturbed.
-"""
+"""Run-scoped ITCH publisher driven by authoritative displayed-book events."""
 
 from __future__ import annotations
 
+from datetime import datetime
+from enum import Enum
 import logging
+from typing import Callable, Optional
 
+from .configuration import ITCHConfig, MoldUDP64TransportConfig
+from .instruments import InstrumentCatalog
 from .itch_encoder import (
-    ITCHEncoder,
+    EVENT_END_OF_MARKET_HOURS,
+    EVENT_END_OF_MESSAGES,
+    EVENT_END_OF_SYSTEM_HOURS,
+    EVENT_START_OF_MARKET_HOURS,
     EVENT_START_OF_MESSAGES,
     EVENT_START_OF_SYSTEM_HOURS,
-    EVENT_START_OF_MARKET_HOURS,
-    EVENT_END_OF_MARKET_HOURS,
-    EVENT_END_OF_SYSTEM_HOURS,
-    EVENT_END_OF_MESSAGES,
+    ITCHEncoder,
     TRADING_STATE_TRADING,
 )
-from .moldudp64_transport import MoldUDP64Transport
-from .models import ExecutionType, Side
+from .models import (
+    DisplayedOrderAdded,
+    DisplayedOrderDeleted,
+    DisplayedOrderEvent,
+    DisplayedOrderExecuted,
+    ITCHHeartbeatCommand,
+)
+from .moldudp64_transport import (
+    MoldSendResult,
+    MoldUDP64Config,
+    MoldUDP64Transport,
+)
+
 
 logger = logging.getLogger(__name__)
 
 
-class ITCHDelivery:
-    """Integration layer that observes engine events and emits ITCH+MoldUDP64.
+class ITCHFeedState(str, Enum):
+    IDLE = "idle"
+    READY = "ready"
+    DEGRADED = "degraded"
+    STOPPED = "stopped"
 
-    The delivery layer maintains a mutable order-state cache keyed by
-    order_id, which it uses to track the resting side, symbol, price,
-    remaining quantity, and attribution of each live order.  This cache
-    is deterministically updated on every observed engine event.
-    """
+
+class ITCHFeedPublisher:
+    """Own encoder/transport session state without shadowing the order book."""
+
+    HEARTBEAT_EVENT = "itch_heartbeat"
 
     def __init__(
         self,
-        encoder: ITCHEncoder,
-        transport: MoldUDP64Transport,
-    ) -> None:
-        self._encoder = encoder
-        self._transport = transport
-        # Per-order state: order_id → (symbol, side, price_ticks, qty_lots, attribution)
-        self._resting: dict[int, tuple[str, Side, int, int, str]] = {}
-        # Match counter for ITCH Match Number
-        self._next_match_number = 1
-        # Order reference number counter (uses internal order.id)
-        self._order_ref_base = 0
-
-    # ------------------------------------------------------------------
-    # Session lifecycle
-    # ------------------------------------------------------------------
-
-    async def start_session(self, timestamp) -> None:
-        """Start the MoldUDP64 session and emit ITCH start-of-day messages."""
-        await self._transport.start()
-
-        # System Event: Start of Messages
-        self._transport.send_messages(
-            [self._encoder.system_event(EVENT_START_OF_MESSAGES, timestamp)]
-        )
-
-        # Stock Directory messages for all configured symbols
-        for symbol in self._encoder._locate_codes:
-            self._transport.send_messages(
-                [
-                    self._encoder.stock_directory(
-                        symbol,
-                        timestamp,
-                    )
-                ]
-            )
-
-        # System Event: Start of System Hours
-        self._transport.send_messages(
-            [
-                self._encoder.system_event(
-                    EVENT_START_OF_SYSTEM_HOURS, timestamp
-                )
-            ]
-        )
-
-        # Stock Trading Action: Trading for all symbols
-        for symbol in self._encoder._locate_codes:
-            self._transport.send_messages(
-                [
-                    self._encoder.stock_trading_action(
-                        symbol,
-                        TRADING_STATE_TRADING,
-                        timestamp,
-                    )
-                ]
-            )
-
-        # System Event: Start of Market Hours
-        self._transport.send_messages(
-            [
-                self._encoder.system_event(
-                    EVENT_START_OF_MARKET_HOURS, timestamp
-                )
-            ]
-        )
-
-        logger.info(
-            "ITCH session started with %d instruments",
-            len(self._encoder._locate_codes),
-        )
-
-    def end_session(self, timestamp) -> None:
-        """Emit ITCH end-of-day messages and close the MoldUDP64 session."""
-        try:
-            # System Event: End of Market Hours
-            if self._transport.is_active:
-                self._transport.send_messages(
-                    [
-                        self._encoder.system_event(
-                            EVENT_END_OF_MARKET_HOURS, timestamp
-                        )
-                    ]
-                )
-
-                # System Event: End of System Hours
-                self._transport.send_messages(
-                    [
-                        self._encoder.system_event(
-                            EVENT_END_OF_SYSTEM_HOURS, timestamp
-                        )
-                    ]
-                )
-
-                # System Event: End of Messages
-                self._transport.send_messages(
-                    [
-                        self._encoder.system_event(
-                            EVENT_END_OF_MESSAGES, timestamp
-                        )
-                    ]
-                )
-
-                # MoldUDP64 End of Session
-                self._transport.send_end_of_session()
-        finally:
-            self._transport.stop()
-            self._resting.clear()
-
-    def send_heartbeat(self) -> None:
-        """Send a MoldUDP64 heartbeat (called by scheduler)."""
-        self._transport.send_heartbeat()
-
-    # ------------------------------------------------------------------
-    # Engine observer callbacks
-    # ------------------------------------------------------------------
-
-    def on_execution_report(self, report: ExecutionReport) -> None:
-        """Handle one execution report — emit ITCH Add/Execute/Cancel/Delete."""
-        if not self._transport.is_active:
-            return
-
-        timestamp = report.timestamp
-        order_id = report.order_id
-        symbol = report.symbol
-        order_ref_num = self._order_ref_for(order_id)
-        side = report.side
-        leaves_qty_lots = report.leaves_qty_lots
-        price_ticks = report.order_price_ticks
-        exec_type = report.exec_type
-        filled_qty = report.cum_qty_lots
-        last_qty = report.last_qty_lots or 0
-        last_px = report.last_price_ticks
-
-        if exec_type == ExecutionType.NEW:
-            # Order added to book
-            if price_ticks is None or price_ticks <= 0:
-                return  # MARKET orders never rest; skip
-            attribution = report.participant_id or ""
-            self._resting[order_id] = (
-                symbol,
-                side,
-                price_ticks,
-                leaves_qty_lots,
-                attribution,
-            )
-            if attribution:
-                msg = self._encoder.add_order_mpid(
-                    symbol,
-                    order_ref_num,
-                    side,
-                    leaves_qty_lots,
-                    price_ticks,
-                    timestamp,
-                    attribution,
-                )
-            else:
-                msg = self._encoder.add_order_no_mpid(
-                    symbol,
-                    order_ref_num,
-                    side,
-                    leaves_qty_lots,
-                    price_ticks,
-                    timestamp,
-                )
-            self._transport.send_messages([msg])
-
-        elif exec_type == ExecutionType.TRADE:
-            # Part of the order was executed
-            resting = self._resting.get(order_id)
-            if resting is not None and resting[3] > 0:
-                # Update resting state
-                _, rest_side, rest_px, rest_qty, rest_attr = resting
-                new_qty = max(0, rest_qty - last_qty)
-                if new_qty > 0:
-                    self._resting[order_id] = (
-                        symbol,
-                        rest_side,
-                        rest_px,
-                        new_qty,
-                        rest_attr,
-                    )
-                else:
-                    del self._resting[order_id]
-
-            # Determine if this is a same-price execution
-            if last_px is not None and price_ticks is not None:
-                if last_px == price_ticks:
-                    # Same-price execution
-                    match_num = self._next_match_number
-                    self._next_match_number += 1
-                    msg = self._encoder.order_executed(
-                        symbol,
-                        order_ref_num,
-                        last_qty,
-                        match_num,
-                        timestamp,
-                    )
-                else:
-                    # Different-price execution
-                    match_num = self._next_match_number
-                    self._next_match_number += 1
-                    msg = self._encoder.order_executed_with_price(
-                        symbol,
-                        order_ref_num,
-                        last_qty,
-                        match_num,
-                        last_px,
-                        True,  # printable
-                        timestamp,
-                    )
-            else:
-                # Fallback: use same-price execution
-                match_num = self._next_match_number
-                self._next_match_number += 1
-                msg = self._encoder.order_executed(
-                    symbol,
-                    order_ref_num,
-                    last_qty,
-                    match_num,
-                    timestamp,
-                )
-
-            self._transport.send_messages([msg])
-
-        elif exec_type == ExecutionType.CANCELED:
-            resting = self._resting.pop(order_id, None)
-            if resting is not None:
-                # Full delete
-                msg = self._encoder.order_delete(
-                    symbol,
-                    order_ref_num,
-                    timestamp,
-                )
-            elif report.canceled_qty_lots > 0:
-                # Partial cancel — emit Cancel message with canceled qty
-                canceled_qty = report.canceled_qty_lots
-                msg = self._encoder.order_cancel(
-                    symbol,
-                    order_ref_num,
-                    canceled_qty,
-                    timestamp,
-                )
-            else:
-                # Already fully removed — emit delete anyway
-                msg = self._encoder.order_delete(
-                    symbol,
-                    order_ref_num,
-                    timestamp,
-                )
-            self._transport.send_messages([msg])
-
-    def on_trade(self, trade: Trade) -> None:
-        """Handle a trade — emit ITCH Trade Message (Non-Cross)."""
-        if not self._transport.is_active:
-            return
-
-        match_num = self._next_match_number
-        self._next_match_number += 1
-
-        msg = self._encoder.trade_non_cross(
-            trade.symbol,
-            trade.qty_lots,
-            trade.price_ticks,
-            match_num,
-            trade.timestamp,
-        )
-        self._transport.send_messages([msg])
-
-    # ------------------------------------------------------------------
-    # Order reference number generation
-    # ------------------------------------------------------------------
-
-    def _order_ref_for(self, order_id: int) -> int:
-        """Map internal order.id to ITCH Order Reference Number.
-
-        ITCH Order Reference Numbers are day-unique, not necessarily
-        sequential.  We use the internal order ID directly, which is
-        unique within a run.
-        """
-        return order_id
-
-    # ------------------------------------------------------------------
-    # Wire into engine observers (non-destructive chaining)
-    # ------------------------------------------------------------------
-
-    def wire_observers(
-        self,
-        engine,
+        instruments: InstrumentCatalog,
         scheduler,
+        itch_config: ITCHConfig,
+        mold_config: MoldUDP64TransportConfig,
+        metrics,
         *,
-        heartbeat_interval_ms: int = 1000,
+        on_state_change: Optional[Callable[[str], None]] = None,
+        transport_factory: Callable[..., MoldUDP64Transport] = MoldUDP64Transport,
     ) -> None:
-        """Register this delivery layer as a chained observer on the engine.
+        locate_codes = {
+            symbol: index for index, symbol in enumerate(instruments.symbols, start=1)
+        }
+        self.encoder = ITCHEncoder(locate_codes, instruments)
+        self.scheduler = scheduler
+        self.itch_config = itch_config
+        self.mold_config = mold_config
+        self.metrics = metrics
+        self.on_state_change = on_state_change
+        self.transport_factory = transport_factory
+        self.state = ITCHFeedState.IDLE
+        self.transport: Optional[MoldUDP64Transport] = None
+        self.active_generation: Optional[int] = None
+        self.active_session_name: Optional[str] = None
+        self.last_error: Optional[str] = None
+        self._tracking_number = 0
+        self._data_sent_since_heartbeat = False
+        self._sessions_started = 0
+        self._sessions_ended = 0
+        self._messages_sent = 0
+        self._packets_sent = 0
+        self._heartbeats_sent = 0
+        self._failures = 0
 
-        Existing callbacks (WebSocket, metrics, etc.) are preserved by
-        wrapping them so that both the original handler and our handler
-        are called for each event.
-        """
-        # Chain on_execution_report
-        original_er = engine.on_execution_report
+    @staticmethod
+    def session_name(prefix: str, generation: int) -> str:
+        if not 1 <= generation <= 99_999_999:
+            raise ValueError("ITCH run generation must be between 1 and 99999999")
+        return f"{prefix.ljust(2, '_')}{generation:08d}"
 
-        def chained_er(report):
-            if original_er is not None:
-                original_er(report)
-            self.on_execution_report(report)
+    def validate_generation(self, generation: int) -> None:
+        self.session_name(self.mold_config.session_prefix, generation)
 
-        engine.on_execution_report = chained_er
+    def _set_state(self, state: ITCHFeedState) -> None:
+        self.state = state
+        self.metrics.update_itch_state(
+            state.value,
+            self.sequence_number,
+        )
+        callback = self.on_state_change
+        if callback is not None:
+            callback(state.value)
 
-        # Chain on_trade
-        original_trade = engine.on_trade
+    @property
+    def sequence_number(self) -> int:
+        transport = self.transport
+        return transport.sequence_number if transport is not None else 1
 
-        def chained_trade(trade):
-            if original_trade is not None:
-                original_trade(trade)
-            self.on_trade(trade)
+    def _next_tracking(self) -> int:
+        self._tracking_number = (self._tracking_number + 1) & 0xFFFF
+        return self._tracking_number
 
-        engine.on_trade = chained_trade
-
-        # Register heartbeat handler
-        scheduler.register_handler(
-            "itch_heartbeat",
-            self.send_heartbeat,
+    def _record_send(self, result: MoldSendResult) -> None:
+        self._messages_sent += result.messages_sent
+        self._packets_sent += result.packets_sent
+        self._data_sent_since_heartbeat = (
+            self._data_sent_since_heartbeat or result.messages_sent > 0
+        )
+        self.metrics.record_itch_messages(
+            result.messages_sent,
+            result.packets_sent,
+            result.next_sequence_number,
         )
 
-        logger.info("ITCH delivery observers wired to engine")
+    def _transport_error(self, exc: BaseException) -> None:
+        self._degrade(exc)
+
+    def _degrade(self, exc: BaseException) -> None:
+        if self.state == ITCHFeedState.DEGRADED:
+            return
+        self.last_error = f"{type(exc).__name__}: {exc}"
+        self._failures += 1
+        self.metrics.record_itch_failure(self.last_error)
+        transport = self.transport
+        if transport is not None:
+            transport.stop()
+        self._set_state(ITCHFeedState.DEGRADED)
+        logger.error(
+            "ITCH feed degraded for run generation %s: %s",
+            self.active_generation,
+            self.last_error,
+        )
+
+    def _bootstrap_messages(self, timestamp: datetime) -> list[bytes]:
+        messages = [
+            self.encoder.system_event(
+                EVENT_START_OF_MESSAGES,
+                timestamp,
+                self._next_tracking(),
+            )
+        ]
+        for symbol in self.encoder.symbols:
+            messages.append(
+                self.encoder.stock_directory(
+                    symbol,
+                    timestamp,
+                    market_category=self.itch_config.market_category.encode("ascii"),
+                    financial_status=self.itch_config.financial_status.encode("ascii"),
+                    round_lot_size=self.itch_config.round_lot_size,
+                    tracking_number=self._next_tracking(),
+                )
+            )
+        messages.append(
+            self.encoder.system_event(
+                EVENT_START_OF_SYSTEM_HOURS,
+                timestamp,
+                self._next_tracking(),
+            )
+        )
+        for symbol in self.encoder.symbols:
+            messages.append(
+                self.encoder.stock_trading_action(
+                    symbol,
+                    TRADING_STATE_TRADING,
+                    timestamp,
+                    tracking_number=self._next_tracking(),
+                )
+            )
+        messages.append(
+            self.encoder.system_event(
+                EVENT_START_OF_MARKET_HOURS,
+                timestamp,
+                self._next_tracking(),
+            )
+        )
+        return messages
+
+    async def start_run(self, generation: int, timestamp: datetime) -> bool:
+        recovering = self.state == ITCHFeedState.DEGRADED
+        if self.transport is not None:
+            self.transport.stop()
+        self.active_generation = generation
+        self.active_session_name = self.session_name(
+            self.mold_config.session_prefix,
+            generation,
+        )
+        self._tracking_number = 0
+        self._data_sent_since_heartbeat = False
+        self.transport = self.transport_factory(
+            MoldUDP64Config(
+                multicast_group=self.mold_config.multicast_group,
+                multicast_port=self.mold_config.multicast_port,
+                session_name=self.active_session_name,
+                heartbeat_interval_ms=self.mold_config.heartbeat_interval_ms,
+                max_payload_bytes=self.mold_config.max_payload_bytes,
+                interface_address=self.mold_config.interface_address,
+                ttl=self.mold_config.ttl,
+            ),
+            on_error=self._transport_error,
+        )
+        try:
+            await self.transport.start()
+            self._record_send(
+                self.transport.send_messages(self._bootstrap_messages(timestamp))
+            )
+            self._sessions_started += 1
+            self.metrics.record_itch_session_started(self.sequence_number)
+            self._set_state(ITCHFeedState.READY)
+            if recovering:
+                logger.info(
+                    "ITCH feed recovered on a fresh run",
+                    extra={
+                        "run_generation": generation,
+                        "mold_session": self.active_session_name,
+                    },
+                )
+            self.scheduler.schedule_event(
+                self.HEARTBEAT_EVENT,
+                ITCHHeartbeatCommand(generation),
+                self.mold_config.heartbeat_interval_ms,
+            )
+            logger.info(
+                "ITCH session started",
+                extra={
+                    "run_generation": generation,
+                    "mold_session": self.active_session_name,
+                },
+            )
+            return True
+        except Exception as exc:
+            self._degrade(exc)
+            return False
+
+    def publish(self, event: DisplayedOrderEvent) -> None:
+        if (
+            self.state != ITCHFeedState.READY
+            or event.run_generation != self.active_generation
+            or self.transport is None
+        ):
+            return
+        try:
+            tracking = self._next_tracking()
+            if isinstance(event, DisplayedOrderAdded):
+                message = self.encoder.add_order_no_mpid(
+                    event.symbol,
+                    event.order_id,
+                    event.side,
+                    event.qty_lots,
+                    event.price_ticks,
+                    event.timestamp,
+                    tracking_number=tracking,
+                )
+            elif isinstance(event, DisplayedOrderExecuted):
+                if event.displayed_price_ticks == event.execution_price_ticks:
+                    message = self.encoder.order_executed(
+                        event.symbol,
+                        event.order_id,
+                        event.executed_qty_lots,
+                        event.match_number,
+                        event.timestamp,
+                        tracking_number=tracking,
+                    )
+                else:
+                    message = self.encoder.order_executed_with_price(
+                        event.symbol,
+                        event.order_id,
+                        event.executed_qty_lots,
+                        event.match_number,
+                        event.execution_price_ticks,
+                        True,
+                        event.timestamp,
+                        tracking_number=tracking,
+                    )
+            elif isinstance(event, DisplayedOrderDeleted):
+                message = self.encoder.order_delete(
+                    event.symbol,
+                    event.order_id,
+                    event.timestamp,
+                    tracking_number=tracking,
+                )
+            else:
+                raise TypeError(
+                    f"Unsupported displayed-order event: {type(event).__name__}"
+                )
+            self._record_send(self.transport.send_messages([message]))
+        except Exception as exc:
+            self._degrade(exc)
+
+    def handle_heartbeat(self, command: ITCHHeartbeatCommand) -> None:
+        if (
+            self.state != ITCHFeedState.READY
+            or command.run_generation != self.active_generation
+            or self.transport is None
+        ):
+            return
+        try:
+            if self._data_sent_since_heartbeat:
+                self._data_sent_since_heartbeat = False
+            elif self.transport.send_heartbeat():
+                self._packets_sent += 1
+                self._heartbeats_sent += 1
+                self.metrics.record_itch_heartbeat(self.sequence_number)
+            self.scheduler.schedule_event(
+                self.HEARTBEAT_EVENT,
+                command,
+                self.mold_config.heartbeat_interval_ms,
+            )
+        except Exception as exc:
+            self._degrade(exc)
+
+    def _ending_messages(self, timestamp: datetime) -> list[bytes]:
+        return [
+            self.encoder.system_event(
+                code,
+                timestamp,
+                self._next_tracking(),
+            )
+            for code in (
+                EVENT_END_OF_MARKET_HOURS,
+                EVENT_END_OF_SYSTEM_HOURS,
+                EVENT_END_OF_MESSAGES,
+            )
+        ]
+
+    def end_run(self, timestamp: datetime) -> None:
+        transport = self.transport
+        was_ready = self.state == ITCHFeedState.READY
+        generation = self.active_generation
+        session_name = self.active_session_name
+        try:
+            if was_ready and transport is not None:
+                self._record_send(
+                    transport.send_messages(self._ending_messages(timestamp))
+                )
+                if transport.send_end_of_session():
+                    self._packets_sent += 1
+                    self.metrics.record_itch_end_packet(self.sequence_number)
+                self._sessions_ended += 1
+                self.metrics.record_itch_session_ended()
+        except Exception as exc:
+            self._degrade(exc)
+        finally:
+            if transport is not None:
+                transport.stop()
+            self.transport = None
+            self.active_generation = None
+            self.active_session_name = None
+            self._data_sent_since_heartbeat = False
+            if self.state != ITCHFeedState.DEGRADED:
+                self._set_state(ITCHFeedState.IDLE)
+            logger.info(
+                "ITCH session ended",
+                extra={
+                    "run_generation": generation,
+                    "mold_session": session_name,
+                    "healthy": (was_ready and self.state != ITCHFeedState.DEGRADED),
+                },
+            )
+
+    def shutdown(self, timestamp: datetime) -> None:
+        self.end_run(timestamp)
+        self._set_state(ITCHFeedState.STOPPED)
+        logger.info("ITCH publisher stopped")
+
+    def diagnostics(self) -> dict[str, object]:
+        return {
+            "enabled": True,
+            "state": self.state.value,
+            "active_session": self.active_session_name,
+            "next_sequence_number": self.sequence_number,
+            "sessions_started": self._sessions_started,
+            "sessions_ended": self._sessions_ended,
+            "messages_sent": self._messages_sent,
+            "packets_sent": self._packets_sent,
+            "heartbeats_sent": self._heartbeats_sent,
+            "failures": self._failures,
+            "last_error": self.last_error,
+        }
