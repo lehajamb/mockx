@@ -68,12 +68,14 @@ class ExchangeLifecycle:
         metrics: Any,
         latency_tracker: Any,
         fix_app: Any,
+        itch_feed: Any = None,
     ) -> None:
         self.engine = engine
         self.scheduler = engine.scheduler
         self.metrics = metrics
         self.latency_tracker = latency_tracker
         self.fix_app = fix_app
+        self.itch_feed = itch_feed
         self.lock = asyncio.Lock()
         self.state = LifecycleState.STOPPED
         self.run_id: Optional[str] = None
@@ -140,9 +142,9 @@ class ExchangeLifecycle:
             ):
                 code = self.ingress_rejection(current) or "LIFECYCLE_CHANGED"
                 raise LifecycleIngressRejected(code)
-            code = self.ingress_rejection(current)
-            if code is not None:
-                raise LifecycleIngressRejected(code)
+            current_rejection = self.ingress_rejection(current)
+            if current_rejection is not None:
+                raise LifecycleIngressRejected(current_rejection)
             result = action()
             if inspect.isawaitable(result):
                 return await result
@@ -157,6 +159,15 @@ class ExchangeLifecycle:
                     "SESSION_ALREADY_ACTIVE",
                     "A simulation session is already active",
                 )
+            if self.itch_feed is not None:
+                try:
+                    self.itch_feed.validate_generation(self.run_generation + 1)
+                except ValueError as exc:
+                    raise LifecycleError(
+                        409,
+                        "ITCH_GENERATION_EXHAUSTED",
+                        "The next run generation cannot form an ITCH session",
+                    ) from exc
 
             self._publish(LifecycleState.STARTING)
             try:
@@ -210,6 +221,12 @@ class ExchangeLifecycle:
                     self.metrics.update_book_metrics(snapshot)
                 self.fix_app.reschedule_deliveries_after_reset()
 
+                if self.itch_feed is not None:
+                    await self.itch_feed.start_run(
+                        generation,
+                        self.scheduler.current_time,
+                    )
+
                 self.run_id = run_id
                 self.run_generation = generation
                 self._publish(LifecycleState.ACTIVE)
@@ -254,6 +271,8 @@ class ExchangeLifecycle:
                         "METRICS_FLUSH_FAILED",
                         "Buffered metrics could not be flushed",
                     )
+                if self.itch_feed is not None:
+                    self.itch_feed.end_run(self.scheduler.current_time)
                 if self._stats_builder is None:
                     raise RuntimeError("Lifecycle statistics builder is not bound")
                 final_stats = self._stats_builder()
@@ -374,10 +393,7 @@ class ExchangeLifecycle:
         action: Callable[[], Awaitable[None]],
     ) -> bool:
         async with self.lock:
-            if (
-                self.state != LifecycleState.ACTIVE
-                or generation != self.run_generation
-            ):
+            if self.state != LifecycleState.ACTIVE or generation != self.run_generation:
                 return False
             await action()
             return True

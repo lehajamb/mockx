@@ -23,9 +23,6 @@ from src.mockx.itch_encoder import (
     MSG_BROKEN_TRADE,
     EVENT_START_OF_MESSAGES,
     EVENT_START_OF_SYSTEM_HOURS,
-    EVENT_START_OF_MARKET_HOURS,
-    EVENT_END_OF_MARKET_HOURS,
-    EVENT_END_OF_SYSTEM_HOURS,
     EVENT_END_OF_MESSAGES,
     TRADING_STATE_TRADING,
     TRADING_STATE_HALTED,
@@ -42,6 +39,7 @@ from src.mockx.models import Side
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def instruments() -> InstrumentCatalog:
@@ -84,6 +82,7 @@ def sample_timestamp() -> datetime:
 # Helper function tests
 # ---------------------------------------------------------------------------
 
+
 class TestPadASCII:
     def test_short_string(self):
         result = _pad_ascii("ABC", 8)
@@ -98,6 +97,10 @@ class TestPadASCII:
         with pytest.raises(ValueError, match="longer than"):
             _pad_ascii("LONGSYMBOL", 8)
 
+    def test_non_ascii(self):
+        with pytest.raises(ValueError, match="only ASCII"):
+            _pad_ascii("CAFÉ", 8)
+
 
 class TestPriceToITCH:
     def test_tick_size_001(self):
@@ -111,13 +114,23 @@ class TestPriceToITCH:
     def test_tick_size_1(self):
         assert _price_to_itch(42, Decimal("1")) == 420000
 
+    def test_nonrepresentable_tick_and_overflow(self):
+        with pytest.raises(ValueError, match="not exactly representable"):
+            _price_to_itch(1, Decimal("0.00001"))
+        with pytest.raises(ValueError, match="unsigned 32-bit"):
+            _price_to_itch(0x100000000, Decimal("0.0001"))
+
 
 class TestSharesFromLots:
     def test_lot_size_1(self):
-        assert _shares_from_lots(100, Decimal("1")) == 100
+        assert _shares_from_lots(100) == 100
 
-    def test_lot_size_100(self):
-        assert _shares_from_lots(5, Decimal("100")) == 500
+    def test_fractional_external_lot_size_does_not_change_wire_shares(self):
+        assert _shares_from_lots(5) == 5
+
+    def test_overflow_rejected(self):
+        with pytest.raises(ValueError, match="unsigned 32-bit"):
+            _shares_from_lots(1 << 32)
 
 
 class TestNanosSinceMidnight:
@@ -138,6 +151,7 @@ class TestNanosSinceMidnight:
 # ---------------------------------------------------------------------------
 # System Event Message tests
 # ---------------------------------------------------------------------------
+
 
 class TestSystemEvent:
     def test_start_of_messages(self, encoder, sample_timestamp):
@@ -160,6 +174,7 @@ class TestSystemEvent:
 # ---------------------------------------------------------------------------
 # Stock Directory Message tests
 # ---------------------------------------------------------------------------
+
 
 class TestStockDirectory:
     def test_message_type(self, encoder, sample_timestamp):
@@ -185,12 +200,17 @@ class TestStockDirectory:
         assert msg[20:21] == b" "
         # Round Lot Size at offset 21 (4 bytes big-endian)
         round_lot = struct.unpack(">I", msg[21:25])[0]
-        assert round_lot == 100
+        assert round_lot == 1
+
+    def test_fixed_byte_fields_require_ascii(self, encoder, sample_timestamp):
+        with pytest.raises(ValueError, match="only ASCII bytes"):
+            encoder.stock_directory("TEST", sample_timestamp, market_category=b"\xff")
 
 
 # ---------------------------------------------------------------------------
 # Stock Trading Action tests
 # ---------------------------------------------------------------------------
+
 
 class TestStockTradingAction:
     def test_trading_resumed(self, encoder, sample_timestamp):
@@ -211,6 +231,7 @@ class TestStockTradingAction:
 # ---------------------------------------------------------------------------
 # Add Order Message tests
 # ---------------------------------------------------------------------------
+
 
 class TestAddOrderNoMPID:
     def test_message_type(self, encoder, sample_timestamp):
@@ -271,17 +292,17 @@ class TestAddOrderMPID:
         attr = msg[36:40]
         assert attr == b"ABCD"
 
-    def test_attribution_truncated(self, encoder, sample_timestamp):
-        msg = encoder.add_order_mpid(
-            "TEST", 1, Side.BUY, 100, 10050, sample_timestamp, "LONGNAME"
-        )
-        attr = msg[36:40]
-        assert attr == b"LONG"
+    def test_attribution_is_not_silently_truncated(self, encoder, sample_timestamp):
+        with pytest.raises(ValueError, match="longer than"):
+            encoder.add_order_mpid(
+                "TEST", 1, Side.BUY, 100, 10050, sample_timestamp, "LONGNAME"
+            )
 
 
 # ---------------------------------------------------------------------------
 # Modify Order Message tests
 # ---------------------------------------------------------------------------
+
 
 class TestOrderExecuted:
     def test_message_type(self, encoder, sample_timestamp):
@@ -364,6 +385,7 @@ class TestOrderReplace:
 # Trade Message tests
 # ---------------------------------------------------------------------------
 
+
 class TestTradeNonCross:
     def test_message_type(self, encoder, sample_timestamp):
         msg = encoder.trade_non_cross("TEST", 100, 10050, 5000, sample_timestamp)
@@ -406,6 +428,7 @@ class TestBrokenTrade:
 # Error cases
 # ---------------------------------------------------------------------------
 
+
 class TestEncoderErrors:
     def test_unknown_symbol(self, encoder, sample_timestamp):
         with pytest.raises(KeyError, match="No ITCH locate code"):
@@ -418,3 +441,21 @@ class TestEncoderErrors:
             encoder.add_order_no_mpid(
                 "TEST", 1, Side.BUY, 100, 10050, datetime(2025, 1, 15, 9, 30)
             )
+
+    def test_nonrepresentable_price_tick_is_rejected(self, sample_timestamp):
+        instruments = InstrumentCatalog(
+            {"TEST": Instrument("TEST", Decimal("0.00001"), Decimal("0.001"), 5, 3)}
+        )
+        encoder = ITCHEncoder({"TEST": 1}, instruments)
+        with pytest.raises(ValueError, match="exactly representable"):
+            encoder.add_order_no_mpid("TEST", 1, Side.BUY, 1, 1, sample_timestamp)
+
+    def test_fractional_lot_size_still_encodes_one_share(self, sample_timestamp):
+        instruments = InstrumentCatalog(
+            {"TEST": Instrument("TEST", Decimal("0.01"), Decimal("0.001"), 2, 3)}
+        )
+        encoder = ITCHEncoder({"TEST": 1}, instruments)
+        message = encoder.add_order_no_mpid(
+            "TEST", 1, Side.BUY, 1, 100, sample_timestamp
+        )
+        assert struct.unpack(">I", message[20:24])[0] == 1

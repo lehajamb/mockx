@@ -79,9 +79,7 @@ SIM_END_TO_END_LATENCY = "mockx_sim_end_to_end_latency_ms"
 SIM_CANCEL_INBOUND_LATENCY = "mockx_sim_cancel_inbound_latency_ms"
 SIM_CANCEL_ENGINE_LATENCY = "mockx_sim_cancel_engine_latency_ms"
 SIM_CANCEL_OUTBOUND_LATENCY = "mockx_sim_cancel_outbound_latency_ms"
-SIM_CANCEL_END_TO_END_LATENCY = (
-    "mockx_sim_cancel_end_to_end_latency_ms"
-)
+SIM_CANCEL_END_TO_END_LATENCY = "mockx_sim_cancel_end_to_end_latency_ms"
 MATCH_LOOP_DURATION = "mockx_match_loop_duration_us"
 BOOK_COMMIT_DURATION = "mockx_book_commit_duration_us"
 ENGINE_COMMAND_DURATION = "mockx_engine_command_duration_us"
@@ -112,9 +110,7 @@ SIMULATED_LATENCY_METRICS = frozenset(
 CPU_DURATION_METRICS = LATENCY_METRICS - SIMULATED_LATENCY_METRICS
 
 METRIC_IDENTITY_SYMBOLS = frozenset({"run_id"})
-METRIC_IDENTITY_COLUMNS = frozenset(
-    {"metric_event_sequence", "event_timestamp_ns"}
-)
+METRIC_IDENTITY_COLUMNS = frozenset({"metric_event_sequence", "event_timestamp_ns"})
 MAX_QUESTDB_LONG = (1 << 63) - 1
 
 
@@ -147,15 +143,11 @@ class MetricRecord:
             or isinstance(metric_event_sequence, bool)
             or not 1 <= metric_event_sequence <= MAX_QUESTDB_LONG
         ):
-            raise ValueError(
-                "metric_event_sequence must be a positive QuestDB LONG"
-            )
+            raise ValueError("metric_event_sequence must be a positive QuestDB LONG")
 
         event_timestamp_ns = int(event_timestamp_ns)
         if not 0 <= event_timestamp_ns <= MAX_QUESTDB_LONG:
-            raise ValueError(
-                "Metric timestamps must fit a non-negative QuestDB LONG"
-            )
+            raise ValueError("Metric timestamps must fit a non-negative QuestDB LONG")
 
         reserved_symbols = METRIC_IDENTITY_SYMBOLS.intersection(symbols)
         if reserved_symbols:
@@ -180,10 +172,7 @@ class MetricRecord:
         return cls(
             table=table,
             symbols=tuple(
-                sorted(
-                    (key, str(value))
-                    for key, value in record_symbols.items()
-                )
+                sorted((key, str(value)) for key, value in record_symbols.items())
             ),
             columns=tuple(sorted(record_columns.items())),
             timestamp_ns=event_timestamp_ns,
@@ -327,17 +316,13 @@ class PersistenceHealthSnapshot:
 class MetricsSink(Protocol):
     """Asynchronous persistence boundary used by the buffered writer."""
 
-    async def write(self, records: Sequence[MetricRecord]) -> None:
-        ...
+    async def write(self, records: Sequence[MetricRecord]) -> None: ...
 
-    async def flush(self) -> None:
-        ...
+    async def flush(self) -> None: ...
 
-    async def close(self) -> None:
-        ...
+    async def close(self) -> None: ...
 
-    async def health_check(self) -> None:
-        ...
+    async def health_check(self) -> None: ...
 
 
 class NoOpMetricsSink:
@@ -409,9 +394,7 @@ class BufferedMetricsWriter:
             PersistenceOverflowPolicy.REJECT_NEW
         ),
         on_failure: Optional[Callable[[BaseException, int], None]] = None,
-        on_outcome: Optional[
-            Callable[[PersistenceAddOutcome, int], None]
-        ] = None,
+        on_outcome: Optional[Callable[[PersistenceAddOutcome, int], None]] = None,
     ) -> None:
         for name, value in (
             ("flush_batch_size", flush_batch_size),
@@ -423,28 +406,21 @@ class BufferedMetricsWriter:
             ("overflow_retry_attempts", overflow_retry_attempts),
             ("shutdown_timeout_ms", shutdown_timeout_ms),
         ):
-            if (
-                not isinstance(value, int)
-                or isinstance(value, bool)
-                or value <= 0
-            ):
+            if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
                 raise ValueError(f"Metrics {name} must be positive")
         if max_buffer_records < flush_batch_size:
             raise ValueError(
-                "Metrics max_buffer_records must be at least "
-                "flush_batch_size"
+                "Metrics max_buffer_records must be at least " "flush_batch_size"
             )
         if max_retry_delay_ms < retry_backoff_ms:
             raise ValueError(
-                "Metrics max_retry_delay_ms must be at least "
-                "retry_backoff_ms"
+                "Metrics max_retry_delay_ms must be at least " "retry_backoff_ms"
             )
         try:
             resolved_policy = PersistenceOverflowPolicy(overflow_policy)
         except ValueError as exc:
             raise ValueError(
-                "Metrics overflow_policy must be 'reject_new' or "
-                "'drop_oldest'"
+                "Metrics overflow_policy must be 'reject_new' or " "'drop_oldest'"
             ) from exc
 
         self.sink = sink
@@ -532,19 +508,15 @@ class BufferedMetricsWriter:
 
     def _capacity_available(self, encoded_size_bytes: int) -> bool:
         return (
-            len(self._buffer) + len(self._inflight)
-            < self.max_buffer_records
-            and self._buffered_bytes + encoded_size_bytes
-            <= self.max_buffer_bytes
+            len(self._buffer) + len(self._inflight) < self.max_buffer_records
+            and self._buffered_bytes + encoded_size_bytes <= self.max_buffer_bytes
         )
 
     def _can_fit_after_dropping_queued(
         self,
         encoded_size_bytes: int,
     ) -> bool:
-        inflight_bytes = sum(
-            entry.encoded_size_bytes for entry in self._inflight
-        )
+        inflight_bytes = sum(entry.encoded_size_bytes for entry in self._inflight)
         return (
             len(self._inflight) + 1 <= self.max_buffer_records
             and inflight_bytes + encoded_size_bytes <= self.max_buffer_bytes
@@ -552,10 +524,7 @@ class BufferedMetricsWriter:
 
     def _drop_oldest_until_fits(self, encoded_size_bytes: int) -> int:
         dropped = 0
-        while (
-            self._buffer
-            and not self._capacity_available(encoded_size_bytes)
-        ):
+        while self._buffer and not self._capacity_available(encoded_size_bytes):
             removed = self._buffer.popleft()
             self._buffered_bytes -= removed.encoded_size_bytes
             dropped += 1
@@ -582,15 +551,10 @@ class BufferedMetricsWriter:
             dropped = 0
             if not self._capacity_available(entry.encoded_size_bytes):
                 if (
-                    self.overflow_policy
-                    == PersistenceOverflowPolicy.DROP_OLDEST
-                    and self._can_fit_after_dropping_queued(
-                        entry.encoded_size_bytes
-                    )
+                    self.overflow_policy == PersistenceOverflowPolicy.DROP_OLDEST
+                    and self._can_fit_after_dropping_queued(entry.encoded_size_bytes)
                 ):
-                    dropped = self._drop_oldest_until_fits(
-                        entry.encoded_size_bytes
-                    )
+                    dropped = self._drop_oldest_until_fits(entry.encoded_size_bytes)
                 if not self._capacity_available(entry.encoded_size_bytes):
                     if self._health_state not in {
                         PersistenceHealthState.RETRYING,
@@ -693,14 +657,10 @@ class BufferedMetricsWriter:
     def _take_batch(self) -> Tuple[_BufferedMetricRecord, ...]:
         with self._buffer_lock:
             if self._inflight:
-                raise RuntimeError(
-                    "Metrics writer already has an in-flight batch"
-                )
+                raise RuntimeError("Metrics writer already has an in-flight batch")
             batch = tuple(
                 self._buffer.popleft()
-                for _ in range(
-                    min(self.flush_batch_size, len(self._buffer))
-                )
+                for _ in range(min(self.flush_batch_size, len(self._buffer)))
             )
             self._inflight = batch
             return batch
@@ -834,9 +794,7 @@ class BufferedMetricsWriter:
         try:
             while not self._stop_worker:
                 timeout_ms = (
-                    self._current_retry_delay_ms
-                    if retrying
-                    else self.flush_interval_ms
+                    self._current_retry_delay_ms if retrying else self.flush_interval_ms
                 )
                 timed_out = False
                 try:
@@ -891,9 +849,7 @@ class BufferedMetricsWriter:
             with self._buffer_lock:
                 self._closing = True
                 self._stop_worker = True
-                initial_unflushed_records = (
-                    len(self._buffer) + len(self._inflight)
-                )
+                initial_unflushed_records = len(self._buffer) + len(self._inflight)
             self._signal_worker()
 
             async def _finalize() -> PersistenceCloseResult:
@@ -1016,10 +972,7 @@ class BufferedMetricsWriter:
                     0.0,
                     (
                         now_ns
-                        - min(
-                            entry.enqueued_monotonic_ns
-                            for entry in oldest_entries
-                        )
+                        - min(entry.enqueued_monotonic_ns for entry in oldest_entries)
                     )
                     / 1_000_000_000,
                 )
@@ -1042,12 +995,8 @@ class BufferedMetricsWriter:
                 oldest_buffered_record_age_seconds=oldest_age,
                 accepted_records=(
                     self._outcomes[PersistenceAddOutcome.ACCEPTED]
-                    + self._outcomes[
-                        PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
-                    ]
-                    + self._outcomes[
-                        PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST
-                    ]
+                    + self._outcomes[PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED]
+                    + self._outcomes[PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST]
                 ),
                 flush_required_records=self._outcomes[
                     PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
@@ -1059,12 +1008,9 @@ class BufferedMetricsWriter:
                 rejected_full_records=self._outcomes[
                     PersistenceAddOutcome.REJECTED_FULL
                 ],
-                failed_records=self._outcomes[
-                    PersistenceAddOutcome.FAILED
-                ],
+                failed_records=self._outcomes[PersistenceAddOutcome.FAILED],
                 worker_running=(
-                    self._worker_task is not None
-                    and not self._worker_task.done()
+                    self._worker_task is not None and not self._worker_task.done()
                 ),
                 close_outcome=close_outcome,
                 unflushed_on_close=(
@@ -1138,17 +1084,12 @@ class MetricsCollector:
             for symbol in instruments.symbols
         }
         self._lifetime_symbol_totals: Dict[str, Dict[str, int]] = {
-            symbol: dict(totals)
-            for symbol, totals in self._symbol_totals.items()
+            symbol: dict(totals) for symbol, totals in self._symbol_totals.items()
         }
         self._latency_sums = {name: 0.0 for name in LATENCY_METRICS}
         self._latency_counts = {name: 0 for name in LATENCY_METRICS}
-        self._lifetime_latency_sums = {
-            name: 0.0 for name in LATENCY_METRICS
-        }
-        self._lifetime_latency_counts = {
-            name: 0 for name in LATENCY_METRICS
-        }
+        self._lifetime_latency_sums = {name: 0.0 for name in LATENCY_METRICS}
+        self._lifetime_latency_counts = {name: 0 for name in LATENCY_METRICS}
         self._submitted_order_ids: set[int] = set()
         self._accepted_order_ids: set[int] = set()
         self._filled_order_ids: set[int] = set()
@@ -1164,6 +1105,16 @@ class MetricsCollector:
             "websocket_send_failures": 0,
             "websocket_send_successes": 0,
         }
+        self._itch_counts: Dict[str, int] = {
+            "itch_sessions_started": 0,
+            "itch_sessions_ended": 0,
+            "itch_messages_sent": 0,
+            "moldudp64_packets_sent": 0,
+            "moldudp64_heartbeats_sent": 0,
+            "itch_failures": 0,
+        }
+        self._itch_state = "disabled"
+        self._itch_next_sequence_number = 1
 
         self.registry = None
         self._prom_counters: Dict[str, Any] = {}
@@ -1197,9 +1148,7 @@ class MetricsCollector:
             self._run_ended = False
             self._metric_event_sequence = 0
             self._last_event_timestamp_ns = None
-            self._persistence_run_baseline = (
-                self._persistence_totals_locked()
-            )
+            self._persistence_run_baseline = self._persistence_totals_locked()
 
     def end_run(self) -> None:
         """Clear the active run after its immutable records have flushed."""
@@ -1393,9 +1342,63 @@ class MetricsCollector:
             "Aggregate queued WebSocket frames, excluding in-flight sends.",
             registry=self.registry,
         )
+        for name, metric_name, help_text in (
+            (
+                "itch_sessions_started",
+                "mockx_itch_sessions_started_total",
+                "Run-scoped ITCH sessions successfully started.",
+            ),
+            (
+                "itch_sessions_ended",
+                "mockx_itch_sessions_ended_total",
+                "Run-scoped ITCH sessions ended normally.",
+            ),
+            (
+                "itch_messages_sent",
+                "mockx_itch_messages_sent_total",
+                "ITCH messages submitted to downstream MoldUDP64 packets.",
+            ),
+            (
+                "moldudp64_packets_sent",
+                "mockx_moldudp64_packets_sent_total",
+                "MoldUDP64 data, heartbeat, and end packets submitted.",
+            ),
+            (
+                "moldudp64_heartbeats_sent",
+                "mockx_moldudp64_heartbeats_sent_total",
+                "Idle MoldUDP64 heartbeat packets submitted.",
+            ),
+            (
+                "itch_failures",
+                "mockx_itch_failures_total",
+                "Runtime failures that degraded an ITCH session.",
+            ),
+        ):
+            self._prom_counters[name] = Counter(
+                metric_name,
+                help_text,
+                registry=self.registry,
+            )
+        self._prom_gauges["itch_session_active"] = Gauge(
+            "mockx_itch_session_active",
+            "Whether an ITCH session is active and coherent.",
+            registry=self.registry,
+        )
+        self._prom_gauges["itch_degraded"] = Gauge(
+            "mockx_itch_degraded",
+            "Whether ITCH delivery is degraded for the current run.",
+            registry=self.registry,
+        )
+        self._prom_gauges["moldudp64_next_sequence_number"] = Gauge(
+            "mockx_moldudp64_next_sequence_number",
+            "Next ITCH message sequence expected in the Mold session.",
+            registry=self.registry,
+        )
         for name, help_text in {
             "persistence_buffer_records": "Accepted buffered and in-flight records.",
-            "persistence_buffer_bytes": "Accepted buffered and in-flight logical bytes.",
+            "persistence_buffer_bytes": (
+                "Accepted buffered and in-flight logical bytes."
+            ),
             "persistence_oldest_buffered_record_age_seconds": (
                 "Wall-clock age of the oldest accepted persistence record."
             ),
@@ -1477,12 +1480,37 @@ class MetricsCollector:
         }
         for metric_name, help_text in duration_help.items():
             buckets = (
-                (0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0,
-                 10.0, 50.0, 100.0, 500.0, 1_000.0)
+                (
+                    0.001,
+                    0.005,
+                    0.01,
+                    0.05,
+                    0.1,
+                    0.5,
+                    1.0,
+                    5.0,
+                    10.0,
+                    50.0,
+                    100.0,
+                    500.0,
+                    1_000.0,
+                )
                 if metric_name in SIMULATED_LATENCY_METRICS
-                else (1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1_000.0,
-                      5_000.0, 10_000.0, 50_000.0, 100_000.0,
-                      500_000.0, 1_000_000.0)
+                else (
+                    1.0,
+                    5.0,
+                    10.0,
+                    50.0,
+                    100.0,
+                    500.0,
+                    1_000.0,
+                    5_000.0,
+                    10_000.0,
+                    50_000.0,
+                    100_000.0,
+                    500_000.0,
+                    1_000_000.0,
+                )
             )
             self._prom_histograms[metric_name] = Histogram(
                 metric_name,
@@ -1527,15 +1555,9 @@ class MetricsCollector:
             "filled_qty_lots": report.cum_qty_lots,
             "canceled_qty_lots": report.canceled_qty_lots,
             "leaves_qty_lots": report.leaves_qty_lots,
-            "filled_notional_tick_lots": (
-                report.filled_notional_tick_lots
-            ),
-            "quantity": report.instrument.format_quantity(
-                report.order_qty_lots
-            ),
-            "filled_quantity": report.instrument.format_quantity(
-                report.cum_qty_lots
-            ),
+            "filled_notional_tick_lots": (report.filled_notional_tick_lots),
+            "quantity": report.instrument.format_quantity(report.order_qty_lots),
+            "filled_quantity": report.instrument.format_quantity(report.cum_qty_lots),
             "canceled_quantity": report.instrument.format_quantity(
                 report.canceled_qty_lots
             ),
@@ -1548,9 +1570,7 @@ class MetricsCollector:
             ),
             "tick_size": str(report.instrument.tick_size),
             "lot_size": str(report.instrument.lot_size),
-            "price_display_precision": (
-                report.instrument.price_display_precision
-            ),
+            "price_display_precision": (report.instrument.price_display_precision),
             "quantity_display_precision": (
                 report.instrument.quantity_display_precision
             ),
@@ -1564,9 +1584,7 @@ class MetricsCollector:
             fields["exchange_trade_id"] = report.exchange_trade_id
         if report.order_price_ticks is not None:
             fields["price_ticks"] = report.order_price_ticks
-            fields["price"] = report.instrument.format_price(
-                report.order_price_ticks
-            )
+            fields["price"] = report.instrument.format_price(report.order_price_ticks)
         self._create_record(
             "orders",
             tags,
@@ -1586,8 +1604,7 @@ class MetricsCollector:
             if report.exec_type == ExecutionType.REJECTED:
                 self._increment_locked("orders_rejected")
             elif (
-                report.order_id > 0
-                and report.order_id not in self._accepted_order_ids
+                report.order_id > 0 and report.order_id not in self._accepted_order_ids
             ):
                 self._accepted_order_ids.add(report.order_id)
                 self._increment_locked("orders_accepted")
@@ -1625,8 +1642,7 @@ class MetricsCollector:
     def record_trade(self, trade: Trade) -> bool:
         """Count each immutable fill/trade record exactly once."""
         identity = (
-            trade.exchange_trade_id
-            or f"G{trade.run_generation:08d}-T{trade.id:08d}"
+            trade.exchange_trade_id or f"G{trade.run_generation:08d}-T{trade.id:08d}"
         )
         with self._lock:
             if identity in self._seen_trade_ids:
@@ -1636,13 +1652,9 @@ class MetricsCollector:
             totals = self._symbol_totals[trade.symbol]
             lifetime_totals = self._lifetime_symbol_totals[trade.symbol]
             totals["traded_qty_lots"] += trade.qty_lots
-            totals["traded_notional_tick_lots"] += (
-                trade.notional_tick_lots
-            )
+            totals["traded_notional_tick_lots"] += trade.notional_tick_lots
             lifetime_totals["traded_qty_lots"] += trade.qty_lots
-            lifetime_totals["traded_notional_tick_lots"] += (
-                trade.notional_tick_lots
-            )
+            lifetime_totals["traded_notional_tick_lots"] += trade.notional_tick_lots
             instrument = self.instruments.require(trade.symbol)
             self._prom_increment(
                 "traded_quantity",
@@ -1650,9 +1662,7 @@ class MetricsCollector:
             )
             self._prom_increment(
                 "traded_notional",
-                float(instrument.format_notional(
-                    trade.notional_tick_lots
-                )),
+                float(instrument.format_notional(trade.notional_tick_lots)),
             )
 
         tags: Dict[str, object] = {
@@ -1685,17 +1695,11 @@ class MetricsCollector:
                 "notional_tick_lots": trade.notional_tick_lots,
                 "price": instrument.format_price(trade.price_ticks),
                 "quantity": instrument.format_quantity(trade.qty_lots),
-                "notional": instrument.format_notional(
-                    trade.notional_tick_lots
-                ),
+                "notional": instrument.format_notional(trade.notional_tick_lots),
                 "tick_size": str(instrument.tick_size),
                 "lot_size": str(instrument.lot_size),
-                "price_display_precision": (
-                    instrument.price_display_precision
-                ),
-                "quantity_display_precision": (
-                    instrument.quantity_display_precision
-                ),
+                "price_display_precision": (instrument.price_display_precision),
+                "quantity_display_precision": (instrument.quantity_display_precision),
                 "buyer_order_id": trade.buyer_order_id,
                 "seller_order_id": trade.seller_order_id,
                 "aggressor_order_id": trade.aggressor_order_id,
@@ -1718,19 +1722,11 @@ class MetricsCollector:
         with self._lock:
             self._counts["self_trade_preventions"] += 1
             if self._prom_self_trade_preventions is not None:
-                self._prom_self_trade_preventions.labels(
-                    symbol=event.symbol
-                ).inc()
+                self._prom_self_trade_preventions.labels(symbol=event.symbol).inc()
             if self._prom_self_trade_prevented_quantity is not None:
                 self._prom_self_trade_prevented_quantity.labels(
                     symbol=event.symbol
-                ).inc(
-                    float(
-                        instrument.quantity_decimal(
-                            event.prevented_qty_lots
-                        )
-                    )
-                )
+                ).inc(float(instrument.quantity_decimal(event.prevented_qty_lots)))
         self._create_record(
             "self_trade_prevention",
             {
@@ -1774,9 +1770,7 @@ class MetricsCollector:
             CancellationOutcome.ALREADY_TERMINAL: "cancel_already_terminal",
             CancellationOutcome.WRONG_OWNER: "cancel_wrong_owner",
             CancellationOutcome.DUPLICATE_REQUEST: "cancel_duplicate_request",
-            CancellationOutcome.STALE_RUN_GENERATION: (
-                "cancel_stale_run_generation"
-            ),
+            CancellationOutcome.STALE_RUN_GENERATION: ("cancel_stale_run_generation"),
         }[outcome]
         with self._lock:
             self._increment_locked(name)
@@ -1827,13 +1821,8 @@ class MetricsCollector:
     def record_scheduler_failure(self, failure: SchedulerFailure) -> None:
         with self._lock:
             self._increment_locked("scheduler_dead_letters")
-            if (
-                failure.status
-                == SchedulerFailureStatus.EVENT_PROCESSING_LIMIT_EXCEEDED
-            ):
-                self._increment_locked(
-                    "scheduler_event_processing_limit_failures"
-                )
+            if failure.status == SchedulerFailureStatus.EVENT_PROCESSING_LIMIT_EXCEEDED:
+                self._increment_locked("scheduler_event_processing_limit_failures")
         self.update_scheduler_state(SchedulerState.FAILED)
 
     def update_fix_delivery_gauges(
@@ -1843,9 +1832,7 @@ class MetricsCollector:
         depth = self._prom_gauges.get("fix_delivery_queue_depth")
         if depth is not None:
             depth.set(snapshot.queue_depth)
-        age = self._prom_gauges.get(
-            "fix_delivery_oldest_pending_age_seconds"
-        )
+        age = self._prom_gauges.get("fix_delivery_oldest_pending_age_seconds")
         if age is not None:
             age.set(snapshot.oldest_pending_age_seconds or 0.0)
         if self._prom_delivery_state_gauge is not None:
@@ -1854,14 +1841,10 @@ class MetricsCollector:
                 FixDeliveryState.DUE: snapshot.due,
                 FixDeliveryState.RETRY_PENDING: snapshot.retry_pending,
                 FixDeliveryState.DELIVERED: snapshot.delivered,
-                FixDeliveryState.PERMANENTLY_FAILED: (
-                    snapshot.permanently_failed
-                ),
+                FixDeliveryState.PERMANENTLY_FAILED: (snapshot.permanently_failed),
             }
             for state, count in state_counts.items():
-                self._prom_delivery_state_gauge.labels(
-                    state=state.value
-                ).set(count)
+                self._prom_delivery_state_gauge.labels(state=state.value).set(count)
 
     def record_invalid_latency(
         self,
@@ -1886,9 +1869,7 @@ class MetricsCollector:
         if measurement.metric not in LATENCY_METRICS:
             raise ValueError(f"Unsupported latency metric: {measurement.metric}")
         expected_unit = (
-            "ms"
-            if measurement.metric in SIMULATED_LATENCY_METRICS
-            else "us"
+            "ms" if measurement.metric in SIMULATED_LATENCY_METRICS else "us"
         )
         if (
             measurement.unit != expected_unit
@@ -1905,9 +1886,7 @@ class MetricsCollector:
         with self._lock:
             self._latency_sums[measurement.metric] += measurement.value
             self._latency_counts[measurement.metric] += 1
-            self._lifetime_latency_sums[
-                measurement.metric
-            ] += measurement.value
+            self._lifetime_latency_sums[measurement.metric] += measurement.value
             self._lifetime_latency_counts[measurement.metric] += 1
             histogram = self._prom_histograms.get(measurement.metric)
             if histogram is not None:
@@ -1965,9 +1944,7 @@ class MetricsCollector:
         amount: int = 1,
     ) -> None:
         if self._prom_persistence_outcomes is not None:
-            self._prom_persistence_outcomes.labels(
-                outcome=outcome.value
-            ).inc(amount)
+            self._prom_persistence_outcomes.labels(outcome=outcome.value).inc(amount)
         self.refresh_persistence_gauges()
 
     def refresh_persistence_gauges(
@@ -1995,9 +1972,9 @@ class MetricsCollector:
                 gauge.set(value)
         if self._prom_persistence_state_gauge is not None:
             for state in PersistenceHealthState:
-                self._prom_persistence_state_gauge.labels(
-                    state=state.value
-                ).set(1 if health.state == state else 0)
+                self._prom_persistence_state_gauge.labels(state=state.value).set(
+                    1 if health.state == state else 0
+                )
         return health
 
     def websocket_client_connected(self) -> None:
@@ -2062,12 +2039,66 @@ class MetricsCollector:
                 "slow_client_disconnects": self._websocket_counts[
                     "websocket_slow_client_disconnects"
                 ],
-                "send_failures": self._websocket_counts[
-                    "websocket_send_failures"
-                ],
-                "send_successes": self._websocket_counts[
-                    "websocket_send_successes"
-                ],
+                "send_failures": self._websocket_counts["websocket_send_failures"],
+                "send_successes": self._websocket_counts["websocket_send_successes"],
+            }
+
+    def _record_itch_count(self, name: str, amount: int = 1) -> None:
+        if amount < 0:
+            raise ValueError("ITCH metric increments cannot be negative")
+        with self._lock:
+            self._itch_counts[name] += amount
+            self._prom_increment(name, amount)
+
+    def update_itch_state(self, state: str, next_sequence_number: int) -> None:
+        with self._lock:
+            self._itch_state = state
+            self._itch_next_sequence_number = next_sequence_number
+            active = self._prom_gauges.get("itch_session_active")
+            degraded = self._prom_gauges.get("itch_degraded")
+            sequence = self._prom_gauges.get("moldudp64_next_sequence_number")
+            if active is not None:
+                active.set(1 if state == "ready" else 0)
+            if degraded is not None:
+                degraded.set(1 if state == "degraded" else 0)
+            if sequence is not None:
+                sequence.set(next_sequence_number)
+
+    def record_itch_session_started(self, next_sequence_number: int) -> None:
+        self._record_itch_count("itch_sessions_started")
+        self.update_itch_state("ready", next_sequence_number)
+
+    def record_itch_session_ended(self) -> None:
+        self._record_itch_count("itch_sessions_ended")
+
+    def record_itch_messages(
+        self,
+        messages: int,
+        packets: int,
+        next_sequence_number: int,
+    ) -> None:
+        self._record_itch_count("itch_messages_sent", messages)
+        self._record_itch_count("moldudp64_packets_sent", packets)
+        self.update_itch_state(self._itch_state, next_sequence_number)
+
+    def record_itch_heartbeat(self, next_sequence_number: int) -> None:
+        self._record_itch_count("moldudp64_packets_sent")
+        self._record_itch_count("moldudp64_heartbeats_sent")
+        self.update_itch_state(self._itch_state, next_sequence_number)
+
+    def record_itch_end_packet(self, next_sequence_number: int) -> None:
+        self._record_itch_count("moldudp64_packets_sent")
+        self.update_itch_state(self._itch_state, next_sequence_number)
+
+    def record_itch_failure(self, _error: str) -> None:
+        self._record_itch_count("itch_failures")
+
+    def itch_metrics_snapshot(self) -> Dict[str, object]:
+        with self._lock:
+            return {
+                **self._itch_counts,
+                "state": self._itch_state,
+                "next_sequence_number": self._itch_next_sequence_number,
             }
 
     def record_fix_message(
@@ -2136,14 +2167,10 @@ class MetricsCollector:
 
         def level_payload(level) -> Dict[str, object]:
             return {
-                "market_quantity": instrument.format_quantity(
-                    level.market_qty_lots
-                ),
+                "market_quantity": instrument.format_quantity(level.market_qty_lots),
                 "order_count": level.order_count,
                 "price": instrument.format_price(level.price_ticks),
-                "quantity": instrument.format_quantity(
-                    level.level_qty_lots
-                ),
+                "quantity": instrument.format_quantity(level.level_qty_lots),
                 "strategy_quantity": instrument.format_quantity(
                     level.strategy_qty_lots
                 ),
@@ -2264,9 +2291,7 @@ class MetricsCollector:
     def current_run_scheduler_snapshot(self) -> Dict[str, int]:
         with self._lock:
             return {
-                "dead_letter_count": self._counts[
-                    "scheduler_dead_letters"
-                ],
+                "dead_letter_count": self._counts["scheduler_dead_letters"],
                 "event_processing_limit_failures": self._counts[
                     "scheduler_event_processing_limit_failures"
                 ],
@@ -2294,9 +2319,7 @@ class MetricsCollector:
         canceled_quantity = Decimal(0)
         for symbol, totals in symbol_totals.items():
             instrument = self.instruments.require(symbol)
-            traded_quantity += instrument.quantity_decimal(
-                totals["traded_qty_lots"]
-            )
+            traded_quantity += instrument.quantity_decimal(totals["traded_qty_lots"])
             traded_notional += (
                 instrument.tick_size
                 * instrument.lot_size
@@ -2330,21 +2353,15 @@ class MetricsCollector:
                 "already_terminal": counts["cancel_already_terminal"],
                 "wrong_owner": counts["cancel_wrong_owner"],
                 "duplicate_request": counts["cancel_duplicate_request"],
-                "stale_run_generation": counts[
-                    "cancel_stale_run_generation"
-                ],
+                "stale_run_generation": counts["cancel_stale_run_generation"],
             },
             "reports": {
                 "created": counts["execution_reports"],
                 "delivery_failures": counts["report_delivery_failures"],
             },
             "latency": {
-                "average_match_loop_duration_us": average(
-                    MATCH_LOOP_DURATION, 1.0
-                ),
-                "average_book_commit_duration_us": average(
-                    BOOK_COMMIT_DURATION, 1.0
-                ),
+                "average_match_loop_duration_us": average(MATCH_LOOP_DURATION, 1.0),
+                "average_book_commit_duration_us": average(BOOK_COMMIT_DURATION, 1.0),
                 "average_engine_command_duration_us": average(
                     ENGINE_COMMAND_DURATION, 1.0
                 ),
@@ -2386,9 +2403,7 @@ class MetricsCollector:
                     SIM_CANCEL_END_TO_END_LATENCY,
                     1.0,
                 ),
-                "invalid_measurements": counts[
-                    "invalid_latency_measurements"
-                ],
+                "invalid_measurements": counts["invalid_latency_measurements"],
             },
             "persistence_failures": counts["metric_sink_failures"],
             "scheduler": {
@@ -2407,15 +2422,12 @@ class MetricsCollector:
                 active = resting = levels = 0
             counts = dict(self._counts)
             symbol_totals = {
-                symbol: dict(values)
-                for symbol, values in self._symbol_totals.items()
+                symbol: dict(values) for symbol, values in self._symbol_totals.items()
             }
             latency_sums = dict(self._latency_sums)
             latency_counts = dict(self._latency_counts)
         buffered = (
-            self.persistence.buffered_count
-            if self.persistence is not None
-            else 0
+            self.persistence.buffered_count if self.persistence is not None else 0
         )
 
         def average(metric: str, multiplier: float) -> Optional[float]:
@@ -2429,9 +2441,7 @@ class MetricsCollector:
         canceled_quantity = Decimal(0)
         for symbol, totals in symbol_totals.items():
             instrument = self.instruments.require(symbol)
-            traded_quantity += instrument.quantity_decimal(
-                totals["traded_qty_lots"]
-            )
+            traded_quantity += instrument.quantity_decimal(totals["traded_qty_lots"])
             traded_notional += (
                 instrument.tick_size
                 * instrument.lot_size
@@ -2456,9 +2466,7 @@ class MetricsCollector:
             cancel_already_terminal=counts["cancel_already_terminal"],
             cancel_wrong_owner=counts["cancel_wrong_owner"],
             cancel_duplicate_request=counts["cancel_duplicate_request"],
-            cancel_stale_run_generation=counts[
-                "cancel_stale_run_generation"
-            ],
+            cancel_stale_run_generation=counts["cancel_stale_run_generation"],
             execution_reports=counts["execution_reports"],
             trades=counts["trades"],
             traded_quantity=format(traded_quantity, "f"),
@@ -2468,21 +2476,11 @@ class MetricsCollector:
             resting_orders=resting,
             order_book_levels=levels,
             connected_sessions=counts["connected_sessions"],
-            average_match_loop_duration_us=average(
-                MATCH_LOOP_DURATION, 1.0
-            ),
-            average_book_commit_duration_us=average(
-                BOOK_COMMIT_DURATION, 1.0
-            ),
-            average_engine_command_duration_us=average(
-                ENGINE_COMMAND_DURATION, 1.0
-            ),
-            average_report_creation_duration_us=average(
-                REPORT_CREATION_DURATION, 1.0
-            ),
-            average_serialization_duration_us=average(
-                SERIALIZATION_DURATION, 1.0
-            ),
+            average_match_loop_duration_us=average(MATCH_LOOP_DURATION, 1.0),
+            average_book_commit_duration_us=average(BOOK_COMMIT_DURATION, 1.0),
+            average_engine_command_duration_us=average(ENGINE_COMMAND_DURATION, 1.0),
+            average_report_creation_duration_us=average(REPORT_CREATION_DURATION, 1.0),
+            average_serialization_duration_us=average(SERIALIZATION_DURATION, 1.0),
             average_sim_inbound_latency_ms=average(
                 SIM_INBOUND_LATENCY,
                 1.0,
@@ -2516,9 +2514,7 @@ class MetricsCollector:
                 1.0,
             ),
             report_delivery_failures=counts["report_delivery_failures"],
-            invalid_latency_measurements=counts[
-                "invalid_latency_measurements"
-            ],
+            invalid_latency_measurements=counts["invalid_latency_measurements"],
             metric_sink_failures=counts["metric_sink_failures"],
             buffered_metric_records=buffered,
         )
@@ -2562,9 +2558,7 @@ class MetricsCollector:
             or isinstance(timestamp_ns, bool)
             or timestamp_ns < 0
         ):
-            raise ValueError(
-                "Metric event timestamp must be a non-negative integer"
-            )
+            raise ValueError("Metric event timestamp must be a non-negative integer")
         with self._lock:
             run_id = self._run_id
             if run_id is None:
@@ -2660,9 +2654,7 @@ class LatencyTracker:
                     for key, trace in self.orders.items()
                     if key in preserve_order_keys
                 }
-                self._completed_order_ids.intersection_update(
-                    preserve_order_keys
-                )
+                self._completed_order_ids.intersection_update(preserve_order_keys)
             if preserve_cancel_keys is None:
                 self.cancels.clear()
             else:
@@ -2736,9 +2728,7 @@ class LatencyTracker:
 
     def report_created(self, report: ExecutionReport) -> None:
         with self._lock:
-            trace = self.orders.get(
-                (report.run_generation, report.order_id)
-            )
+            trace = self.orders.get((report.run_generation, report.order_id))
             if trace is None:
                 self._missing_trace(report.order_id, "report_created")
                 return
@@ -2767,9 +2757,7 @@ class LatencyTracker:
             if report.exec_id in self._delivered_exec_ids:
                 return False
             self._delivered_exec_ids.add(report.exec_id)
-            trace = self.orders.get(
-                (report.run_generation, report.order_id)
-            )
+            trace = self.orders.get((report.run_generation, report.order_id))
             if trace is None:
                 self._missing_trace(report.order_id, "report_delivered")
                 return False

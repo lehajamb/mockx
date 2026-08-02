@@ -48,8 +48,9 @@
     <h1 class="h1">How <em>MockX</em> works</h1>
     <p class="lede">
       Visual documentation for the matching engine, discrete-event scheduler,
-      FIX gateway, lifecycle coordinator, REST API, WebSocket market data, and
-      QuestDB persistence layer. Built from the current Python source code.
+      FIX gateway, lifecycle coordinator, REST API, WebSocket market data,
+      experimental ITCH/MoldUDP64 feed, and QuestDB persistence layer. Built
+      from the current Python source code.
     </p>
 
     <div class="arch">
@@ -63,7 +64,7 @@
       <div class="arch-link"><span class="arch-dot" style="animation-delay:1.2s"></span></div>
       <div class="arch-node accent-stp">Book<br><b>data / reports</b></div>
       <div class="arch-link"><span class="arch-dot" style="animation-delay:1.6s"></span></div>
-      <div class="arch-node accent-bid">Delivery<br><b>FIX / WS</b></div>
+      <div class="arch-node accent-bid">Delivery<br><b>FIX / WS / ITCH</b></div>
     </div>
   </div>
 </header>
@@ -87,12 +88,12 @@
           <h3>System Architecture</h3>
           <p>
             High-level component map, exchange lifecycle state machine,
-            two-clock design, FIX ingress pipeline, REST and WebSocket
-            surface, run generation and identifiers, and the dual clock-mode
-            design (external vs. realtime).
+            two-clock design, FIX ingress pipeline, REST, WebSocket, and ITCH
+            surfaces, run generation and identifiers, and external versus
+            realtime clock modes.
           </p>
           <div class="toc-modules">
-            Sources: lifecycle.py &middot; gateway.py &middot; api.py &middot; configuration.py &middot; identifiers.py
+            Sources: lifecycle.py &middot; gateway.py &middot; api.py &middot; itch_delivery.py &middot; configuration.py
           </div>
         </a>
 
@@ -118,11 +119,11 @@
           <p>
             Discrete-event min-heap queue, new-order and cancel scheduling
             pipelines, FIX ingress sequencing, outbound delivery queue
-            (5-state lifecycle), WebSocket market-data streaming, fail-stop
-            behavior, and advancement safety.
+            (5-state lifecycle), WebSocket and ITCH market-data delivery,
+            Mold heartbeats, fail-stop behavior, and advancement safety.
           </p>
           <div class="toc-modules">
-            Sources: latency.py &middot; delivery.py &middot; websocket_delivery.py &middot; questdb_writer.py &middot; metrics.py
+            Sources: latency.py &middot; delivery.py &middot; itch_delivery.py &middot; moldudp64_transport.py &middot; metrics.py
           </div>
         </a>
       </div>
@@ -154,7 +155,8 @@
   <p>
     Built from the current MockX Python source tree. All diagrams and
     explanations are verified against <code>src/mockx/</code> and the test suite.
-    Source references use the format <code>module.py:line</code>.
+    Source references name implementation modules and symbols that can be
+    searched directly in the current tree.
   </p>
 </footer>
 

@@ -97,7 +97,8 @@
       each with a single responsibility. The <b>lifecycle coordinator</b> serializes
       all state transitions. The <b>scheduler</b> maintains simulated time. The
       <b>engine</b> owns the books and matching. The <b>gateway</b> bridges FIX to
-      the internal domain. No component reaches into another's internals.
+      the internal domain, while the optional <b>ITCH publisher</b> consumes the
+      engine's authoritative displayed-order stream.
     </p>
   </div>
 </header>
@@ -133,8 +134,9 @@
           <span class="comp-arrow">→</span>
           <div class="comp-desc">
             Discrete-event min-heap ordered by (simulated_timestamp, sequence). Schedules
-            order_arrived, order_process, cancel_*, exec_report delivery. Fail-stop on handler exception.
-            <span class="src">latency.py:146</span>
+            order_arrived, order_process, cancel_*, fix_delivery_due, and
+            itch_heartbeat. Fail-stop on handler exception.
+            <span class="src">latency.py — LatencyScheduler</span>
           </div>
         </div>
         <div class="comp-row">
@@ -143,7 +145,7 @@
           <div class="comp-desc">
             Authoritative order books, price-time FIFO matching, self-trade prevention,
             fill creation, remainder finalization, cancel resolution. All arithmetic in integer ticks/lots.
-            <span class="src">engine.py:58</span>
+            <span class="src">engine.py — MatchingEngine</span>
           </div>
         </div>
         <div class="comp-row">
@@ -152,7 +154,7 @@
           <div class="comp-desc">
             QuickFIX application. Parses FIX 4.4 New Order Single (35=D) and Cancel Request (35=F).
             Normalizes into immutable domain commands, feeds the central ingress pipeline.
-            <span class="src">gateway.py:223</span>
+            <span class="src">gateway.py — FIXApplication</span>
           </div>
         </div>
         <div class="comp-row">
@@ -165,7 +167,7 @@
           </div>
         </div>
         <div class="comp-row">
-          <div class="comp-name accent-bid">QuestDBWriter</div>
+          <div class="comp-name accent-bid">QuestDBMetricsSink</div>
           <span class="comp-arrow">→</span>
           <div class="comp-desc">
             Optional buffered persistence to QuestDB. 8 tables with deduplication on
@@ -174,7 +176,7 @@
           </div>
         </div>
         <div class="comp-row">
-          <div class="comp-name accent-stp">WsRegistry</div>
+          <div class="comp-name accent-stp">WebSocketRegistry</div>
           <span class="comp-arrow">→</span>
           <div class="comp-desc">
             Per-symbol WebSocket fan-out. Immutable snapshots, sequence tracking, conflation,
@@ -182,12 +184,23 @@
             <span class="src">websocket_delivery.py</span>
           </div>
         </div>
+        <div class="comp-row">
+          <div class="comp-name accent-bid">ITCHFeedPublisher</div>
+          <span class="comp-arrow">&rarr;</span>
+          <div class="comp-desc">
+            Optional run-scoped ITCH 5.0 publisher. Consumes authoritative
+            displayed-order events, owns the encoder/session, and sends
+            downstream-only MoldUDP64 without caching book state.
+            <span class="src">itch_delivery.py</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="source-ref">
       Ownership retained in <code>MockExchange</code>:
       <code>exchange.lifecycle</code>, <code>exchange.api</code>,
-      <code>exchange.fix_app</code> — <code>main.py</code>
+      <code>exchange.fix_app</code>, <code>exchange.itch_feed</code>
+      &mdash; <code>main.py</code>
     </div>
   </div>
 </section>
@@ -237,16 +250,16 @@
     <div class="callout-grid">
       <div class="callout">
         <h4><span class="tag tag-lifecycle">Session start flow</span></h4>
-        <p>Flush inactive metrics → close WebSockets → reset engine/scheduler/sequences/RNG → increment generation → install fresh run identifiers → publish ACTIVE. Resume pending FIX delivery records from previous generation. Failure after destructive work begins → FAILED (requires process restart).</p>
+        <p>Flush inactive metrics → close WebSockets → reset engine/scheduler/sequences/RNG → increment generation → install fresh run identifiers → start a fresh ITCH/Mold session when enabled → publish ACTIVE. Resume pending FIX delivery records from previous generations. ITCH socket failure degrades only that feed; destructive core failure → FAILED.</p>
       </div>
       <div class="callout">
         <h4><span class="tag tag-lifecycle">Session end flow</span></h4>
-        <p>Idempotent when no session is active. Returns only current-run business metrics. FIX delivery queue is not drained — undelivered records remain frozen while STOPPED, then rescheduled at next start.</p>
+        <p>Idempotent when no session is active. A coherent ITCH feed publishes end markers and Mold end-of-session, then closes. Returns only current-run business metrics. FIX delivery records remain frozen while STOPPED, then reschedule at next start.</p>
       </div>
     </div>
     <div class="source-ref">
-      Lifecycle states: <code>models.py:103-108</code> (SchedulerState enum) — the lifecycle coordinator uses the same states.
-      Transitions: <code>lifecycle.py</code>. Gating logic: ingress rejected with Business Message Reject (35=j)
+      Lifecycle states and transitions: <code>lifecycle.py</code>. Scheduler state is a separate
+      <code>SchedulerState</code> contract. Gating logic: ingress rejected with Business Message Reject (35=j)
       during STARTING/ENDING/STOPPED/FAILED.
     </div>
   </div>
@@ -276,7 +289,7 @@
           All order timestamps, fill timestamps, report timestamps, and event scheduling use
           this clock. Never calls <code>sleep()</code>.
         </p>
-        <div class="clock-source">latency.py:181 (current_time), :450 (advance_time), :456 (run_until)</div>
+        <div class="clock-source">latency.py — LatencyScheduler.current_time, advance_time(), run_until()</div>
       </div>
       <div class="clock-card monotonic">
         <h4>Monotonic clock</h4>
@@ -287,7 +300,7 @@
           Prometheus histograms (e.g. <code class="ref">mockx_match_loop_duration_us</code>).
           Never influences event ordering or simulated timestamps.
         </p>
-        <div class="clock-source">latency.py:124 (PerfCounterClock), :131 (monotonic_duration_ns)</div>
+        <div class="clock-source">latency.py — PerfCounterClock, monotonic_duration_ns()</div>
       </div>
     </div>
 
@@ -352,7 +365,7 @@
             <b>Sorted drain</b> → Envelopes are consumed in ascending ordering_key order.
             New orders become <code class="ref">new_order_received</code> scheduler events;
             cancels become <code class="ref">cancel_received</code> events.
-            <span class="src">gateway.py: ~line 1800+ (drain loop)</span>
+            <span class="src">gateway.py — FIXApplication.drain_ingress_locked()</span>
           </div>
         </div>
         <div class="ingress-step">
@@ -377,9 +390,8 @@
       </div>
     </div>
     <div class="source-ref">
-      <code>FixIngressEnvelope</code>: <code>models.py:317-343</code>.
-      <code>IngressBarrier</code>: <code>models.py:346-352</code>.
-      Ingress ordering key: <code>models.py:336-343</code>.
+      <code>FixIngressEnvelope</code> and <code>IngressBarrier</code>:
+      <code>models.py</code>. Sorted drain: <code>gateway.py</code>.
     </div>
   </div>
 </section>
@@ -411,15 +423,16 @@
         </tbody>
       </table>
       <p style="margin-top:0.8rem; color:var(--text-dim); font-size:0.82rem;">
-        Numeric engine handles (e.g. <code class="ref">order.id = 1, 2, 3...</code>) remain internal
-        and are never serialized as FIX or WebSocket IDs. The cancel-reject domain ID is an
+        Numeric engine handles remain internal to REST, FIX, and WebSocket contracts. Within one
+        generation-qualified Mold session, ITCH deliberately uses the run-local numeric order ID
+        as Order Reference Number and trade ID as Match Number. The cancel-reject domain ID is an
         application identity for deduplication and observability — FIX OrderCancelReject (35=9)
         has no ExecID, so the domain ID is not serialized on the wire.
       </p>
     </div>
     <div class="source-ref">
       <code>RunIdentifierScope</code>: <code>identifiers.py</code>.
-      <code>MatchingEngine.identifier_scope</code>: <code>engine.py:75</code>.
+      <code>MatchingEngine.identifier_scope</code>: <code>engine.py</code>.
       Readme section: "Public exchange identifiers include the successful simulation-run generation."
     </div>
   </div>
@@ -432,7 +445,7 @@
       <span class="tag">1.6</span>
       <h2 class="h2">API surface comparison</h2>
       <p class="lede">
-        MockX exposes three distinct interfaces, each with a different contract.
+        MockX exposes four distinct interfaces, each with a different contract.
       </p>
     </div>
 
@@ -452,6 +465,11 @@
         <h4>Streaming market data</h4>
         <p>Connect to <code class="ref">/ws/{symbol}</code>. First message is the current immutable snapshot. Every committed matching action publishes one <code class="ref">market_data</code> message with incremental trades. Heartbeats are distinct. Global per-exchange sequence incremented per publication.</p>
       </div>
+      <div class="rule-card">
+        <span class="tag tag-bid">ITCH 5.0</span>
+        <h4>Displayed-order multicast</h4>
+        <p>Optional downstream-only MoldUDP64 feed. Publishes <code class="ref">A</code>, one passive-side <code class="ref">E/C</code> per fill, and <code class="ref">D</code>, plus session/directory/trading-state messages. One internal lot is one ITCH share. No retransmission service is provided.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -459,7 +477,7 @@
 </main>
 
 <footer>
-  <p>Built from <code>src/mockx/lifecycle.py</code>, <code>gateway.py</code>, <code>latency.py</code>, <code>api.py</code>, <code>configuration.py</code>, and <code>identifiers.py</code>.</p>
+  <p>Built from <code>src/mockx/lifecycle.py</code>, <code>gateway.py</code>, <code>latency.py</code>, <code>api.py</code>, <code>itch_delivery.py</code>, <code>moldudp64_transport.py</code>, and <code>configuration.py</code>.</p>
 </footer>
 
 <script src="mockx-docs.js"></script>
@@ -476,15 +494,15 @@
     },
     STARTING: {
       title: "STARTING",
-      text: "Ingress is gated while the previous buffer is flushed and all run state is reset. The lifecycle lock is held. Flushes inactive metrics, closes WebSockets, resets engine/scheduler/sequences/RNG, increments generation, installs fresh run identifiers. Only after this completes is ACTIVE published. A failure before reset work → STOPPED; failure after → FAILED.",
+      text: "Ingress is gated while the previous buffer is flushed and all run state is reset. The lifecycle lock is held. Flushes inactive metrics, closes WebSockets, resets engine/scheduler/sequences/RNG, increments generation, installs fresh run identifiers, and starts a new ITCH/Mold session when enabled. ITCH runtime failure is noncritical; core failure before reset work → STOPPED and after reset → FAILED.",
     },
     ACTIVE: {
       title: "ACTIVE",
-      text: "FIX application ingress and the configured clock mode are enabled. Orders can be submitted, matches can occur, market data is published. WebSocket connections are accepted. /readyz returns HTTP 200. Starting while already active returns HTTP 409 SESSION_ALREADY_ACTIVE.",
+      text: "FIX application ingress and the configured clock mode are enabled. Orders can be submitted, matches can occur, WebSocket snapshots and authoritative ITCH displayed-order events are published. /readyz returns HTTP 200, with status=degraded if only ITCH has failed. Starting while active returns HTTP 409 SESSION_ALREADY_ACTIVE.",
     },
     ENDING: {
       title: "ENDING",
-      text: "Ingress is gated. Persistence and final run statistics are being captured. The lifecycle lock is held. A successful end returns current-run business metrics (not process-lifetime totals). Does not drain FIX delivery queue — undelivered records remain frozen. Idempotent when no session is active.",
+      text: "Ingress is gated. Persistence and final run statistics are being captured. A coherent ITCH session sends market/system/end markers and Mold end-of-session, then closes. A successful end returns current-run business metrics. FIX delivery records remain frozen. Idempotent when no session is active.",
     },
     FAILED: {
       title: "FAILED",

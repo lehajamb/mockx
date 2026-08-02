@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from random import Random
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
+
 from .identifiers import RunIdentifierScope
 from .instruments import InstrumentCatalog
 from .latency import (
@@ -29,6 +29,10 @@ from .models import (
     ExecutionParams,
     ExecutionReport,
     ExecutionType,
+    DisplayedOrderAdded,
+    DisplayedOrderDeleted,
+    DisplayedOrderEvent,
+    DisplayedOrderExecuted,
     Fill,
     MarketDataSnapshot,
     NewOrderCommand,
@@ -75,8 +79,7 @@ class MatchingEngine:
         self.identifier_scope = RunIdentifierScope(0)
 
         self.books: Dict[str, OrderBook] = {
-            symbol: OrderBook(symbol=symbol)
-            for symbol in self.instruments.symbols
+            symbol: OrderBook(symbol=symbol) for symbol in self.instruments.symbols
         }
         self.orders: Dict[int, Order] = {}
         self.client_order_index: Dict[ClientOrderKey, int] = {}
@@ -89,18 +92,21 @@ class MatchingEngine:
         self.on_market_data_update = None
         self.on_trade = None
         self.on_self_trade_prevention = None
+        self.on_displayed_order_event: Optional[
+            Callable[[DisplayedOrderEvent], object]
+        ] = None
         self.on_order_submitted = None
         self.on_cancel_request = None
         self.on_cancel_reject = None
         self.on_cancel_outcome = None
         self.on_cpu_duration = None
+        self._displayed_event_buffer: Optional[List[DisplayedOrderEvent]] = None
 
     def reset_run_state(self) -> None:
         """Clear authoritative run state without touching the scheduler."""
         logger.info("Resetting matching engine run state")
         self.books = {
-            symbol: OrderBook(symbol=symbol)
-            for symbol in self.instruments.symbols
+            symbol: OrderBook(symbol=symbol) for symbol in self.instruments.symbols
         }
         self.orders.clear()
         self.client_order_index.clear()
@@ -134,8 +140,7 @@ class MatchingEngine:
             )
             if client_key in self._claimed_client_order_ids:
                 raise DuplicateClientOrderID(
-                    "Duplicate ClOrdID in session: "
-                    f"{command.cl_ord_id}"
+                    "Duplicate ClOrdID in session: " f"{command.cl_ord_id}"
                 )
 
         order = Order(
@@ -203,6 +208,8 @@ class MatchingEngine:
             return
 
         command_start_ns = self.monotonic_clock.now_ns()
+        displayed_events: List[DisplayedOrderEvent] = []
+        self._displayed_event_buffer = displayed_events
         try:
             should_reject = self.rng.random() < self.exec_params.reject_prob
             order.processed = True
@@ -217,8 +224,10 @@ class MatchingEngine:
             fills = self._run_matching(order, book)
             self._finalize_unfilled_remainder(order, book)
             book.assert_invariants()
+            self._publish_displayed_events(displayed_events)
             self._send_market_data_update(order.symbol, fills)
         finally:
+            self._displayed_event_buffer = None
             self._record_cpu_duration(
                 ENGINE_COMMAND_DURATION,
                 order.id,
@@ -286,9 +295,7 @@ class MatchingEngine:
         if not self._is_self_cross(aggressor, passive):
             raise RuntimeError("Self-trade prevention requires common ownership")
         if not book.remove_order(passive):
-            raise RuntimeError(
-                f"Self-trade passive order {passive.id} was not resting"
-            )
+            raise RuntimeError(f"Self-trade passive order {passive.id} was not resting")
 
         text = (
             "SELF_TRADE_PREVENTION: canceled passive and aggressor; "
@@ -315,6 +322,14 @@ class MatchingEngine:
                 text=text,
             )
         )
+        self._queue_displayed_event(
+            DisplayedOrderDeleted(
+                run_generation=passive.run_generation,
+                order_id=passive.id,
+                symbol=passive.symbol,
+                timestamp=self.scheduler.current_time,
+            )
+        )
         self._notify_observer(
             "self-trade prevention",
             self.on_self_trade_prevention,
@@ -334,9 +349,7 @@ class MatchingEngine:
         book: OrderBook,
     ) -> List[Fill]:
         fills: List[Fill] = []
-        passive_levels = (
-            book.asks if aggressor.side == Side.BUY else book.bids
-        )
+        passive_levels = book.asks if aggressor.side == Side.BUY else book.bids
         level_index = 0
         while aggressor.leaves_qty_lots > 0 and passive_levels:
             best_level = passive_levels[0]
@@ -369,9 +382,7 @@ class MatchingEngine:
 
                 exec_price = passive.price_ticks
                 if exec_price is None:
-                    raise RuntimeError(
-                        f"Resting order {passive.id} has no limit price"
-                    )
+                    raise RuntimeError(f"Resting order {passive.id} has no limit price")
                 aggressor.validate_fill(match_qty, exec_price)
                 book.validate_fill(passive, match_qty, exec_price)
                 aggressor_target = (
@@ -419,6 +430,18 @@ class MatchingEngine:
                     )
                 self.next_trade_id += 1
                 fills.append(fill)
+                self._queue_displayed_event(
+                    DisplayedOrderExecuted(
+                        run_generation=fill.run_generation,
+                        order_id=passive.id,
+                        symbol=fill.symbol,
+                        displayed_price_ticks=exec_price,
+                        execution_price_ticks=fill.price_ticks,
+                        executed_qty_lots=fill.qty_lots,
+                        match_number=fill.trade_id,
+                        timestamp=fill.timestamp,
+                    )
+                )
 
                 trade = self._create_trade(
                     fill,
@@ -462,8 +485,7 @@ class MatchingEngine:
         if order.status == OrderStatus.CANCELLED:
             return
         immediate_only = (
-            order.order_type == OrderType.MARKET
-            or order.tif == TimeInForce.IOC
+            order.order_type == OrderType.MARKET or order.tif == TimeInForce.IOC
         )
         if immediate_only:
             order.validate_transition_to(OrderStatus.CANCELLED)
@@ -498,6 +520,19 @@ class MatchingEngine:
                 commit_start_ns,
                 context=f"rest commit for order {order.id}",
             )
+        if order.price_ticks is None:
+            raise RuntimeError(f"Resting order {order.id} has no limit price")
+        self._queue_displayed_event(
+            DisplayedOrderAdded(
+                run_generation=order.run_generation,
+                order_id=order.id,
+                symbol=order.symbol,
+                side=order.side,
+                price_ticks=order.price_ticks,
+                qty_lots=order.leaves_qty_lots,
+                timestamp=self.scheduler.current_time,
+            )
+        )
         if publish_new:
             self._send_execution_report(
                 self._create_execution_report(
@@ -774,9 +809,7 @@ class MatchingEngine:
             )
 
         book = self.books[order.symbol]
-        pending = (
-            order.status == OrderStatus.PENDING_NEW and not order.processed
-        )
+        pending = order.status == OrderStatus.PENDING_NEW and not order.processed
         resting = book.is_resting(order.id)
         if (not pending and not resting) or order.leaves_qty_lots <= 0:
             return self._cancel_reject(
@@ -792,9 +825,7 @@ class MatchingEngine:
         try:
             if resting:
                 if not book.remove_order(order):
-                    raise RuntimeError(
-                        f"Resting order {order.id} could not be removed"
-                    )
+                    raise RuntimeError(f"Resting order {order.id} could not be removed")
                 book.assert_invariants()
             order.version += 1
             order.cancel_remaining()
@@ -823,8 +854,39 @@ class MatchingEngine:
             CancellationOutcome.ACCEPTED,
         )
         if resting:
+            self._notify_observer(
+                "displayed order event",
+                self.on_displayed_order_event,
+                DisplayedOrderDeleted(
+                    run_generation=order.run_generation,
+                    order_id=order.id,
+                    symbol=order.symbol,
+                    timestamp=self.scheduler.current_time,
+                ),
+            )
             self._send_market_data_update(order.symbol)
         return report
+
+    def _queue_displayed_event(self, event: DisplayedOrderEvent) -> None:
+        if self._displayed_event_buffer is None:
+            self._notify_observer(
+                "displayed order event",
+                self.on_displayed_order_event,
+                event,
+            )
+            return
+        self._displayed_event_buffer.append(event)
+
+    def _publish_displayed_events(
+        self,
+        events: List[DisplayedOrderEvent],
+    ) -> None:
+        for event in events:
+            self._notify_observer(
+                "displayed order event",
+                self.on_displayed_order_event,
+                event,
+            )
 
     def _cancel_reject(
         self,
@@ -875,10 +937,7 @@ class MatchingEngine:
         )
 
     def order_book_level_count(self) -> int:
-        return sum(
-            len(book.bids) + len(book.asks)
-            for book in self.books.values()
-        )
+        return sum(len(book.bids) + len(book.asks) for book in self.books.values())
 
     def _record_cpu_duration(
         self,

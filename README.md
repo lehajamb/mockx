@@ -4,7 +4,8 @@ MockX is a deterministic, FIX-speaking mock exchange for strategy tests and
 simulation. It provides a price-time-priority order book, an externally
 controlled simulated clock, FIX order entry, typed REST administration,
 immutable WebSocket market data, process metrics, and optional buffered
-QuestDB persistence.
+QuestDB persistence. An experimental downstream Nasdaq ITCH 5.0 feed can be
+published over MoldUDP64 multicast for deterministic market-data tests.
 
 ## 1. What MockX implements
 
@@ -22,6 +23,8 @@ QuestDB persistence.
 - FastAPI liveness, readiness, REST, WebSocket, UI, stats, and Prometheus
   exposition on one API port.
 - Optional acknowledged QuestDB writes that flush at session end and shutdown.
+- Optional run-scoped ITCH 5.0 displayed-order output over downstream-only
+  MoldUDP64, with message-count sequencing and scheduler-driven heartbeats.
 
 MockX is a simulator, not a production trading venue.
 
@@ -211,11 +214,65 @@ resend requests, and protocol-level duplicate/resend behavior. An ambiguous
 transport outcome can therefore still produce a client-visible duplicate.
 The queue is process-local and does not survive MockX or host restart.
 
+### Experimental ITCH 5.0 / MoldUDP64 feed
+
+When `itch.enabled` is true, `MockExchange` owns one `ITCHFeedPublisher`. A
+fresh ten-byte Mold session is opened for each successful simulation run. The
+session is the one- or two-byte `moldudp64.session_prefix`, padded with `_` to
+two bytes, followed by the eight-digit run generation; run 1 with prefix `MX`
+is `MX00000001`.
+
+Wire fields and packet semantics follow the official
+[Nasdaq TotalView-ITCH 5.0 specification](https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/NQTVITCHspecification.pdf)
+and [MoldUDP64 specification](https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/moldudp64.pdf).
+
+The matching engine publishes protocol-neutral displayed-order events only
+after authoritative book mutation and invariant validation. The feed maps
+those events to:
+
+| Engine event | ITCH message |
+|---|---|
+| A GTC limit remainder first rests | Add Order, no MPID (`A`) |
+| A fill consumes a displayed passive order | Order Executed (`E`), or Executed With Price (`C`) when execution price differs |
+| A displayed remainder is explicitly canceled or removed by STP | Order Delete (`D`) |
+
+One fill produces exactly one passive-side `E` or `C`, and its Match Number is
+the engine `Fill.trade_id`. Client execution reports and the engine `Trade`
+observer remain separate and never cause extra ITCH messages. Market and IOC
+remainders never rest, and a partially filled GTC aggressor receives `A` only
+for the quantity that actually rests. This version does not publish `F`, `X`,
+`U`, `P`, `Q`, or `B` messages.
+
+One internal lot is exactly one ITCH share. The configured instrument
+`lot_size` remains the out-of-band conversion from that share to base units;
+it is never multiplied into an ITCH share field. Price(4) is exactly
+`price_ticks * tick_size * 10000`, without rounding. Enabling ITCH therefore
+requires every symbol to be ASCII and at most eight bytes and every tick size
+to be exactly representable at four decimal places. REST and FIX reject
+quantities or prices that cannot fit the unsigned 32-bit ITCH fields before
+the order is scheduled.
+
+Mold sequence 1 identifies the first ITCH message. A data packet advances the
+next sequence by its Message Count; heartbeat (`Message Count=0`) and
+end-of-session (`0xffff`) packets carry but do not consume that next sequence.
+Large batches are split without reordering. Heartbeats use simulated scheduler
+time and are emitted at the configured cadence only for an interval with no
+data packet.
+
+This is a downstream-only multicast implementation. It does not listen for
+MoldUDP64 request packets, retain replay history, or serve retransmissions.
+Consumers can detect a sequence gap but must establish a later MockX run for a
+new coherent session. A runtime encoder/socket failure similarly degrades only
+ITCH: matching and the other interfaces remain available, `/readyz` returns
+HTTP 200 with `status="degraded"`, no restart is attempted inside that run,
+and the next simulation generation attempts a fresh session.
+
 ## 3. Architecture
 
 `MockExchange` owns one lifecycle coordinator, scheduler, engine, metrics
-collector, FIX application, optional FIX acceptor, `ExchangeAPI`, and FastAPI
-app. The lifecycle coordinator's one asynchronous lock serializes component
+collector, FIX application, optional FIX acceptor, optional ITCH publisher,
+`ExchangeAPI`, and FastAPI app. The lifecycle coordinator's one asynchronous
+lock serializes component
 startup/shutdown, session start/end, scheduler advancement, full run reset, and
 committed FIX ingress. The retained references are:
 
@@ -228,6 +285,7 @@ exchange.app.state.scheduler
 exchange.app.state.metrics
 exchange.app.state.session_registry
 exchange.lifecycle           # ExchangeLifecycle
+exchange.itch_feed           # ITCHFeedPublisher or None
 ```
 
 No route inspection or closure internals are used to recover ownership.
@@ -248,9 +306,10 @@ Shutdown:
 1. Marks readiness false and disables administrative actions.
 2. Stops the FIX acceptor.
 3. Cancels the realtime scheduler task.
-4. Closes and removes WebSockets.
-5. Flushes and closes metrics persistence.
-6. Clears adapter loop references and marks components stopped.
+4. Sends coherent ITCH end markers/end-of-session and closes its socket.
+5. Stops the scheduler and closes/removes WebSockets.
+6. Flushes and closes metrics persistence.
+7. Clears adapter loop references and marks components stopped.
 
 Shutdown is idempotent. A persistence-close failure is logged and reported as
 degraded without skipping the remaining teardown.
@@ -508,7 +567,7 @@ Unknown symbols return HTTP 404:
 ```
 
 `/stats` separates orders, trades, cancellations, reports, sessions, book
-gauges, FIX delivery, latency, persistence, and scheduler state. The
+gauges, FIX delivery, ITCH delivery, latency, persistence, and scheduler state. The
 process-lifetime `fix_delivery` object exposes enqueued records, queue depth,
 counts by delivery state, sessions with backlog, cumulative attempts,
 failures, deliveries, permanent failures, abandonments, and oldest pending
@@ -520,6 +579,9 @@ contains `accepted`, `unknown_order`, `already_terminal`, `wrong_owner`,
 contains only deterministic scalar metadata captured when the event was
 scheduled; it never exposes the live command object. Latency field names
 include `_us` or `_ms`; REST reads do not mutate counters.
+The process-lifetime `itch` object exposes enable/state, active Mold session,
+next message sequence, sessions, messages, packets, heartbeats, failures, and
+the last error.
 
 ## 8. WebSocket protocol
 
@@ -665,6 +727,12 @@ A failure before destructive reset work restores `STOPPED`; a failure after it
 begins returns `503 SESSION_START_FAILED`, enters `FAILED`, and requires
 process restart.
 
+An enabled ITCH feed starts a fresh generation-qualified Mold session before
+`ACTIVE`. Runtime feed failure is noncritical and leaves the run active with
+readiness degraded. Normal session end publishes the ITCH market/system/end
+markers and Mold end-of-session before closing the socket. A degraded session
+is never resumed in place; only the next generation attempts recovery.
+
 Ending with no active session is idempotent and returns
 `status="no_active_session"` with null `session_id`, `run_generation`, and
 `final_stats`. A successful end returns only the ended run's business metrics,
@@ -730,8 +798,8 @@ timestamp and returns:
 `scope="current_run"` at the response root and reset after a successful end.
 `run_active` distinguishes an active run from the cleared stopped state.
 `process_lifetime` contains cumulative business counters and duration
-aggregates. `persistence`, `scheduler`, `fix_delivery`, and `websocket` are
-separate operational sections with their own scope labels. The connected FIX
+aggregates. `persistence`, `scheduler`, `fix_delivery`, `websocket`, and
+`itch` are separate operational sections with their own scope labels. The connected FIX
 session value and delivery queue depths are current gauges, not run totals.
 
 Successful session end captures the current-run snapshot before clearing it;
@@ -797,6 +865,20 @@ FIX delivery Prometheus collectors include
 with HTTP 200 for retry-pending or permanently failed records, and `disabled`
 when FIX is disabled. A delivery backlog alone never makes core matching
 unavailable.
+
+ITCH collectors use no order, participant, symbol, or session labels:
+
+```text
+mockx_itch_sessions_started_total
+mockx_itch_sessions_ended_total
+mockx_itch_messages_sent_total
+mockx_moldudp64_packets_sent_total
+mockx_moldudp64_heartbeats_sent_total
+mockx_itch_failures_total
+mockx_itch_session_active
+mockx_itch_degraded
+mockx_moldudp64_next_sequence_number
+```
 
 WebSocket delivery collectors are process-lifetime and intentionally have no
 connection-ID labels:
@@ -1009,6 +1091,11 @@ websocket:
 cors_origins: []
 prometheus:
   enabled: true
+itch:
+  enabled: false
+  market_category: " "
+  financial_status: " "
+  round_lot_size: 1
 questdb:
   enabled: false
 ```
@@ -1024,6 +1111,7 @@ Validated ranges are:
 | scheduler | `external` or `realtime`; interval 1-60,000 ms; advance 1-86,400,000 ms; event limit 1-1,000,000 |
 | WebSocket | All timing values finite and in (0, 86,400] seconds; heartbeat/market staleness exceed heartbeat; queue 1-100,000 |
 | FIX delivery | Retry 1-2,147,483,647 ms; attempts 1-10,000; retained delivered payloads 1-1,000,000; enabled sessions require exact participant mappings |
+| ITCH/MoldUDP64 | ITCH disabled by default; enabling requires MoldUDP64, ASCII symbols up to 8 bytes, Price(4)-compatible ticks, and an IPv4 multicast destination; prefix 1-2 ASCII bytes, heartbeat 100-60,000 ms, payload 512-65,507 bytes, TTL 0-255 |
 | QuestDB | Batch 1-100,000; record capacity from batch size to 1,000,000; byte capacity 1-1 GiB; interval/backoff/retry/shutdown/request timeout 1-86,400,000 ms; max retry at least initial backoff; policy `reject_new` or `drop_oldest`; enabled config requires REST/ILP and health URLs; username/password are optional but must be paired |
 | admin/CORS | Valid host and port; origins are unique HTTP(S) origins; wildcard is forbidden |
 
@@ -1064,7 +1152,25 @@ ports, noninteger random seeds, unsupported scheduler modes, nonpositive
 intervals or FIX delivery retry settings, stale timeouts not greater than
 heartbeat cadence, invalid WebSocket queue/send/browser timing values,
 nonpositive event-processing limits, wildcard CORS, and incomplete enabled
-QuestDB configuration.
+QuestDB or ITCH/MoldUDP64 configuration.
+
+Enable the experimental feed with:
+
+```yaml
+itch:
+  enabled: true
+  market_category: " "
+  financial_status: " "
+  round_lot_size: 1
+moldudp64:
+  multicast_group: 239.192.0.1
+  multicast_port: 18000
+  session_prefix: MX
+  heartbeat_interval_ms: 1000
+  max_payload_bytes: 1400
+  interface_address: 0.0.0.0
+  ttl: 1
+```
 
 `CFG_PATH` and `FIX_CONFIG_FILE` select the YAML and QuickFIX files.
 `QUESTDB_URL`, `QUESTDB_HEALTH_URL`, `QUESTDB_USERNAME`, `QUESTDB_PASSWORD`,

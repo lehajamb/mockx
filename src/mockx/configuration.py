@@ -48,9 +48,7 @@ class ConfigurationError(ValueError):
             raise ValueError("ConfigurationError requires at least one issue")
         self.issues = tuple(sorted(issues, key=lambda item: (item.path, item.code)))
         super().__init__(
-            "; ".join(
-                f"{issue.path}: {issue.message}" for issue in self.issues
-            )
+            "; ".join(f"{issue.path}: {issue.message}" for issue in self.issues)
         )
 
 
@@ -84,7 +82,10 @@ def _decimal(value: object, *, field_name: str) -> Decimal:
 
 
 def _scale(value: Decimal) -> int:
-    return max(0, -value.normalize().as_tuple().exponent)
+    exponent = value.normalize().as_tuple().exponent
+    if not isinstance(exponent, int):
+        raise ValueError("decimal scale requires a finite value")
+    return max(0, -exponent)
 
 
 class InstrumentConfig(StrictConfigModel):
@@ -193,19 +194,13 @@ class LatencyConfig(StrictConfigModel):
     def validate_directional_shape(self) -> "LatencyConfig":
         directional = self.inbound_ms is not None or self.outbound_ms is not None
         if self.network_ms is None and not directional:
-            raise ValueError(
-                "configure network_ms or both inbound_ms and outbound_ms"
-            )
+            raise ValueError("configure network_ms or both inbound_ms and outbound_ms")
         if self.network_ms is not None and directional:
             raise ValueError(
                 "network_ms cannot be combined with inbound_ms/outbound_ms"
             )
-        if directional and (
-            self.inbound_ms is None or self.outbound_ms is None
-        ):
-            raise ValueError(
-                "inbound_ms and outbound_ms must be configured together"
-            )
+        if directional and (self.inbound_ms is None or self.outbound_ms is None):
+            raise ValueError("inbound_ms and outbound_ms must be configured together")
         return self
 
     @property
@@ -289,9 +284,7 @@ class FixConfig(StrictConfigModel):
     @model_validator(mode="after")
     def require_enabled_session_mapping(self) -> "FixConfig":
         if self.enabled and not self.session_participants:
-            raise ValueError(
-                "enabled FIX configuration requires session_participants"
-            )
+            raise ValueError("enabled FIX configuration requires session_participants")
         return self
 
 
@@ -321,32 +314,30 @@ class ITCHConfig(StrictConfigModel):
     """ITCH 5.0 outbound market-data feed configuration."""
 
     enabled: StrictBool = False
-    default_market_category: str = " "
-    default_financial_status: str = " "
-    default_round_lot_size: StrictInt = Field(default=100, ge=1)
+    market_category: str = " "
+    financial_status: str = " "
+    round_lot_size: StrictInt = Field(default=1, ge=1, le=0xFFFFFFFF)
 
-    @field_validator("default_market_category", "default_financial_status")
+    @field_validator("market_category", "financial_status")
     @classmethod
     def single_byte(cls, value: str) -> str:
-        if value == " ":
-            return value
-        stripped = value.encode("ascii", errors="replace")
-        if len(stripped) > 1:
-            raise ValueError("Must be at most 1 ASCII byte")
-        return value[0] if value else " "
-
-    @model_validator(mode="after")
-    def require_moldudp64(self) -> "ITCHConfig":
-        return self
+        if not isinstance(value, str):
+            raise ValueError("must be one ASCII byte")
+        try:
+            encoded = value.encode("ascii")
+        except UnicodeEncodeError as exc:
+            raise ValueError("must be one ASCII byte") from exc
+        if len(encoded) != 1:
+            raise ValueError("must be one ASCII byte")
+        return value
 
 
 class MoldUDP64TransportConfig(StrictConfigModel):
     """MoldUDP64 transport configuration."""
 
-    enabled: StrictBool = False
     multicast_group: str = "239.192.0.1"
     multicast_port: StrictInt = Field(ge=1, le=65535)
-    session_name: str = "MOCKX"
+    session_prefix: str = "MX"
     heartbeat_interval_ms: StrictInt = Field(
         default=1_000,
         ge=100,
@@ -360,19 +351,39 @@ class MoldUDP64TransportConfig(StrictConfigModel):
     interface_address: str = "0.0.0.0"
     ttl: StrictInt = Field(default=1, ge=0, le=255)
 
-    @field_validator("session_name")
+    @field_validator("session_prefix")
     @classmethod
-    def valid_session_name(cls, value: str) -> str:
-        name = _nonempty(value, field_name="MoldUDP64 session_name")
-        if len(name.encode("ascii")) > 10:
-            raise ValueError("MoldUDP64 session_name must be at most 10 ASCII bytes")
-        return name
+    def valid_session_prefix(cls, value: str) -> str:
+        prefix = _nonempty(value, field_name="MoldUDP64 session_prefix")
+        try:
+            encoded = prefix.encode("ascii")
+        except UnicodeEncodeError as exc:
+            raise ValueError("session_prefix must contain only ASCII") from exc
+        if not 1 <= len(encoded) <= 2:
+            raise ValueError("session_prefix must contain 1-2 ASCII bytes")
+        return prefix
 
-    @model_validator(mode="after")
-    def enabled_requires_port(self) -> "MoldUDP64TransportConfig":
-        if self.enabled and self.multicast_port is None:
-            raise ValueError("multicast_port is required when MoldUDP64 is enabled")
-        return self
+    @field_validator("multicast_group")
+    @classmethod
+    def valid_multicast_group(cls, value: str) -> str:
+        try:
+            address = ipaddress.ip_address(value)
+        except ValueError as exc:
+            raise ValueError("must be an IPv4 multicast address") from exc
+        if address.version != 4 or not address.is_multicast:
+            raise ValueError("must be an IPv4 multicast address")
+        return value
+
+    @field_validator("interface_address")
+    @classmethod
+    def valid_interface_address(cls, value: str) -> str:
+        try:
+            address = ipaddress.ip_address(value)
+        except ValueError as exc:
+            raise ValueError("must be an IPv4 address") from exc
+        if address.version != 4 or address.is_multicast:
+            raise ValueError("must be a non-multicast IPv4 address")
+        return value
 
 
 class WebSocketConfig(StrictConfigModel):
@@ -450,17 +461,12 @@ class WebSocketConfig(StrictConfigModel):
     @model_validator(mode="after")
     def validate_cadence(self) -> "WebSocketConfig":
         if self.heartbeat_stale_seconds <= self.heartbeat_interval_seconds:
-            raise ValueError(
-                "heartbeat_stale_seconds must exceed heartbeat cadence"
-            )
+            raise ValueError("heartbeat_stale_seconds must exceed heartbeat cadence")
         if self.market_data_stale_seconds <= self.heartbeat_interval_seconds:
-            raise ValueError(
-                "market_data_stale_seconds must exceed heartbeat cadence"
-            )
+            raise ValueError("market_data_stale_seconds must exceed heartbeat cadence")
         if self.reconnect_max_seconds < self.reconnect_initial_seconds:
             raise ValueError(
-                "reconnect_max_seconds must be at least "
-                "reconnect_initial_seconds"
+                "reconnect_max_seconds must be at least " "reconnect_initial_seconds"
             )
         return self
 
@@ -536,23 +542,16 @@ class QuestDBConfig(StrictConfigModel):
     @model_validator(mode="after")
     def validate_enabled_contract(self) -> "QuestDBConfig":
         if self.max_buffer_records < self.flush_batch_size:
-            raise ValueError(
-                "max_buffer_records must be at least flush_batch_size"
-            )
+            raise ValueError("max_buffer_records must be at least flush_batch_size")
         if self.max_retry_delay_ms < self.retry_backoff_ms:
-            raise ValueError(
-                "max_retry_delay_ms must be at least retry_backoff_ms"
-            )
+            raise ValueError("max_retry_delay_ms must be at least retry_backoff_ms")
         if self.enabled:
             missing = [
-                name
-                for name in ("url", "health_url")
-                if not getattr(self, name)
+                name for name in ("url", "health_url") if not getattr(self, name)
             ]
             if missing:
                 raise ValueError(
-                    "enabled QuestDB configuration is missing: "
-                    + ", ".join(missing)
+                    "enabled QuestDB configuration is missing: " + ", ".join(missing)
                 )
             for name in ("url", "health_url"):
                 parsed = urlsplit(getattr(self, name) or "")
@@ -588,7 +587,7 @@ class ExchangeConfig(StrictConfigModel):
     cors_origins: tuple[str, ...] = ()
     prometheus: PrometheusConfig = Field(default_factory=PrometheusConfig)
     questdb: Optional[QuestDBConfig] = None
-    itch: Optional[ITCHConfig] = None
+    itch: ITCHConfig = Field(default_factory=ITCHConfig)
     moldudp64: Optional[MoldUDP64TransportConfig] = None
 
     @field_validator("exchange_name")
@@ -639,6 +638,33 @@ class ExchangeConfig(StrictConfigModel):
         if len(result) != len(set(result)):
             raise ValueError("cors_origins must be unique")
         return tuple(result)
+
+    @model_validator(mode="after")
+    def validate_itch_contract(self) -> "ExchangeConfig":
+        if not self.itch.enabled:
+            return self
+        if self.moldudp64 is None:
+            raise ValueError("enabled ITCH requires moldudp64 configuration")
+        if len(self.instruments) > 0xFFFF:
+            raise ValueError("ITCH supports at most 65535 instruments")
+        for symbol, instrument in self.instruments.items():
+            try:
+                encoded = symbol.encode("ascii")
+            except UnicodeEncodeError as exc:
+                raise ValueError(
+                    f"ITCH instrument symbol {symbol!r} must be ASCII"
+                ) from exc
+            if len(encoded) > 8:
+                raise ValueError(
+                    f"ITCH instrument symbol {symbol!r} exceeds 8 ASCII bytes"
+                )
+            scaled_tick = instrument.tick_size * Decimal(10_000)
+            if scaled_tick != scaled_tick.to_integral_value():
+                raise ValueError(
+                    f"ITCH tick_size for {symbol} is not representable as Price(4)"
+                )
+        return self
+
 
 _ENV_OVERRIDES: Mapping[str, tuple[str, str]] = {
     "QUESTDB_URL": ("url", "text"),
@@ -703,9 +729,7 @@ def merge_environment(
     """Merge supported environment overrides before model validation."""
 
     merged = deepcopy(dict(data))
-    supplied = {
-        name: environ[name] for name in _ENV_OVERRIDES if name in environ
-    }
+    supplied = {name: environ[name] for name in _ENV_OVERRIDES if name in environ}
     if supplied:
         questdb = dict(merged.get("questdb") or {})
         if "enabled" not in questdb and "QUESTDB_ENABLED" not in supplied:

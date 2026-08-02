@@ -4,7 +4,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, Optional, List, Dict, FrozenSet, Mapping, Tuple, Union
+from typing import Optional, Dict, FrozenSet, Mapping, Tuple, Union
 from enum import Enum
 from types import MappingProxyType
 import math
@@ -16,6 +16,7 @@ class Side(Enum):
     BUY = "BUY"
     SELL = "SELL"
 
+
 class OrderStatus(Enum):
     PENDING_NEW = "PENDING_NEW"
     NEW = "NEW"
@@ -23,6 +24,7 @@ class OrderStatus(Enum):
     FILLED = "FILLED"
     REJECTED = "REJECTED"
     CANCELLED = "CANCELLED"
+
 
 class TimeInForce(Enum):
     GTC = "GTC"  # Good Till Cancel
@@ -116,48 +118,64 @@ class SchedulerFailureStatus(str, Enum):
     EVENT_PROCESSING_LIMIT_EXCEEDED = "EVENT_PROCESSING_LIMIT_EXCEEDED"
 
 
-TERMINAL_ORDER_STATUSES: FrozenSet[OrderStatus] = frozenset({
-    OrderStatus.FILLED,
-    OrderStatus.REJECTED,
-    OrderStatus.CANCELLED,
-})
-
-
-ORDER_STATE_TRANSITIONS: Mapping[OrderStatus, FrozenSet[OrderStatus]] = MappingProxyType({
-    OrderStatus.PENDING_NEW: frozenset({
-        OrderStatus.NEW,
-        OrderStatus.PARTIAL,
+TERMINAL_ORDER_STATUSES: FrozenSet[OrderStatus] = frozenset(
+    {
         OrderStatus.FILLED,
         OrderStatus.REJECTED,
         OrderStatus.CANCELLED,
-    }),
-    OrderStatus.NEW: frozenset({
-        OrderStatus.PARTIAL,
-        OrderStatus.FILLED,
-        OrderStatus.CANCELLED,
-    }),
-    OrderStatus.PARTIAL: frozenset({
-        OrderStatus.PARTIAL,
-        OrderStatus.FILLED,
-        OrderStatus.CANCELLED,
-    }),
-    OrderStatus.FILLED: frozenset(),
-    OrderStatus.REJECTED: frozenset(),
-    OrderStatus.CANCELLED: frozenset(),
-})
+    }
+)
 
 
-ORDER_STATUSES_BY_EXECUTION_TYPE: Mapping[
-    ExecutionType, FrozenSet[OrderStatus]
-] = MappingProxyType({
-    ExecutionType.NEW: frozenset({OrderStatus.NEW}),
-    ExecutionType.TRADE: frozenset({
-        OrderStatus.PARTIAL,
-        OrderStatus.FILLED,
-    }),
-    ExecutionType.CANCELED: frozenset({OrderStatus.CANCELLED}),
-    ExecutionType.REJECTED: frozenset({OrderStatus.REJECTED}),
-})
+ORDER_STATE_TRANSITIONS: Mapping[OrderStatus, FrozenSet[OrderStatus]] = (
+    MappingProxyType(
+        {
+            OrderStatus.PENDING_NEW: frozenset(
+                {
+                    OrderStatus.NEW,
+                    OrderStatus.PARTIAL,
+                    OrderStatus.FILLED,
+                    OrderStatus.REJECTED,
+                    OrderStatus.CANCELLED,
+                }
+            ),
+            OrderStatus.NEW: frozenset(
+                {
+                    OrderStatus.PARTIAL,
+                    OrderStatus.FILLED,
+                    OrderStatus.CANCELLED,
+                }
+            ),
+            OrderStatus.PARTIAL: frozenset(
+                {
+                    OrderStatus.PARTIAL,
+                    OrderStatus.FILLED,
+                    OrderStatus.CANCELLED,
+                }
+            ),
+            OrderStatus.FILLED: frozenset(),
+            OrderStatus.REJECTED: frozenset(),
+            OrderStatus.CANCELLED: frozenset(),
+        }
+    )
+)
+
+
+ORDER_STATUSES_BY_EXECUTION_TYPE: Mapping[ExecutionType, FrozenSet[OrderStatus]] = (
+    MappingProxyType(
+        {
+            ExecutionType.NEW: frozenset({OrderStatus.NEW}),
+            ExecutionType.TRADE: frozenset(
+                {
+                    OrderStatus.PARTIAL,
+                    OrderStatus.FILLED,
+                }
+            ),
+            ExecutionType.CANCELED: frozenset({OrderStatus.CANCELLED}),
+            ExecutionType.REJECTED: frozenset({OrderStatus.REJECTED}),
+        }
+    )
+)
 
 
 class LiquidityCategory(Enum):
@@ -360,6 +378,13 @@ class ProcessOrderCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class ITCHHeartbeatCommand:
+    """Generation-qualified deterministic feed heartbeat."""
+
+    run_generation: int
+
+
+@dataclass(frozen=True, slots=True)
 class CancelOrderCommand:
     """Immutable cancel intent resolved against authoritative state at execution."""
 
@@ -409,6 +434,7 @@ class CancelReject:
     def __post_init__(self) -> None:
         if not self.reject_id:
             raise ValueError("Cancel reject ID is required")
+
 
 @dataclass(slots=True)
 class Order:
@@ -481,9 +507,7 @@ class Order:
 
         # Capture the origin once. Execution status and later alias changes must
         # never move resting quantity between accounting categories.
-        self._liquidity_category = liquidity_category_for_session(
-            self.session_alias
-        )
+        self._liquidity_category = liquidity_category_for_session(self.session_alias)
 
     @property
     def liquidity_category(self) -> LiquidityCategory:
@@ -496,11 +520,7 @@ class Order:
     @property
     def leaves_qty_lots(self) -> int:
         """Return exact live working quantity."""
-        leaves = (
-            self.order_qty_lots
-            - self.filled_qty_lots
-            - self.canceled_qty_lots
-        )
+        leaves = self.order_qty_lots - self.filled_qty_lots - self.canceled_qty_lots
         if leaves < 0:
             raise OrderBookInvariantError(
                 f"Order {self.id} is over-allocated: "
@@ -532,8 +552,7 @@ class Order:
             or fill_qty_lots <= 0
         ):
             raise InvalidBookMutation(
-                f"Fill lots for order {self.id} must be positive: "
-                f"{fill_qty_lots}"
+                f"Fill lots for order {self.id} must be positive: " f"{fill_qty_lots}"
             )
         if (
             not isinstance(fill_price_ticks, int)
@@ -553,15 +572,8 @@ class Order:
                 f"leaves_qty_lots={old_remaining}"
             )
         new_filled_qty_lots = self.filled_qty_lots + fill_qty_lots
-        new_notional = (
-            self.filled_notional_tick_lots
-            + fill_price_ticks * fill_qty_lots
-        )
-        new_leaves = (
-            self.order_qty_lots
-            - new_filled_qty_lots
-            - self.canceled_qty_lots
-        )
+        new_notional = self.filled_notional_tick_lots + fill_price_ticks * fill_qty_lots
+        new_leaves = self.order_qty_lots - new_filled_qty_lots - self.canceled_qty_lots
         return new_filled_qty_lots, new_notional, new_leaves
 
     def validate_fill(
@@ -596,9 +608,7 @@ class Order:
         ):
             raise InvalidBookMutation("Decrement quantity must be positive")
         if quantity_lots > self.leaves_qty_lots:
-            raise InvalidBookMutation(
-                f"Order {self.id} decrement exceeds leaves"
-            )
+            raise InvalidBookMutation(f"Order {self.id} decrement exceeds leaves")
         self.canceled_qty_lots += quantity_lots
         return quantity_lots
 
@@ -623,9 +633,11 @@ class Order:
         self.validate_transition_to(new_status)
         self.status = new_status
 
+
 @dataclass(frozen=True, slots=True)
 class ExecutionParams:
     """Configuration for execution behavior."""
+
     network_latency_ms: int  # Round-trip
     engine_latency_ms: int
     reject_prob: float  # 0..1
@@ -666,6 +678,7 @@ class ExecutionParams:
         if self.outbound_network_latency_ms is not None:
             return self.outbound_network_latency_ms
         return self.network_latency_ms // 2
+
 
 @dataclass(frozen=True, slots=True)
 class Fill:
@@ -708,8 +721,78 @@ class Fill:
 
 
 @dataclass(frozen=True, slots=True)
+class DisplayedOrderAdded:
+    """An order became visible in the authoritative displayed book."""
+
+    run_generation: int
+    order_id: int
+    symbol: str
+    side: Side
+    price_ticks: int
+    qty_lots: int
+    timestamp: datetime
+
+    def __post_init__(self) -> None:
+        if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
+            raise ValueError("Displayed add requires generation, order, and symbol")
+        if self.price_ticks <= 0 or self.qty_lots <= 0:
+            raise ValueError("Displayed add price and quantity must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class DisplayedOrderExecuted:
+    """One fill consumed quantity from an already displayed passive order."""
+
+    run_generation: int
+    order_id: int
+    symbol: str
+    displayed_price_ticks: int
+    execution_price_ticks: int
+    executed_qty_lots: int
+    match_number: int
+    timestamp: datetime
+
+    def __post_init__(self) -> None:
+        if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
+            raise ValueError(
+                "Displayed execution requires generation, order, and symbol"
+            )
+        if (
+            self.displayed_price_ticks <= 0
+            or self.execution_price_ticks <= 0
+            or self.executed_qty_lots <= 0
+            or self.match_number <= 0
+        ):
+            raise ValueError(
+                "Displayed execution prices, quantity, and match must be positive"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class DisplayedOrderDeleted:
+    """A displayed order's complete remainder left the book without a fill."""
+
+    run_generation: int
+    order_id: int
+    symbol: str
+    timestamp: datetime
+
+    def __post_init__(self) -> None:
+        if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
+            raise ValueError("Displayed delete requires generation, order, and symbol")
+
+
+DisplayedOrderEvent = Union[
+    DisplayedOrderAdded,
+    DisplayedOrderExecuted,
+    DisplayedOrderDeleted,
+]
+
+
+@dataclass(frozen=True, slots=True)
 class Trade:
     """Represents an executed trade."""
+
     id: int
     symbol: str
     price_ticks: int
@@ -789,18 +872,18 @@ class BookLevel:
         return None
 
     def _validate_cached_aggregates(self) -> None:
-        if min(
-            self.level_qty_lots,
-            self.strategy_qty_lots,
-            self.market_qty_lots,
-        ) < 0:
+        if (
+            min(
+                self.level_qty_lots,
+                self.strategy_qty_lots,
+                self.market_qty_lots,
+            )
+            < 0
+        ):
             raise OrderBookInvariantError(
                 f"Negative aggregate at {self.side} {self.price_ticks}"
             )
-        if (
-            self.level_qty_lots
-            != self.strategy_qty_lots + self.market_qty_lots
-        ):
+        if self.level_qty_lots != self.strategy_qty_lots + self.market_qty_lots:
             raise OrderBookInvariantError(
                 f"Level category mismatch at {self.side} {self.price_ticks}: "
                 f"level_qty_lots={self.level_qty_lots}, "
@@ -836,21 +919,15 @@ class BookLevel:
                 f"Order {order.id} cannot rest in state {order.status.value}"
             )
         if order.order_type != OrderType.LIMIT or order.price_ticks is None:
-            raise InvalidBookMutation(
-                f"Resting order {order.id} must be a limit order"
-            )
+            raise InvalidBookMutation(f"Resting order {order.id} must be a limit order")
         if order.price_ticks != self.price_ticks:
             raise InvalidBookMutation(
                 f"Order {order.id} price ticks do not match level"
             )
         if self.side is not None and order.side != self.side:
-            raise InvalidBookMutation(
-                f"Order {order.id} side does not match level"
-            )
+            raise InvalidBookMutation(f"Order {order.id} side does not match level")
         if order.leaves_qty_lots <= 0:
-            raise InvalidBookMutation(
-                f"Order {order.id} has no positive leaves"
-            )
+            raise InvalidBookMutation(f"Order {order.id} has no positive leaves")
         return order.leaves_qty_lots
 
     def add_order(self, order: Order) -> None:
@@ -882,9 +959,7 @@ class BookLevel:
             )
         self._validate_resting_order(order)
         resolved_price = (
-            order.price_ticks
-            if fill_price_ticks is None
-            else fill_price_ticks
+            order.price_ticks if fill_price_ticks is None else fill_price_ticks
         )
         if resolved_price is None:
             raise InvalidBookMutation("Fill price ticks are required")
@@ -956,27 +1031,17 @@ class BookLevel:
         total = strategy = market = 0
         for order in self.orders:
             if order.id in seen_ids:
-                raise OrderBookInvariantError(
-                    f"Duplicate order id {order.id} in level"
-                )
+                raise OrderBookInvariantError(f"Duplicate order id {order.id} in level")
             seen_ids.add(order.id)
             if order.status not in {OrderStatus.NEW, OrderStatus.PARTIAL}:
-                raise OrderBookInvariantError(
-                    f"Non-live order {order.id} retained"
-                )
+                raise OrderBookInvariantError(f"Non-live order {order.id} retained")
             if order.price_ticks != self.price_ticks:
-                raise OrderBookInvariantError(
-                    f"Wrong-price order {order.id} retained"
-                )
+                raise OrderBookInvariantError(f"Wrong-price order {order.id} retained")
             if side is not None and order.side != side:
-                raise OrderBookInvariantError(
-                    f"Wrong-side order {order.id} retained"
-                )
+                raise OrderBookInvariantError(f"Wrong-side order {order.id} retained")
             leaves = order.leaves_qty_lots
             if leaves <= 0:
-                raise OrderBookInvariantError(
-                    f"Zero-lot order {order.id} retained"
-                )
+                raise OrderBookInvariantError(f"Zero-lot order {order.id} retained")
             total += leaves
             if order.liquidity_category == LiquidityCategory.STRATEGY:
                 strategy += leaves
@@ -1037,9 +1102,8 @@ class OrderBook:
                 insertion_index = index
                 existing_level = level
                 break
-            if (
-                (reverse and level.price_ticks < order.price_ticks)
-                or (not reverse and level.price_ticks > order.price_ticks)
+            if (reverse and level.price_ticks < order.price_ticks) or (
+                not reverse and level.price_ticks > order.price_ticks
             ):
                 insertion_index = index
                 break
@@ -1102,14 +1166,10 @@ class OrderBook:
                 f"side={side.value}, price_ticks={level.price_ticks}"
             )
         resolved_price = (
-            order.price_ticks
-            if fill_price_ticks is None
-            else fill_price_ticks
+            order.price_ticks if fill_price_ticks is None else fill_price_ticks
         )
         if resolved_price is None:
-            raise InvalidBookMutation(
-                f"Resting order {order.id} has no fill price"
-            )
+            raise InvalidBookMutation(f"Resting order {order.id} has no fill price")
         level._validate_resting_order(order)
         order.validate_fill(fill_qty_lots, resolved_price)
         old_leaves = order.leaves_qty_lots
@@ -1170,9 +1230,7 @@ class OrderBook:
         levels = self.bids if side == Side.BUY else self.asks
         level_index = self._level_identity_index(levels, level)
         if level_index is None:
-            raise OrderBookInvariantError(
-                f"Indexed level missing for order {order.id}"
-            )
+            raise OrderBookInvariantError(f"Indexed level missing for order {order.id}")
         removed = level.decrement_order(order, quantity_lots)
         if removed:
             del self._order_index[order.id]
@@ -1310,6 +1368,7 @@ class OrderBook:
                     f"queued_side={side.value}, queued_price={price}"
                 )
 
+
 @dataclass(frozen=True, slots=True)
 class PriceLevelSnapshot:
     """Immutable public view of one non-empty order-book price level."""
@@ -1332,13 +1391,8 @@ class PriceLevelSnapshot:
                 raise ValueError(f"Snapshot {name} must be non-negative")
         if self.level_qty_lots <= 0:
             raise ValueError("Empty price levels cannot be published")
-        if (
-            self.level_qty_lots
-            != self.strategy_qty_lots + self.market_qty_lots
-        ):
-            raise ValueError(
-                "Snapshot category quantities must sum to total quantity"
-            )
+        if self.level_qty_lots != self.strategy_qty_lots + self.market_qty_lots:
+            raise ValueError("Snapshot category quantities must sum to total quantity")
         if self.order_count <= 0:
             raise ValueError("Snapshot order_count must be positive")
 
@@ -1385,9 +1439,7 @@ class MarketDataSnapshot:
         if self.sequence < 0:
             raise ValueError("Market-data sequence cannot be negative")
         if self.timestamp.tzinfo is None:
-            raise ValueError(
-                "Market-data snapshot timestamp must be timezone-aware"
-            )
+            raise ValueError("Market-data snapshot timestamp must be timezone-aware")
         if self.timestamp.utcoffset() != timedelta(0):
             raise ValueError("Market-data snapshot timestamp must be UTC")
         if self.instrument.symbol != self.symbol:
@@ -1398,6 +1450,7 @@ class MarketDataSnapshot:
             raise ValueError("Snapshot bids must be sorted best to worst")
         if ask_prices != tuple(sorted(ask_prices)):
             raise ValueError("Snapshot asks must be sorted best to worst")
+
 
 @dataclass(frozen=True, slots=True)
 class ExecutionReport:
@@ -1441,27 +1494,18 @@ class ExecutionReport:
         try:
             resolved_exec_type = ExecutionType(self.exec_type)
         except ValueError as exc:
-            raise ValueError(
-                f"Unsupported execution type: {self.exec_type}"
-            ) from exc
+            raise ValueError(f"Unsupported execution type: {self.exec_type}") from exc
         if (
             self.instrument.symbol != self.symbol
             and self.ord_status != OrderStatus.REJECTED
         ):
             raise ValueError("Execution report instrument must match symbol")
         if self.order_type == OrderType.LIMIT:
-            if (
-                self.ord_status != OrderStatus.REJECTED
-                and (
-                    self.order_price_ticks is None
-                    or self.order_price_ticks <= 0
-                )
+            if self.ord_status != OrderStatus.REJECTED and (
+                self.order_price_ticks is None or self.order_price_ticks <= 0
             ):
                 raise ValueError("Limit report requires positive price ticks")
-            if (
-                self.order_price_ticks is not None
-                and self.order_price_ticks <= 0
-            ):
+            if self.order_price_ticks is not None and self.order_price_ticks <= 0:
                 raise ValueError("Price ticks cannot be non-positive")
         elif self.order_price_ticks is not None:
             raise ValueError("Market report cannot contain price ticks")
@@ -1469,9 +1513,7 @@ class ExecutionReport:
             raise ValueError(f"Unsupported execution type: {self.exec_type}")
         object.__setattr__(self, "exec_type", resolved_exec_type)
 
-        allowed_statuses = ORDER_STATUSES_BY_EXECUTION_TYPE[
-            resolved_exec_type
-        ]
+        allowed_statuses = ORDER_STATUSES_BY_EXECUTION_TYPE[resolved_exec_type]
         if self.ord_status not in allowed_statuses:
             raise ValueError(
                 f"Inconsistent execution report: exec_type={self.exec_type}, "
@@ -1495,9 +1537,7 @@ class ExecutionReport:
         ):
             raise ValueError("Execution report quantities cannot exceed order quantity")
         if (
-            self.cum_qty_lots
-            + self.leaves_qty_lots
-            + self.canceled_qty_lots
+            self.cum_qty_lots + self.leaves_qty_lots + self.canceled_qty_lots
             != self.order_qty_lots
         ):
             raise ValueError(
@@ -1515,54 +1555,36 @@ class ExecutionReport:
                 raise ValueError("TRADE reports require positive LastPx")
             if self.trade_id is None:
                 raise ValueError("TRADE reports require a TradeID")
-        elif (
-            self.last_qty_lots is not None
-            or self.last_price_ticks is not None
-        ):
-            raise ValueError(
-                "Only TRADE reports may contain LastQty or LastPx"
-            )
+        elif self.last_qty_lots is not None or self.last_price_ticks is not None:
+            raise ValueError("Only TRADE reports may contain LastQty or LastPx")
 
         if self.ord_status == OrderStatus.NEW:
             if self.cum_qty_lots != 0:
                 raise ValueError("NEW execution reports must have zero CumQty")
             if self.canceled_qty_lots != 0:
-                raise ValueError(
-                    "NEW execution reports must have zero CanceledQty"
-                )
+                raise ValueError("NEW execution reports must have zero CanceledQty")
         elif self.ord_status == OrderStatus.PARTIAL:
             if self.cum_qty_lots <= 0:
                 raise ValueError("PARTIAL reports require positive CumQty")
             if self.leaves_qty_lots <= 0:
                 raise ValueError("PARTIAL reports require positive LeavesQty")
             if self.canceled_qty_lots != 0:
-                raise ValueError(
-                    "PARTIAL reports must have zero CanceledQty"
-                )
+                raise ValueError("PARTIAL reports must have zero CanceledQty")
         elif self.ord_status == OrderStatus.FILLED:
             if self.cum_qty_lots != self.order_qty_lots:
                 raise ValueError("FILLED reports require CumQty equal OrderQty")
             if self.leaves_qty_lots != 0:
                 raise ValueError("FILLED execution reports require zero LeavesQty")
             if self.canceled_qty_lots != 0:
-                raise ValueError(
-                    "FILLED execution reports require zero CanceledQty"
-                )
+                raise ValueError("FILLED execution reports require zero CanceledQty")
         elif self.ord_status in {
             OrderStatus.CANCELLED,
             OrderStatus.REJECTED,
         }:
             if self.leaves_qty_lots != 0:
-                raise ValueError(
-                    "Terminal non-fill reports require zero LeavesQty"
-                )
-            if (
-                self.ord_status == OrderStatus.CANCELLED
-                and self.canceled_qty_lots <= 0
-            ):
-                raise ValueError(
-                    "CANCELLED reports require positive CanceledQty"
-                )
+                raise ValueError("Terminal non-fill reports require zero LeavesQty")
+            if self.ord_status == OrderStatus.CANCELLED and self.canceled_qty_lots <= 0:
+                raise ValueError("CANCELLED reports require positive CanceledQty")
         if self.cum_qty_lots == 0 and self.filled_notional_tick_lots != 0:
             raise ValueError("Unfilled reports require zero filled notional")
         if self.cum_qty_lots > 0 and self.filled_notional_tick_lots <= 0:
@@ -1632,13 +1654,11 @@ def create_execution_report(
         timestamp=timestamp,
         order_version=order.version,
         exchange_order_id=(
-            order.exchange_order_id
-            or f"G{order.run_generation:08d}-O{order.id:08d}"
+            order.exchange_order_id or f"G{order.run_generation:08d}-O{order.id:08d}"
         ),
         run_generation=order.run_generation,
         exchange_trade_id=(
-            exchange_trade_id
-            or f"G{order.run_generation:08d}-T{trade_id:08d}"
+            exchange_trade_id or f"G{order.run_generation:08d}-T{trade_id:08d}"
             if trade_id is not None
             else None
         ),
@@ -1669,10 +1689,7 @@ def create_cancel_reject(
         run_generation=command.run_generation,
         ingress_sequence=command.ingress_sequence,
         exchange_order_id=(
-            (
-                order.exchange_order_id
-                or f"G{order.run_generation:08d}-O{order.id:08d}"
-            )
+            (order.exchange_order_id or f"G{order.run_generation:08d}-O{order.id:08d}")
             if order
             else None
         ),
@@ -1752,6 +1769,7 @@ class FixDeliveryQueueSnapshot:
     retained_delivered_records: int
     oldest_pending_age_seconds: Optional[float]
 
+
 SchedulerMetadataScalar = Optional[Union[str, int, float, bool]]
 SchedulerEventMetadata = Tuple[Tuple[str, SchedulerMetadataScalar], ...]
 
@@ -1801,7 +1819,8 @@ class ScheduledEvent:
     def __lt__(self, other: "ScheduledEvent") -> bool:
         """Order events by timestamp, preserving scheduling order for ties."""
         return (self.timestamp, self.sequence) < (other.timestamp, other.sequence)
-    
+
+
 @dataclass(slots=True)
 class OrderLatencyTrace:
     """Latency tracker-owned mutable state for one accepted order."""
@@ -1938,9 +1957,7 @@ class MetricsSnapshot:
                 "levels": self.order_book_levels,
             },
             "latency": {
-                "average_match_loop_duration_us": (
-                    self.average_match_loop_duration_us
-                ),
+                "average_match_loop_duration_us": (self.average_match_loop_duration_us),
                 "average_book_commit_duration_us": (
                     self.average_book_commit_duration_us
                 ),
@@ -1953,12 +1970,8 @@ class MetricsSnapshot:
                 "average_serialization_duration_us": (
                     self.average_serialization_duration_us
                 ),
-                "average_sim_inbound_latency_ms": (
-                    self.average_sim_inbound_latency_ms
-                ),
-                "average_sim_engine_latency_ms": (
-                    self.average_sim_engine_latency_ms
-                ),
+                "average_sim_inbound_latency_ms": (self.average_sim_inbound_latency_ms),
+                "average_sim_engine_latency_ms": (self.average_sim_engine_latency_ms),
                 "average_sim_outbound_latency_ms": (
                     self.average_sim_outbound_latency_ms
                 ),

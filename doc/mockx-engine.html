@@ -98,7 +98,7 @@
       <h2 class="h2">Order state machine</h2>
       <p class="lede">
         Every order moves through a strictly validated lifecycle. The <code class="ref">ORDER_STATE_TRANSITIONS</code>
-        table in <code class="ref">models.py:126-147</code> defines all legal transitions. Any attempt
+        table in <code class="ref">models.py</code> defines all legal transitions. Any attempt
         outside this table raises <code class="ref">InvalidOrderTransition</code>. Click each state
         to see its meaning and valid outgoing transitions.
       </p>
@@ -147,8 +147,8 @@
       </div>
     </div>
     <div class="source-ref">
-      State machine: <code>models.py:126-147</code>. <code>Order.validate_transition_to()</code>: <code>models.py:613-619</code>.
-      Terminal states: <code>models.py:119-123</code>.
+      State machine and terminal states: <code>models.py</code>, including
+      <code>Order.validate_transition_to()</code>.
     </div>
   </div>
 </section>
@@ -176,7 +176,7 @@
             <code>version=0</code>, <code>processed=False</code>. Assigns <code>order.id</code> (internal)
             and <code>exchange_order_id</code> (public G{gen}-O{counter}). Registers in
             <code>self.orders</code> and <code>self.client_order_index</code>.
-            <span class="src">engine.py:120-187</span>
+            <span class="src">MatchingEngine.submit_order()</span>
           </div>
         </div>
         <div class="exec-step">
@@ -185,7 +185,7 @@
             <code class="ref g">order_arrived</code> at T+inbound (observability only, never touches the book).
             <code class="ref a">order_process</code> at T+inbound+engine (calls <code>engine.process_order()</code>).
             Each carries a <code class="ref">ProcessOrderCommand(order_id, expected_version)</code>.
-            <span class="src">engine.py:170-179, latency.py:311-345</span>
+            <span class="src">LatencyScheduler.schedule_order_processing()</span>
           </div>
         </div>
         <div class="exec-step">
@@ -195,7 +195,7 @@
             the order. The cancel increments <code>order.version</code> to 1, so when the stale
             <code class="ref">order_process</code> (expected_version=0) fires, it detects the version mismatch
             and drops the processing attempt.
-            <span class="src">engine.py:189-203, 799</span>
+            <span class="src">MatchingEngine.process_order()</span>
           </div>
         </div>
         <div class="exec-step">
@@ -205,15 +205,15 @@
             Then: RNG reject check → if rejected, calls <code>_reject_order()</code>.
             Otherwise: <code>_run_matching()</code> → <code>_finalize_unfilled_remainder()</code> →
             <code>book.assert_invariants()</code> → <code>_send_market_data_update()</code>.
-            <span class="src">engine.py:189-228</span>
+            <span class="src">MatchingEngine.process_order()</span>
           </div>
         </div>
       </div>
     </div>
     <div class="source-ref">
-      Order creation and scheduling: <code>engine.py:120-187</code>.
-      Processing: <code>engine.py:189-228</code>.
-      Version-based cancel protection: <code>engine.py:197-203</code>, <code>:799</code>.
+      Order creation and processing: <code>MatchingEngine.submit_order()</code>
+      and <code>process_order()</code>. Version protection is enforced by
+      <code>ProcessOrderCommand.expected_version</code> and successful cancel.
     </div>
   </div>
 </section>
@@ -226,8 +226,9 @@
       <h2 class="h2">Matching loop walkthrough</h2>
       <p class="lede">
         A BUY 100 @ 100.25 GTC sweeps three ask levels. Each fill produces
-        <b>two execution reports — passive first, aggressor second —</b> before the next
-        fill is computed. The loop stops the instant <code class="ref">remaining_qty</code> hits zero.
+        <b>two client execution reports — passive first, aggressor second —</b>
+        and one buffered displayed-order execution for the passive order. The
+        loop stops when <code class="ref">leaves_qty_lots</code> reaches zero.
       </p>
     </div>
 
@@ -299,9 +300,9 @@
       <span><i class="dot dot-queue"></i> Aggressor fill report</span>
     </div>
     <div class="source-ref">
-      Matching loop: <code>engine.py:331-453 (_match_aggressive_order)</code>.
-      Passive-first reports: <code>engine.py:430-449</code>.
-      Price-time priority with FIFO: <code>engine.py:341-356</code>.
+      Matching loop: <code>MatchingEngine._match_aggressive_order()</code>.
+      Passive-first client reports and displayed execution buffering are in
+      <code>engine.py</code>; price-time FIFO is owned by <code>OrderBook</code>.
     </div>
   </div>
 </section>
@@ -323,20 +324,58 @@
         <span class="tag tag-ask">Market or IOC</span>
         <h4>Remainder is canceled outright</h4>
         <p>Market orders never rest, and IOC means immediate-or-cancel. Whatever quantity didn't fill immediately is canceled and reported as CANCELED — no trace left in the book.</p>
-        <p class="source-ref">engine.py:464-483</p>
+        <p class="source-ref">MatchingEngine._finalize_unfilled_remainder()</p>
       </div>
       <div class="rule-card">
         <span class="tag tag-bid">GTC, nothing filled</span>
         <h4>Rests, with one NEW report</h4>
         <p>A wholly unfilled GTC limit order joins its price level with <code class="ref">book.add_order()</code> and gets a single <code class="ref">ExecutionType.NEW</code> report acknowledging it's live.</p>
-        <p class="source-ref">engine.py:485-507</p>
+        <p class="source-ref">MatchingEngine._finalize_unfilled_remainder()</p>
       </div>
       <div class="rule-card">
         <span class="tag tag-bid">GTC, partially filled</span>
         <h4>Rests silently</h4>
         <p>The TRADE/PARTIAL reports already sent during matching are the acknowledgment — no extra NEW report follows the fills. The remainder simply rests.</p>
-        <p class="source-ref">engine.py:488-507</p>
+        <p class="source-ref">MatchingEngine._finalize_unfilled_remainder()</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DISPLAYED ORDER EVENTS ================= -->
+<section class="section" id="displayed-events">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-bid">2.4</span>
+      <h2 class="h2">Authoritative displayed-order events</h2>
+      <p class="lede">
+        ITCH is not reconstructed from client reports or trades. The engine
+        buffers protocol-neutral events while mutating the book and publishes
+        them in mutation order only after the command's invariant check passes.
+      </p>
+    </div>
+    <div class="rule-grid">
+      <div class="rule-card">
+        <span class="tag tag-bid">DisplayedOrderAdded</span>
+        <h4>A remainder actually rests</h4>
+        <p>Published after <code class="ref">book.add_order()</code> for a new or partially filled GTC limit remainder. Market and IOC orders never produce it.</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-amber">DisplayedOrderExecuted</span>
+        <h4>One event per fill</h4>
+        <p>References only the displayed passive order. Its match number is exactly <code class="ref">Fill.trade_id</code>; the aggressor report and <code class="ref">Trade</code> callback do not create feed events.</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-ask">DisplayedOrderDeleted</span>
+        <h4>A remainder leaves without execution</h4>
+        <p>Published for a resting cancel and for the displayed passive removed by STP. Pending cancellation and a never-rested aggressor produce no delete.</p>
+      </div>
+    </div>
+    <div class="source-ref">
+      Event models: <code>models.py</code>. Mutation and publication:
+      <code>MatchingEngine._queue_displayed_event()</code> and
+      <code>_publish_displayed_events()</code>. Wire mapping:
+      <code>itch_delivery.py</code>.
     </div>
   </div>
 </section>
@@ -398,9 +437,8 @@
       </div>
     </div>
     <div class="source-ref">
-      STP check: <code>engine.py:274-276 (_is_self_cross)</code>.
-      STP execution: <code>engine.py:278-329 (_prevent_self_trade)</code>.
-      Called during matching: <code>engine.py:361-368</code>.
+      STP check and execution: <code>MatchingEngine._is_self_cross()</code> and
+      <code>_prevent_self_trade()</code>, called from the matching loop.
     </div>
   </div>
 </section>
@@ -470,15 +508,15 @@
         A successful cancel <b>increments <code class="ref">order.version</code></b>.
         Any already-queued stale <code class="ref">order_process</code> event carrying the old
         version will be dropped when it fires, because <code class="ref">expected_version != order.version</code>.
-        <span class="source-ref">engine.py:197-203, 799</span>
+        <span class="source-ref">MatchingEngine.process_order() version guard and cancel commit</span>
       </p>
     </div>
 
     <div class="notes">
-      <div><span class="c">// </span>Cancel resolution: <code>engine.py:670-862 (_cancel_order_impl)</code></div>
-      <div><span class="c">// </span>All six <code>CancellationOutcome</code> values: <code>models.py:80-88</code></div>
+      <div><span class="c">// </span>Cancel resolution: <code>MatchingEngine.cancel_order()</code></div>
+      <div><span class="c">// </span>All six <code>CancellationOutcome</code> values: <code>models.py</code></div>
       <div><span class="c">// </span>Cancel-reject creation: <code>models.py create_cancel_reject()</code></div>
-      <div><span class="c">// </span>Version bump on successful cancel: <code>engine.py:799</code></div>
+      <div><span class="c">// </span>Version bump occurs in the successful cancel commit</div>
     </div>
   </div>
 </section>
@@ -532,8 +570,8 @@
       </div>
     </div>
     <div class="source-ref">
-      <code>BookLevel</code>: <code>models.py:774-993</code>. <code>OrderBook</code>: <code>models.py:996-1350</code>.
-      Liquidity category: <code>models.py:207-213</code>. <code>LiquidityCategory</code> enum: <code>models.py:163-168</code>.
+      <code>BookLevel</code>, <code>OrderBook</code>, and
+      <code>LiquidityCategory</code>: <code>models.py</code>.
     </div>
   </div>
 </section>
@@ -554,22 +592,22 @@
   const ORDER_STATES = [
     { key: "PENDING_NEW", name: "PENDING_NEW", terminal: false,
       desc: "Order created but not yet processed by the engine. Cancelable. Transitions to: NEW, PARTIAL, FILLED, REJECTED, CANCELLED.",
-      source: "models.py:20" },
+      source: "models.py — OrderStatus.PENDING_NEW" },
     { key: "NEW", name: "NEW", terminal: false,
       desc: "GTC limit order resting in the book with zero fills. Cancelable. Transitions to: PARTIAL, FILLED, CANCELLED.",
-      source: "models.py:21" },
+      source: "models.py — OrderStatus.NEW" },
     { key: "PARTIAL", name: "PARTIAL", terminal: false,
       desc: "GTC limit order with some fills, still resting. Cancelable. Transitions to: PARTIAL (more fills), FILLED, CANCELLED.",
-      source: "models.py:22" },
+      source: "models.py — OrderStatus.PARTIAL" },
     { key: "FILLED", name: "FILLED", terminal: true,
       desc: "All quantity filled. Terminal — no further transitions possible. Cannot be canceled.",
-      source: "models.py:23" },
+      source: "models.py — OrderStatus.FILLED" },
     { key: "REJECTED", name: "REJECTED", terminal: true,
       desc: "Rejected by RNG during process_order. Terminal. Contains reject_reason text.",
-      source: "models.py:24" },
+      source: "models.py — OrderStatus.REJECTED" },
     { key: "CANCELLED", name: "CANCELLED", terminal: true,
       desc: "Canceled by request, STP, or market/IOC remainder. Terminal. No quantity left in book.",
-      source: "models.py:25" },
+      source: "models.py — OrderStatus.CANCELLED" },
   ];
 
   M.installStateMachine("orderStates", ORDER_STATES, function(s, detail) {

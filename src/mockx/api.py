@@ -94,9 +94,7 @@ class PriceLevelResponse(BaseModel):
     market_qty: str = Field(
         description="Quantity attributed to all other session categories"
     )
-    order_count: int = Field(
-        description="Number of live FIFO orders at this price"
-    )
+    order_count: int = Field(description="Number of live FIFO orders at this price")
 
 
 class TradeResponse(BaseModel):
@@ -109,9 +107,7 @@ class TradeResponse(BaseModel):
 
 class BookSnapshotResponse(BaseModel):
     symbol: str
-    sequence: int = Field(
-        description="Global per-exchange market-data sequence"
-    )
+    sequence: int = Field(description="Global per-exchange market-data sequence")
     timestamp: datetime = Field(description="Timezone-aware simulated UTC")
     bids: list[PriceLevelResponse]
     asks: list[PriceLevelResponse]
@@ -321,6 +317,21 @@ class WebSocketStats(BaseModel):
     send_successes: int
 
 
+class ITCHStats(BaseModel):
+    scope: Literal["process_lifetime"] = "process_lifetime"
+    enabled: bool
+    state: Literal["disabled", "idle", "ready", "degraded", "stopped"]
+    active_session: Optional[str]
+    next_sequence_number: int
+    sessions_started: int
+    sessions_ended: int
+    messages_sent: int
+    packets_sent: int
+    heartbeats_sent: int
+    failures: int
+    last_error: Optional[str]
+
+
 class RunStatsResponse(BaseModel):
     generated_at: datetime
     scope: Literal["current_run"] = "current_run"
@@ -350,6 +361,7 @@ class StatsResponse(BaseModel):
     sessions: SessionsStats
     fix_delivery: FixDeliveryStats
     websocket: WebSocketStats
+    itch: ITCHStats
     book: BookStats
     latency: LatencyStats
     persistence: PersistenceStats
@@ -415,9 +427,7 @@ class AdvanceTimeRequest(BaseModel):
     @model_validator(mode="after")
     def exactly_one_target(self) -> "AdvanceTimeRequest":
         if (self.target_time is None) == (self.milliseconds is None):
-            raise ValueError(
-                "Provide exactly one of target_time or milliseconds"
-            )
+            raise ValueError("Provide exactly one of target_time or milliseconds")
         return self
 
 
@@ -468,12 +478,8 @@ def _book_payload(snapshot: MarketDataSnapshot) -> dict[str, Any]:
             {
                 "price": instrument.format_price(level.price_ticks),
                 "qty": instrument.format_quantity(level.level_qty_lots),
-                "strategy_qty": instrument.format_quantity(
-                    level.strategy_qty_lots
-                ),
-                "market_qty": instrument.format_quantity(
-                    level.market_qty_lots
-                ),
+                "strategy_qty": instrument.format_quantity(level.strategy_qty_lots),
+                "market_qty": instrument.format_quantity(level.market_qty_lots),
                 "order_count": level.order_count,
             }
             for level in snapshot.bids
@@ -482,12 +488,8 @@ def _book_payload(snapshot: MarketDataSnapshot) -> dict[str, Any]:
             {
                 "price": instrument.format_price(level.price_ticks),
                 "qty": instrument.format_quantity(level.level_qty_lots),
-                "strategy_qty": instrument.format_quantity(
-                    level.strategy_qty_lots
-                ),
-                "market_qty": instrument.format_quantity(
-                    level.market_qty_lots
-                ),
+                "strategy_qty": instrument.format_quantity(level.strategy_qty_lots),
+                "market_qty": instrument.format_quantity(level.market_qty_lots),
                 "order_count": level.order_count,
             }
             for level in snapshot.asks
@@ -505,12 +507,8 @@ def market_data_message(
         trades=[
             {
                 "trade_id": trade.trade_id,
-                "price": snapshot.instrument.format_price(
-                    trade.price_ticks
-                ),
-                "qty": snapshot.instrument.format_quantity(
-                    trade.qty_lots
-                ),
+                "price": snapshot.instrument.format_price(trade.price_ticks),
+                "qty": snapshot.instrument.format_quantity(trade.qty_lots),
                 "aggressor_side": trade.aggressor_side.value,
                 "timestamp": trade.timestamp,
             }
@@ -543,23 +541,13 @@ class ExchangeAPI:
         self.lifecycle = session_lifecycle
 
         websocket_config = config.websocket
-        self.heartbeat_interval_seconds = (
-            websocket_config.heartbeat_interval_seconds
-        )
-        self.websocket_queue_capacity = (
-            websocket_config.outbound_queue_capacity
-        )
-        self.websocket_send_timeout_seconds = (
-            websocket_config.send_timeout_seconds
-        )
+        self.heartbeat_interval_seconds = websocket_config.heartbeat_interval_seconds
+        self.websocket_queue_capacity = websocket_config.outbound_queue_capacity
+        self.websocket_send_timeout_seconds = websocket_config.send_timeout_seconds
         heartbeat_stale_seconds = websocket_config.heartbeat_stale_seconds
-        market_data_stale_seconds = (
-            websocket_config.market_data_stale_seconds
-        )
+        market_data_stale_seconds = websocket_config.market_data_stale_seconds
         fallback_poll_seconds = websocket_config.fallback_poll_seconds
-        reconnect_initial_seconds = (
-            websocket_config.reconnect_initial_seconds
-        )
+        reconnect_initial_seconds = websocket_config.reconnect_initial_seconds
         reconnect_max_seconds = websocket_config.reconnect_max_seconds
         staleness_check_seconds = websocket_config.staleness_check_seconds
         self.registry = WebSocketRegistry(
@@ -568,9 +556,7 @@ class ExchangeAPI:
             send_timeout_seconds=self.websocket_send_timeout_seconds,
         )
         self.websocket_browser_timing = {
-            "heartbeatIntervalMs": round(
-                self.heartbeat_interval_seconds * 1000
-            ),
+            "heartbeatIntervalMs": round(self.heartbeat_interval_seconds * 1000),
             "heartbeatStaleMs": round(heartbeat_stale_seconds * 1000),
             "marketDataStaleMs": round(market_data_stale_seconds * 1000),
             "fallbackPollMs": round(fallback_poll_seconds * 1000),
@@ -647,8 +633,7 @@ class ExchangeAPI:
                 for error in exc.errors()
             )
             message = "; ".join(
-                f"{path}: {description}"
-                for path, description in issues
+                f"{path}: {description}" for path, description in issues
             )
             return JSONResponse(
                 status_code=422,
@@ -669,6 +654,7 @@ class ExchangeAPI:
         self.app.state.ready = False
         self.app.state.accepting_admin = False
         self.app.state.lifecycle_started = False
+        itch_feed = getattr(lifecycle_manager, "itch_feed", None)
         self.app.state.component_status = {
             "engine": "not_ready",
             "scheduler": "not_ready",
@@ -676,10 +662,9 @@ class ExchangeAPI:
             "fix_gateway": "not_ready",
             "metrics": "not_ready",
             "persistence": (
-                "not_ready"
-                if self.metrics.persistence is not None
-                else "disabled"
+                "not_ready" if self.metrics.persistence is not None else "disabled"
             ),
+            "itch": (itch_feed.state.value if itch_feed is not None else "disabled"),
         }
 
         origins = config.cors_origins
@@ -750,23 +735,18 @@ class ExchangeAPI:
             critical_names.append("fix_gateway")
         ready_values = {"ready", "waiting_external"}
         core_ready = all(
-            components.get(name) in ready_values
-            for name in critical_names
+            components.get(name) in ready_values for name in critical_names
         )
-        lifecycle_ready = (
-            self.lifecycle is None
-            or self.lifecycle.state
-            in {LifecycleState.STOPPED, LifecycleState.ACTIVE}
-        )
-        core_ready = bool(
-            self.app.state.ready and core_ready and lifecycle_ready
-        )
+        lifecycle_ready = self.lifecycle is None or self.lifecycle.state in {
+            LifecycleState.STOPPED,
+            LifecycleState.ACTIVE,
+        }
+        core_ready = bool(self.app.state.ready and core_ready and lifecycle_ready)
         persistence_required = bool(
             self.config.questdb is not None and self.config.questdb.enabled
         )
         persistence_ready = (
-            not persistence_required
-            or persistence_health.state.value == "HEALTHY"
+            not persistence_required or persistence_health.state.value == "HEALTHY"
         )
         traffic_ready = core_ready and persistence_ready
         if not traffic_ready:
@@ -800,9 +780,7 @@ class ExchangeAPI:
         return payload
 
     def _run_stats_payload(self, *, run_active: bool) -> Dict[str, object]:
-        payload = self.metrics.snapshot().to_dict(
-            run_id=self.metrics.run_id
-        )
+        payload = self.metrics.snapshot().to_dict(run_id=self.metrics.run_id)
         payload["scope"] = "current_run"
         payload["run_active"] = run_active
         payload["run_generation"] = (
@@ -823,15 +801,12 @@ class ExchangeAPI:
         )
 
     def _stats_response(self) -> StatsResponse:
-        payload = self._run_stats_payload(
-            run_active=self.metrics.run_id is not None
-        )
+        payload = self._run_stats_payload(run_active=self.metrics.run_id is not None)
         health = self.metrics.persistence_health_snapshot()
         payload["persistence"] = {
             "scope": "operational",
             "required": bool(
-                self.config.questdb is not None
-                and self.config.questdb.enabled
+                self.config.questdb is not None and self.config.questdb.enabled
             ),
             "state": health.state.value,
             "last_successful_write_time": health.last_successful_write_time,
@@ -854,13 +829,32 @@ class ExchangeAPI:
             "unflushed_on_close": health.unflushed_on_close,
             "current_run_outcomes": self.metrics.run_persistence_snapshot(),
         }
-        payload["process_lifetime"] = (
-            self.metrics.process_lifetime_snapshot()
-        )
+        payload["process_lifetime"] = self.metrics.process_lifetime_snapshot()
         payload["websocket"] = {
             "scope": "process_lifetime",
             **self.metrics.websocket_metrics_snapshot(),
         }
+        itch_feed = getattr(self.lifecycle_manager, "itch_feed", None)
+        if itch_feed is None:
+            payload["itch"] = {
+                "scope": "process_lifetime",
+                "enabled": False,
+                "state": "disabled",
+                "active_session": None,
+                "next_sequence_number": 1,
+                "sessions_started": 0,
+                "sessions_ended": 0,
+                "messages_sent": 0,
+                "packets_sent": 0,
+                "heartbeats_sent": 0,
+                "failures": 0,
+                "last_error": None,
+            }
+        else:
+            payload["itch"] = {
+                "scope": "process_lifetime",
+                **itch_feed.diagnostics(),
+            }
         delivery = self.fix_app.delivery_queue.snapshot()
         payload["fix_delivery"] = {
             "scope": "process_lifetime",
@@ -876,12 +870,8 @@ class ExchangeAPI:
             "attempts": delivery.attempts,
             "retries": delivery.retries,
             "failures": delivery.failures,
-            "retained_delivered_records": (
-                delivery.retained_delivered_records
-            ),
-            "oldest_pending_age_seconds": (
-                delivery.oldest_pending_age_seconds
-            ),
+            "retained_delivered_records": (delivery.retained_delivered_records),
+            "oldest_pending_age_seconds": (delivery.oldest_pending_age_seconds),
         }
         return StatsResponse.model_validate(payload)
 
@@ -1062,24 +1052,16 @@ class ExchangeAPI:
                     "symbol": snapshot.symbol,
                     "bids": [
                         {
-                            "price": instrument.format_price(
-                                level.price_ticks
-                            ),
-                            "qty": instrument.format_quantity(
-                                level.level_qty_lots
-                            ),
+                            "price": instrument.format_price(level.price_ticks),
+                            "qty": instrument.format_quantity(level.level_qty_lots),
                             "orders": level.order_count,
                         }
                         for level in snapshot.bids[:20]
                     ],
                     "asks": [
                         {
-                            "price": instrument.format_price(
-                                level.price_ticks
-                            ),
-                            "qty": instrument.format_quantity(
-                                level.level_qty_lots
-                            ),
+                            "price": instrument.format_price(level.price_ticks),
+                            "qty": instrument.format_quantity(level.level_qty_lots),
                             "orders": level.order_count,
                         }
                         for level in snapshot.asks[:20]
@@ -1112,6 +1094,7 @@ class ExchangeAPI:
             await websocket.accept()
             connection: Optional[WebSocketConnection] = None
             try:
+
                 async def _register_and_snapshot():
                     snapshot = self.engine.get_market_data_snapshot(normalized)
                     if snapshot is None:
@@ -1286,14 +1269,9 @@ class ExchangeAPI:
                         raise _api_error(
                             422,
                             "ADVANCE_TOO_LARGE",
-                            (
-                                "milliseconds exceeds configured limit "
-                                f"{max_advance}"
-                            ),
+                            ("milliseconds exceeds configured limit " f"{max_advance}"),
                         )
-                    target_time = previous_time + timedelta(
-                        milliseconds=milliseconds
-                    )
+                    target_time = previous_time + timedelta(milliseconds=milliseconds)
 
                 if target_time < previous_time:
                     raise _api_error(
@@ -1306,9 +1284,7 @@ class ExchangeAPI:
 
             try:
                 previous_time, events_processed = (
-                    await self.lifecycle.execute_administrative_advance(
-                        _advance
-                    )
+                    await self.lifecycle.execute_administrative_advance(_advance)
                 )
             except LifecycleError as exc:
                 self._raise_lifecycle_error(exc)
@@ -1333,6 +1309,7 @@ class ExchangeAPI:
         snapshot: MarketDataSnapshot,
     ) -> None:
         """Deliver one immutable payload once to each current subscriber."""
+
         async def _broadcast() -> None:
             message = market_data_message(snapshot).model_dump(mode="json")
             await self.registry.enqueue_market_data(
@@ -1384,11 +1361,7 @@ def create_app(
             "api": "ready",
             "fix_gateway": "disabled",
             "metrics": "ready",
-            "persistence": (
-                "ready"
-                if metrics.persistence is not None
-                else "disabled"
-            ),
+            "persistence": ("ready" if metrics.persistence is not None else "disabled"),
         }
     )
     api.app.state.lifecycle_started = True
