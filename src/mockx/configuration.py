@@ -317,6 +317,64 @@ class SchedulerConfig(StrictConfigModel):
         return value
 
 
+class ITCHConfig(StrictConfigModel):
+    """ITCH 5.0 outbound market-data feed configuration."""
+
+    enabled: StrictBool = False
+    default_market_category: str = " "
+    default_financial_status: str = " "
+    default_round_lot_size: StrictInt = Field(default=100, ge=1)
+
+    @field_validator("default_market_category", "default_financial_status")
+    @classmethod
+    def single_byte(cls, value: str) -> str:
+        if value == " ":
+            return value
+        stripped = value.encode("ascii", errors="replace")
+        if len(stripped) > 1:
+            raise ValueError("Must be at most 1 ASCII byte")
+        return value[0] if value else " "
+
+    @model_validator(mode="after")
+    def require_moldudp64(self) -> "ITCHConfig":
+        return self
+
+
+class MoldUDP64TransportConfig(StrictConfigModel):
+    """MoldUDP64 transport configuration."""
+
+    enabled: StrictBool = False
+    multicast_group: str = "239.192.0.1"
+    multicast_port: StrictInt = Field(ge=1, le=65535)
+    session_name: str = "MOCKX"
+    heartbeat_interval_ms: StrictInt = Field(
+        default=1_000,
+        ge=100,
+        le=60_000,
+    )
+    max_payload_bytes: StrictInt = Field(
+        default=1400,
+        ge=512,
+        le=65507,
+    )
+    interface_address: str = "0.0.0.0"
+    ttl: StrictInt = Field(default=1, ge=0, le=255)
+
+    @field_validator("session_name")
+    @classmethod
+    def valid_session_name(cls, value: str) -> str:
+        name = _nonempty(value, field_name="MoldUDP64 session_name")
+        if len(name.encode("ascii")) > 10:
+            raise ValueError("MoldUDP64 session_name must be at most 10 ASCII bytes")
+        return name
+
+    @model_validator(mode="after")
+    def enabled_requires_port(self) -> "MoldUDP64TransportConfig":
+        if self.enabled and self.multicast_port is None:
+            raise ValueError("multicast_port is required when MoldUDP64 is enabled")
+        return self
+
+
 class WebSocketConfig(StrictConfigModel):
     heartbeat_interval_seconds: float = Field(
         default=10.0,
@@ -530,6 +588,8 @@ class ExchangeConfig(StrictConfigModel):
     cors_origins: tuple[str, ...] = ()
     prometheus: PrometheusConfig = Field(default_factory=PrometheusConfig)
     questdb: Optional[QuestDBConfig] = None
+    itch: Optional[ITCHConfig] = None
+    moldudp64: Optional[MoldUDP64TransportConfig] = None
 
     @field_validator("exchange_name")
     @classmethod
