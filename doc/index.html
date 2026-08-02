@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MockX Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="mockx-docs.css">
+<style>
+  /* Landing-page-specific overrides */
+  .landing-hero { text-align: center; }
+  .landing-hero .h1 { max-width: 100%; margin-left: auto; margin-right: auto; }
+  .landing-hero .lede { margin-left: auto; margin-right: auto; }
+  .landing-hero .arch { justify-content: center; margin-top: 1.5rem; }
+
+  .toc-grid { margin-bottom: 2rem; }
+  .toc-card { position: relative; }
+  .toc-card .toc-icon {
+    font-size: 1.6rem; margin-bottom: 0.6rem; display: block;
+  }
+  .legacy-note {
+    margin-top: 3rem; padding: 1.2rem 1.5rem;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--panel); font-size: 0.84rem; color: var(--text-dim);
+  }
+  .legacy-note a { color: var(--amber); }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <div class="brand">MOCK<em>X</em> // docs</div>
+    <div class="navlinks">
+      <a href="index.html" class="active">Index</a>
+      <a href="mockx-architecture.html">Architecture</a>
+      <a href="mockx-engine.html">Engine</a>
+      <a href="mockx-scheduler.html">Scheduler</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero landing-hero">
+  <div class="wrap">
+    <div class="eyebrow">MockX — a deterministic FIX-speaking mock exchange</div>
+    <h1 class="h1">How <em>MockX</em> works</h1>
+    <p class="lede">
+      Visual documentation for the matching engine, discrete-event scheduler,
+      FIX gateway, lifecycle coordinator, REST API, WebSocket market data, and
+      QuestDB persistence layer. Built from the current Python source code.
+    </p>
+
+    <div class="arch">
+      <div class="arch-node">Client<br><b>FIX / REST</b></div>
+      <div class="arch-link"><span class="arch-dot" style="animation-delay:0s"></span></div>
+      <div class="arch-node accent-lifecycle">Lifecycle<br><b>coordinator</b></div>
+      <div class="arch-link"><span class="arch-dot" style="animation-delay:0.4s"></span></div>
+      <div class="arch-node accent-queue">Scheduler<br><b>event queue</b></div>
+      <div class="arch-link"><span class="arch-dot" style="animation-delay:0.8s"></span></div>
+      <div class="arch-node accent-amber">Engine<br><b>match / fill</b></div>
+      <div class="arch-link"><span class="arch-dot" style="animation-delay:1.2s"></span></div>
+      <div class="arch-node accent-stp">Book<br><b>data / reports</b></div>
+      <div class="arch-link"><span class="arch-dot" style="animation-delay:1.6s"></span></div>
+      <div class="arch-node accent-bid">Delivery<br><b>FIX / WS</b></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="h2">Documentation pages</h2>
+        <p class="lede">
+          Three pages cover the system from high-level architecture to the
+          finest detail of matching and scheduling. Each page includes interactive
+          diagrams, animated walkthroughs, and source-file references.
+        </p>
+      </div>
+
+      <div class="toc-grid">
+        <a class="toc-card" href="mockx-architecture.html">
+          <span class="toc-icon">&#127970;</span>
+          <span class="tag tag-lifecycle toc-tag">Page 1</span>
+          <h3>System Architecture</h3>
+          <p>
+            High-level component map, exchange lifecycle state machine,
+            two-clock design, FIX ingress pipeline, REST and WebSocket
+            surface, run generation and identifiers, and the dual clock-mode
+            design (external vs. realtime).
+          </p>
+          <div class="toc-modules">
+            Sources: lifecycle.py &middot; gateway.py &middot; api.py &middot; configuration.py &middot; identifiers.py
+          </div>
+        </a>
+
+        <a class="toc-card" href="mockx-engine.html">
+          <span class="toc-icon">&#9881;</span>
+          <span class="tag tag-amber toc-tag">Page 2</span>
+          <h3>Matching Engine & Order Book</h3>
+          <p>
+            Order state machine, submit&#8594;process execution path,
+            price-time-priority matching loop, self-trade prevention,
+            remainder finalization, cancel resolution, book-level
+            strategy/market accounting, and invariant checks.
+          </p>
+          <div class="toc-modules">
+            Sources: engine.py &middot; models.py &middot; instruments.py &middot; validation.py
+          </div>
+        </a>
+
+        <a class="toc-card" href="mockx-scheduler.html">
+          <span class="toc-icon">&#9200;</span>
+          <span class="tag tag-queue toc-tag">Page 3</span>
+          <h3>Scheduler, Timing & Delivery</h3>
+          <p>
+            Discrete-event min-heap queue, new-order and cancel scheduling
+            pipelines, FIX ingress sequencing, outbound delivery queue
+            (5-state lifecycle), WebSocket market-data streaming, fail-stop
+            behavior, and advancement safety.
+          </p>
+          <div class="toc-modules">
+            Sources: latency.py &middot; delivery.py &middot; websocket_delivery.py &middot; questdb_writer.py &middot; metrics.py
+          </div>
+        </a>
+      </div>
+
+      <div class="section-head" style="margin-top: 1.5rem;">
+        <p class="lede">
+          Each page can be read independently. Start with the Architecture page
+          if you're new to MockX, or jump directly to the Engine or Scheduler
+          page for deep dives into specific subsystems.
+        </p>
+      </div>
+
+      <div class="legacy-note">
+        <p>
+          <strong>Legacy reference:</strong>
+          <a href="mockx-engine-scheduler.html">mockx-engine-scheduler.html</a>
+          documents an older version of the matching engine and scheduler.
+          It remains available for historical reference but does not reflect
+          the current implementation. See
+          <a href="CHANGELOG.md">CHANGELOG.md</a> for a detailed list of
+          differences.
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>
+    Built from the current MockX Python source tree. All diagrams and
+    explanations are verified against <code>src/mockx/</code> and the test suite.
+    Source references use the format <code>module.py:line</code>.
+  </p>
+</footer>
+
+</body>
+</html>

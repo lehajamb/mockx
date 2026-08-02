@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matching Engine & Order Book — MockX Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="mockx-docs.css">
+<style>
+  .exec-flow { counter-reset: step; }
+  .exec-step {
+    display: flex; gap: 0.8rem; align-items: flex-start; padding: 0.55rem 0;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 0.84rem;
+  }
+  .exec-step:last-child { border-bottom: none; }
+  .exec-step::before {
+    counter-increment: step;
+    content: counter(step);
+    width: 24px; height: 24px; border-radius: 50%; flex: none;
+    background: var(--amber-dim); border: 1px solid rgba(245,185,66,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 0.68rem; color: var(--amber);
+    margin-top: 0.05rem;
+  }
+  .exec-desc { color: var(--text-dim); }
+  .exec-desc b { color: var(--text); }
+
+  .transition-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 0.7rem; margin-top: 1rem;
+  }
+  .transition-card {
+    border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 0.9rem;
+    background: var(--panel-2); font-size: 0.8rem;
+  }
+  .transition-card .from-to {
+    font-family: var(--mono); font-size: 0.82rem; margin-bottom: 0.3rem; color: var(--text);
+  }
+  .transition-card .trigger { color: var(--amber); font-family: var(--mono); font-size: 0.72rem; }
+  .transition-card .desc { color: var(--text-dim); font-size: 0.78rem; margin-top: 0.2rem; }
+
+  .book-nav { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .book-nav-btn {
+    font-family: var(--mono); font-size: 0.7rem; padding: 0.35rem 0.7rem; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text-dim);
+    cursor: pointer; transition: all var(--t-fast) var(--ease);
+  }
+  .book-nav-btn:hover { border-color: var(--amber); }
+  .book-nav-btn.active { border-color: var(--amber); background: var(--amber-dim); color: var(--amber); }
+
+  .legend-bar {
+    display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 0.8rem;
+    font-family: var(--mono); font-size: 0.66rem; color: var(--text-faint);
+  }
+  .legend-bar span { display: inline-flex; align-items: center; gap: 0.3rem; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .legend-dot.strat { background: var(--queue); }
+  .legend-dot.market { background: var(--text-faint); }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <div class="brand">MOCK<em>X</em> // docs</div>
+    <div class="navlinks">
+      <a href="index.html">Index</a>
+      <a href="mockx-architecture.html">Architecture</a>
+      <a href="mockx-engine.html" class="active">Engine</a>
+      <a href="mockx-scheduler.html">Scheduler</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Page 2 — Matching engine and order book internals</div>
+    <h1 class="h1">Price-time priority in <em>integer ticks</em></h1>
+    <p class="lede">
+      Every authoritative calculation in <code class="ref">MatchingEngine</code> uses
+      exact integers (ticks for price, lots for quantity). From <b>submit</b> through
+      <b>match</b>, <b>fill</b>, and <b>report</b>, no floating-point operation touches
+      an order's quantity or price.
+    </p>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= ORDER STATE MACHINE ================= -->
+<section class="section" id="order-states">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-amber">2.1</span>
+      <h2 class="h2">Order state machine</h2>
+      <p class="lede">
+        Every order moves through a strictly validated lifecycle. The <code class="ref">ORDER_STATE_TRANSITIONS</code>
+        table in <code class="ref">models.py:126-147</code> defines all legal transitions. Any attempt
+        outside this table raises <code class="ref">InvalidOrderTransition</code>. Click each state
+        to see its meaning and valid outgoing transitions.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="state-machine" id="orderStates">
+        <div class="state-list"></div>
+        <div class="state-detail">
+          <h4>Select a state</h4>
+          <p>Click any state on the left to see its transitions and behavior.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="transition-grid">
+      <div class="transition-card">
+        <div class="from-to">PENDING_NEW → NEW</div>
+        <div class="trigger">Trigger: _finalize_unfilled_remainder()</div>
+        <div class="desc">A GTC limit with zero fills rests in the book. One NEW Execution Report is published.</div>
+      </div>
+      <div class="transition-card">
+        <div class="from-to">PENDING_NEW → PARTIAL</div>
+        <div class="trigger">Trigger: apply_fill() in matching loop</div>
+        <div class="desc">GTC limit partially fills. No separate NEW report — the TRADE reports are the acknowledgment.</div>
+      </div>
+      <div class="transition-card">
+        <div class="from-to">PENDING_NEW → FILLED</div>
+        <div class="trigger">Trigger: apply_fill() exhausts order</div>
+        <div class="desc">All quantity filled in matching. Terminal state.</div>
+      </div>
+      <div class="transition-card">
+        <div class="from-to">PENDING_NEW → REJECTED</div>
+        <div class="trigger">Trigger: RNG reject check</div>
+        <div class="desc">Simulated rejection based on reject_prob. One REJECTED Execution Report.</div>
+      </div>
+      <div class="transition-card">
+        <div class="from-to">PENDING_NEW → CANCELLED</div>
+        <div class="trigger">Trigger: cancel_order() before processed</div>
+        <div class="desc">Cancel arrives before process_order fires. Order removed without ever touching the book.</div>
+      </div>
+      <div class="transition-card">
+        <div class="from-to">NEW/PARTIAL → CANCELLED</div>
+        <div class="trigger">Trigger: cancel_order() or STP</div>
+        <div class="desc">Resting or partially filled order cancelled by request or self-trade prevention.</div>
+      </div>
+    </div>
+    <div class="source-ref">
+      State machine: <code>models.py:126-147</code>. <code>Order.validate_transition_to()</code>: <code>models.py:613-619</code>.
+      Terminal states: <code>models.py:119-123</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= SUBMIT → PROCESS PATH ================= -->
+<section class="section" id="submit-process">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-amber">2.2</span>
+      <h2 class="h2">submit → process: the two-phase handoff</h2>
+      <p class="lede">
+        <code class="ref">submit_order()</code> creates the order and schedules deferred
+        processing through the scheduler. <code class="ref">process_order()</code> is called
+        later by the scheduler and contains all matching logic. Between the two, a cancel
+        can still take effect.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="exec-flow">
+        <div class="exec-step">
+          <div class="exec-desc">
+            <b><code class="ref">submit_order(NewOrderCommand)</code></b>
+            Validates the command, creates an <code class="ref">Order</code> with <code>status=PENDING_NEW</code>,
+            <code>version=0</code>, <code>processed=False</code>. Assigns <code>order.id</code> (internal)
+            and <code>exchange_order_id</code> (public G{gen}-O{counter}). Registers in
+            <code>self.orders</code> and <code>self.client_order_index</code>.
+            <span class="src">engine.py:120-187</span>
+          </div>
+        </div>
+        <div class="exec-step">
+          <div class="exec-desc">
+            <b>Schedule two events via <code class="ref">scheduler.schedule_order_processing()</code></b>
+            <code class="ref g">order_arrived</code> at T+inbound (observability only, never touches the book).
+            <code class="ref a">order_process</code> at T+inbound+engine (calls <code>engine.process_order()</code>).
+            Each carries a <code class="ref">ProcessOrderCommand(order_id, expected_version)</code>.
+            <span class="src">engine.py:170-179, latency.py:311-345</span>
+          </div>
+        </div>
+        <div class="exec-step">
+          <div class="exec-desc">
+            <b>Cancel window</b> — Between submission and processing, a <code class="ref">cancel_order()</code>
+            arriving before the scheduled <code class="ref">order_process</code> event can successfully cancel
+            the order. The cancel increments <code>order.version</code> to 1, so when the stale
+            <code class="ref">order_process</code> (expected_version=0) fires, it detects the version mismatch
+            and drops the processing attempt.
+            <span class="src">engine.py:189-203, 799</span>
+          </div>
+        </div>
+        <div class="exec-step">
+          <div class="exec-desc">
+            <b><code class="ref">process_order(ProcessOrderCommand)</code></b>
+            Guards: order exists, version matches command, status is PENDING_NEW, not yet processed.
+            Then: RNG reject check → if rejected, calls <code>_reject_order()</code>.
+            Otherwise: <code>_run_matching()</code> → <code>_finalize_unfilled_remainder()</code> →
+            <code>book.assert_invariants()</code> → <code>_send_market_data_update()</code>.
+            <span class="src">engine.py:189-228</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="source-ref">
+      Order creation and scheduling: <code>engine.py:120-187</code>.
+      Processing: <code>engine.py:189-228</code>.
+      Version-based cancel protection: <code>engine.py:197-203</code>, <code>:799</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= MATCHING DEMO ================= -->
+<section class="section" id="matching-demo">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-amber">2.3</span>
+      <h2 class="h2">Matching loop walkthrough</h2>
+      <p class="lede">
+        A BUY 100 @ 100.25 GTC sweeps three ask levels. Each fill produces
+        <b>two execution reports — passive first, aggressor second —</b> before the next
+        fill is computed. The loop stops the instant <code class="ref">remaining_qty</code> hits zero.
+      </p>
+    </div>
+
+    <div class="book-nav">
+      <button class="book-nav-btn active" id="demoScenario1">GTC sweep (3 fills)</button>
+      <button class="book-nav-btn" id="demoScenario2">IOC remainder</button>
+      <button class="book-nav-btn" id="demoScenario3">Unfilled GTC rests</button>
+    </div>
+
+    <div class="panel book" id="matchingPanel">
+      <div class="book-incoming" id="bookIncoming">
+        <span class="tag tag-amber">Incoming</span>
+        <span id="incomingDesc">BUY 100 @ 100.25 · GTC · ORD-100</span>
+        <span class="book-remaining">remaining <b id="remQty">100</b></span>
+      </div>
+
+      <div class="book-grid">
+        <div class="book-side book-bids">
+          <div class="book-side-label">bids</div>
+          <div class="level bid"><div class="level-head"><span class="price">99.90</span><span class="qty-total">1 order</span></div></div>
+          <div class="level bid"><div class="level-head"><span class="price">99.80</span><span class="qty-total">1 order</span></div></div>
+        </div>
+
+        <div class="book-spread">
+          <div>best bid<b>99.90</b></div>
+          <div class="spread-line"></div>
+          <div>best ask<b id="bestAsk">100.10</b></div>
+        </div>
+
+        <div class="book-side book-asks">
+          <div class="book-side-label">asks — price-time FIFO</div>
+          <div class="level ask" id="lvl-10010">
+            <div class="level-head"><span class="price">100.10</span><span class="qty-total">40 total</span></div>
+            <div class="chips"><span class="chip" id="chip-A">A · <b>40</b></span></div>
+          </div>
+          <div class="level ask" id="lvl-10020">
+            <div class="level-head"><span class="price">100.20</span><span class="qty-total">80 total</span></div>
+            <div class="chips">
+              <span class="chip" id="chip-B">B · <b>30</b></span>
+              <span class="chip" id="chip-C">C · <b>50</b></span>
+            </div>
+          </div>
+          <div class="level ask" id="lvl-10030">
+            <div class="level-head"><span class="price">100.30</span><span class="qty-total">60 total</span></div>
+            <div class="chips"><span class="chip" id="chip-D">D · <b>60</b></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="book-feed" id="bookFeed">
+        <p class="pq-log-empty">Press run to sweep the book.</p>
+      </div>
+
+      <div class="book-summary" id="bookSummary">status <b>PENDING_NEW</b> · cumQty <b>0</b> · avgPx <b>—</b></div>
+
+      <div class="controls">
+        <button class="btn primary" id="matchRun">▶ Run match</button>
+        <button class="btn" id="matchReset">Reset</button>
+        <button class="btn" id="matchStep" disabled>⏭ Step</button>
+        <span class="speed-control">
+          Speed <input type="range" id="speedSlider" min="1" max="5" value="3" aria-label="Animation speed">
+        </span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i class="dot dot-amber"></i> Aggressor fill</span>
+      <span><i class="dot dot-bid"></i> Passive fill report</span>
+      <span><i class="dot dot-queue"></i> Aggressor fill report</span>
+    </div>
+    <div class="source-ref">
+      Matching loop: <code>engine.py:331-453 (_match_aggressive_order)</code>.
+      Passive-first reports: <code>engine.py:430-449</code>.
+      Price-time priority with FIFO: <code>engine.py:341-356</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= REMAINDER RULES ================= -->
+<section class="section" id="remainders">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag">2.4</span>
+      <h2 class="h2">Remainder finalization rules</h2>
+      <p class="lede">
+        After matching exhausts the book or the aggressor's price limit, any leftover
+        quantity is resolved by <code class="ref">_finalize_unfilled_remainder()</code>.
+      </p>
+    </div>
+
+    <div class="rule-grid">
+      <div class="rule-card">
+        <span class="tag tag-ask">Market or IOC</span>
+        <h4>Remainder is canceled outright</h4>
+        <p>Market orders never rest, and IOC means immediate-or-cancel. Whatever quantity didn't fill immediately is canceled and reported as CANCELED — no trace left in the book.</p>
+        <p class="source-ref">engine.py:464-483</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-bid">GTC, nothing filled</span>
+        <h4>Rests, with one NEW report</h4>
+        <p>A wholly unfilled GTC limit order joins its price level with <code class="ref">book.add_order()</code> and gets a single <code class="ref">ExecutionType.NEW</code> report acknowledging it's live.</p>
+        <p class="source-ref">engine.py:485-507</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-bid">GTC, partially filled</span>
+        <h4>Rests silently</h4>
+        <p>The TRADE/PARTIAL reports already sent during matching are the acknowledgment — no extra NEW report follows the fills. The remainder simply rests.</p>
+        <p class="source-ref">engine.py:488-507</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SELF-TRADE PREVENTION ================= -->
+<section class="section" id="stp">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-stp">2.5</span>
+      <h2 class="h2">Self-trade prevention (STP)</h2>
+      <p class="lede">
+        Every order carries an immutable <code class="ref">participant_id</code>. When an
+        aggressor encounters a passive order with the same participant, MockX cancels
+        <b>both complete remainders</b>, records no trade, emits two cancellation reports
+        (passive first, then aggressor), and stops matching that aggressor.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="stp-viz">
+        <div class="stp-viz-grid">
+          <div class="stp-viz-side aggressor">
+            <h4>Aggressor (BUY) — same participant</h4>
+            <div class="stp-viz-detail" id="stpAggressor">
+              <div class="status-line">status: <b>PENDING_NEW</b></div>
+              <div class="status-line">qty: <b>100</b> lots</div>
+              <div class="status-line">participant: <b>trader-5</b></div>
+              <div class="status-line">fills already: <b>0</b></div>
+            </div>
+          </div>
+          <div class="stp-viz-side passive">
+            <h4>Passive (SELL) — same participant</h4>
+            <div class="stp-viz-detail" id="stpPassive">
+              <div class="status-line">status: <b>NEW</b></div>
+              <div class="status-line">qty: <b>40</b> lots resting</div>
+              <div class="status-line">participant: <b>trader-5</b></div>
+              <div class="status-line">price: <b>100.10</b> (40 lots)</div>
+            </div>
+          </div>
+        </div>
+        <div class="stp-viz-result" id="stpResult">
+          STP triggered: both orders cancelled. No trade recorded. 40 lots prevented.
+        </div>
+      </div>
+      <div class="controls" style="margin-top:1.2rem;">
+        <button class="btn primary" id="stpRun">▶ Trigger STP</button>
+        <button class="btn" id="stpReset">Reset</button>
+      </div>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout">
+        <h4><span class="tag tag-stp">Cancellation semantics</span></h4>
+        <p>Passive order's complete remainder is canceled. Aggressor's complete remainder is canceled. Both emit CANCELED Execution Reports with text: <code class="ref">SELF_TRADE_PREVENTION: canceled passive and aggressor; prevented_qty=<qty></code>.</p>
+      </div>
+      <div class="callout">
+        <h4><span class="tag tag-stp">Earlier third-party fills preserved</span></h4>
+        <p>If the aggressor had already filled against other participants before encountering its own, those fills remain in cumulative quantity and average price. STP only cancels what remains.</p>
+      </div>
+    </div>
+    <div class="source-ref">
+      STP check: <code>engine.py:274-276 (_is_self_cross)</code>.
+      STP execution: <code>engine.py:278-329 (_prevent_self_trade)</code>.
+      Called during matching: <code>engine.py:361-368</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= CANCEL RESOLUTION ================= -->
+<section class="section" id="cancel-resolution">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-delivery">2.6</span>
+      <h2 class="h2">Cancel resolution</h2>
+      <p class="lede">
+        <code class="ref">cancel_order()</code> resolves against <b>authoritative engine state</b>
+        at execution time, not a snapshot taken in the FIX callback. The cancel can affect
+        pending (not yet processed) and resting (NEW/PARTIAL) orders.
+      </p>
+    </div>
+
+    <div class="panel">
+      <table class="compare-table">
+        <thead>
+          <tr><th>Condition</th><th>Result</th><th>CancelRejectReason</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Order unknown to the session</td>
+            <td>CancelReject</td>
+            <td><code class="ref">UNKNOWN_ORDER</code></td>
+          </tr>
+          <tr>
+            <td>Order belongs to a different session</td>
+            <td>CancelReject</td>
+            <td><code class="ref">SESSION_MISMATCH</code></td>
+          </tr>
+          <tr>
+            <td>Order already CANCELLED</td>
+            <td>CancelReject</td>
+            <td><code class="ref">ALREADY_CANCELED</code></td>
+          </tr>
+          <tr>
+            <td>Order already FILLED or REJECTED</td>
+            <td>CancelReject</td>
+            <td><code class="ref">TOO_LATE_TO_CANCEL</code></td>
+          </tr>
+          <tr>
+            <td>Duplicate cancel ClOrdID in session</td>
+            <td>CancelReject</td>
+            <td><code class="ref">INVALID_REQUEST</code> (DUPLICATE_REQUEST)</td>
+          </tr>
+          <tr>
+            <td>Stale run_generation</td>
+            <td>CancelReject</td>
+            <td><code class="ref">INVALID_REQUEST</code> (STALE_RUN_GENERATION)</td>
+          </tr>
+          <tr>
+            <td>Pending (not yet processed) — cancelable</td>
+            <td>Cancel accepted → CANCELLED report</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>Resting (NEW/PARTIAL) — cancelable</td>
+            <td>Remove from book → CANCELLED report</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:0.8rem; color:var(--text-dim); font-size:0.82rem;">
+        A successful cancel <b>increments <code class="ref">order.version</code></b>.
+        Any already-queued stale <code class="ref">order_process</code> event carrying the old
+        version will be dropped when it fires, because <code class="ref">expected_version != order.version</code>.
+        <span class="source-ref">engine.py:197-203, 799</span>
+      </p>
+    </div>
+
+    <div class="notes">
+      <div><span class="c">// </span>Cancel resolution: <code>engine.py:670-862 (_cancel_order_impl)</code></div>
+      <div><span class="c">// </span>All six <code>CancellationOutcome</code> values: <code>models.py:80-88</code></div>
+      <div><span class="c">// </span>Cancel-reject creation: <code>models.py create_cancel_reject()</code></div>
+      <div><span class="c">// </span>Version bump on successful cancel: <code>engine.py:799</code></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BOOK LEVEL ACCOUNTING ================= -->
+<section class="section" id="book-accounting">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag">2.7</span>
+      <h2 class="h2">Price-level accounting</h2>
+      <p class="lede">
+        Each <code class="ref">BookLevel</code> tracks three aggregate quantities:
+        <b>total level quantity</b>, <b>strategy quantity</b>, and <b>market quantity</b>.
+        The category is determined at order creation by the session alias and is immutable
+        for the order's lifetime — resting quantities never move between accounting categories
+        after placement.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div style="margin-bottom: 1rem;">
+        <span class="tag tag-queue" style="margin-right:0.5rem;">Strategy</span>
+        <span style="color:var(--text-dim); font-size:0.82rem;">Orders from sessions with alias <code class="ref">strategy_bot</code> → <code class="ref">LiquidityCategory.STRATEGY</code></span>
+      </div>
+      <div style="margin-bottom: 1rem;">
+        <span class="tag" style="margin-right:0.5rem;">Market</span>
+        <span style="color:var(--text-dim); font-size:0.82rem;">All other sessions → <code class="ref">LiquidityCategory.MARKET</code></span>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr><th>BookLevel field</th><th>Description</th><th>Guaranteed invariant</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code class="ref">level_qty_lots</code></td><td>Total lots at this price</td><td>= strategy_qty_lots + market_qty_lots</td></tr>
+          <tr><td><code class="ref">strategy_qty_lots</code></td><td>Lots from strategy sessions</td><td>≥ 0, non-decreasing on add</td></tr>
+          <tr><td><code class="ref">market_qty_lots</code></td><td>Lots from market sessions</td><td>≥ 0, non-decreasing on add</td></tr>
+          <tr><td><code class="ref">orders</code></td><td>FIFO deque of live orders</td><td>Every order: status in {NEW, PARTIAL}, correct price/side, positive leaves</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout">
+        <h4><span class="tag">Assertions on every mutation</span></h4>
+        <p><code class="ref">BookLevel._updated_aggregates()</code> verifies that level_qty = strategy_qty + market_qty before and after every fill, add, remove, or STP decrement. <code class="ref">assert_invariants()</code> walks all orders and recomputes totals from scratch.</p>
+      </div>
+      <div class="callout">
+        <h4><span class="tag">Best bid < best ask</span></h4>
+        <p><code class="ref">OrderBook.assert_invariants()</code> verifies this at the end of every <code class="ref">process_order()</code> call. A crossed or locked book raises <code class="ref">OrderBookInvariantError</code>.</p>
+      </div>
+    </div>
+    <div class="source-ref">
+      <code>BookLevel</code>: <code>models.py:774-993</code>. <code>OrderBook</code>: <code>models.py:996-1350</code>.
+      Liquidity category: <code>models.py:207-213</code>. <code>LiquidityCategory</code> enum: <code>models.py:163-168</code>.
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>Built from <code>src/mockx/engine.py</code>, <code>models.py</code>, <code>instruments.py</code>, and <code>validation.py</code>.</p>
+</footer>
+
+<script src="mockx-docs.js"></script>
+<script>
+(function(){
+  "use strict";
+  const M = window.MockX;
+
+  /* ---------- Order state machine ---------- */
+  const ORDER_STATES = [
+    { key: "PENDING_NEW", name: "PENDING_NEW", terminal: false,
+      desc: "Order created but not yet processed by the engine. Cancelable. Transitions to: NEW, PARTIAL, FILLED, REJECTED, CANCELLED.",
+      source: "models.py:20" },
+    { key: "NEW", name: "NEW", terminal: false,
+      desc: "GTC limit order resting in the book with zero fills. Cancelable. Transitions to: PARTIAL, FILLED, CANCELLED.",
+      source: "models.py:21" },
+    { key: "PARTIAL", name: "PARTIAL", terminal: false,
+      desc: "GTC limit order with some fills, still resting. Cancelable. Transitions to: PARTIAL (more fills), FILLED, CANCELLED.",
+      source: "models.py:22" },
+    { key: "FILLED", name: "FILLED", terminal: true,
+      desc: "All quantity filled. Terminal — no further transitions possible. Cannot be canceled.",
+      source: "models.py:23" },
+    { key: "REJECTED", name: "REJECTED", terminal: true,
+      desc: "Rejected by RNG during process_order. Terminal. Contains reject_reason text.",
+      source: "models.py:24" },
+    { key: "CANCELLED", name: "CANCELLED", terminal: true,
+      desc: "Canceled by request, STP, or market/IOC remainder. Terminal. No quantity left in book.",
+      source: "models.py:25" },
+  ];
+
+  M.installStateMachine("orderStates", ORDER_STATES, function(s, detail) {
+    detail.innerHTML = "<h4>" + s.name + "</h4><p>" + s.desc + "</p><p class='source-ref'>" + s.source + "</p>";
+  });
+
+  /* ---------- Matching engine demo ---------- */
+  const remQtyEl = document.getElementById("remQty");
+  const bestAskEl = document.getElementById("bestAsk");
+  const bookFeed = document.getElementById("bookFeed");
+  const bookSummary = document.getElementById("bookSummary");
+  const matchRunBtn = document.getElementById("matchRun");
+  const matchResetBtn = document.getElementById("matchReset");
+  const matchStepBtn = document.getElementById("matchStep");
+  const speedSlider = document.getElementById("speedSlider");
+  const incomingDesc = document.getElementById("incomingDesc");
+
+  const lvl10010 = document.getElementById("lvl-10010");
+  const lvl10020 = document.getElementById("lvl-10020");
+  const lvl10030 = document.getElementById("lvl-10030");
+
+  const chips = {
+    A: document.getElementById("chip-A"),
+    B: document.getElementById("chip-B"),
+    C: document.getElementById("chip-C"),
+    D: document.getElementById("chip-D"),
+  };
+
+  let speedMultiplier = 1;
+  speedSlider.addEventListener("input", function() { speedMultiplier = parseInt(this.value); });
+
+  function spWait(ms) { return M.wait(ms / speedMultiplier); }
+
+  function feedLine(tagText, tagClass, text) { M.logLine(bookFeed, tagText, tagClass, text); }
+
+  const DEFAULT_INITIAL = { A: 40, B: 30, C: 50, D: 60 };
+  let currentInitial = Object.assign({}, DEFAULT_INITIAL);
+
+  function resetBookDisplay(initial) {
+    currentInitial = Object.assign({}, initial);
+    lvl10010.classList.remove("gone");
+    lvl10010.style.maxHeight = "";
+    lvl10020.classList.remove("gone");
+    lvl10020.style.maxHeight = "";
+    lvl10020.querySelector(".qty-total").textContent =
+      (initial.B + initial.C) + " total";
+    lvl10030.classList.remove("gone");
+    lvl10030.style.maxHeight = "";
+
+    Object.keys(chips).forEach(k => {
+      const chip = chips[k];
+      chip.classList.remove("gone", "hit");
+      const b = chip.querySelector("b");
+      if (b) b.textContent = initial[k];
+      chip.style.maxWidth = "";
+      chip.style.padding = "";
+      chip.style.margin = "";
+      chip.style.opacity = "";
+      chip.style.transform = "";
+    });
+  }
+
+  function resetMatchDisplay(desc, initial, qty) {
+    incomingDesc.textContent = desc;
+    remQtyEl.textContent = String(qty);
+    bestAskEl.textContent = "100.10";
+    M.resetLogFeed(bookFeed, "Press run to sweep the book.");
+    bookSummary.innerHTML = "status <b>PENDING_NEW</b> · cumQty <b>0</b> · avgPx <b>—</b>";
+    resetBookDisplay(initial);
+  }
+
+  async function fillChip(key, matchQty, remainingAfter) {
+    const chip = chips[key];
+    chip.classList.add("hit");
+    await spWait(220);
+    const b = chip.querySelector("b");
+    if (b) b.textContent = remainingAfter;
+    if (remainingAfter <= 0) {
+      await spWait(180);
+      chip.classList.add("gone");
+    } else {
+      await spWait(150);
+      chip.classList.remove("hit");
+    }
+  }
+
+  async function runMatchingScenario(scenario) {
+    let initial, desc, orderQty, orderPrice, orderTif;
+
+    if (scenario === "gtc") {
+      initial = { A: 40, B: 30, C: 50, D: 60 };
+      desc = "BUY 100 @ 100.25 · GTC · ORD-100";
+      orderQty = 100; orderPrice = 100.25; orderTif = "GTC";
+    } else if (scenario === "ioc") {
+      initial = { A: 40, B: 30, C: 50, D: 60 };
+      desc = "BUY 200 @ 100.25 · IOC · ORD-200";
+      orderQty = 200; orderPrice = 100.25; orderTif = "IOC";
+    } else {
+      initial = { A: 40, B: 30, C: 50, D: 60 };
+      desc = "SELL 30 @ 99.85 · GTC · ORD-300";
+      orderQty = 30; orderPrice = 99.85; orderTif = "GTC";
+    }
+
+    resetMatchDisplay(desc, initial, orderQty);
+    matchRunBtn.disabled = true;
+    matchStepBtn.disabled = true;
+
+    let remaining = orderQty;
+    let cumQty = 0;
+    let notional = 0;
+
+    if (scenario === "gtc") {
+      // Fill 1: A, 40 @ 100.10
+      feedLine("T+15", "a", "100.10 ≤ 100.25 → crosses. Matching head of FIFO: Order A.");
+      await spWait(400);
+      let matchQty = Math.min(remaining, 40);
+      await fillChip("A", matchQty, 40 - matchQty);
+      remaining -= matchQty; cumQty += matchQty; notional += matchQty * 100.10;
+      remQtyEl.textContent = remaining; M.pulse(remQtyEl);
+      feedLine("FILL", "a", matchQty + " @ 100.10 — Order A <b>FILLED</b>, level exhausted.");
+      feedLine("→ A report", "g", "TRADE · cumQty 40 · <b>FILLED</b> (passive first)");
+      feedLine("→ ORD-100", "", "TRADE · cumQty " + cumQty + " · <b>PARTIAL</b> (aggressor second)");
+      await spWait(250);
+      lvl10010.style.maxHeight = lvl10010.scrollHeight + "px";
+      void lvl10010.offsetHeight;
+      lvl10010.classList.add("gone");
+      lvl10010.style.maxHeight = "0px";
+      bestAskEl.textContent = "100.20"; M.pulse(bestAskEl);
+      await spWait(500);
+
+      // Fill 2: B, 30 @ 100.20
+      feedLine("T+15", "a", "100.20 ≤ 100.25 → crosses. FIFO head: Order B.");
+      await spWait(350);
+      matchQty = Math.min(remaining, 30);
+      await fillChip("B", matchQty, 30 - matchQty);
+      remaining -= matchQty; cumQty += matchQty; notional += matchQty * 100.20;
+      remQtyEl.textContent = remaining; M.pulse(remQtyEl);
+      feedLine("FILL", "a", matchQty + " @ 100.20 — Order B <b>FILLED</b>.");
+      feedLine("→ B report", "g", "TRADE · cumQty 30 · <b>FILLED</b>");
+      feedLine("→ ORD-100", "", "TRADE · cumQty " + cumQty + " · <b>PARTIAL</b>");
+      lvl10020.querySelector(".qty-total").textContent = "50 total";
+      await spWait(500);
+
+      // Fill 3: C, 30 of 50 @ 100.20
+      feedLine("T+15", "a", "Level 100.20 survives → continue FIFO to Order C.");
+      await spWait(350);
+      matchQty = Math.min(remaining, 50);
+      await fillChip("C", matchQty, 50 - matchQty);
+      remaining -= matchQty; cumQty += matchQty; notional += matchQty * 100.20;
+      remQtyEl.textContent = remaining; M.pulse(remQtyEl);
+      lvl10020.querySelector(".qty-total").textContent = (50 - matchQty) + " total";
+      feedLine("FILL", "a", matchQty + " @ 100.20 — Order C <b>PARTIAL</b>, 20 left.");
+      feedLine("→ C report", "g", "TRADE · cumQty 30 · <b>PARTIAL</b>");
+      feedLine("→ ORD-100", "", "TRADE · cumQty " + cumQty + " · <b>FILLED</b>");
+      await spWait(400);
+
+      feedLine("T+15", "a", "remaining_qty=0 → loop ends. GTC, filled → no remainder action.");
+      await spWait(300);
+      var avgPx = (notional / cumQty).toFixed(2);
+      bookSummary.innerHTML = "status <b class='status-filled'>FILLED</b> · cumQty <b>" + cumQty + "</b> · avgPx <b>" + avgPx + "</b>";
+
+    } else if (scenario === "ioc") {
+      // Same fills but order exhausts book with remainder
+      feedLine("T+15", "a", "100.10 ≤ 100.25 → crosses. Matching Order A.");
+      await spWait(350);
+      let m = Math.min(remaining, 40);
+      await fillChip("A", m, 40 - m);
+      remaining -= m; cumQty += m; notional += m * 100.10;
+      remQtyEl.textContent = remaining; M.pulse(remQtyEl);
+      feedLine("FILL", "a", m + " @ 100.10 — Order A FILLED, level 100.10 exhausted.");
+      lvl10010.classList.add("gone");
+      bestAskEl.textContent = "100.20"; M.pulse(bestAskEl);
+      await spWait(400);
+
+      feedLine("T+15", "a", "100.20 ≤ 100.25 → crosses. Order B.");
+      await spWait(300);
+      m = Math.min(remaining, 30);
+      await fillChip("B", m, 30 - m);
+      remaining -= m; cumQty += m; notional += m * 100.20;
+      remQtyEl.textContent = remaining; M.pulse(remQtyEl);
+      feedLine("FILL", "a", m + " @ 100.20 — Order B FILLED.");
+      lvl10020.querySelector(".qty-total").textContent = "50 total";
+      await spWait(350);
+
+      feedLine("T+15", "a", "Order C.");
+      await spWait(250);
+      m = Math.min(remaining, 50);
+      await fillChip("C", m, 50 - m);
+      remaining -= m; cumQty += m; notional += m * 100.20;
+      remQtyEl.textContent = remaining; M.pulse(remQtyEl);
+      lvl10020.querySelector(".qty-total").textContent = (50 - m) + " total";
+      feedLine("FILL", "a", m + " @ 100.20 — Order C FILLED, level 100.20 exhausted.");
+      lvl10020.classList.add("gone");
+      bestAskEl.textContent = "100.30"; M.pulse(bestAskEl);
+      await spWait(400);
+
+      feedLine("T+15", "a", "100.30 > 100.25 → price limit reached. Stop.");
+      await spWait(300);
+      feedLine("IOC", "", "remaining_qty=" + remaining + " → IOC remainder canceled.");
+      feedLine("→ ORD-200", "g", "CANCELED · " + remaining + " lots unexecuted · <b>CANCELLED</b>");
+      var avgPx = notional > 0 ? (notional / cumQty).toFixed(2) : "—";
+      bookSummary.innerHTML = "status <b>CANCELLED</b> · cumQty <b>" + cumQty + "</b> · canceledQty <b>" + remaining + "</b> · avgPx <b>" + avgPx + "</b>";
+
+    } else {
+      // Scenario 3: SELL 30 @ 99.85 — crosses nothing
+      feedLine("T+15", "a", "Best bid 99.90 < 99.85 → does not cross. No fills.");
+      await spWait(400);
+      feedLine("NEW", "g", "GTC, zero fills → rests as NEW. One NEW report.");
+      await spWait(300);
+      feedLine("▸", "", "Order 300 rests at 99.85 on the ask side.");
+      bookSummary.innerHTML = "status <b>NEW</b> · cumQty <b>0</b> · resting <b>" + orderQty + " @ 99.85</b>";
+    }
+
+    matchRunBtn.disabled = false;
+    matchStepBtn.disabled = false;
+  }
+
+  // Current active scenario — set by the scenario nav buttons
+  let currentScenario = "gtc";
+
+  matchRunBtn.addEventListener("click", () => runMatchingScenario(currentScenario));
+
+  function resetForScenario(scenario) {
+    if (scenario === "gtc") {
+      resetMatchDisplay("BUY 100 @ 100.25 · GTC · ORD-100", DEFAULT_INITIAL, 100);
+    } else if (scenario === "ioc") {
+      resetMatchDisplay("BUY 200 @ 100.25 · IOC · ORD-200", DEFAULT_INITIAL, 200);
+    } else {
+      resetMatchDisplay("SELL 30 @ 99.85 · GTC · ORD-300", DEFAULT_INITIAL, 30);
+    }
+  }
+
+  matchResetBtn.addEventListener("click", () => resetForScenario(currentScenario));
+
+  // Scenario buttons
+  document.getElementById("demoScenario1").addEventListener("click", function() {
+    document.querySelectorAll(".book-nav-btn").forEach(b => b.classList.remove("active"));
+    this.classList.add("active");
+    currentScenario = "gtc";
+    resetForScenario("gtc");
+  });
+  document.getElementById("demoScenario2").addEventListener("click", function() {
+    document.querySelectorAll(".book-nav-btn").forEach(b => b.classList.remove("active"));
+    this.classList.add("active");
+    currentScenario = "ioc";
+    resetForScenario("ioc");
+  });
+  document.getElementById("demoScenario3").addEventListener("click", function() {
+    document.querySelectorAll(".book-nav-btn").forEach(b => b.classList.remove("active"));
+    this.classList.add("active");
+    currentScenario = "unfilled";
+    resetForScenario("unfilled");
+  });
+
+  /* ---------- STP Demo ---------- */
+  const stpAggressor = document.getElementById("stpAggressor");
+  const stpPassive = document.getElementById("stpPassive");
+  const stpResult = document.getElementById("stpResult");
+  const stpRunBtn = document.getElementById("stpRun");
+  const stpResetBtn = document.getElementById("stpReset");
+
+  function resetSTP() {
+    stpAggressor.innerHTML =
+      '<div class="status-line">status: <b>PENDING_NEW</b></div>' +
+      '<div class="status-line">qty: <b>100</b> lots</div>' +
+      '<div class="status-line">participant: <b>trader-5</b></div>' +
+      '<div class="status-line">fills already: <b>0</b></div>';
+    stpPassive.innerHTML =
+      '<div class="status-line">status: <b>NEW</b></div>' +
+      '<div class="status-line">qty: <b>40</b> lots resting</div>' +
+      '<div class="status-line">participant: <b>trader-5</b></div>' +
+      '<div class="status-line">price: <b>100.10</b> (40 lots)</div>';
+    stpResult.innerHTML = "STP triggered: both orders cancelled. No trade recorded. 40 lots prevented.";
+    stpResult.style.opacity = "0.4";
+    stpRunBtn.disabled = false;
+  }
+
+  async function runSTP() {
+    stpRunBtn.disabled = true;
+    stpResult.style.opacity = "0.4";
+    stpResult.innerHTML = "Scanning...";
+
+    await M.wait(600);
+    stpPassive.innerHTML =
+      '<div class="status-line">status: <b style="color:var(--stp)">CANCELLED (STP)</b></div>' +
+      '<div class="status-line">qty: <b>0</b> lots</div>' +
+      '<div class="status-line">participant: <b>trader-5</b></div>' +
+      '<div class="status-line">report: CANCELED · prevented_qty=40</div>';
+    stpResult.innerHTML = "→ Passive cancelled (report sent first).";
+    stpResult.style.opacity = "1";
+
+    await M.wait(800);
+    stpAggressor.innerHTML =
+      '<div class="status-line">status: <b style="color:var(--stp)">CANCELLED (STP)</b></div>' +
+      '<div class="status-line">qty: <b>0</b> lots</div>' +
+      '<div class="status-line">participant: <b>trader-5</b></div>' +
+      '<div class="status-line">report: CANCELED · prevented_qty=40</div>';
+    stpResult.innerHTML = "→ Aggressor cancelled (report sent second). No trade ID allocated. Matching stops.";
+
+    await M.wait(600);
+    stpResult.innerHTML = "✓ STP prevented 40 lots. Both orders CANCELLED. No trade, no volume. 0 cumulative fills for both.";
+    stpRunBtn.disabled = false;
+  }
+
+  stpRunBtn.addEventListener("click", runSTP);
+  stpResetBtn.addEventListener("click", resetSTP);
+  resetSTP();
+
+})();
+</script>
+
+</body>
+</html>
