@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inside MockX — the scheduler and the matching engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#090c10;
+    --bg-hero:#0b0f15;
+    --panel:#11151c;
+    --panel-2:#161b24;
+    --border:#242b38;
+    --border-soft:#1a212c;
+    --text:#eaedf3;
+    --text-dim:#9099ac;
+    --text-faint:#565f74;
+
+    --bid:#46d8a0;
+    --bid-dim:rgba(70,216,160,.13);
+    --ask:#ff7a63;
+    --ask-dim:rgba(255,122,99,.13);
+    --amber:#f5b942;
+    --amber-dim:rgba(245,185,66,.15);
+    --queue:#6fa8ff;
+    --queue-dim:rgba(111,168,255,.13);
+
+    --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans:'IBM Plex Sans', system-ui, -apple-system, Segoe UI, sans-serif;
+
+    --t-fast:.18s;
+    --t-med:.5s;
+    --t-slow:.9s;
+    --ease:cubic-bezier(.2,.7,.2,1);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration:.001ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.001ms !important;
+      scroll-behavior:auto !important;
+    }
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 500px at 15% -10%, rgba(111,168,255,.06), transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, rgba(245,185,66,.05), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--amber-dim); color:var(--text);}
+  a{color:inherit;}
+  button:focus-visible, a:focus-visible{outline:2px solid var(--amber); outline-offset:3px; border-radius:4px;}
+
+  .wrap{max-width:1120px; margin:0 auto; padding:0 clamp(1.1rem,4vw,2.5rem);}
+  code, .mono{font-family:var(--mono);}
+
+  /* ---------- nav ---------- */
+  .topnav{
+    position:sticky; top:0; z-index:50;
+    background:rgba(9,12,16,.82);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border-soft);
+  }
+  .topnav-inner{
+    max-width:1120px; margin:0 auto; padding:0 clamp(1.1rem,4vw,2.5rem);
+    height:52px; display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  }
+  .brand{font-family:var(--mono); font-weight:700; font-size:.82rem; letter-spacing:.02em; color:var(--text);}
+  .brand span{color:var(--amber);}
+  .navlinks{display:flex; gap:1.4rem; font-family:var(--mono); font-size:.74rem; letter-spacing:.03em;}
+  .navlinks a{color:var(--text-dim); text-decoration:none; text-transform:uppercase; padding:.3rem 0; border-bottom:1px solid transparent; transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);}
+  .navlinks a:hover{color:var(--text); border-color:var(--border);}
+  @media (max-width:640px){ .navlinks{gap:.85rem;} .navlinks a{font-size:.66rem;} }
+
+  /* ---------- hero ---------- */
+  .hero{
+    padding:clamp(3.2rem,8vw,6rem) 0 clamp(2.5rem,6vw,4rem);
+    border-bottom:1px solid var(--border-soft);
+    background:var(--bg-hero);
+  }
+  .eyebrow{
+    font-family:var(--mono); text-transform:uppercase; letter-spacing:.16em;
+    font-size:.7rem; color:var(--text-faint); display:flex; align-items:center; gap:.6rem; margin-bottom:1.1rem;
+  }
+  .eyebrow::before{content:''; width:7px; height:7px; border-radius:50%; background:var(--amber); box-shadow:0 0 0 3px var(--amber-dim); flex:none;}
+  .h1{
+    font-family:var(--mono); font-weight:800; letter-spacing:-.01em;
+    font-size:clamp(1.9rem,5vw,3.1rem); line-height:1.1; margin:0 0 1.1rem; max-width:20ch;
+  }
+  .h1 em{font-style:normal; color:var(--amber);}
+  .lede{color:var(--text-dim); max-width:62ch; font-size:1.06rem; line-height:1.65; margin:0 0 2.6rem;}
+  .lede b{color:var(--text); font-weight:600;}
+
+  /* architecture strip */
+  .arch{display:flex; align-items:center; width:100%; overflow:hidden;}
+  .arch-node{
+    padding:.65rem 1rem; border:1px solid var(--border); border-radius:10px; background:var(--panel);
+    font-family:var(--mono); font-size:.78rem; white-space:nowrap; flex:none; color:var(--text-dim);
+  }
+  .arch-node b{color:var(--text); font-weight:600; display:block; font-size:.82rem;}
+  .arch-node.accent-queue{border-color:rgba(111,168,255,.35); background:linear-gradient(180deg, var(--queue-dim), transparent);}
+  .arch-node.accent-queue b{color:var(--queue);}
+  .arch-node.accent-amber{border-color:rgba(245,185,66,.35); background:linear-gradient(180deg, var(--amber-dim), transparent);}
+  .arch-node.accent-amber b{color:var(--amber);}
+  .arch-link{flex:1 1 auto; min-width:18px; height:1px; background:var(--border); position:relative; margin:0 2px;}
+  .arch-dot{
+    position:absolute; top:50%; left:0; width:5px; height:5px; border-radius:50%;
+    background:var(--amber); transform:translateY(-50%); opacity:0;
+    animation:dotmove 3s linear infinite;
+  }
+  @keyframes dotmove{
+    0%{left:0%; opacity:0;} 6%{opacity:1;} 92%{opacity:1;} 100%{left:100%; opacity:0;}
+  }
+  @media (max-width:760px){
+    .arch{flex-direction:column; align-items:stretch;}
+    .arch-node{white-space:normal;}
+    .arch-link{width:1px; height:20px; margin:2px auto;}
+    .arch-dot{top:0; left:50%; transform:translateX(-50%); animation:dotmovev 3s linear infinite;}
+    @keyframes dotmovev{0%{top:0%; opacity:0;}6%{opacity:1;}92%{opacity:1;}100%{top:100%; opacity:0;}}
+  }
+
+  /* ---------- sections ---------- */
+  .section{padding:clamp(3.4rem,7vw,5.5rem) 0; border-bottom:1px solid var(--border-soft);}
+  .section-head{max-width:68ch; margin-bottom:2.4rem;}
+  .h2{font-family:var(--mono); font-weight:700; font-size:clamp(1.5rem,3vw,2.05rem); letter-spacing:-.01em; margin:.3rem 0 .9rem;}
+  .section .lede{margin-bottom:0;}
+  .tag{
+    display:inline-flex; align-items:center; gap:.4rem; font-family:var(--mono); font-size:.68rem;
+    text-transform:uppercase; letter-spacing:.06em; padding:.22rem .55rem; border-radius:5px; border:1px solid var(--border);
+    color:var(--text-dim);
+  }
+  .tag-queue{color:var(--queue); border-color:rgba(111,168,255,.3); background:var(--queue-dim);}
+  .tag-amber{color:var(--amber); border-color:rgba(245,185,66,.3); background:var(--amber-dim);}
+  .tag-bid{color:var(--bid); border-color:rgba(70,216,160,.3); background:var(--bid-dim);}
+  .tag-ask{color:var(--ask); border-color:rgba(255,122,99,.3); background:var(--ask-dim);}
+
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:16px;
+    padding:clamp(1.1rem,3vw,1.8rem);
+  }
+  .ref{
+    font-family:var(--mono); font-size:.78rem; background:var(--panel-2); border:1px solid var(--border);
+    padding:.1rem .4rem; border-radius:5px; color:var(--queue); white-space:nowrap;
+  }
+  .ref.a{color:var(--amber);}
+  .ref.g{color:var(--bid);}
+
+  /* ---------- latency anatomy bar ---------- */
+  .anatomy{margin-top:1.6rem;}
+  .anatomy-bar{
+    display:flex; height:38px; border-radius:9px; overflow:hidden; border:1px solid var(--border);
+  }
+  .anatomy-seg{display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:.72rem; color:#0a0d12; font-weight:700;}
+  .seg-session{background:var(--text-faint); flex:0 0 0%;}
+  .seg-inbound{background:var(--queue); flex:1 1 10%;}
+  .seg-engine{background:var(--amber); flex:1 1 5%;}
+  .anatomy-legend{display:flex; flex-wrap:wrap; gap:1.2rem; margin-top:.9rem; font-family:var(--mono); font-size:.74rem; color:var(--text-dim);}
+  .anatomy-legend span{display:inline-flex; align-items:center; gap:.4rem;}
+  .dot{width:9px; height:9px; border-radius:2px; flex:none;}
+  .dot-session{background:var(--text-faint);}
+  .dot-inbound{background:var(--queue);}
+  .dot-engine{background:var(--amber);}
+
+  /* ---------- priority queue / scheduler timeline ---------- */
+  .pq{margin-top:1.8rem;}
+  .pq-ruler{
+    position:relative; height:74px; margin:.4rem 0 .2rem;
+    border-bottom:1px solid var(--border);
+  }
+  .pq-track{position:absolute; left:0; right:0; top:34px; height:2px; background:var(--border-soft);}
+  .pq-playhead{
+    position:absolute; top:6px; bottom:6px; left:0; width:2px; background:var(--amber);
+    box-shadow:0 0 10px rgba(245,185,66,.6);
+    transition:left var(--t-slow) var(--ease);
+  }
+  .pq-tick{position:absolute; top:40px; transform:translateX(-50%); font-family:var(--mono); font-size:.66rem; color:var(--text-faint);}
+  .pq-pin{
+    position:absolute; top:22px; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:.35rem;
+  }
+  .pq-pin-dot{width:11px; height:11px; border-radius:50%; background:var(--panel-2); border:2px solid var(--queue); transition:all var(--t-med) var(--ease);}
+  .pq-pin-label{
+    position:absolute; top:16px; white-space:nowrap; font-family:var(--mono); font-size:.66rem; color:var(--text-faint);
+    transition:color var(--t-med) var(--ease);
+  }
+  .pq-pin.popped .pq-pin-dot{background:var(--queue); box-shadow:0 0 0 5px var(--queue-dim); transform:scale(1.15);}
+  .pq-pin.popped .pq-pin-label{color:var(--queue);}
+  .pq-pin.report .pq-pin-dot{border-color:var(--amber);}
+  .pq-pin.report.popped .pq-pin-dot{background:var(--amber); box-shadow:0 0 0 5px var(--amber-dim);}
+  .pq-pin.report.popped .pq-pin-label{color:var(--amber);}
+
+  .pq-log, .book-feed{
+    margin-top:1.1rem; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px;
+    padding:.7rem .9rem; min-height:118px; max-height:220px; overflow-y:auto;
+    font-family:var(--mono); font-size:.76rem;
+  }
+  .pq-log-empty{color:var(--text-faint);}
+  .log-line{
+    display:grid; grid-template-columns:auto 1fr; gap:.6rem; padding:.32rem 0; border-bottom:1px dashed var(--border-soft);
+    opacity:0; transform:translateY(3px); animation:login var(--t-med) var(--ease) forwards;
+  }
+  .log-line:last-child{border-bottom:none;}
+  @keyframes login{to{opacity:1; transform:translateY(0);}}
+  .log-tag{color:var(--queue); white-space:nowrap;}
+  .log-tag.a{color:var(--amber);}
+  .log-tag.g{color:var(--bid);}
+  .log-text{color:var(--text-dim);}
+
+  .controls{display:flex; gap:.6rem; margin-top:1.1rem;}
+  .btn{
+    font-family:var(--mono); font-size:.78rem; letter-spacing:.02em; padding:.55rem 1rem; border-radius:8px;
+    border:1px solid var(--border); background:var(--panel-2); color:var(--text); cursor:pointer;
+    transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  }
+  .btn:hover{border-color:var(--amber); color:var(--amber);}
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.4; cursor:default; transform:none;}
+  .btn.primary{background:linear-gradient(180deg, var(--amber-dim), transparent); border-color:rgba(245,185,66,.4); color:var(--amber);}
+
+  .callout-grid{display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1.6rem;}
+  @media (max-width:700px){.callout-grid{grid-template-columns:1fr;}}
+  .callout{border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.2rem; background:var(--panel);}
+  .callout h4{margin:0 0 .5rem; font-family:var(--mono); font-size:.86rem; color:var(--text);}
+  .callout p{margin:0; color:var(--text-dim); font-size:.88rem; line-height:1.55;}
+
+  /* ---------- order book ---------- */
+  .book{margin-top:1.8rem;}
+  .book-incoming{
+    display:flex; flex-wrap:wrap; align-items:center; gap:.8rem; padding:.8rem 1rem; border-radius:10px;
+    background:var(--amber-dim); border:1px solid rgba(245,185,66,.35); margin-bottom:1.2rem;
+    font-family:var(--mono); font-size:.84rem;
+  }
+  .book-remaining{margin-left:auto; color:var(--text-dim); font-size:.8rem;}
+  .book-remaining b{color:var(--amber); font-size:1rem; transition:color var(--t-fast);}
+  .pulse{animation:pulse .5s var(--ease);}
+  @keyframes pulse{0%{transform:scale(1);}40%{transform:scale(1.28); color:var(--amber);}100%{transform:scale(1);}}
+
+  .book-grid{display:grid; grid-template-columns:1fr auto 1fr; gap:1rem; align-items:start;}
+  @media (max-width:700px){ .book-grid{grid-template-columns:1fr;} }
+  .book-side{display:flex; flex-direction:column; gap:.5rem;}
+  .book-bids{align-items:flex-end;}
+  .book-asks{align-items:flex-start;}
+  .book-side-label{font-family:var(--mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.15rem;}
+  .book-bids .book-side-label{color:var(--bid); align-self:flex-end;}
+  .book-asks .book-side-label{color:var(--ask);}
+
+  .level{
+    width:100%; max-width:280px; border:1px solid var(--border); border-radius:10px; padding:.55rem .7rem;
+    background:var(--panel-2); display:flex; flex-direction:column; gap:.4rem;
+    transition:opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease), max-height var(--t-med) var(--ease), margin var(--t-med) var(--ease), padding var(--t-med) var(--ease);
+    overflow:hidden;
+  }
+  .level-head{display:flex; justify-content:space-between; align-items:center; font-family:var(--mono); font-size:.82rem;}
+  .book-bids .level-head{flex-direction:row-reverse;}
+  .level.ask .level-head .price{color:var(--ask);}
+  .level.bid .level-head .price{color:var(--bid);}
+  .level-head .qty-total{color:var(--text-faint); font-size:.72rem;}
+  .chips{display:flex; gap:.35rem; flex-wrap:wrap;}
+  .book-bids .chips{justify-content:flex-end;}
+  .chip{
+    font-family:var(--mono); font-size:.72rem; padding:.22rem .5rem; border-radius:6px;
+    background:var(--panel); border:1px solid var(--border); color:var(--text-dim);
+    transition:opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease), max-width var(--t-med) var(--ease), margin var(--t-med) var(--ease), padding var(--t-med) var(--ease), border-color var(--t-fast), background var(--t-fast);
+    white-space:nowrap;
+  }
+  .chip.hit{border-color:var(--amber); background:var(--amber-dim); color:var(--amber);}
+  .chip.gone{opacity:0; transform:scale(.6); max-width:0; padding:0; margin:0; border:none;}
+  .level.gone{opacity:0; max-height:0; padding-top:0; padding-bottom:0; margin:0; border-color:transparent;}
+
+  .book-spread{
+    display:flex; flex-direction:column; align-items:center; gap:.5rem; padding-top:.4rem;
+    font-family:var(--mono); font-size:.72rem; color:var(--text-faint); text-align:center; min-width:110px;
+  }
+  .book-spread b{display:block; font-size:.92rem; color:var(--text); margin-top:.15rem;}
+  .spread-line{width:1px; height:38px; background:repeating-linear-gradient(var(--border-soft) 0 4px, transparent 4px 8px);}
+  @media (max-width:700px){ .book-spread{flex-direction:row; justify-content:space-around; width:100%;} .spread-line{width:38px; height:1px; background:repeating-linear-gradient(90deg, var(--border-soft) 0 4px, transparent 4px 8px);} }
+
+  .book-summary{
+    margin-top:1.1rem; font-family:var(--mono); font-size:.82rem; color:var(--text-dim);
+    padding:.7rem .9rem; border:1px solid var(--border-soft); border-radius:10px; background:var(--panel-2);
+  }
+  .book-summary b{color:var(--text);}
+  .book-summary b.status-filled{color:var(--bid);}
+
+  /* ---------- three-card remainder rules ---------- */
+  .rule-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-top:1.8rem;}
+  @media (max-width:800px){.rule-grid{grid-template-columns:1fr;}}
+  .rule-card{border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.2rem; background:var(--panel);}
+  .rule-card h4{margin:.6rem 0 .5rem; font-family:var(--mono); font-size:.88rem;}
+  .rule-card p{margin:0; color:var(--text-dim); font-size:.86rem; line-height:1.55;}
+  .rule-card p + p{margin-top:.5rem;}
+
+  /* ---------- end to end log ---------- */
+  .flow{margin-top:1.8rem; display:flex; flex-direction:column;}
+  .flow-row{
+    display:grid; grid-template-columns:78px 132px 1fr; gap:1rem; align-items:start;
+    padding:.85rem 0; border-top:1px solid var(--border-soft);
+  }
+  .flow-row:first-child{border-top:none;}
+  .flow-time{font-family:var(--mono); font-size:.78rem; color:var(--amber); padding-top:.15rem;}
+  .flow-lane{font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--queue); padding-top:.2rem;}
+  .flow-desc{color:var(--text-dim); font-size:.9rem; line-height:1.5;}
+  .flow-desc b{color:var(--text); font-weight:600;}
+  @media (max-width:640px){
+    .flow-row{grid-template-columns:1fr; gap:.25rem;}
+    .flow-time{padding-top:0;}
+  }
+
+  /* ---------- footer notes ---------- */
+  .notes{
+    margin-top:1.6rem; background:#0c0f14; border:1px solid var(--border-soft); border-radius:12px;
+    padding:1.2rem 1.4rem; font-family:var(--mono); font-size:.82rem; color:var(--text-dim); line-height:1.9;
+  }
+  .notes .c{color:var(--text-faint);}
+
+  footer{padding:3rem 0 4rem; text-align:center;}
+  footer p{color:var(--text-faint); font-family:var(--mono); font-size:.76rem; max-width:50ch; margin:0 auto;}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <div class="brand">MOCK<span>X</span> // internals</div>
+    <div class="navlinks">
+      <a href="#scheduler">Scheduler</a>
+      <a href="#engine">Matching engine</a>
+      <a href="#e2e">End to end</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">MockX — a FIX-speaking mock exchange</div>
+    <h1 class="h1">Every order lives on <em>two clocks.</em></h1>
+    <p class="lede">
+      One is <b>simulated</b> — a deterministic event queue that models network hops and engine
+      processing as latency, without ever calling <code class="mono">sleep()</code>. The other is
+      <b>real</b> — a monotonic wall-clock reading taken purely to see how long matching actually
+      took to compute. MockX keeps the two scrupulously separate. This page walks through both
+      subsystems using one order, <code class="mono">ORD-1042</code>, from submission to its last
+      execution report.
+    </p>
+    <div class="arch">
+      <div class="arch-node">Client<br><b>FIX / REST</b></div>
+      <div class="arch-link"><span class="arch-dot" style="animation-delay:0s"></span></div>
+      <div class="arch-node">Gateway<br><b>submit_order()</b></div>
+      <div class="arch-link"><span class="arch-dot" style="animation-delay:.5s"></span></div>
+      <div class="arch-node accent-queue">Scheduler<br><b>event queue</b></div>
+      <div class="arch-link"><span class="arch-dot" style="animation-delay:1s"></span></div>
+      <div class="arch-node accent-amber">Engine<br><b>match / reject</b></div>
+      <div class="arch-link"><span class="arch-dot" style="animation-delay:1.5s"></span></div>
+      <div class="arch-node">Book<br><b>reports + data</b></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ===================== SCHEDULER ===================== -->
+<section class="section" id="scheduler">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-queue">Part one</span>
+      <h2 class="h2">The scheduler decides <em>when.</em></h2>
+      <p class="lede">
+        <code class="ref">LatencyScheduler</code> is a discrete-event simulator: a min-heap of
+        <code class="ref">ScheduledEvent</code> objects ordered by <code class="ref">(timestamp, sequence)</code>.
+        Nothing in MockX physically waits — instead, work is scheduled some number of simulated
+        milliseconds in the future, and a simulated clock (<code class="ref">current_time</code>)
+        is advanced to reveal it. The <code class="ref">sequence</code> counter is the tie-breaker:
+        two events landing at the exact same simulated millisecond still fire in the order they
+        were queued, which is how a passive fill's report always beats the aggressor's.
+      </p>
+    </div>
+
+    <div class="panel">
+      <span class="tag">submit_order() → schedule_order_processing()</span>
+      <p class="lede" style="margin-top:.9rem; font-size:.94rem;">
+        Submitting an order schedules <b style="color:var(--text)">two</b> events off one call, each
+        built from a different slice of latency:
+      </p>
+      <div class="anatomy">
+        <div class="anatomy-bar">
+          <div class="anatomy-seg seg-session" style="flex-basis:2%;">0</div>
+          <div class="anatomy-seg seg-inbound" style="flex-basis:40%;">inbound 10ms</div>
+          <div class="anatomy-seg seg-engine" style="flex-basis:20%;">engine 5ms</div>
+        </div>
+        <div class="anatomy-legend">
+          <span><i class="dot dot-session"></i> session delay — per-session FIX handicap, 0ms here</span>
+          <span><i class="dot dot-inbound"></i> inbound — <code class="ref">network_ms // 2</code> unless <code class="ref">inbound_ms</code> is set</span>
+          <span><i class="dot dot-engine"></i> engine — <code class="ref">engine_ms</code>, added only to the second event</span>
+        </div>
+      </div>
+      <p class="lede" style="margin-top:1.1rem; font-size:.88rem;">
+        <code class="ref g">order_arrived</code> fires after <em>session + inbound</em> — it only marks a
+        latency timestamp, it never touches the book. <code class="ref a">order_process</code> fires after
+        <em>session + inbound + engine</em> — that's the one that actually calls
+        <code class="ref">engine.process_order()</code>. Watch both pop off the queue below, followed by
+        the execution reports the match produces, each delayed again by outbound latency.
+      </p>
+
+      <div class="pq">
+        <div class="pq-ruler" id="pqRuler">
+          <div class="pq-track"></div>
+          <div class="pq-playhead" id="pqPlayhead"></div>
+          <div class="pq-tick" style="left:2%">T+0</div>
+          <div class="pq-tick" style="left:33%">T+10</div>
+          <div class="pq-tick" style="left:50%">T+15</div>
+          <div class="pq-tick" style="left:83%">T+25</div>
+
+          <div class="pq-pin" id="pinArrive" style="left:33%">
+            <div class="pq-pin-dot"></div>
+            <div class="pq-pin-label">order_arrived</div>
+          </div>
+          <div class="pq-pin" id="pinProcess" style="left:50%">
+            <div class="pq-pin-dot"></div>
+            <div class="pq-pin-label">order_process</div>
+          </div>
+          <div class="pq-pin report" id="pinReport" style="left:83%">
+            <div class="pq-pin-dot"></div>
+            <div class="pq-pin-label">exec_report ×6</div>
+          </div>
+        </div>
+
+        <div class="pq-log" id="pqLog">
+          <p class="pq-log-empty">Press run to submit ORD-1042 and watch it move through the event queue.</p>
+        </div>
+        <div class="controls">
+          <button class="btn primary" id="pqRun">▶ Run scheduler</button>
+          <button class="btn" id="pqReset">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout">
+        <h4><span class="tag tag-queue">driving mode</span></h4>
+        <p><b style="color:var(--text)">external</b> — nothing advances time on its own. A test
+        harness or admin endpoint calls <code class="ref">run_until()</code> /
+        <code class="ref">advance_time()</code> explicitly, so a whole trading day can be replayed
+        faster than it takes to read this sentence.<br><br>
+        <b style="color:var(--text)">realtime</b> — a background task wakes every
+        <code class="ref">interval_ms</code> and calls <code class="ref">run_until(current + interval_ms)</code>,
+        so the simulated clock tracks the wall clock closely enough to serve a live FIX session.</p>
+      </div>
+      <div class="callout">
+        <h4><span class="tag tag-amber">fail-stop, not silent</span></h4>
+        <p>If a handler raises, or <code class="ref">max_events_per_advance</code> (100,000 by default)
+        is exceeded in one advance, the scheduler flips to <code class="ref">FAILED</code> and records
+        a <code class="ref">SchedulerFailure</code> dead-letter — event id, type, timestamp, exception.
+        Every later call raises until the process is restarted. Nothing gets quietly dropped or retried
+        into a loop.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== MATCHING ENGINE ===================== -->
+<section class="section" id="engine">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-amber">Part two</span>
+      <h2 class="h2">The engine decides <em>what.</em></h2>
+      <p class="lede">
+        At <code class="ref">T+15</code>, <code class="ref">process_order()</code> hands ORD-1042 to
+        <code class="ref">_match_aggressive_order()</code>. Strict price-time priority: walk the best
+        opposing price level, drain its resting orders <b style="color:var(--text)">FIFO</b>, move to the
+        next level only once the current one is exhausted, stop the instant the aggressor's quantity or
+        limit price runs out. Every fill updates both orders, the book, and fires two execution reports —
+        <b style="color:var(--text)">passive first, aggressor second</b> — before the next fill is even computed.
+      </p>
+    </div>
+
+    <div class="panel book">
+      <div class="book-incoming" id="bookIncoming">
+        <span class="tag tag-amber">Incoming aggressor</span>
+        <span>BUY 100 @ 100.25 · GTC · ORD-1042</span>
+        <span class="book-remaining">remaining <b id="remQty">100</b></span>
+      </div>
+
+      <div class="book-grid">
+        <div class="book-side book-bids">
+          <div class="book-side-label">bids (untouched — this is a buy)</div>
+          <div class="level bid"><div class="level-head"><span class="price">99.90</span><span class="qty-total">1 order</span></div></div>
+          <div class="level bid"><div class="level-head"><span class="price">99.80</span><span class="qty-total">1 order</span></div></div>
+        </div>
+
+        <div class="book-spread">
+          <div>best bid<b>99.90</b></div>
+          <div class="spread-line"></div>
+          <div>best ask<b id="bestAsk">100.10</b></div>
+        </div>
+
+        <div class="book-side book-asks">
+          <div class="book-side-label">asks — price-time priority</div>
+          <div class="level ask" id="lvl-10010">
+            <div class="level-head"><span class="price">100.10</span><span class="qty-total">40 total</span></div>
+            <div class="chips"><span class="chip" id="chip-A">A · <b>40</b></span></div>
+          </div>
+          <div class="level ask" id="lvl-10020">
+            <div class="level-head"><span class="price">100.20</span><span class="qty-total">80 total</span></div>
+            <div class="chips">
+              <span class="chip" id="chip-B">B · <b>30</b></span>
+              <span class="chip" id="chip-C">C · <b>50</b></span>
+            </div>
+          </div>
+          <div class="level ask" id="lvl-10030">
+            <div class="level-head"><span class="price">100.30</span><span class="qty-total">60 total</span></div>
+            <div class="chips"><span class="chip" id="chip-D">D · <b>60</b></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="book-feed" id="bookFeed">
+        <p class="pq-log-empty">Press run to sweep the book and watch execution reports land, passive-first.</p>
+      </div>
+
+      <div class="book-summary" id="bookSummary">status <b>PENDING_NEW</b> · cumQty <b>0</b> · avgPx <b>—</b></div>
+
+      <div class="controls">
+        <button class="btn primary" id="matchRun">▶ Run match</button>
+        <button class="btn" id="matchReset">Reset</button>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:2.6rem; margin-bottom:0;">
+      <p class="lede">
+        The loop above stops the instant <code class="ref">remaining_qty</code> hits zero, so ORD-1042 never
+        reaches level 100.30 and never needs <code class="ref">_finalize_unfilled_remainder()</code>. That
+        function only matters when quantity is left over once the book runs out of eligible price — and it
+        treats three cases differently:
+      </p>
+    </div>
+    <div class="rule-grid">
+      <div class="rule-card">
+        <span class="tag tag-ask">Market or IOC</span>
+        <h4>Remainder is canceled outright</h4>
+        <p>Market orders never rest, and IOC means immediate-or-cancel. Whatever quantity didn't fill
+        immediately is canceled and reported as such — no trace left in the book.</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-bid">GTC, nothing filled</span>
+        <h4>Rests, with one NEW report</h4>
+        <p>A wholly unfilled limit order joins its price level and gets a single
+        <code class="ref">ExecutionType.NEW</code> report acknowledging it's live.</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-bid">GTC, partially filled</span>
+        <h4>Rests silently</h4>
+        <p>The TRADE/PARTIAL reports already sent during matching <em>are</em> the acknowledgement —
+        no extra NEW report follows the fills it already got.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== END TO END ===================== -->
+<section class="section" id="e2e">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag">Both systems, one order</span>
+      <h2 class="h2">ORD-1042, start to finish</h2>
+      <p class="lede">
+        Same numbers as above, laid out as one causal chain across every lane the order actually
+        touches. Real time doesn't move here — <code class="ref">T</code> is all simulated milliseconds.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="flow">
+        <div class="flow-row">
+          <div class="flow-time">T+0</div>
+          <div class="flow-lane">client</div>
+          <div class="flow-desc"><b>POST /orders</b> → <code class="ref">submit_order()</code> creates Order #1042
+          and schedules two events off one call.</div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-time">T+10</div>
+          <div class="flow-lane">scheduler</div>
+          <div class="flow-desc"><code class="ref g">order_arrived</code> fires → <code class="ref">latency_tracker</code>
+          marks network arrival. Observability only — the book is untouched.</div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-time">T+15</div>
+          <div class="flow-lane">scheduler → engine</div>
+          <div class="flow-desc"><code class="ref a">order_process</code> fires → <code class="ref">engine.process_order(#1042)</code>.
+          Seeded RNG decides reject/accept; this run accepts.</div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-time">T+15</div>
+          <div class="flow-lane">engine → book</div>
+          <div class="flow-desc"><code class="ref">_match_aggressive_order()</code> sweeps the asks: 40 @ 100.10,
+          30 @ 100.20, 30 @ 100.20 → <b>FILLED</b>, cumQty 100, avgPx 100.16.</div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-time">T+15</div>
+          <div class="flow-lane">engine</div>
+          <div class="flow-desc">6 execution reports queued (passive → aggressor per fill) and one
+          <code class="ref">MarketDataSnapshot</code> broadcast, sequence incremented.</div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-time">T+25</div>
+          <div class="flow-lane">scheduler → client</div>
+          <div class="flow-desc">Six <code class="ref g">exec_report</code> events fire in strict FIFO
+          sequence order → delivered to the FIX/REST session.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div><span class="c">// </span>determinism — same config, same seed, same arrival order → same fills, every run</div>
+      <div><span class="c">// </span>cancel-in-flight — <code>cancel_order()</code> bumps <code>order.version</code>; a stale, already-queued <code>order_process</code> for the old version is dropped on arrival</div>
+      <div><span class="c">// </span>safety valve — one scheduler advance stops after <code>max_events_per_advance</code> events instead of spinning forever</div>
+      <div><span class="c">// </span>fail-stop — any handler exception flips the scheduler to <code>FAILED</code> with a dead-letter record, never a silent retry</div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>Built from engine.py, latency.py, and main.py — MockX's matching engine and event scheduler.</p>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const wait = ms => new Promise(r => setTimeout(r, REDUCE ? Math.min(ms, 40) : ms));
+
+  /* ---------------- Scheduler demo ---------------- */
+  const pqPlayhead = document.getElementById('pqPlayhead');
+  const pqLog = document.getElementById('pqLog');
+  const pqRunBtn = document.getElementById('pqRun');
+  const pqResetBtn = document.getElementById('pqReset');
+  const pins = {
+    arrive: document.getElementById('pinArrive'),
+    process: document.getElementById('pinProcess'),
+    report: document.getElementById('pinReport'),
+  };
+
+  function logLine(container, tagText, tagClass, text){
+    const empty = container.querySelector('.pq-log-empty');
+    if(empty) empty.remove();
+    const row = document.createElement('div');
+    row.className = 'log-line';
+    row.innerHTML = '<span class="log-tag ' + tagClass + '">' + tagText + '</span><span class="log-text">' + text + '</span>';
+    container.appendChild(row);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function resetScheduler(){
+    pqPlayhead.style.left = '2%';
+    Object.values(pins).forEach(p => p.classList.remove('popped'));
+    pqLog.innerHTML = '<p class="pq-log-empty">Press run to submit ORD-1042 and watch it move through the event queue.</p>';
+    pqRunBtn.disabled = false;
+  }
+
+  async function movePlayhead(pct){
+    pqPlayhead.style.left = pct + '%';
+    await wait(750);
+  }
+
+  async function runScheduler(){
+    pqRunBtn.disabled = true;
+    resetScheduler();
+    pqRunBtn.disabled = true;
+
+    logLine(pqLog, 'T+0', '', 'CLIENT — submit_order() creates ORD-1042 and schedules <b>order_arrived</b> @T+10 and <b>order_process</b> @T+15.');
+    await movePlayhead(33);
+    pins.arrive.classList.add('popped');
+    logLine(pqLog, 'T+10', 'g', 'order_arrived fires — latency_tracker marks network arrival. No book mutation.');
+    await wait(450);
+
+    await movePlayhead(50);
+    pins.process.classList.add('popped');
+    logLine(pqLog, 'T+15', 'a', 'order_process fires → engine.process_order(#1042): reject check, then match.');
+    await wait(500);
+    logLine(pqLog, 'T+15', 'a', '3 fills computed instantly in simulated time — see the Matching Engine panel below.');
+    await wait(500);
+    logLine(pqLog, 'T+15', '', '6 execution reports + 1 market-data snapshot queued, each delayed by outbound latency.');
+    await wait(450);
+
+    await movePlayhead(83);
+    pins.report.classList.add('popped');
+    logLine(pqLog, 'T+25', 'g', 'exec_report ×6 fire in FIFO sequence order → delivered to the session.');
+
+    pqRunBtn.disabled = false;
+  }
+
+  pqRunBtn.addEventListener('click', runScheduler);
+  pqResetBtn.addEventListener('click', resetScheduler);
+  resetScheduler();
+
+  /* ---------------- Matching engine demo ---------------- */
+  const remQtyEl = document.getElementById('remQty');
+  const bestAskEl = document.getElementById('bestAsk');
+  const bookFeed = document.getElementById('bookFeed');
+  const bookSummary = document.getElementById('bookSummary');
+  const matchRunBtn = document.getElementById('matchRun');
+  const matchResetBtn = document.getElementById('matchReset');
+
+  const lvl10010 = document.getElementById('lvl-10010');
+  const lvl10020 = document.getElementById('lvl-10020');
+
+  const chips = {
+    A: document.getElementById('chip-A'),
+    B: document.getElementById('chip-B'),
+    C: document.getElementById('chip-C'),
+    D: document.getElementById('chip-D'),
+  };
+
+  const INITIAL_QTY = { A: 40, B: 30, C: 50, D: 60 };
+
+  function pulse(el){
+    el.classList.remove('pulse');
+    void el.offsetWidth;
+    el.classList.add('pulse');
+  }
+
+  function feedLine(tagText, tagClass, text){
+    const empty = bookFeed.querySelector('.pq-log-empty');
+    if(empty) empty.remove();
+    const row = document.createElement('div');
+    row.className = 'log-line';
+    row.innerHTML = '<span class="log-tag ' + tagClass + '">' + tagText + '</span><span class="log-text">' + text + '</span>';
+    bookFeed.appendChild(row);
+    bookFeed.scrollTop = bookFeed.scrollHeight;
+  }
+
+  function resetMatch(){
+    remQtyEl.textContent = '100';
+    bestAskEl.textContent = '100.10';
+    bookFeed.innerHTML = '<p class="pq-log-empty">Press run to sweep the book and watch execution reports land, passive-first.</p>';
+    bookSummary.innerHTML = 'status <b>PENDING_NEW</b> · cumQty <b>0</b> · avgPx <b>—</b>';
+
+    lvl10010.classList.remove('gone');
+    lvl10010.style.maxHeight = '';
+    lvl10020.querySelector('.qty-total').textContent = '80 total';
+
+    Object.keys(chips).forEach(k => {
+      const chip = chips[k];
+      chip.classList.remove('gone', 'hit');
+      chip.querySelector('b').textContent = INITIAL_QTY[k];
+    });
+    matchRunBtn.disabled = false;
+  }
+
+  async function fillChip(key, matchQty, remainingAfter){
+    const chip = chips[key];
+    chip.classList.add('hit');
+    await wait(REDUCE ? 40 : 260);
+    chip.querySelector('b').textContent = remainingAfter;
+    if(remainingAfter <= 0){
+      await wait(220);
+      chip.classList.add('gone');
+    } else {
+      await wait(180);
+      chip.classList.remove('hit');
+    }
+  }
+
+  async function runMatch(){
+    matchRunBtn.disabled = true;
+    resetMatch();
+    matchRunBtn.disabled = true;
+
+    let remaining = 100;
+    let cumQty = 0;
+    let notional = 0;
+
+    feedLine('T+15', 'a', '100.10 ≤ 100.25 → crosses. Matching head of FIFO: Order A.');
+    await wait(500);
+
+    // --- fill 1: A, 40 @ 100.10, level exhausted ---
+    let matchQty = Math.min(remaining, 40);
+    await fillChip('A', matchQty, 40 - matchQty);
+    remaining -= matchQty; cumQty += matchQty; notional += matchQty * 100.10;
+    remQtyEl.textContent = remaining; pulse(remQtyEl);
+    feedLine('FILL', 'a', matchQty + ' @ 100.10 — passive Order A <b>FILLED</b>, level exhausted.');
+    feedLine('→ Order A', 'g', 'TRADE · cumQty ' + matchQty + ' · <b>FILLED</b>');
+    feedLine('→ ORD-1042', 'g', 'TRADE · cumQty ' + cumQty + ' · <b>PARTIAL</b>');
+    await wait(280);
+    lvl10010.style.maxHeight = lvl10010.scrollHeight + 'px';
+    void lvl10010.offsetHeight;
+    lvl10010.classList.add('gone');
+    lvl10010.style.maxHeight = '0px';
+    bestAskEl.textContent = '100.20';
+    pulse(bestAskEl);
+    await wait(600);
+
+    feedLine('T+15', 'a', '100.20 ≤ 100.25 → crosses. Matching head of FIFO: Order B.');
+    await wait(450);
+
+    // --- fill 2: B, 30 @ 100.20, fully filled, level survives (C remains) ---
+    matchQty = Math.min(remaining, 30);
+    await fillChip('B', matchQty, 30 - matchQty);
+    remaining -= matchQty; cumQty += matchQty; notional += matchQty * 100.20;
+    remQtyEl.textContent = remaining; pulse(remQtyEl);
+    feedLine('FILL', 'a', matchQty + ' @ 100.20 — passive Order B <b>FILLED</b>.');
+    feedLine('→ Order B', 'g', 'TRADE · cumQty ' + matchQty + ' · <b>FILLED</b>');
+    feedLine('→ ORD-1042', 'g', 'TRADE · cumQty ' + cumQty + ' · <b>PARTIAL</b>');
+    lvl10020.querySelector('.qty-total').textContent = '50 total';
+    await wait(650);
+
+    feedLine('T+15', 'a', 'Level 100.20 still has quantity → continue FIFO to Order C.');
+    await wait(450);
+
+    // --- fill 3: C, 30 of 50 @ 100.20, partial, aggressor exhausted ---
+    matchQty = Math.min(remaining, 50);
+    await fillChip('C', matchQty, 50 - matchQty);
+    remaining -= matchQty; cumQty += matchQty; notional += matchQty * 100.20;
+    remQtyEl.textContent = remaining; pulse(remQtyEl);
+    lvl10020.querySelector('.qty-total').textContent = (50 - matchQty) + ' total';
+    feedLine('FILL', 'a', matchQty + ' @ 100.20 — passive Order C <b>PARTIAL</b>, 20 left resting.');
+    feedLine('→ Order C', 'g', 'TRADE · cumQty ' + matchQty + ' · <b>PARTIAL</b> (leaves 20)');
+    feedLine('→ ORD-1042', 'g', 'TRADE · cumQty ' + cumQty + ' · <b>FILLED</b>');
+    await wait(500);
+
+    const avgPx = (notional / cumQty).toFixed(2);
+    feedLine('T+15', '', 'remaining_qty = 0 → loop ends. Level 100.30 was never reached.');
+    await wait(350);
+    feedLine('▸ snapshot', '', 'market-data sequence incremented, broadcast to subscribers.');
+
+    bookSummary.innerHTML = 'status <b class="status-filled">FILLED</b> · cumQty <b>' + cumQty + '</b> · avgPx <b>' + avgPx + '</b>';
+    matchRunBtn.disabled = false;
+  }
+
+  matchRunBtn.addEventListener('click', runMatch);
+  matchResetBtn.addEventListener('click', resetMatch);
+  resetMatch();
+})();
+</script>
+</body>
+</html>

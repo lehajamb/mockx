@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scheduler, Timing & Delivery — MockX Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="mockx-docs.css">
+<style>
+  .latency-bar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); margin: 0.8rem 0; }
+  .latency-seg { display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 0.66rem; color: #0a0d12; font-weight: 700; }
+  .latency-seg.sess { background: var(--text-faint); flex: 0 0 6%; }
+  .latency-seg.inb { background: var(--queue); flex: 0 0 34%; }
+  .latency-seg.eng { background: var(--amber); flex: 0 0 17%; }
+  .latency-seg.out { background: var(--delivery); flex: 0 0 34%; }
+  .latency-seg.rest { background: var(--panel-2); flex: 1 1 9%; color: var(--text-faint); }
+
+  .delivery-state-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-top: 1rem;
+  }
+  @media (max-width: 700px) { .delivery-state-grid { grid-template-columns: 1fr; } }
+  .ds-node {
+    border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.8rem;
+    text-align: center; font-family: var(--mono); font-size: 0.74rem; cursor: pointer;
+    background: var(--panel-2); color: var(--text-dim);
+    transition: all var(--t-fast) var(--ease);
+  }
+  .ds-node:hover { border-color: var(--amber); }
+  .ds-node.sel { border-color: var(--delivery); background: var(--delivery-dim); color: var(--delivery); }
+  .ds-name { font-weight: 700; display: block; }
+  .ds-detail {
+    margin-top: 1rem; padding: 0.9rem 1.1rem; border: 1px solid var(--border);
+    border-radius: 12px; background: var(--panel);
+  }
+
+  .cancel-timeline { margin-top: 1.5rem; }
+  .cancel-stages { display: flex; gap: 0; margin-top: 0.5rem; }
+  .cancel-stage {
+    flex: 1; padding: 0.6rem 0.5rem; text-align: center; font-family: var(--mono);
+    font-size: 0.66rem; border: 1px solid var(--border-soft); background: var(--panel-2);
+  }
+  .cancel-stage:first-child { border-radius: 8px 0 0 8px; }
+  .cancel-stage:last-child { border-radius: 0 8px 8px 0; }
+  .cancel-stage .stage-name { font-weight: 700; display: block; margin-bottom: 0.15rem; }
+  .cancel-stage .stage-time { color: var(--text-faint); }
+  .cancel-stage.rcv { border-color: rgba(111,168,255,0.4); }
+  .cancel-stage.rcv .stage-name { color: var(--queue); }
+  .cancel-stage.arr { border-color: rgba(144,154,172,0.4); }
+  .cancel-stage.arr .stage-name { color: var(--text-dim); }
+  .cancel-stage.eng { border-color: rgba(245,185,66,0.4); }
+  .cancel-stage.eng .stage-name { color: var(--amber); }
+  .cancel-stage.out { border-color: rgba(245,158,11,0.4); }
+  .cancel-stage.out .stage-name { color: var(--delivery); }
+  .cancel-stage.dlv { border-color: rgba(70,216,160,0.4); }
+  .cancel-stage.dlv .stage-name { color: var(--bid); }
+
+  @media (max-width: 700px) { .cancel-stages { flex-direction: column; } .cancel-stage { border-radius: 0; } .cancel-stage:first-child { border-radius: 8px 8px 0 0; } .cancel-stage:last-child { border-radius: 0 0 8px 8px; } }
+
+  .warn-banner {
+    margin-top: 1.5rem; padding: 1rem 1.3rem; border: 1px solid var(--danger);
+    border-radius: 12px; background: var(--danger-dim); color: var(--danger);
+    font-family: var(--mono); font-size: 0.82rem; line-height: 1.6;
+  }
+  .warn-banner b { color: var(--danger); }
+
+  .ws-flow { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 1rem; }
+  .ws-step {
+    display: flex; align-items: center; gap: 0.7rem; font-size: 0.82rem;
+    padding: 0.5rem 0; border-bottom: 1px solid var(--border-soft);
+  }
+  .ws-step:last-child { border-bottom: none; }
+  .ws-step-num {
+    width: 24px; height: 24px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 0.66rem; color: var(--bid);
+    background: var(--bid-dim); border: 1px solid rgba(70,216,160,0.3);
+  }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <div class="brand">MOCK<em>X</em> // docs</div>
+    <div class="navlinks">
+      <a href="index.html">Index</a>
+      <a href="mockx-architecture.html">Architecture</a>
+      <a href="mockx-engine.html">Engine</a>
+      <a href="mockx-scheduler.html" class="active">Scheduler</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Page 3 — Scheduler, timing, and delivery</div>
+    <h1 class="h1">Events <em>never sleep.</em></h1>
+    <p class="lede">
+      The <code class="ref">LatencyScheduler</code> is a discrete-event simulator backed by a
+      <b>min-heap</b> ordered by <code class="ref">(timestamp, sequence)</code>. Nothing calls
+      <code>sleep()</code>. Work is scheduled forward in simulated milliseconds and revealed by
+      advancing the simulated clock — externally or in real time.
+    </p>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= EVENT QUEUE ================= -->
+<section class="section" id="event-queue">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-queue">3.1</span>
+      <h2 class="h2">The event queue</h2>
+      <p class="lede">
+        A <b>min-heap</b> of <code class="ref">ScheduledEvent</code> objects, each with a
+        simulated <code class="ref">timestamp</code>, a monotonically incrementing
+        <code class="ref">sequence</code> counter, an <code class="ref">event_type</code> string,
+        an immutable <code class="ref">data</code> payload, and diagnostic <code class="ref">metadata</code>.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="pq">
+        <div class="pq-ruler" id="pqRuler">
+          <div class="pq-track"></div>
+          <div class="pq-playhead" id="pqPlayhead" style="left:2%"></div>
+          <div class="pq-tick" style="left:2%">T+0</div>
+          <div class="pq-tick" style="left:25%">T+10</div>
+          <div class="pq-tick" style="left:42%">T+15</div>
+          <div class="pq-tick" style="left:70%">T+25</div>
+          <div class="pq-tick" style="left:90%">T+35</div>
+
+          <div class="pq-pin" id="pinArrive" style="left:25%">
+            <div class="pq-pin-dot"></div>
+            <div class="pq-pin-label">order_arrived</div>
+          </div>
+          <div class="pq-pin" id="pinProcess" style="left:42%">
+            <div class="pq-pin-dot"></div>
+            <div class="pq-pin-label">order_process</div>
+          </div>
+          <div class="pq-pin report" id="pinReport" style="left:70%">
+            <div class="pq-pin-dot"></div>
+            <div class="pq-pin-label">exec_report ×6</div>
+          </div>
+          <div class="pq-pin report" id="pinSnapshot" style="left:90%">
+            <div class="pq-pin-dot"></div>
+            <div class="pq-pin-label">snapshot</div>
+          </div>
+        </div>
+
+        <div class="pq-log" id="pqLog">
+          <p class="pq-log-empty">Press run to watch a BUY 100 @ 100.25 move through the event queue.</p>
+        </div>
+        <div class="controls">
+          <button class="btn primary" id="pqRun">▶ Run scheduler</button>
+          <button class="btn" id="pqReset">Reset</button>
+          <span class="speed-control">
+            Speed <input type="range" id="pqSpeed" min="1" max="5" value="3" aria-label="Scheduler playback speed">
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout">
+        <h4><span class="tag tag-queue">Sequence tie-breaking</span></h4>
+        <p>Two events at the exact same simulated millisecond execute in the order they were queued — the <code class="ref">sequence</code> field breaks the tie. This is how a passive fill's report always beats the aggressor's, even though both have the same timestamp.</p>
+      </div>
+      <div class="callout">
+        <h4><span class="tag tag-queue">Inclusive advancement</span></h4>
+        <p><code class="ref">run_until(target_time)</code> processes all events with <code>timestamp ≤ target_time</code>. An event at exactly T+15 fires when you advance to T+15. The simulated clock stops at the target after the loop.</p>
+      </div>
+    </div>
+    <div class="source-ref">
+      <code>ScheduledEvent</code>: <code>models.py</code> (scheduled event dataclass).
+      Queue structure: <code>latency.py:180 (event_queue as List[ScheduledEvent])</code>.
+      Heap operations: <code>latency.py:306 (heappush)</code>, <code>:413 (heappop)</code>.
+      <code>run_until()</code>: <code>latency.py:456-472</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= NEW ORDER SCHEDULING ================= -->
+<section class="section" id="order-scheduling">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-queue">3.2</span>
+      <h2 class="h2">New order scheduling: two events, one call</h2>
+      <p class="lede">
+        <code class="ref">schedule_order_processing()</code> schedules <b>two</b> events
+        from one <code class="ref">submit_order()</code> call. Each uses a different slice
+        of the configured latency budget.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="latency-bar">
+        <div class="latency-seg sess">sess</div>
+        <div class="latency-seg inb">inbound (arrival_delay)</div>
+        <div class="latency-seg eng">engine</div>
+        <div class="latency-seg out">outbound (exec_report)</div>
+        <div class="latency-seg rest">remaining</div>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--text-faint)"></i> Session delay — per-session FIX handicap, 0ms default</span>
+        <span><i class="dot dot-queue"></i> Inbound — <code class="ref">network_ms / 2</code> unless <code class="ref">inbound_ms</code> set</span>
+        <span><i class="dot dot-amber"></i> Engine — <code class="ref">engine_ms</code>, added only to the second event</span>
+        <span><i class="dot dot-delivery"></i> Outbound — <code class="ref">network_ms / 2</code> unless <code class="ref">outbound_ms</code> set</span>
+      </div>
+
+      <table class="data-table" style="margin-top:1rem;">
+        <thead>
+          <tr><th>Event</th><th>Fires at</th><th>What it does</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="ref g">order_arrived</code></td>
+            <td>T + session + inbound</td>
+            <td>Marks latency timestamp. Observability only — <b>never touches the book</b>.</td>
+          </tr>
+          <tr>
+            <td><code class="ref a">order_process</code></td>
+            <td>T + session + inbound + engine</td>
+            <td>Calls <code class="ref">engine.process_order()</code>. Performs matching, fills, remainder finalization, invariant checks.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="notes">
+      <div><span class="c">// </span>arrival_delay = (network_ms // 2 if inbound_ms is None else inbound_ms) + session_delay_ms</div>
+      <div><span class="c">// </span>total_delay = arrival_delay + engine_ms</div>
+      <div><span class="c">// </span>Source: <code>latency.py:311-345 (schedule_order_processing)</code></div>
+      <div><span class="c">// </span>session_alias maps to per-session delays: <code>latency.py:183</code></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CANCEL SCHEDULING ================= -->
+<section class="section" id="cancel-scheduling">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-delivery">3.3</span>
+      <h2 class="h2">Cancel scheduling: a four-stage pipeline</h2>
+      <p class="lede">
+        Cancels are more complex than new orders. They pass through <b>four scheduled stages</b>
+        before delivery, plus the <code class="ref">cancel_received</code> ingress event.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="cancel-stages">
+        <div class="cancel-stage rcv">
+          <span class="stage-name">cancel_received</span>
+          <span class="stage-time">T+0</span>
+          Ingress sequencer → scheduler
+        </div>
+        <div class="cancel-stage arr">
+          <span class="stage-name">cancel_arrived_at_exchange</span>
+          <span class="stage-time">T+inbound</span>
+          session + inbound latency
+        </div>
+        <div class="cancel-stage eng">
+          <span class="stage-name">cancel_engine_process</span>
+          <span class="stage-time">T+inbound+engine</span>
+          calls cancel_order()
+        </div>
+        <div class="cancel-stage out">
+          <span class="stage-name">fix_delivery_due</span>
+          <span class="stage-time">T+inbound+engine+outbound</span>
+          eligible for FIX send
+        </div>
+        <div class="cancel-stage dlv">
+          <span class="stage-name">delivered</span>
+          <span class="stage-time">~T+total</span>
+          transport send attempt
+        </div>
+      </div>
+
+      <table class="data-table" style="margin-top:1.2rem;">
+        <thead>
+          <tr><th>Stage</th><th>Event type</th><th>What happens</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><code class="ref">cancel_received</code></td>
+            <td>Envelope drained from ingress queue, enters scheduler. Observability only.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><code class="ref">cancel_arrived_at_exchange</code></td>
+            <td>Applied inbound latency. Marks arrival for latency tracking. No book mutation.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><code class="ref">cancel_engine_process</code></td>
+            <td>Calls <code class="ref">engine.cancel_order()</code>. Resolves against authoritative state. Produces CANCELLED report or CancelReject.</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><code class="ref">fix_delivery_due</code></td>
+            <td>Report or reject enters the outbound FIX delivery queue. Applies outbound latency before becoming eligible for transport send.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout">
+        <h4><span class="tag tag-amber">Cancel vs. match race</span></h4>
+        <p>Equal-time events keep scheduler priority. A queued match can fill an order before a later cancel fires, returning TOO_LATE_TO_CANCEL. Conversely, a cancel wins only when its engine event fires first. No implicit ordering guarantees exist — it depends on configured timings and the explicit ingress/scheduler ordering.</p>
+      </div>
+      <div class="callout">
+        <h4><span class="tag tag-queue">Version guard</span></h4>
+        <p>A successful cancel increments <code class="ref">order.version</code>. Any already-queued stale <code class="ref">order_process</code> carrying the old version is a no-op. There's no need to dequeue or cancel the old event.</p>
+      </div>
+    </div>
+    <div class="source-ref">
+      Cancel scheduling: <code>latency.py:347-374 (schedule_cancel_processing)</code>.
+      Cancel stages documented in: <code>README.md:135-155 (Deterministic FIX ingress and cancel latency)</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= FIX DELIVERY QUEUE ================= -->
+<section class="section" id="fix-delivery">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-delivery">3.4</span>
+      <h2 class="h2">FIX delivery: reliable application queue</h2>
+      <p class="lede">
+        Execution Reports and Order Cancel Rejects enter a process-lifetime application queue
+        with five explicit states. The queue survives simulation session resets — records from
+        a previous run are rescheduled at the next start.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="delivery-state-grid" id="deliveryStates">
+        <div class="ds-node" data-state="PENDING">PENDING</div>
+        <div class="ds-node" data-state="DUE">DUE</div>
+        <div class="ds-node" data-state="DELIVERED">DELIVERED</div>
+        <div class="ds-node" data-state="RETRY_PENDING">RETRY PENDING</div>
+        <div class="ds-node" data-state="PERMANENTLY_FAILED">PERMANENTLY FAILED</div>
+      </div>
+      <div class="ds-detail" id="dsDetail">
+        <h4 style="color:var(--delivery); margin-top:0;">PENDING</h4>
+        <p>Record created but not yet due. Waiting for outbound latency to expire.</p>
+      </div>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout">
+        <h4><span class="tag tag-delivery">FIFO per session</span></h4>
+        <p>Only the oldest non-delivered record for a stable FIX session may be submitted. A blocked session never prevents another session from progressing. Per-session ClOrdID history survives reset.</p>
+      </div>
+      <div class="callout">
+        <h4><span class="tag tag-delivery">Retry and pruning</span></h4>
+        <p>Transport failures retry at <code class="ref">fix.delivery_retry_interval_ms</code> with bounded attempts per cycle. DELIVERED records are capped at <code class="ref">delivery_terminal_retention_records</code> (default 10,000). PENDING, DUE, RETRY_PENDING, and PERMANENTLY_FAILED records are never pruned.</p>
+      </div>
+    </div>
+    <div class="source-ref">
+      <code>FixDeliveryState</code>: <code>models.py:63-70</code>.
+      <code>OutboundFixDeliveryQueue</code>: <code>delivery.py</code>.
+      Full specification: <code>README.md:158-212 (Reliable FIX application delivery)</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= FAIL-STOP ================= -->
+<section class="section" id="fail-stop">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-danger">3.5</span>
+      <h2 class="h2">Fail-stop: no silent failures</h2>
+      <p class="lede">
+        An unexpected event-handler exception is fatal. The scheduler immediately enters
+        <code class="ref">FAILED</code> state. The offending event is removed from the live
+        queue into an immutable dead-letter record. Later events remain queued but are
+        never processed. Nothing is silently retried or dropped.
+      </p>
+    </div>
+
+    <div class="warn-banner">
+      <b>Once FAILED:</b>
+      <ul style="margin:0.5rem 0 0; padding-left:1.2rem;">
+        <li>Scheduling new events → raises <code class="ref">SchedulerFailedError</code></li>
+        <li>Processing the queue → raises <code class="ref">SchedulerFailedError</code></li>
+        <li>Advancing time → raises <code class="ref">SchedulerFailedError</code></li>
+        <li><code class="ref">POST /admin/advance-time</code> → HTTP 503 SCHEDULER_FAILED</li>
+        <li><code class="ref">/readyz</code> → HTTP 503 with <code class="ref">components.scheduler="failed"</code></li>
+        <li><code class="ref">/stats</code> → still available for inspection of dead letter</li>
+      </ul>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout">
+        <h4><span class="tag tag-danger">Failure triggers</span></h4>
+        <p>Three causes:<br>
+        1. <b>Handler exception</b> — any unhandled Python exception in an event handler.<br>
+        2. <b>Missing handler</b> — no registered handler for the event type.<br>
+        3. <b>Processing limit exceeded</b> — <code class="ref">max_events_per_advance</code> (100,000 by default) surpassed in one advance.</p>
+      </div>
+      <div class="callout">
+        <h4><span class="tag tag-danger">Dead letter contents</span></h4>
+        <p>The dead letter captures: <code class="ref">event_id</code>, <code class="ref">event_type</code>, <code class="ref">scheduled_timestamp</code>, <code class="ref">scheduler_sequence</code>, <code class="ref">exception_type</code>, <code class="ref">exception_message</code>, and immutable <code class="ref">event_metadata</code>. Never includes the live mutable payload object.</p>
+      </div>
+    </div>
+    <div class="source-ref">
+      Failure state: <code>latency.py:249-284 (_fail_event)</code>.
+      Dead letter: <code>SchedulerFailure</code> dataclass in <code>models.py</code>.
+      <code>SchedulerFailureStatus</code>: <code>models.py:111-116</code>.
+      Processing limit: <code>latency.py:37 (DEFAULT_MAX_EVENTS_PER_ADVANCE)</code>, <code>:399-411</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= WEBSOCKET DELIVERY ================= -->
+<section class="section" id="websocket">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-bid">3.6</span>
+      <h2 class="h2">WebSocket market data streaming</h2>
+      <p class="lede">
+        Each committed matching action publishes one <b>immutable <code class="ref">market_data</code>
+        snapshot</b> to all subscribers of that symbol. The snapshot contains current bid/ask levels
+        and incremental trades from that specific matching action.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="ws-flow">
+        <div class="ws-step">
+          <div class="ws-step-num">1</div>
+          <div class="ingress-desc">
+            <b>Client connects</b> to <code class="ref">/ws/{symbol}</code>. Validated symbol, lifecycle-gated.
+          </div>
+        </div>
+        <div class="ws-step">
+          <div class="ws-step-num">2</div>
+          <div class="ingress-desc">
+            <b>Initial snapshot</b> — current immutable book state with empty <code class="ref">trades</code> array,
+            using latest published sequence (not incremented).
+          </div>
+        </div>
+        <div class="ws-step">
+          <div class="ws-step-num">3</div>
+          <div class="ingress-desc">
+            <b>Matching action</b> — <code class="ref">engine._send_market_data_update()</code> creates
+            a snapshot with only the fills from that action in the <code class="ref">trades</code> array.
+            Global sequence incremented once.
+          </div>
+        </div>
+        <div class="ws-step">
+          <div class="ws-step-num">4</div>
+          <div class="ingress-desc">
+            <b>Fan-out</b> — snapshot is pinned into each subscriber's bounded outbound queue.
+            At most one later unsent snapshot retained (conflation). Heartbeats are distinct
+            messages that do not advance the sequence.
+          </div>
+        </div>
+        <div class="ws-step">
+          <div class="ws-step-num">5</div>
+          <div class="ingress-desc">
+            <b>Slow client protection</b> — blocked socket cannot delay another symbol or client.
+            Queue full → oldest pending snapshot dropped. 5-second send timeout → client
+            disconnected with code 1013.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="source-ref">
+      WebSocket registry: <code>websocket_delivery.py</code>.
+      Market data snapshot creation: <code>engine.py:604-654 (_create_market_data_snapshot, _send_market_data_update)</code>.
+      Full specification: <code>README.md:524-619 (WebSocket protocol)</code>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= PERSISTENCE ================= -->
+<section class="section" id="persistence">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag">3.7</span>
+      <h2 class="h2">QuestDB persistence (optional)</h2>
+      <p class="lede">
+        When enabled, every committed book update, trade, order, STP event, latency sample,
+        FIX connection, and pending event count is persisted to QuestDB. Eight tables with
+        deduplication on <code class="ref">(timestamp, run_id, metric_event_sequence)</code>.
+      </p>
+    </div>
+
+    <div class="panel">
+      <table class="data-table">
+        <thead>
+          <tr><th>Table</th><th>Content</th><th>Key columns</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code class="ref">orders</code></td><td>Order lifecycle events</td><td>symbol, side, order_type, price, quantity, status</td></tr>
+          <tr><td><code class="ref">trades</code></td><td>Completed fills</td><td>symbol, price, quantity, buyer/seller IDs</td></tr>
+          <tr><td><code class="ref">self_trade_prevention</code></td><td>Prevented cross events</td><td>symbol, aggressor/passive IDs, prevented quantity</td></tr>
+          <tr><td><code class="ref">latency</code></td><td>Simulated + CPU timing</td><td>order_id, inbound/engine/outbound/end_to_end ms</td></tr>
+          <tr><td><code class="ref">fix_messages</code></td><td>FIX message records</td><td>session_id, msg_type, delivery state, attempts</td></tr>
+          <tr><td><code class="ref">fix_connections</code></td><td>Session connections</td><td>session_id, connected/disconnected timestamps</td></tr>
+          <tr><td><code class="ref">book_snapshot</code></td><td>Book state per update</td><td>symbol, sequence, bids/asks JSON, spread</td></tr>
+          <tr><td><code class="ref">pending_events</code></td><td>Scheduler queue depth</td><td>pending count at each update</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:0.8rem; color:var(--text-dim); font-size:0.82rem;">
+        <b>Deduplication:</b> Retry sends the same (timestamp, run_id, metric_event_sequence)
+        keys — QuestDB upserts rather than creating duplicates. Failed writes retain original
+        records; retry does not allocate new sequences or timestamps.
+        <b>Flush:</b> One coalesced worker. Session end performs explicit drain.
+        Shutdown seals acceptance and performs timeout-bounded final drain.
+      </p>
+    </div>
+    <div class="source-ref">
+      Writer: <code>questdb_writer.py</code>. Full specification: <code>README.md:824-941 (Metrics and observability → QuestDB)</code>.
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>Built from <code>src/mockx/latency.py</code>, <code>delivery.py</code>,
+    <code>websocket_delivery.py</code>, <code>questdb_writer.py</code>,
+    and <code>metrics.py</code>.</p>
+</footer>
+
+<script src="mockx-docs.js"></script>
+<script>
+(function(){
+  "use strict";
+  const M = window.MockX;
+
+  /* ---------- Event queue demo ---------- */
+  const pqPlayhead = document.getElementById("pqPlayhead");
+  const pqLog = document.getElementById("pqLog");
+  const pqRunBtn = document.getElementById("pqRun");
+  const pqResetBtn = document.getElementById("pqReset");
+  const pqSpeedSlider = document.getElementById("pqSpeed");
+  const pins = {
+    arrive: document.getElementById("pinArrive"),
+    process: document.getElementById("pinProcess"),
+    report: document.getElementById("pinReport"),
+    snapshot: document.getElementById("pinSnapshot"),
+  };
+
+  let pqSpeed = 1;
+  pqSpeedSlider.addEventListener("input", function() { pqSpeed = parseInt(this.value); });
+  function pqWait(ms) { return M.wait(ms / pqSpeed); }
+
+  function pqLogLine(tag, cls, text) { M.logLine(pqLog, tag, cls, text); }
+
+  function resetScheduler(){
+    pqPlayhead.style.left = "2%";
+    Object.values(pins).forEach(p => p.classList.remove("popped"));
+    pqLog.innerHTML = '<p class="pq-log-empty">Press run to watch a BUY 100 @ 100.25 move through the event queue.</p>';
+    pqRunBtn.disabled = false;
+  }
+
+  async function movePQ(pct) {
+    pqPlayhead.style.left = pct + "%";
+    await pqWait(600);
+  }
+
+  async function runScheduler(){
+    pqRunBtn.disabled = true;
+    resetScheduler();
+    pqRunBtn.disabled = true;
+
+    pqLogLine("T+0", "", "CLIENT — submit_order() creates ORD-100, schedules <b>order_arrived</b> @T+10, <b>order_process</b> @T+15.");
+    await movePQ(25);
+    pins.arrive.classList.add("popped");
+    pqLogLine("T+10", "g", "order_arrived fires → latency_tracker marks network arrival. No book mutation. (inbound=" + 10 + "ms)");
+    await pqWait(400);
+
+    await movePQ(42);
+    pins.process.classList.add("popped");
+    pqLogLine("T+15", "a", "order_process fires → engine.process_order(): reject check → match → remainder.");
+    await pqWait(500);
+    pqLogLine("T+15", "a", "3 fills computed. Each produces passive+aggressor report pairs. 6 reports queued.");
+    await pqWait(450);
+    pqLogLine("T+15", "", "MarketDataSnapshot created. Symbol book update. Global sequence incremented.");
+    await pqWait(400);
+
+    await movePQ(70);
+    pins.report.classList.add("popped");
+    pqLogLine("T+25", "g", "exec_report ×6 fire in FIFO sequence order → outbound FIX delivery queue. (outbound=" + 10 + "ms)");
+    await pqWait(350);
+    pqLogLine("T+25", "", "Each report PENDING → DUE after outbound latency → transport send attempted once session connected.");
+    await pqWait(400);
+
+    await movePQ(90);
+    pins.snapshot.classList.add("popped");
+    pqLogLine("T+25+", "", "WebSocket snapshot broadcast to /ws/{symbol} subscribers. Immutable data, sequence included.");
+    await pqWait(300);
+    pqLogLine("✓", "g", "All events processed. Scheduler queue empty. Simulated time at T+25.");
+
+    pqRunBtn.disabled = false;
+  }
+
+  pqRunBtn.addEventListener("click", runScheduler);
+  pqResetBtn.addEventListener("click", resetScheduler);
+  resetScheduler();
+
+  /* ---------- FIX Delivery state machine ---------- */
+  const DELIVERY_DETAILS = {
+    PENDING: {
+      title: "PENDING",
+      text: "Record created but its <code class='ref'>due_time</code> has not yet been reached. Waiting for outbound latency to expire. Not eligible for transport send. This is the initial state for all new delivery records."
+    },
+    DUE: {
+      title: "DUE",
+      text: "Outbound latency has expired. The record is now eligible for transport submission. Only the oldest non-delivered record for a session may be submitted. If the session is disconnected, the record waits."
+    },
+    DELIVERED: {
+      title: "DELIVERED",
+      text: "QuickFIX reported successful local submission. This is a terminal state (within MockX's application-level guarantee). Records are retained up to <code class='ref'>delivery_terminal_retention_records</code> (default 10,000) then pruned with a generation-scoped tombstone to prevent re-enqueue."
+    },
+    "RETRY_PENDING": {
+      title: "RETRY PENDING",
+      text: "Transport send failed or returned False. The current retry cycle is exhausted. The next logon triggers an immediate bounded retry cycle. The record remains eligible and counting toward its session's backlog."
+    },
+    PERMANENTLY_FAILED: {
+      title: "PERMANENTLY FAILED",
+      text: "A deterministic serialization failure occurred. The record is permanently blocked and cannot be retried. Blocks later records for the same session. Visible in /stats and Prometheus as <code class='ref'>mockx_fix_delivery_permanent_failures_total</code>."
+    }
+  };
+
+  const dsGrid = document.getElementById("deliveryStates");
+  const dsDetail = document.getElementById("dsDetail");
+  if (dsGrid && dsDetail) {
+    const nodes = dsGrid.querySelectorAll(".ds-node");
+    function selectDS(state) {
+      nodes.forEach(n => n.classList.toggle("sel", n.dataset.state === state));
+      const d = DELIVERY_DETAILS[state] || DELIVERY_DETAILS.PENDING;
+      dsDetail.innerHTML = "<h4 style='color:var(--delivery); margin-top:0;'>" + d.title + "</h4><p style='color:var(--text-dim); font-size:0.84rem; line-height:1.55;'>" + d.text + "</p>";
+    }
+    nodes.forEach(n => {
+      n.addEventListener("click", () => selectDS(n.dataset.state));
+    });
+    selectDS("PENDING");
+  }
+
+})();
+</script>
+
+</body>
+</html>
