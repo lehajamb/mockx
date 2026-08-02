@@ -10,6 +10,7 @@ import inspect
 import logging
 from typing import Any, Awaitable, Callable, Optional
 
+from .glimpse_encoder import GlimpseOrderSnapshot, GlimpseSnapshot
 from .identifiers import RunIdentifierScope
 from .models import SchedulerState
 
@@ -83,6 +84,7 @@ class ExchangeLifecycle:
         self._published_token = IngressToken(self.state, self.run_generation)
         self._close_websockets: Optional[Callable[[], Awaitable[None]]] = None
         self._stats_builder: Optional[Callable[[], Any]] = None
+        self.glimpse_service: Optional[Any] = None
 
     @property
     def token(self) -> IngressToken:
@@ -97,6 +99,9 @@ class ExchangeLifecycle:
     ) -> None:
         self._close_websockets = close_websockets
         self._stats_builder = stats_builder
+
+    def bind_glimpse_service(self, service: Any) -> None:
+        self.glimpse_service = service
 
     def _publish(self, state: LifecycleState) -> None:
         self.state = state
@@ -193,6 +198,8 @@ class ExchangeLifecycle:
                 ) from exc
 
             try:
+                if self.glimpse_service is not None:
+                    self.glimpse_service.revoke_all()
                 self.scheduler.reset()
                 self.engine.reset_run_state()
                 self.latency_tracker.reset(
@@ -226,6 +233,9 @@ class ExchangeLifecycle:
                         generation,
                         self.scheduler.current_time,
                     )
+                if self.glimpse_service is not None:
+                    await self.glimpse_service.start()
+                    self.glimpse_service.begin_run(generation)
 
                 self.run_id = run_id
                 self.run_generation = generation
@@ -243,6 +253,8 @@ class ExchangeLifecycle:
                     starting_time=self.scheduler.current_time,
                 )
             except Exception as exc:
+                if self.glimpse_service is not None:
+                    self.glimpse_service.revoke_all()
                 self.metrics.end_run()
                 self.run_id = None
                 self._publish(LifecycleState.FAILED)
@@ -271,6 +283,8 @@ class ExchangeLifecycle:
                         "METRICS_FLUSH_FAILED",
                         "Buffered metrics could not be flushed",
                     )
+                if self.glimpse_service is not None and generation is not None:
+                    self.glimpse_service.revoke_run(generation)
                 if self.itch_feed is not None:
                     self.itch_feed.end_run(self.scheduler.current_time)
                 if self._stats_builder is None:
@@ -298,6 +312,74 @@ class ExchangeLifecycle:
                 },
             )
             return SessionEndResult(run_id, generation, final_stats)
+
+    async def capture_glimpse_snapshot(self) -> GlimpseSnapshot:
+        """Capture one book/ITCH cut without retaining live engine objects."""
+
+        observed = self.token
+        self.raise_if_transition_or_failed()
+        async with self.lock:
+            self.raise_if_transition_or_failed()
+            if observed != self.token:
+                raise LifecycleError(
+                    503,
+                    "LIFECYCLE_TRANSITION_IN_PROGRESS",
+                    "The GLIMPSE request crossed a lifecycle transition",
+                )
+            if self.state != LifecycleState.ACTIVE:
+                raise LifecycleError(
+                    409,
+                    "SESSION_NOT_ACTIVE",
+                    "GLIMPSE snapshots require an active simulation session",
+                )
+            if self.scheduler.state == SchedulerState.FAILED:
+                raise LifecycleError(
+                    503,
+                    "SCHEDULER_FAILED",
+                    "GLIMPSE snapshots are unavailable while the scheduler is failed",
+                )
+            feed = self.itch_feed
+            if (
+                feed is None
+                or feed.state.value != "ready"
+                or feed.active_generation != self.run_generation
+            ):
+                raise LifecycleError(
+                    503,
+                    "ITCH_UNAVAILABLE",
+                    "GLIMPSE snapshots require the current coherent ITCH session",
+                )
+
+            orders: list[GlimpseOrderSnapshot] = []
+            for symbol in feed.encoder.symbols:
+                book = self.engine.books[symbol]
+                book.assert_invariants()
+                for levels in (book.bids, book.asks):
+                    for level in levels:
+                        for order in level.orders:
+                            if order.run_generation != self.run_generation:
+                                raise RuntimeError(
+                                    f"Stale generation order {order.id} in {symbol}"
+                                )
+                            if order.price_ticks is None:
+                                raise RuntimeError(
+                                    f"Resting order {order.id} has no limit price"
+                                )
+                            orders.append(
+                                GlimpseOrderSnapshot(
+                                    order_ref_num=order.id,
+                                    symbol=symbol,
+                                    side=order.side,
+                                    qty_lots=order.leaves_qty_lots,
+                                    price_ticks=order.price_ticks,
+                                )
+                            )
+            return GlimpseSnapshot(
+                run_generation=self.run_generation,
+                timestamp=self.scheduler.current_time,
+                itch_sequence=feed.sequence_number,
+                orders=tuple(orders),
+            )
 
     async def advance_to(self, target_time: datetime) -> int:
         return await self.execute_administrative_advance(

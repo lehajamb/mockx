@@ -49,7 +49,7 @@
     <p class="lede">
       Visual documentation for the matching engine, discrete-event scheduler,
       FIX gateway, lifecycle coordinator, REST API, WebSocket market data,
-      experimental ITCH/MoldUDP64 feed, and QuestDB persistence layer. Built
+      experimental ITCH/MoldUDP64 plus GLIMPSE/SoupBinTCP feeds, and QuestDB persistence layer. Built
       from the current Python source code.
     </p>
 
@@ -64,7 +64,7 @@
       <div class="arch-link"><span class="arch-dot" style="animation-delay:1.2s"></span></div>
       <div class="arch-node accent-stp">Book<br><b>data / reports</b></div>
       <div class="arch-link"><span class="arch-dot" style="animation-delay:1.6s"></span></div>
-      <div class="arch-node accent-bid">Delivery<br><b>FIX / WS / ITCH</b></div>
+      <div class="arch-node accent-bid">Delivery<br><b>FIX / WS / ITCH / GLIMPSE</b></div>
     </div>
   </div>
 </header>
@@ -88,12 +88,12 @@
           <h3>System Architecture</h3>
           <p>
             High-level component map, exchange lifecycle state machine,
-            two-clock design, FIX ingress pipeline, REST, WebSocket, and ITCH
+            two-clock design, FIX ingress pipeline, REST, WebSocket, ITCH, and GLIMPSE
             surfaces, run generation and identifiers, and external versus
             realtime clock modes.
           </p>
           <div class="toc-modules">
-            Sources: lifecycle.py &middot; gateway.py &middot; api.py &middot; itch_delivery.py &middot; configuration.py
+            Sources: lifecycle.py &middot; gateway.py &middot; api.py &middot; itch_delivery.py &middot; glimpse_service.py &middot; configuration.py
           </div>
         </a>
 
@@ -119,11 +119,11 @@
           <p>
             Discrete-event min-heap queue, new-order and cancel scheduling
             pipelines, FIX ingress sequencing, outbound delivery queue
-            (5-state lifecycle), WebSocket and ITCH market-data delivery,
-            Mold heartbeats, fail-stop behavior, and advancement safety.
+            (5-state lifecycle), WebSocket, ITCH, and GLIMPSE market-data delivery,
+            Mold/Soup heartbeats, fail-stop behavior, and advancement safety.
           </p>
           <div class="toc-modules">
-            Sources: latency.py &middot; delivery.py &middot; itch_delivery.py &middot; moldudp64_transport.py &middot; metrics.py
+            Sources: latency.py &middot; delivery.py &middot; itch_delivery.py &middot; moldudp64_transport.py &middot; glimpse_service.py &middot; metrics.py
           </div>
         </a>
       </div>

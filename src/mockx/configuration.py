@@ -332,6 +332,108 @@ class ITCHConfig(StrictConfigModel):
         return value
 
 
+class GlimpseConfig(StrictConfigModel):
+    """GLIMPSE 5.0 outbound snapshot-service configuration."""
+
+    enabled: StrictBool = False
+
+
+class SoupBinTCPTransportConfig(StrictConfigModel):
+    """SoupBinTCP listener, authentication, and bounded replay configuration."""
+
+    host: str = "127.0.0.1"
+    port: StrictInt = Field(ge=1, le=65535)
+    session_prefix: str = "GS"
+    credentials: Mapping[str, str]
+    login_timeout_ms: StrictInt = Field(default=30_000, ge=1, le=86_400_000)
+    write_timeout_ms: StrictInt = Field(default=5_000, ge=1, le=86_400_000)
+    max_connections: StrictInt = Field(default=64, ge=1, le=100_000)
+    replay_ttl_ms: StrictInt = Field(default=60_000, ge=1, le=86_400_000)
+    max_cached_sessions: StrictInt = Field(default=32, ge=1, le=100_000)
+    max_cached_bytes: StrictInt = Field(
+        default=67_108_864,
+        ge=1,
+        le=1_073_741_824,
+    )
+
+    @field_validator("host")
+    @classmethod
+    def valid_host(cls, value: str) -> str:
+        host = _nonempty(value, field_name="soupbintcp.host")
+        try:
+            ipaddress.ip_address(host)
+            return host
+        except ValueError:
+            pass
+        if host == "localhost":
+            return host
+        if len(host) > 253 or not re.fullmatch(
+            r"(?=.{1,253}\Z)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}"
+            r"[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}"
+            r"[A-Za-z0-9])?",
+            host,
+        ):
+            raise ValueError("soupbintcp.host must be a valid IP address or hostname")
+        return host
+
+    @field_validator("session_prefix")
+    @classmethod
+    def valid_session_prefix(cls, value: str) -> str:
+        prefix = _nonempty(value, field_name="SoupBinTCP session_prefix")
+        try:
+            encoded = prefix.encode("ascii")
+        except UnicodeEncodeError as exc:
+            raise ValueError("session_prefix must contain only ASCII") from exc
+        if not 1 <= len(encoded) <= 2:
+            raise ValueError("session_prefix must contain 1-2 ASCII bytes")
+        if not prefix.isalnum():
+            raise ValueError("session_prefix must be ASCII alphanumeric")
+        return prefix.upper()
+
+    @field_validator("credentials")
+    @classmethod
+    def valid_credentials(cls, values: Mapping[str, str]) -> Mapping[str, str]:
+        if not values:
+            raise ValueError("credentials must contain at least one entry")
+        normalized: dict[str, str] = {}
+        for raw_username, raw_password in values.items():
+            if (
+                not isinstance(raw_username, str)
+                or not raw_username
+                or raw_username != raw_username.strip()
+            ):
+                raise ValueError("Soup username must be a non-empty unpadded string")
+            if (
+                not isinstance(raw_password, str)
+                or not raw_password
+                or raw_password != raw_password.strip()
+            ):
+                raise ValueError("Soup password must be a non-empty unpadded string")
+            username = raw_username
+            password = raw_password
+            try:
+                encoded_username = username.encode("ascii")
+            except UnicodeEncodeError as exc:
+                raise ValueError("Soup username must contain 1-6 ASCII bytes") from exc
+            try:
+                encoded_password = password.encode("ascii")
+            except UnicodeEncodeError as exc:
+                raise ValueError("Soup password must contain 1-10 ASCII bytes") from exc
+            if not 1 <= len(encoded_username) <= 6:
+                raise ValueError("Soup username must contain 1-6 ASCII bytes")
+            if not 1 <= len(encoded_password) <= 10:
+                raise ValueError("Soup password must contain 1-10 ASCII bytes")
+            if any(byte < 0x21 or byte > 0x7E for byte in encoded_username):
+                raise ValueError("Soup username must use printable non-space ASCII")
+            if any(byte < 0x21 or byte > 0x7E for byte in encoded_password):
+                raise ValueError("Soup password must use printable non-space ASCII")
+            key = username.upper()
+            if key in normalized:
+                raise ValueError("Soup usernames must be case-insensitive unique")
+            normalized[key] = password.upper()
+        return normalized
+
+
 class MoldUDP64TransportConfig(StrictConfigModel):
     """MoldUDP64 transport configuration."""
 
@@ -589,6 +691,8 @@ class ExchangeConfig(StrictConfigModel):
     questdb: Optional[QuestDBConfig] = None
     itch: ITCHConfig = Field(default_factory=ITCHConfig)
     moldudp64: Optional[MoldUDP64TransportConfig] = None
+    glimpse: GlimpseConfig = Field(default_factory=GlimpseConfig)
+    soupbintcp: Optional[SoupBinTCPTransportConfig] = None
 
     @field_validator("exchange_name")
     @classmethod
@@ -641,6 +745,11 @@ class ExchangeConfig(StrictConfigModel):
 
     @model_validator(mode="after")
     def validate_itch_contract(self) -> "ExchangeConfig":
+        if self.glimpse.enabled:
+            if not self.itch.enabled:
+                raise ValueError("enabled GLIMPSE requires enabled ITCH")
+            if self.soupbintcp is None:
+                raise ValueError("enabled GLIMPSE requires soupbintcp configuration")
         if not self.itch.enabled:
             return self
         if self.moldudp64 is None:

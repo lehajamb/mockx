@@ -46,3 +46,17 @@ itch:
   market_category: " "
   financial_status: " "
   round_lot_size: 1
+glimpse:
+  enabled: false
+soupbintcp:
+  host: 127.0.0.1
+  port: 18001
+  session_prefix: GS
+  credentials:
+    GLIMP: CHANGE_ME
+  login_timeout_ms: 30000
+  write_timeout_ms: 5000
+  max_connections: 64
+  replay_ttl_ms: 60000
+  max_cached_sessions: 32
+  max_cached_bytes: 67108864

@@ -33,6 +33,8 @@ MSG_TRADE_NON_CROSS = b"P"
 MSG_CROSS_TRADE = b"Q"
 MSG_BROKEN_TRADE = b"B"
 
+MAX_PRICE4 = 2_000_000_000
+
 # System Event Codes
 EVENT_START_OF_MESSAGES = b"O"
 EVENT_START_OF_SYSTEM_HOURS = b"S"
@@ -78,7 +80,8 @@ def _price_to_itch(price_ticks: int, tick_size: Decimal) -> int:
 
     ITCH Price(4) has 4 implied decimal places (e.g. 100.5000 → 1005000).
     MockX internal: price = tick_size * price_ticks
-    ITCH wire: price * 10^4 as unsigned 32-bit big-endian.
+    ITCH wire: price * 10^4 as unsigned 32-bit big-endian. Nasdaq constrains
+    Price(4) to a maximum display price of 200000.0000.
     """
     if not isinstance(price_ticks, int) or isinstance(price_ticks, bool):
         raise ValueError("price_ticks must be an integer")
@@ -88,8 +91,8 @@ def _price_to_itch(price_ticks: int, tick_size: Decimal) -> int:
             f"tick size {tick_size} is not exactly representable as ITCH Price(4)"
         )
     value = int(scaled_tick) * price_ticks
-    if not 0 <= value <= 0xFFFFFFFF:
-        raise ValueError("ITCH Price(4) must fit an unsigned 32-bit integer")
+    if not 0 <= value <= MAX_PRICE4:
+        raise ValueError("ITCH Price(4) exceeds the maximum 200000.0000")
     return value
 
 
@@ -157,7 +160,13 @@ class ITCHEncoder:
 
     @property
     def symbols(self) -> tuple[str, ...]:
-        return tuple(self._locate_codes)
+        return tuple(
+            symbol
+            for symbol, _ in sorted(
+                self._locate_codes.items(),
+                key=lambda item: (item[1], item[0]),
+            )
+        )
 
     # ------------------------------------------------------------------
     # 1.1 System Event Message (12 bytes)

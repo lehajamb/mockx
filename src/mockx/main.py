@@ -20,6 +20,8 @@ from .latency import (
     SchedulerFailedError,
 )
 from .instruments import InstrumentCatalog
+from .glimpse_encoder import GlimpseEncoder
+from .glimpse_service import GlimpseService
 from .itch_delivery import ITCHFeedPublisher
 from .lifecycle import ExchangeLifecycle, LifecycleState
 from .metrics import (
@@ -171,6 +173,26 @@ class MockExchange:
             self.fix_app,
             self.itch_feed,
         )
+        self.glimpse_service: Optional[GlimpseService] = None
+        if self.config.glimpse.enabled:
+            if self.itch_feed is None or self.config.soupbintcp is None:
+                raise ValueError("Enabled GLIMPSE requires ITCH and SoupBinTCP")
+            self.glimpse_service = GlimpseService(
+                self.config.soupbintcp,
+                GlimpseEncoder(
+                    self.itch_feed.encoder,
+                    market_category=self.config.itch.market_category.encode("ascii"),
+                    financial_status=self.config.itch.financial_status.encode("ascii"),
+                    round_lot_size=self.config.itch.round_lot_size,
+                ),
+                self.lifecycle.capture_glimpse_snapshot,
+                self.metrics,
+                on_state_change=self._on_glimpse_state,
+            )
+            self.lifecycle.bind_glimpse_service(self.glimpse_service)
+            self.metrics.update_glimpse_state("idle")
+        else:
+            self.metrics.update_glimpse_state("disabled")
         self.fix_app.lifecycle = self.lifecycle
         self.fix_gateway: Optional[FIXGateway] = None
         if self.fix_enabled:
@@ -277,6 +299,11 @@ class MockExchange:
             state.component_status["itch"] = (
                 self.itch_feed.state.value if self.itch_feed is not None else "disabled"
             )
+            state.component_status["glimpse"] = (
+                self.glimpse_service.state.value
+                if self.glimpse_service is not None
+                else "disabled"
+            )
             if self.metrics.persistence is not None:
                 await self.metrics.persistence.start()
                 state.component_status["persistence"] = (
@@ -294,6 +321,9 @@ class MockExchange:
 
             if not self._callbacks_registered:
                 raise RuntimeError("Engine callbacks must be registered before startup")
+
+            if self.glimpse_service is not None:
+                await self.glimpse_service.start()
 
             if self.fix_enabled:
                 state.component_status["fix_gateway"] = "starting"
@@ -333,6 +363,13 @@ class MockExchange:
             state.ready = False
             state.accepting_admin = False
             state.component_status["api"] = "stopping"
+
+            if self.glimpse_service is not None:
+                try:
+                    await self.glimpse_service.stop()
+                except Exception:
+                    logger.exception("GLIMPSE shutdown failed")
+                    state.component_status["glimpse"] = "degraded"
 
             if self.fix_gateway is not None:
                 try:
@@ -398,6 +435,20 @@ class MockExchange:
         api = getattr(self, "api", None)
         if api is not None:
             api.app.state.component_status["itch"] = state
+        if state == "degraded":
+            service = getattr(self, "glimpse_service", None)
+            feed = getattr(self, "itch_feed", None)
+            if (
+                service is not None
+                and feed is not None
+                and feed.active_generation is not None
+            ):
+                service.revoke_run(feed.active_generation)
+
+    def _on_glimpse_state(self, state: str) -> None:
+        api = getattr(self, "api", None)
+        if api is not None:
+            api.app.state.component_status["glimpse"] = state
 
     def _on_order_submitted(self, order_id: int, command) -> None:
         self.metrics.record_order_submitted(order_id, command)

@@ -9,6 +9,7 @@ import re
 from typing import Optional
 
 from .instruments import InstrumentCatalog, InstrumentConversionError
+from .itch_encoder import MAX_PRICE4
 from .models import (
     NewOrderCommand,
     OrderType,
@@ -215,12 +216,12 @@ class OrderNormalizer:
                 wire_price = scaled_tick * price_ticks
                 if (
                     wire_price != wire_price.to_integral_value()
-                    or wire_price > 0xFFFFFFFF
+                    or wire_price > MAX_PRICE4
                 ):
                     raise OrderValidationError(
                         OrderValidationCode.NUMBER_OUT_OF_RANGE,
                         "price",
-                        "price exceeds the ITCH unsigned 32-bit Price(4) field",
+                        "price exceeds the ITCH Price(4) maximum 200000.0000",
                     )
         elif raw.price is not None:
             raise OrderValidationError(

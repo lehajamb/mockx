@@ -5,7 +5,8 @@ simulation. It provides a price-time-priority order book, an externally
 controlled simulated clock, FIX order entry, typed REST administration,
 immutable WebSocket market data, process metrics, and optional buffered
 QuestDB persistence. An experimental downstream Nasdaq ITCH 5.0 feed can be
-published over MoldUDP64 multicast for deterministic market-data tests.
+published over MoldUDP64 multicast, with an optional GLIMPSE 5.0 recovery
+service over SoupBinTCP unicast for deterministic market-data tests.
 
 ## 1. What MockX implements
 
@@ -25,6 +26,8 @@ published over MoldUDP64 multicast for deterministic market-data tests.
 - Optional acknowledged QuestDB writes that flush at session end and shutdown.
 - Optional run-scoped ITCH 5.0 displayed-order output over downstream-only
   MoldUDP64, with message-count sequencing and scheduler-driven heartbeats.
+- Optional process-lifetime GLIMPSE 5.0/SoupBinTCP listener providing atomic
+  resting-order snapshots and bounded interrupted-spin replay.
 
 MockX is a simulator, not a production trading venue.
 
@@ -249,8 +252,8 @@ it is never multiplied into an ITCH share field. Price(4) is exactly
 `price_ticks * tick_size * 10000`, without rounding. Enabling ITCH therefore
 requires every symbol to be ASCII and at most eight bytes and every tick size
 to be exactly representable at four decimal places. REST and FIX reject
-quantities or prices that cannot fit the unsigned 32-bit ITCH fields before
-the order is scheduled.
+quantities that cannot fit the unsigned 32-bit share field and prices above
+the specified Price(4) maximum `200000.0000` before the order is scheduled.
 
 Mold sequence 1 identifies the first ITCH message. A data packet advances the
 next sequence by its Message Count; heartbeat (`Message Count=0`) and
@@ -261,17 +264,66 @@ data packet.
 
 This is a downstream-only multicast implementation. It does not listen for
 MoldUDP64 request packets, retain replay history, or serve retransmissions.
-Consumers can detect a sequence gap but must establish a later MockX run for a
-new coherent session. A runtime encoder/socket failure similarly degrades only
-ITCH: matching and the other interfaces remain available, `/readyz` returns
-HTTP 200 with `status="degraded"`, no restart is attempted inside that run,
-and the next simulation generation attempts a fresh session.
+Without GLIMPSE, consumers that detect a sequence gap must establish a later
+MockX run for a new coherent session. With GLIMPSE enabled, they can keep
+buffering live ITCH and request a new atomic snapshot in the current coherent
+run. A runtime encoder/socket failure similarly degrades only ITCH: matching
+and the other interfaces remain available, `/readyz` returns HTTP 200 with
+`status="degraded"`, no restart is attempted inside that run, and the next
+simulation generation attempts a fresh session.
+
+### GLIMPSE 5.0 / SoupBinTCP snapshot and recovery
+
+When `glimpse.enabled` is true, MockX binds one process-lifetime SoupBinTCP
+listener. GLIMPSE requires the real-time ITCH/MoldUDP64 feed because the final
+Snapshot (`G`) value is the next ITCH message sequence at the atomic snapshot
+cut. The listener remains bound while no simulation run is active, but an
+authenticated login receives Soup Login Reject reason `S` until lifecycle is
+`ACTIVE` and the current ITCH session is coherent.
+
+A fresh client sends a Soup Login Request with an all-space Requested Session
+and Requested Sequence Number 1. The server replies with Login Accepted and
+one Soup Sequenced Data (`S`) packet per higher-level message:
+
+1. Stock Directory (`R`) for every configured instrument, in locate-code order.
+2. Stock Trading Action (`H`) with current state `T` for every instrument.
+3. Unattributed Add Order (`A`) for every live resting order, using current
+   leaves quantity. Instruments are ordered by locate; each book is bids
+   best-to-worst/FIFO followed by asks best-to-worst/FIFO.
+4. End of Snapshot (`G`) containing the 20-byte, left-space-padded decimal
+   sequence of the next TotalView-ITCH message.
+
+The engine book and Mold next sequence are copied together under the lifecycle
+lock after book invariant validation. Encoding and every TCP `drain()` occur
+after that lock is released. A slow or disconnected GLIMPSE client therefore
+cannot delay matching, time advancement, FIX, WebSocket, or ITCH publication.
+
+The recovery workflow is:
+
+1. Subscribe to the MoldUDP64 feed and buffer real-time ITCH messages by
+   message sequence.
+2. Request a fresh GLIMPSE spin at Soup sequence 1 and build a local book from
+   its `A` messages.
+3. Read `N` from the final `G`, discard buffered ITCH messages below `N`, then
+   apply a contiguous stream beginning with ITCH message `N`.
+
+Soup credentials are case-insensitive fixed-width ASCII. The server handles
+arbitrary TCP fragmentation/coalescing, server and client heartbeats, login and
+write timeouts, logout, and clean End of Session (`Z`). If TCP fails before a
+spin completes, its immutable messages remain available by named Soup session
+and next expected Soup sequence until the configured TTL. Replay is bounded by
+connection, session, and aggregate-byte limits; capacity exhaustion rejects a
+new login with reason `S` instead of evicting a replayable spin.
+
+MockX currently models neither dynamic halts nor Reg SHO, RPII, or operational
+halt state, so GLIMPSE emits only `R`, `H`, `A`, and `G`. It deliberately uses
+the same unattributed `A` contract as the real-time ITCH path.
 
 ## 3. Architecture
 
 `MockExchange` owns one lifecycle coordinator, scheduler, engine, metrics
 collector, FIX application, optional FIX acceptor, optional ITCH publisher,
-`ExchangeAPI`, and FastAPI app. The lifecycle coordinator's one asynchronous
+optional GLIMPSE service, `ExchangeAPI`, and FastAPI app. The lifecycle coordinator's one asynchronous
 lock serializes component
 startup/shutdown, session start/end, scheduler advancement, full run reset, and
 committed FIX ingress. The retained references are:
@@ -286,6 +338,7 @@ exchange.app.state.metrics
 exchange.app.state.session_registry
 exchange.lifecycle           # ExchangeLifecycle
 exchange.itch_feed           # ITCHFeedPublisher or None
+exchange.glimpse_service      # GlimpseService or None
 ```
 
 No route inspection or closure internals are used to recover ownership.
@@ -297,19 +350,21 @@ traffic. FastAPI lifespan startup then:
 2. Captures the running asyncio loop.
 3. Confirms the engine, scheduler, metrics, registry, API, and callbacks.
 4. Assigns the loop to the QuickFIX adapter.
-5. Starts the FIX acceptor when enabled.
-6. Starts the optional realtime scheduler task.
-7. Enables administrative actions and marks readiness true.
+5. Binds the optional GLIMPSE/SoupBinTCP listener.
+6. Starts the FIX acceptor when enabled.
+7. Starts the optional realtime scheduler task.
+8. Enables administrative actions and marks readiness true.
 
 Shutdown:
 
 1. Marks readiness false and disables administrative actions.
-2. Stops the FIX acceptor.
-3. Cancels the realtime scheduler task.
-4. Sends coherent ITCH end markers/end-of-session and closes its socket.
-5. Stops the scheduler and closes/removes WebSockets.
-6. Flushes and closes metrics persistence.
-7. Clears adapter loop references and marks components stopped.
+2. Stops accepting GLIMPSE connections and revokes active spins.
+3. Stops the FIX acceptor.
+4. Cancels the realtime scheduler task.
+5. Sends coherent ITCH end markers/end-of-session and closes its socket.
+6. Stops the scheduler and closes/removes WebSockets.
+7. Flushes and closes metrics persistence.
+8. Clears adapter loop references and marks components stopped.
 
 Shutdown is idempotent. A persistence-close failure is logged and reported as
 degraded without skipping the remaining teardown.
@@ -567,7 +622,7 @@ Unknown symbols return HTTP 404:
 ```
 
 `/stats` separates orders, trades, cancellations, reports, sessions, book
-gauges, FIX delivery, ITCH delivery, latency, persistence, and scheduler state. The
+gauges, FIX delivery, ITCH/GLIMPSE delivery, latency, persistence, and scheduler state. The
 process-lifetime `fix_delivery` object exposes enqueued records, queue depth,
 counts by delivery state, sessions with backlog, cumulative attempts,
 failures, deliveries, permanent failures, abandonments, and oldest pending
@@ -581,7 +636,9 @@ scheduled; it never exposes the live command object. Latency field names
 include `_us` or `_ms`; REST reads do not mutate counters.
 The process-lifetime `itch` object exposes enable/state, active Mold session,
 next message sequence, sessions, messages, packets, heartbeats, failures, and
-the last error.
+the last error. The process-lifetime `glimpse` object exposes listener state,
+active connections, cache gauges, fresh/resumed/completed/rejected sessions,
+sequenced messages, bytes, heartbeats, timeouts, failures, and the last error.
 
 ## 8. WebSocket protocol
 
@@ -733,6 +790,12 @@ readiness degraded. Normal session end publishes the ITCH market/system/end
 markers and Mold end-of-session before closing the socket. A degraded session
 is never resumed in place; only the next generation attempts recovery.
 
+The process-lifetime GLIMPSE listener is bound during component startup and
+retried once at the next run start after a bind failure. Each run enables a new
+snapshot generation only after ITCH starts. Run end, reset, shutdown, or ITCH
+degradation revokes the generation and cancels its active/cached spins before
+ITCH end markers are published.
+
 Ending with no active session is idempotent and returns
 `status="no_active_session"` with null `session_id`, `run_generation`, and
 `final_stats`. A successful end returns only the ended run's business metrics,
@@ -798,8 +861,8 @@ timestamp and returns:
 `scope="current_run"` at the response root and reset after a successful end.
 `run_active` distinguishes an active run from the cleared stopped state.
 `process_lifetime` contains cumulative business counters and duration
-aggregates. `persistence`, `scheduler`, `fix_delivery`, `websocket`, and
-`itch` are separate operational sections with their own scope labels. The connected FIX
+aggregates. `persistence`, `scheduler`, `fix_delivery`, `websocket`, `itch`,
+and `glimpse` are separate operational sections with their own scope labels. The connected FIX
 session value and delivery queue depths are current gauges, not run totals.
 
 Successful session end captures the current-run snapshot before clearing it;
@@ -878,6 +941,27 @@ mockx_itch_failures_total
 mockx_itch_session_active
 mockx_itch_degraded
 mockx_moldudp64_next_sequence_number
+```
+
+GLIMPSE/SoupBinTCP collectors are also process-lifetime and have no username,
+session, connection, symbol, order, or participant labels:
+
+```text
+mockx_glimpse_connections_accepted_total
+mockx_glimpse_fresh_sessions_total
+mockx_glimpse_resumed_sessions_total
+mockx_glimpse_completed_sessions_total
+mockx_glimpse_rejected_sessions_total
+mockx_glimpse_sequenced_messages_total
+mockx_glimpse_sequenced_bytes_total
+mockx_glimpse_heartbeats_sent_total
+mockx_glimpse_timeouts_total
+mockx_glimpse_failures_total
+mockx_glimpse_active_connections
+mockx_glimpse_cached_sessions
+mockx_glimpse_cached_bytes
+mockx_glimpse_ready
+mockx_glimpse_degraded
 ```
 
 WebSocket delivery collectors are process-lifetime and intentionally have no
@@ -1030,6 +1114,7 @@ one Python process do not register duplicate global collectors.
 |---|---:|---:|---|
 | MockX FIX | 4001 | 4001 | FIX 4.4 acceptor |
 | MockX API | 8000 | 8001 | REST, WebSocket, UI, `/metrics` |
+| MockX GLIMPSE | disabled | disabled | Optional SoupBinTCP snapshot service |
 | Live market | - | - | Two-session FIX market driver |
 | QuestDB Web/REST/ILP | 9000 | 9000 | Console, SQL, and ingestion |
 | QuestDB PostgreSQL | 8812 | 8812 | SQL wire protocol |
@@ -1096,6 +1181,20 @@ itch:
   market_category: " "
   financial_status: " "
   round_lot_size: 1
+glimpse:
+  enabled: false
+soupbintcp:
+  host: 127.0.0.1
+  port: 18001
+  session_prefix: GS
+  credentials:
+    GLIMP: CHANGE_ME
+  login_timeout_ms: 30000
+  write_timeout_ms: 5000
+  max_connections: 64
+  replay_ttl_ms: 60000
+  max_cached_sessions: 32
+  max_cached_bytes: 67108864
 questdb:
   enabled: false
 ```
@@ -1112,6 +1211,7 @@ Validated ranges are:
 | WebSocket | All timing values finite and in (0, 86,400] seconds; heartbeat/market staleness exceed heartbeat; queue 1-100,000 |
 | FIX delivery | Retry 1-2,147,483,647 ms; attempts 1-10,000; retained delivered payloads 1-1,000,000; enabled sessions require exact participant mappings |
 | ITCH/MoldUDP64 | ITCH disabled by default; enabling requires MoldUDP64, ASCII symbols up to 8 bytes, Price(4)-compatible ticks, and an IPv4 multicast destination; prefix 1-2 ASCII bytes, heartbeat 100-60,000 ms, payload 512-65,507 bytes, TTL 0-255 |
+| GLIMPSE/SoupBinTCP | GLIMPSE disabled by default; enabling requires ITCH/MoldUDP64 and SoupBinTCP; host plus port 1-65,535; case-insensitive ASCII username/password widths 1-6/1-10; session prefix 1-2 ASCII alphanumeric bytes; positive bounded timeouts, connections, replay sessions, TTL, and aggregate bytes |
 | QuestDB | Batch 1-100,000; record capacity from batch size to 1,000,000; byte capacity 1-1 GiB; interval/backoff/retry/shutdown/request timeout 1-86,400,000 ms; max retry at least initial backoff; policy `reject_new` or `drop_oldest`; enabled config requires REST/ILP and health URLs; username/password are optional but must be paired |
 | admin/CORS | Valid host and port; origins are unique HTTP(S) origins; wildcard is forbidden |
 
@@ -1152,9 +1252,9 @@ ports, noninteger random seeds, unsupported scheduler modes, nonpositive
 intervals or FIX delivery retry settings, stale timeouts not greater than
 heartbeat cadence, invalid WebSocket queue/send/browser timing values,
 nonpositive event-processing limits, wildcard CORS, and incomplete enabled
-QuestDB or ITCH/MoldUDP64 configuration.
+QuestDB, ITCH/MoldUDP64, or GLIMPSE/SoupBinTCP configuration.
 
-Enable the experimental feed with:
+Enable the dual real-time and recovery feeds with:
 
 ```yaml
 itch:
@@ -1170,6 +1270,20 @@ moldudp64:
   max_payload_bytes: 1400
   interface_address: 0.0.0.0
   ttl: 1
+glimpse:
+  enabled: true
+soupbintcp:
+  host: 127.0.0.1
+  port: 18001
+  session_prefix: GS
+  credentials:
+    GLIMP: CHANGE_ME
+  login_timeout_ms: 30000
+  write_timeout_ms: 5000
+  max_connections: 64
+  replay_ttl_ms: 60000
+  max_cached_sessions: 32
+  max_cached_bytes: 67108864
 ```
 
 `CFG_PATH` and `FIX_CONFIG_FILE` select the YAML and QuickFIX files.
@@ -1247,7 +1361,11 @@ python -m pytest -q tests/test_readme_examples.py tests/test_live_demo.py
 ## 14. Known limitations
 
 - No production authentication, TLS termination, or reverse-proxy config is
-  included. Disable admin routes or bind them to a trusted interface.
+  included. SoupBinTCP uses only the protocol's simple fixed-field credentials;
+  disable admin routes and bind services to a trusted interface or terminate
+  TLS externally.
+- GLIMPSE replay sessions are bounded and process-local. Restarting MockX loses
+  interrupted spins; request a fresh sequence-1 snapshot after reconnecting.
 - No guaranteed WebSocket replay or sequence persistence across restarts.
 - WebSocket delivery queues are process-local; there is no distributed fan-out
   or message broker.
@@ -1256,7 +1374,8 @@ python -m pytest -q tests/test_readme_examples.py tests/test_live_demo.py
   requests, and protocol-level duplicate behavior. This is not
   production-grade FIX recovery or end-to-end exactly-once delivery.
 - No replace workflow, stop orders, or new order types beyond limit/market.
-- FIX market-data requests are rejected; use REST/WebSocket.
+- FIX market-data requests are rejected; use REST/WebSocket or the separately
+  configured GLIMPSE/SoupBinTCP recovery service.
 - No Prometheus server, Grafana, dashboard assets, OpenTelemetry, or cloud
   manifests are bundled.
 - Self-trading is always prevented by canceling both complete remainders; there
