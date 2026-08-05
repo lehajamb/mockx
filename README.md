@@ -1300,6 +1300,28 @@ maintained.
 
 ## 13. Examples
 
+### C++20 GLIMPSE/ITCH order book
+
+[`examples/cpp_market_feed`](examples/cpp_market_feed/README.md) contains a
+dependency-free Windows/Linux C++20 command-line feed handler. It subscribes
+to MoldUDP64 before requesting a GLIMPSE snapshot, receives accepted UDP
+datagrams directly into a lock-free SPSC ring, parses validated ITCH wire views
+in place, maintains the full order-by-order book, and renders configurable
+top-N price levels. A gap, new Mold session, malformed datagram, or ring overrun
+causes an automatic fresh GLIMPSE cut and sequence restitch.
+
+Build and test it with CMake:
+
+```bash
+cmake -S examples/cpp_market_feed -B examples/cpp_market_feed/build
+cmake --build examples/cpp_market_feed/build
+ctest --test-dir examples/cpp_market_feed/build --output-on-failure
+```
+
+The example README includes the required MockX ITCH/GLIMPSE configuration,
+simulation-session startup, credentials, platform-specific commands, and all
+CLI options.
+
 The bounded local FIX contract-check interface is:
 
 ```text

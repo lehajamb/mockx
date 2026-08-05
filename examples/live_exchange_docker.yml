@@ -42,14 +42,23 @@ cors_origins: []
 prometheus:
   enabled: true
 itch:
-  enabled: false
+  enabled: true
   market_category: " "
   financial_status: " "
   round_lot_size: 1
+moldudp64:
+  multicast_group: 239.192.0.1
+  multicast_port: 18000
+  session_prefix: MX
+  heartbeat_interval_ms: 1000
+  max_payload_bytes: 1400
+  interface_address: 0.0.0.0
+  ttl: 1
 glimpse:
-  enabled: false
+  enabled: true
 soupbintcp:
-  host: 127.0.0.1
+  # Must listen on the container network interface, not container loopback.
+  host: 0.0.0.0
   port: 18001
   session_prefix: GS
   credentials:

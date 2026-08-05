@@ -50,6 +50,7 @@ services:
     ports:
       - "4001:4001"
       - "8001:8000"
+      - "127.0.0.1:18001:18001/tcp"
     depends_on:
       questdb:
         condition: service_healthy
@@ -63,6 +64,29 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
+
+  mold-host-relay:
+    image: mockx-live-demo:local
+    pull_policy: never
+    environment:
+      PYTHONUNBUFFERED: "1"
+    entrypoint:
+      - python
+      - examples/moldudp64_host_relay.py
+    command:
+      - --multicast-group
+      - 239.192.0.1
+      - --multicast-port
+      - "18000"
+      - --target-host
+      - host.docker.internal
+      - --target-port
+      - "18000"
+    depends_on:
+      mockx:
+        condition: service_healthy
+    init: true
+    restart: on-failure
 
   live-market:
     image: mockx-live-demo:local
@@ -84,6 +108,8 @@ services:
     depends_on:
       mockx:
         condition: service_healthy
+      mold-host-relay:
+        condition: service_started
     init: true
     stop_signal: SIGTERM
     stop_grace_period: 30s
