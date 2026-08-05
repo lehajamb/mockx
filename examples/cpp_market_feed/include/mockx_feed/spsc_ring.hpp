@@ -137,6 +137,16 @@ private:
 template <typename T>
 class ObjectRing {
 public:
+    struct ProducerSlot {
+        T* value{};
+        std::uint64_t ticket{};
+    };
+
+    struct ConsumerSlot {
+        T* value{};
+        std::uint64_t ticket{};
+    };
+
     explicit ObjectRing(std::size_t capacity)
         : capacity_(checked_capacity(capacity)), mask_(capacity_ - 1U), slots_(capacity_) {
         if (!head_.is_lock_free() || !tail_.is_lock_free()) {
@@ -147,25 +157,74 @@ public:
     ObjectRing(const ObjectRing&) = delete;
     ObjectRing& operator=(const ObjectRing&) = delete;
 
-    [[nodiscard]] bool try_push(T value) {
+    [[nodiscard]] std::optional<ProducerSlot> try_reserve() noexcept {
         const auto head = head_.load(std::memory_order_relaxed);
         if (head - tail_.load(std::memory_order_acquire) >= capacity_) {
+            return std::nullopt;
+        }
+        return ProducerSlot{
+            &slots_[static_cast<std::size_t>(head) & mask_], head};
+    }
+
+    void commit(const ProducerSlot& slot) {
+        const auto head = head_.load(std::memory_order_relaxed);
+        if (slot.ticket != head
+            || slot.value != &slots_[static_cast<std::size_t>(head) & mask_]) {
+            throw std::logic_error("invalid object-ring producer commit");
+        }
+        head_.store(head + 1U, std::memory_order_release);
+    }
+
+    [[nodiscard]] std::optional<ConsumerSlot> try_peek() noexcept {
+        const auto tail = tail_.load(std::memory_order_relaxed);
+        if (tail == head_.load(std::memory_order_acquire)) {
+            return std::nullopt;
+        }
+        return ConsumerSlot{
+            &slots_[static_cast<std::size_t>(tail) & mask_], tail};
+    }
+
+    void release(const ConsumerSlot& slot) {
+        const auto tail = tail_.load(std::memory_order_relaxed);
+        if (slot.ticket != tail
+            || slot.value != &slots_[static_cast<std::size_t>(tail) & mask_]) {
+            throw std::logic_error("invalid object-ring consumer release");
+        }
+        tail_.store(tail + 1U, std::memory_order_release);
+    }
+
+    [[nodiscard]] bool try_push(T value) {
+        auto slot = try_reserve();
+        if (!slot) {
             return false;
         }
-        slots_[static_cast<std::size_t>(head) & mask_] = std::move(value);
-        head_.store(head + 1U, std::memory_order_release);
+        *slot->value = std::move(value);
+        commit(*slot);
         return true;
     }
 
     [[nodiscard]] bool try_pop(T& output) {
-        const auto tail = tail_.load(std::memory_order_relaxed);
-        if (tail == head_.load(std::memory_order_acquire)) {
+        auto slot = try_peek();
+        if (!slot) {
             return false;
         }
-        output = std::move(slots_[static_cast<std::size_t>(tail) & mask_]);
-        tail_.store(tail + 1U, std::memory_order_release);
+        output = std::move(*slot->value);
+        release(*slot);
         return true;
     }
+
+    [[nodiscard]] bool empty() const noexcept {
+        return tail_.load(std::memory_order_relaxed)
+            == head_.load(std::memory_order_acquire);
+    }
+
+    [[nodiscard]] std::size_t size() const noexcept {
+        const auto head = head_.load(std::memory_order_acquire);
+        const auto tail = tail_.load(std::memory_order_acquire);
+        return static_cast<std::size_t>(head - tail);
+    }
+
+    [[nodiscard]] std::size_t capacity() const noexcept { return capacity_; }
 
 private:
     static std::size_t checked_capacity(std::size_t capacity) {

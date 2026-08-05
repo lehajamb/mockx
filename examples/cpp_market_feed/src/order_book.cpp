@@ -250,4 +250,35 @@ std::vector<DisplayInstrument> OrderBook::display(
     return result;
 }
 
+bool OrderBook::copy_depth(
+    std::string_view symbol,
+    std::span<DisplayLevel> bids,
+    std::size_t& bid_count,
+    std::span<DisplayLevel> asks,
+    std::size_t& ask_count,
+    char& trading_state) const {
+    bid_count = 0;
+    ask_count = 0;
+    const auto locate = locate_by_symbol_.find(symbol);
+    if (locate == locate_by_symbol_.end()) {
+        trading_state = '?';
+        return false;
+    }
+    const auto& instrument = require_instrument(locate->second);
+    trading_state = instrument.trading_state;
+    for (const auto& [price, level] : instrument.bids) {
+        if (bid_count == bids.size()) {
+            break;
+        }
+        bids[bid_count++] = DisplayLevel{price, level.shares, level.fifo.size()};
+    }
+    for (const auto& [price, level] : instrument.asks) {
+        if (ask_count == asks.size()) {
+            break;
+        }
+        asks[ask_count++] = DisplayLevel{price, level.shares, level.fifo.size()};
+    }
+    return true;
+}
+
 } // namespace mockx::feed

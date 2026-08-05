@@ -7,6 +7,7 @@ import sys
 
 from fastapi.testclient import TestClient
 
+from src.mockx.configuration import load_config
 from src.mockx.models import NewOrderCommand, Side, TimeInForce
 
 from .api_helpers import ROOT, make_exchange
@@ -167,8 +168,36 @@ def test_readme_local_config_and_example_files_exist():
         "examples/live_exchange.yml",
         "examples/live_exchange_docker.yml",
         "examples/live_market.py",
+        "examples/cpp_sor/README.md",
+        "examples/cpp_sor/CMakeLists.txt",
+        "examples/cpp_sor/sor.cfg",
+        "examples/cpp_sor/venue_a.yml",
+        "examples/cpp_sor/venue_b.yml",
+        "examples/cpp_sor/venue_a_acceptor.cfg",
+        "examples/cpp_sor/venue_b_acceptor.cfg",
     ):
         assert (ROOT / relative).is_file()
+
+
+def test_cpp_sor_venue_fixtures_are_distinct_but_contract_compatible():
+    venue_a = load_config(str(ROOT / "examples" / "cpp_sor" / "venue_a.yml"))
+    venue_b = load_config(str(ROOT / "examples" / "cpp_sor" / "venue_b.yml"))
+    instrument_a = venue_a.instruments["BTC-USDT"]
+    instrument_b = venue_b.instruments["BTC-USDT"]
+
+    assert instrument_a.tick_size == instrument_b.tick_size
+    assert instrument_a.lot_size == instrument_b.lot_size
+    assert venue_a.admin_api.port != venue_b.admin_api.port
+    assert venue_a.moldudp64.multicast_group != venue_b.moldudp64.multicast_group
+    assert venue_a.moldudp64.multicast_port != venue_b.moldudp64.multicast_port
+    assert venue_a.soupbintcp.port != venue_b.soupbintcp.port
+
+    initiator = (ROOT / "examples" / "cpp_sor" / "sor.cfg").read_text(
+        encoding="utf-8"
+    )
+    assert initiator.count("[SESSION]") == 2
+    assert "VenueID=A" in initiator and "VenuePriority=0" in initiator
+    assert "VenueID=B" in initiator and "VenuePriority=1" in initiator
 
 
 def test_documented_in_process_session_workflow_processes_an_order():

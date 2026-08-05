@@ -8,7 +8,9 @@
 #include <list>
 #include <map>
 #include <set>
+#include <span>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -45,6 +47,24 @@ struct DisplaySnapshot {
     std::vector<DisplayInstrument> instruments;
 };
 
+struct TransparentStringHash {
+    using is_transparent = void;
+
+    [[nodiscard]] std::size_t operator()(std::string_view value) const noexcept {
+        return std::hash<std::string_view>{}(value);
+    }
+};
+
+struct TransparentStringEqual {
+    using is_transparent = void;
+
+    [[nodiscard]] bool operator()(
+        std::string_view left,
+        std::string_view right) const noexcept {
+        return left == right;
+    }
+};
+
 class OrderBook {
 public:
     OrderBook() = default;
@@ -78,6 +98,13 @@ public:
     [[nodiscard]] std::vector<DisplayInstrument> display(
         std::size_t levels,
         const std::set<std::string>& symbols) const;
+    [[nodiscard]] bool copy_depth(
+        std::string_view symbol,
+        std::span<DisplayLevel> bids,
+        std::size_t& bid_count,
+        std::span<DisplayLevel> asks,
+        std::size_t& ask_count,
+        char& trading_state) const;
 
 private:
     struct Level {
@@ -107,7 +134,12 @@ private:
     void erase_order(std::unordered_map<std::uint64_t, Order>::iterator order);
 
     std::map<std::uint16_t, Instrument> instruments_;
-    std::unordered_map<std::string, std::uint16_t> locate_by_symbol_;
+    std::unordered_map<
+        std::string,
+        std::uint16_t,
+        TransparentStringHash,
+        TransparentStringEqual>
+        locate_by_symbol_;
     std::unordered_map<std::uint64_t, Order> orders_;
 };
 
