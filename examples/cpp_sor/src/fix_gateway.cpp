@@ -153,7 +153,25 @@ void FixApplication::onLogout(const FIX::SessionID& session_id) {
     }
 }
 
-void FixApplication::toAdmin(FIX::Message&, const FIX::SessionID&) {}
+void FixApplication::toAdmin(
+    FIX::Message& message,
+    const FIX::SessionID& session_id) {
+    try {
+        const auto type = header_string(message, 35);
+
+        if (type == FIX::MsgType_Reject || type == FIX::MsgType_Logout) {
+            std::cerr
+                << "OUTBOUND FIX ADMIN "
+                << session_id.toString()
+                << ": "
+                << message.toString()
+                << '\n';
+        }
+    } catch (const std::exception& error) {
+        fail(std::string("failed to inspect outbound FIX admin message: ")
+             + error.what());
+    }
+}
 
 void FixApplication::toApp(FIX::Message&, const FIX::SessionID&) {}
 
