@@ -75,7 +75,59 @@ The checked-in fixtures define:
 | MoldUDP64 | 239.192.10.1:18100 | 239.192.10.2:18200 |
 | GLIMPSE | 18101 | 18201 |
 
-From the repository root, start each exchange in its own terminal:
+### Docker quick start (recommended)
+
+The example has its own Compose stack, separate from the repository-root live
+demo. From the repository root, build and start both venues, both Windows-host
+MoldUDP64 relays, and the one-shot FIX book seeder:
+
+```powershell
+docker compose -f examples/cpp_sor/docker-compose.yml up --build
+```
+
+Wait until `seed-books` prints the following line and exits with code 0. The
+two MockX services and feed relays remain running for `mockx_sor.exe`:
+
+```text
+SOR books ready: Venue A asks 0.002@100.00, 0.009@102.00; Venue B asks 0.003@99.00, 0.001@100.00
+```
+
+The seeder uses HTTP only for readiness, simulation lifecycle, and final book
+verification. It logs on as `SEED_A` and `SEED_B`, submits all passive GTC
+orders over FIX, waits for their `NEW` Execution Reports, and then disconnects.
+Those sessions map to `passive-a` and `passive-b`; the later SOR sessions remain
+mapped to `sor-demo`, so mandatory self-trade prevention does not block fills.
+
+For a detached stack, inspect the completed seeder before running the SOR:
+
+```powershell
+docker compose -f examples/cpp_sor/docker-compose.yml up --build -d
+docker compose -f examples/cpp_sor/docker-compose.yml ps -a
+docker compose -f examples/cpp_sor/docker-compose.yml logs seed-books
+```
+
+The bootstrap deliberately ends any active demo sessions before starting
+`sor-a` and `sor-b`, so it can restore the deterministic books at any time:
+
+```powershell
+docker compose -f examples/cpp_sor/docker-compose.yml run --rm seed-books
+```
+
+Stop and remove only this example's containers and network with:
+
+```powershell
+docker compose -f examples/cpp_sor/docker-compose.yml down
+```
+
+If either feed cannot become live, confirm Docker Desktop resolves
+`host.docker.internal`, ports 18100 and 18200 are available for UDP on the
+host, and both relay services are still running. Inspect their output with
+`docker compose -f examples/cpp_sor/docker-compose.yml logs`.
+
+### Manual setup
+
+To run the same topology without Docker, start each exchange in its own
+terminal from the repository root:
 
 ```powershell
 python -m src.mockx.cli --config examples/cpp_sor/venue_a.yml `
@@ -87,29 +139,17 @@ python -m src.mockx.cli --config examples/cpp_sor/venue_b.yml `
   --fix-config examples/cpp_sor/venue_b_acceptor.cfg
 ```
 
-Start both deterministic sessions:
+Reset both deterministic sessions and seed the same passive liquidity through
+the dedicated FIX initiator configuration. Venue A receives 2 lots at 100 and
+9 at 102; venue B receives 3 lots at 99 and 1 at 100. Quantities are decimal
+instrument units, while the SOR CLI uses ITCH shares/internal lots.
 
-```bash
-curl -f -X POST http://127.0.0.1:8101/api/v1/session/start \
-  -H "Content-Type: application/json" -d '{"run_id":"sor-a"}'
-curl -f -X POST http://127.0.0.1:8102/api/v1/session/start \
-  -H "Content-Type: application/json" -d '{"run_id":"sor-b"}'
+```powershell
+python examples/cpp_sor/seed_books.py `
+  --fix-config examples/cpp_sor/seed_books.cfg
 ```
 
-Seed passive asks with REST. Venue A receives 2 lots at 100 and 9 at 102;
-venue B receives 3 lots at 99 and 1 at 100. Quantities are decimal instrument
-units, while the SOR CLI uses ITCH shares/internal lots.
-
-```bash
-curl -f -X POST http://127.0.0.1:8101/api/v1/orders -H "Content-Type: application/json" \
-  -d '{"session_id":"REST:A","participant_id":"passive-a","cl_ord_id":"A-100","symbol":"BTC-USDT","side":"SELL","order_type":"LIMIT","quantity":"0.002","price":"100.00","time_in_force":"GTC"}'
-curl -f -X POST http://127.0.0.1:8101/api/v1/orders -H "Content-Type: application/json" \
-  -d '{"session_id":"REST:A","participant_id":"passive-a","cl_ord_id":"A-102","symbol":"BTC-USDT","side":"SELL","order_type":"LIMIT","quantity":"0.009","price":"102.00","time_in_force":"GTC"}'
-curl -f -X POST http://127.0.0.1:8102/api/v1/orders -H "Content-Type: application/json" \
-  -d '{"session_id":"REST:B","participant_id":"passive-b","cl_ord_id":"B-99","symbol":"BTC-USDT","side":"SELL","order_type":"LIMIT","quantity":"0.003","price":"99.00","time_in_force":"GTC"}'
-curl -f -X POST http://127.0.0.1:8102/api/v1/orders -H "Content-Type: application/json" \
-  -d '{"session_id":"REST:B","participant_id":"passive-b","cl_ord_id":"B-100","symbol":"BTC-USDT","side":"SELL","order_type":"LIMIT","quantity":"0.001","price":"100.00","time_in_force":"GTC"}'
-```
+### Run the SOR
 
 Set GLIMPSE passwords outside the process list and route a seven-lot BUY with a
 100 limit:

@@ -19,6 +19,7 @@ fix:
   enabled: true
   session_participants:
     "FIX.4.4:MOCKX_B->SOR_B": "sor-demo"
+    "FIX.4.4:MOCKX_B->SEED_B": "passive-b"
 scheduler:
   mode: "realtime"
   interval_ms: 1

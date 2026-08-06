@@ -2,3 +2,4 @@
 /build-*/
 /runtime/*
 !/runtime/.gitkeep
+/vcpkg_installed/
