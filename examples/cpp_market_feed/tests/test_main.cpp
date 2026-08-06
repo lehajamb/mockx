@@ -1,5 +1,6 @@
 #include "mockx_feed/app.hpp"
 #include "mockx_feed/decoder.hpp"
+#include "mockx_feed/feed_handler.hpp"
 #include "mockx_feed/order_book.hpp"
 #include "mockx_feed/protocol.hpp"
 #include "mockx_feed/renderer.hpp"
@@ -250,6 +251,26 @@ void test_ring() {
     producer.join();
     consumer.join();
     CHECK(!failed.load());
+
+    ObjectRing<std::uint64_t> objects(2);
+    auto produced = objects.try_reserve();
+    CHECK(produced.has_value());
+    *produced->value = 42;
+    objects.commit(*produced);
+    produced = objects.try_reserve();
+    CHECK(produced.has_value());
+    *produced->value = 43;
+    objects.commit(*produced);
+    CHECK(!objects.try_reserve().has_value());
+    auto consumed = objects.try_peek();
+    CHECK(consumed.has_value());
+    CHECK(*consumed->value == 42);
+    objects.release(*consumed);
+    consumed = objects.try_peek();
+    CHECK(consumed.has_value());
+    CHECK(*consumed->value == 43);
+    objects.release(*consumed);
+    CHECK(objects.empty());
 }
 
 void test_book_and_decoder() {
@@ -279,6 +300,25 @@ void test_book_and_decoder() {
     (void)decoder.apply(remove, book, DecodeContext::live_itch);
     CHECK(book.order_count() == 0);
     CHECK(book.display(10, {})[0].bids.empty());
+
+    auto ask = add_order(1, "TEST", 12, 'S', 9, 1'020'000);
+    (void)decoder.apply(ask, book, DecodeContext::live_itch);
+    DepthSnapshot depth;
+    const FeedStatus status{FeedState::live, "MX00000001", 9, {}};
+    CHECK(fill_depth_snapshot(depth, status, book, "TEST", 1));
+    CHECK(depth.state == FeedState::live);
+    CHECK(depth.symbol_present);
+    CHECK(depth.ask_count == 1);
+    CHECK(depth.asks[0].price == 1'020'000);
+    CHECK(depth.asks[0].shares == 9);
+
+    const FeedStatus recovering{FeedState::recovering, "MX00000001", 10, {}};
+    CHECK(fill_depth_snapshot(depth, recovering, book, "TEST", 1));
+    CHECK(depth.state == FeedState::recovering);
+    CHECK(depth.next_sequence == 10);
+    CHECK(!fill_depth_snapshot(depth, status, book, "MISSING", 1));
+    CHECK(!depth.symbol_present);
+    CHECK(depth.trading_state == '?');
 
     check_throws<ProtocolError>([&] {
         auto unknown = execution(1, 99, 1);

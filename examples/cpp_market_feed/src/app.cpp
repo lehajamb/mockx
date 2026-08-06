@@ -1,9 +1,6 @@
 #include "mockx_feed/app.hpp"
 
-#include "mockx_feed/decoder.hpp"
-#include "mockx_feed/glimpse.hpp"
-#include "mockx_feed/net.hpp"
-#include "mockx_feed/order_book.hpp"
+#include "mockx_feed/feed_handler.hpp"
 #include "mockx_feed/renderer.hpp"
 #include "mockx_feed/spsc_ring.hpp"
 
@@ -11,15 +8,10 @@
 #include <charconv>
 #include <chrono>
 #include <cstdlib>
-#include <exception>
 #include <iostream>
 #include <limits>
-#include <mutex>
-#include <optional>
-#include <span>
 #include <string_view>
 #include <thread>
-#include <vector>
 
 namespace mockx::feed {
 namespace {
@@ -80,96 +72,52 @@ void validate_config(const AppConfig& config) {
     }
 }
 
-class UdpReceiver {
+std::string state_name(FeedState state) {
+    switch (state) {
+    case FeedState::snapshotting:
+        return "SNAPSHOTTING";
+    case FeedState::recovering:
+        return "RECOVERING";
+    case FeedState::live:
+        return "LIVE";
+    case FeedState::end_of_session:
+        return "END_OF_SESSION";
+    case FeedState::stopped:
+        return "STOPPED";
+    }
+    return "UNKNOWN";
+}
+
+class ConsoleObserver final : public FeedObserver {
 public:
-    UdpReceiver(
-        DatagramRing& ring,
-        const AppConfig& config,
-        const std::atomic<bool>& stop)
-        : ring_(ring), stop_(stop), socket_(
-              config.itch_group, config.itch_port, config.interface_address),
-          discard_(config.datagram_bytes) {}
+    ConsoleObserver(ObjectRing<DisplaySnapshot>& ring, const AppConfig& config)
+        : ring_(ring), config_(config) {}
 
-    void run() noexcept {
-        try {
-            while (!stop_.load(std::memory_order_acquire)) {
-                auto slot = ring_.try_reserve();
-                if (!slot) {
-                    const auto result = socket_.receive(discard_);
-                    if (result.status != ReceiveStatus::timeout) {
-                        ring_drops_.fetch_add(1, std::memory_order_relaxed);
-                        continuity_epoch_.fetch_add(1, std::memory_order_release);
-                    }
-                    continue;
-                }
-                const auto result = socket_.receive(
-                    std::span<std::byte>(slot->data, slot->capacity));
-                if (result.status == ReceiveStatus::timeout) {
-                    continue;
-                }
-                if (result.status == ReceiveStatus::truncated) {
-                    ring_drops_.fetch_add(1, std::memory_order_relaxed);
-                    continuity_epoch_.fetch_add(1, std::memory_order_release);
-                    continue;
-                }
-                ring_.commit(*slot, result.length);
-            }
-        } catch (const std::exception& error) {
-            {
-                std::lock_guard lock(error_mutex_);
-                error_ = error.what();
-            }
-            failed_.store(true, std::memory_order_release);
+    [[nodiscard]] bool publish(
+        const FeedStatus& status,
+        const OrderBook& book) override {
+        const auto now = std::chrono::steady_clock::now();
+        if (status.state == FeedState::live && now < next_render_) {
+            return true;
         }
-    }
-
-    [[nodiscard]] std::uint64_t continuity_epoch() const noexcept {
-        return continuity_epoch_.load(std::memory_order_acquire);
-    }
-    [[nodiscard]] std::uint64_t ring_drops() const noexcept {
-        return ring_drops_.load(std::memory_order_relaxed);
-    }
-    [[nodiscard]] bool failed() const noexcept {
-        return failed_.load(std::memory_order_acquire);
-    }
-    [[nodiscard]] std::string error() const {
-        std::lock_guard lock(error_mutex_);
-        return error_;
+        DisplaySnapshot snapshot;
+        snapshot.connection_state = state_name(status.state);
+        snapshot.mold_session = status.mold_session;
+        snapshot.next_sequence = status.next_sequence;
+        snapshot.counters = status.counters;
+        snapshot.instruments = book.display(config_.levels, config_.symbols);
+        (void)ring_.try_push(std::move(snapshot));
+        if (status.state == FeedState::live) {
+            next_render_ = now + std::chrono::milliseconds(config_.refresh_ms);
+        }
+        return true;
     }
 
 private:
-    DatagramRing& ring_;
-    const std::atomic<bool>& stop_;
-    UdpMulticastSocket socket_;
-    std::vector<std::byte> discard_;
-    std::atomic<std::uint64_t> continuity_epoch_{0};
-    std::atomic<std::uint64_t> ring_drops_{0};
-    std::atomic<bool> failed_{false};
-    mutable std::mutex error_mutex_;
-    std::string error_;
+    ObjectRing<DisplaySnapshot>& ring_;
+    const AppConfig& config_;
+    std::chrono::steady_clock::time_point next_render_{};
 };
-
-class RecoveryRequired : public std::runtime_error {
-public:
-    using std::runtime_error::runtime_error;
-};
-
-void publish_display(
-    ObjectRing<DisplaySnapshot>& display_ring,
-    const OrderBook& book,
-    const AppConfig& config,
-    std::string state,
-    const std::string& session,
-    std::uint64_t expected_sequence,
-    const FeedCounters& counters) {
-    DisplaySnapshot snapshot;
-    snapshot.connection_state = std::move(state);
-    snapshot.mold_session = session;
-    snapshot.next_sequence = expected_sequence;
-    snapshot.counters = counters;
-    snapshot.instruments = book.display(config.levels, config.symbols);
-    (void)display_ring.try_push(std::move(snapshot));
-}
 
 } // namespace
 
@@ -257,258 +205,22 @@ Usage: mockx_market_feed [options]
 }
 
 int run_market_feed(const AppConfig& config, std::atomic<bool>& stop) {
-    NetworkRuntime network;
-    DatagramRing ingress(config.ring_capacity, config.datagram_bytes);
     ObjectRing<DisplaySnapshot> display_ring(8);
-    UdpReceiver receiver(ingress, config, stop);
-    std::thread receiver_thread;
-    std::thread renderer_thread;
+    ConsoleObserver observer(display_ring, config);
+    std::thread renderer_thread(
+        [&display_ring, &stop] { renderer_loop(display_ring, stop); });
     try {
-        receiver_thread = std::thread([&receiver] { receiver.run(); });
-        renderer_thread = std::thread(
-            [&display_ring, &stop] { renderer_loop(display_ring, stop); });
-    } catch (...) {
-        stop.store(true, std::memory_order_release);
-        if (receiver_thread.joinable()) {
-            receiver_thread.join();
-        }
-        throw;
-    }
-
-    auto finish = [&](int code) {
-        stop.store(true, std::memory_order_release);
-        if (receiver_thread.joinable()) {
-            receiver_thread.join();
-        }
+        const auto result = FeedHandler(config).run(stop, observer);
         if (renderer_thread.joinable()) {
             renderer_thread.join();
         }
-        return code;
-    };
-
-    GlimpseClient glimpse(GlimpseConfig{
-        config.glimpse_host,
-        config.glimpse_port,
-        config.username,
-        config.password});
-    MessageDecoder decoder;
-    OrderBook book;
-    FeedCounters counters;
-    std::string active_session;
-    std::uint64_t expected_sequence = 1;
-    std::uint64_t accepted_epoch = receiver.continuity_epoch();
-    bool synchronized_once = false;
-    bool recovery_needed = true;
-    bool awaiting_stitch = false;
-    std::uint32_t failed_stitches = 0;
-    auto next_render = std::chrono::steady_clock::now();
-
-    auto request_recovery = [&](std::string_view reason) {
-        ++counters.gaps;
-        if (awaiting_stitch) {
-            ++failed_stitches;
-        } else {
-            failed_stitches = 0;
+        return result;
+    } catch (...) {
+        stop.store(true, std::memory_order_release);
+        if (renderer_thread.joinable()) {
+            renderer_thread.join();
         }
-        if (failed_stitches > config.resync_retries) {
-            std::cerr << "GLIMPSE stitching retries exhausted after " << reason << '\n';
-            return false;
-        }
-        recovery_needed = true;
-        return true;
-    };
-
-    try {
-        while (!stop.load(std::memory_order_acquire)) {
-            if (receiver.failed()) {
-                std::cerr << "UDP receiver failed: " << receiver.error() << '\n';
-                return finish(4);
-            }
-
-            if (recovery_needed) {
-                bool recovered = false;
-                for (std::uint32_t attempt = 0;
-                     attempt <= config.resync_retries && !stop.load(std::memory_order_acquire);
-                     ++attempt) {
-                    counters.ring_drops = receiver.ring_drops();
-                    publish_display(
-                        display_ring,
-                        book,
-                        config,
-                        synchronized_once ? "RECOVERING" : "SNAPSHOTTING",
-                        active_session,
-                        expected_sequence,
-                        counters);
-                    const auto epoch_before = receiver.continuity_epoch();
-                    try {
-                        auto snapshot = glimpse.capture();
-                        const auto epoch_after = receiver.continuity_epoch();
-                        if (epoch_after != epoch_before) {
-                            throw GlimpseUnavailable(
-                                "ingress ring lost continuity during GLIMPSE capture");
-                        }
-                        book = std::move(snapshot.book);
-                        expected_sequence = snapshot.next_itch_sequence;
-                        accepted_epoch = epoch_after;
-                        if (synchronized_once) {
-                            ++counters.resyncs;
-                        }
-                        synchronized_once = true;
-                        recovered = true;
-                        recovery_needed = false;
-                        awaiting_stitch = true;
-                        break;
-                    } catch (const AuthenticationError&) {
-                        throw;
-                    } catch (const UnsupportedMessage&) {
-                        throw;
-                    } catch (const GlimpseUnavailable& error) {
-                        if (attempt == config.resync_retries) {
-                            std::cerr << error.what() << '\n';
-                            break;
-                        }
-                        const auto backoff = std::chrono::milliseconds(
-                            100U << std::min<std::uint32_t>(attempt, 5));
-                        std::this_thread::sleep_for(backoff);
-                    } catch (const ProtocolError& error) {
-                        if (attempt == config.resync_retries) {
-                            std::cerr << "invalid GLIMPSE snapshot: " << error.what() << '\n';
-                            break;
-                        }
-                    }
-                }
-                if (!recovered) {
-                    if (stop.load(std::memory_order_acquire)) {
-                        return finish(0);
-                    }
-                    return finish(5);
-                }
-                next_render = std::chrono::steady_clock::now();
-            }
-
-            if (receiver.continuity_epoch() != accepted_epoch) {
-                accepted_epoch = receiver.continuity_epoch();
-                if (!request_recovery("an ingress-ring continuity loss")) {
-                    return finish(5);
-                }
-                continue;
-            }
-
-            auto slot = ingress.try_peek();
-            if (!slot) {
-                awaiting_stitch = false;
-                failed_stitches = 0;
-                const auto now = std::chrono::steady_clock::now();
-                if (now >= next_render) {
-                    counters.ring_drops = receiver.ring_drops();
-                    publish_display(
-                        display_ring,
-                        book,
-                        config,
-                        "LIVE",
-                        active_session,
-                        expected_sequence,
-                        counters);
-                    next_render = now + std::chrono::milliseconds(config.refresh_ms);
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue;
-            }
-
-            bool end_of_session = false;
-            bool end_of_messages = false;
-            try {
-                auto packet = std::span<std::byte>(slot->data, slot->length);
-                const auto header = inspect_mold_header(packet);
-                if (!header.session.starts_with(config.session_prefix)) {
-                    ingress.release(*slot);
-                    continue;
-                }
-                if (active_session.empty()) {
-                    active_session = header.session;
-                } else if (active_session != header.session) {
-                    active_session = header.session;
-                    throw RecoveryRequired("new Mold session observed");
-                }
-                if (header.first_sequence > expected_sequence) {
-                    throw RecoveryRequired("forward Mold sequence gap");
-                }
-
-                const auto info = parse_mold_packet(
-                    packet,
-                    [&](std::uint64_t sequence, std::span<std::byte> message) {
-                        if (sequence < expected_sequence) {
-                            return;
-                        }
-                        if (sequence != expected_sequence) {
-                            throw RecoveryRequired("non-contiguous ITCH message sequence");
-                        }
-                        (void)decoder.apply(message, book, DecodeContext::live_itch);
-                        end_of_messages = end_of_messages || is_end_of_messages(message);
-                        ++expected_sequence;
-                        ++counters.messages;
-                    });
-                ++counters.packets;
-                if ((info.heartbeat() || info.end_of_session())
-                    && info.first_sequence > expected_sequence) {
-                    throw RecoveryRequired("Mold control packet exposes a sequence gap");
-                }
-                end_of_session = (
-                    info.end_of_session() && info.first_sequence == expected_sequence)
-                    || end_of_messages;
-                ingress.release(*slot);
-                awaiting_stitch = false;
-                failed_stitches = 0;
-            } catch (const UnsupportedMessage&) {
-                ingress.release(*slot);
-                throw;
-            } catch (const RecoveryRequired& error) {
-                ingress.release(*slot);
-                if (!request_recovery(error.what())) {
-                    return finish(5);
-                }
-                continue;
-            } catch (const ProtocolError& error) {
-                ingress.release(*slot);
-                if (!request_recovery(error.what())) {
-                    return finish(5);
-                }
-                continue;
-            }
-
-            if (end_of_session) {
-                publish_display(
-                    display_ring,
-                    book,
-                    config,
-                    "END_OF_SESSION",
-                    active_session,
-                    expected_sequence,
-                    counters);
-                return finish(0);
-            }
-        }
-        publish_display(
-            display_ring,
-            book,
-            config,
-            "STOPPED",
-            active_session,
-            expected_sequence,
-            counters);
-        return finish(0);
-    } catch (const AuthenticationError& error) {
-        std::cerr << error.what() << '\n';
-        return finish(3);
-    } catch (const UnsupportedMessage& error) {
-        std::cerr << error.what() << '\n';
-        return finish(5);
-    } catch (const NetworkError& error) {
-        std::cerr << error.what() << '\n';
-        return finish(4);
-    } catch (const std::exception& error) {
-        std::cerr << "market feed failed: " << error.what() << '\n';
-        return finish(5);
+        throw;
     }
 }
 

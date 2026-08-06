@@ -1,0 +1,59 @@
+exchange_name: "MOCKX_A"
+instruments:
+  BTC-USDT:
+    tick_size: "0.01"
+    lot_size: "0.001"
+    price_display_precision: 2
+    quantity_display_precision: 3
+latency:
+  network_ms: 0
+  engine_ms: 1
+execution:
+  reject_prob: 0.0
+  random_seed: 101
+admin_api:
+  # Published container services must listen beyond container loopback.
+  host: "0.0.0.0"
+  port: 8101
+  enabled: true
+fix:
+  enabled: true
+  session_participants:
+    "FIX.4.4:MOCKX_A->SOR_A": "sor-demo"
+    "FIX.4.4:MOCKX_A->SEED_A": "passive-a"
+scheduler:
+  mode: "realtime"
+  interval_ms: 1
+  max_advance_ms: 86400000
+  max_events_per_advance: 100000
+prometheus:
+  enabled: false
+itch:
+  enabled: true
+  market_category: " "
+  financial_status: " "
+  round_lot_size: 1
+moldudp64:
+  multicast_group: 239.192.10.1
+  multicast_port: 18100
+  session_prefix: MA
+  heartbeat_interval_ms: 100
+  max_payload_bytes: 1400
+  interface_address: 0.0.0.0
+  ttl: 1
+glimpse:
+  enabled: true
+soupbintcp:
+  # GLIMPSE is published to the host for mockx_sor.exe.
+  host: "0.0.0.0"
+  port: 18101
+  session_prefix: GA
+  credentials:
+    GLIMP: SECRET_A
+  login_timeout_ms: 30000
+  write_timeout_ms: 5000
+  max_connections: 16
+  replay_ttl_ms: 60000
+  max_cached_sessions: 8
+  max_cached_bytes: 16777216
+cors_origins: []

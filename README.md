@@ -1300,6 +1300,24 @@ maintained.
 
 ## 13. Examples
 
+### C++20 two-venue smart order router
+
+[`examples/cpp_sor`](examples/cpp_sor/README.md) contains a one-shot C++20 SOR
+that reuses the zero-copy GLIMPSE/ITCH feed handler for two MockX venues,
+sweeps displayed depth with deterministic venue priority, sends IOC children
+through two QuickFIX sessions, and aggregates terminal execution reports. Its
+opt-in live CTest starts two real in-process MockX venues and verifies the
+cross-venue fills and unrouted parent remainder.
+
+The example's dedicated `docker-compose.yml` starts both venues, seeds their
+books through distinct passive FIX sessions, and relays their MoldUDP64 streams
+to a host `mockx_sor.exe`. HTTP is used only for demo administration and book
+verification, not order entry. The stack is independent of the repository-root
+live-demo Compose stack. QuickFIX C++ remains an installed dependency; the
+example never downloads it during CMake configuration. The example README
+includes the Docker quick start, the equivalent manual setup,
+vcpkg/source-install build commands, and the complete route command.
+
 ### C++20 GLIMPSE/ITCH order book
 
 [`examples/cpp_market_feed`](examples/cpp_market_feed/README.md) contains a

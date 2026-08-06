@@ -1,0 +1,115 @@
+services:
+  venue-a:
+    build:
+      context: ../..
+    image: mockx-cpp-sor:local
+    environment:
+      CFG_PATH: /opt/mockx/examples/cpp_sor/venue_a_docker.yml
+      FIX_CONFIG_FILE: /opt/mockx/examples/cpp_sor/venue_a_acceptor.cfg
+    ports:
+      - "4101:4101"
+      - "8101:8101"
+      - "18101:18101"
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8101/readyz
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+
+  venue-b:
+    image: mockx-cpp-sor:local
+    pull_policy: never
+    environment:
+      CFG_PATH: /opt/mockx/examples/cpp_sor/venue_b_docker.yml
+      FIX_CONFIG_FILE: /opt/mockx/examples/cpp_sor/venue_b_acceptor.cfg
+    ports:
+      - "4102:4102"
+      - "8102:8102"
+      - "18201:18201"
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8102/readyz
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+
+  venue-a-mold-relay:
+    image: mockx-cpp-sor:local
+    pull_policy: never
+    environment:
+      PYTHONUNBUFFERED: "1"
+    entrypoint:
+      - python
+      - examples/moldudp64_host_relay.py
+    command:
+      - --multicast-group
+      - 239.192.10.1
+      - --multicast-port
+      - "18100"
+      - --target-host
+      - host.docker.internal
+      - --target-port
+      - "18100"
+    depends_on:
+      venue-a:
+        condition: service_healthy
+    init: true
+    restart: on-failure
+
+  venue-b-mold-relay:
+    image: mockx-cpp-sor:local
+    pull_policy: never
+    environment:
+      PYTHONUNBUFFERED: "1"
+    entrypoint:
+      - python
+      - examples/moldudp64_host_relay.py
+    command:
+      - --multicast-group
+      - 239.192.10.2
+      - --multicast-port
+      - "18200"
+      - --target-host
+      - host.docker.internal
+      - --target-port
+      - "18200"
+    depends_on:
+      venue-b:
+        condition: service_healthy
+    init: true
+    restart: on-failure
+
+  seed-books:
+    image: mockx-cpp-sor:local
+    pull_policy: never
+    environment:
+      PYTHONUNBUFFERED: "1"
+    entrypoint:
+      - python
+      - examples/cpp_sor/seed_books.py
+    command:
+      - --fix-config
+      - examples/cpp_sor/seed_books_docker.cfg
+      - --venue-a-url
+      - http://venue-a:8101
+      - --venue-b-url
+      - http://venue-b:8102
+    depends_on:
+      venue-a:
+        condition: service_healthy
+      venue-b:
+        condition: service_healthy
+      venue-a-mold-relay:
+        condition: service_started
+      venue-b-mold-relay:
+        condition: service_started
+    init: true
