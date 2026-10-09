@@ -701,6 +701,11 @@ class BufferedMetricsWriter:
             )
         try:
             await self.sink.write(tuple(entry.record for entry in batch))
+        except asyncio.CancelledError:
+            # A canceled write has no confirmed outcome. Retain its identities
+            # ahead of any newer admissions so a later flush can retry them.
+            self._restore_inflight()
+            raise
         except Exception as exc:
             buffer_size = self._restore_inflight()
             self._record_failure(exc, buffer_size)

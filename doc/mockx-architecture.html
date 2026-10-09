@@ -274,7 +274,12 @@
       </div>
     </div>
     <div class="source-ref">
-      Lifecycle states and transitions: <code>lifecycle.py</code>. Scheduler state is a separate
+      Publishing STARTING or ENDING accepts the transition. Its owned task keeps the
+      lifecycle lock until completion, even if the caller is canceled repeatedly;
+      cancellation propagates afterward. Cancellation before acceptance does not
+      start a transition or cancel pending final broadcasts. Internally interrupted
+      writes retain their records for retry. Lifecycle states and transitions:
+      <code>lifecycle.py</code>. Scheduler state is a separate
       <code>SchedulerState</code> contract. Gating logic: ingress rejected with Business Message Reject (35=j)
       during STARTING/ENDING/STOPPED/RUN_FAILED/FAILED.
     </div>
@@ -531,7 +536,7 @@
     },
     FAILED: {
       title: "FAILED",
-      text: "A destructive reset failed during STARTING or ENDING. Readiness and all mutating routes remain unavailable until process restart. This is a terminal process state — it cannot be recovered without restarting MockX. /readyz returns HTTP 503 with components.lifecycle=\"failed\".",
+      text: "Startup failed or its owned task was internally canceled after destructive reset began. Its ITCH run is closed and GLIMPSE run access is revoked. Readiness and all mutating routes remain unavailable until process restart. Caller cancellation alone lets the accepted transition finish. /readyz returns HTTP 503 with components.lifecycle=\"failed\".",
     },
   };
 

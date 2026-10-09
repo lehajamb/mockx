@@ -544,8 +544,10 @@ class MockExchange:
         if pending:
             await asyncio.gather(
                 *(
-                    future if isinstance(future, asyncio.Future)
-                    else asyncio.wrap_future(future)
+                    asyncio.shield(
+                        future if isinstance(future, asyncio.Future)
+                        else asyncio.wrap_future(future)
+                    )
                     for future in pending
                 ),
                 return_exceptions=True,

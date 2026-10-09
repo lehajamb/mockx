@@ -398,8 +398,9 @@ async def test_failed_run_retains_outbound_latency_and_transport_retry(mode, mon
     exchange.fix_app.transport_sender = send
     try:
         _saturate_on_report(exchange, monkeypatch)
-        await _submit(exchange, sessions["CLIENT"], _new_order("DELAYED", 1))
+        exchange.fix_app.fromApp(_new_order("DELAYED", 1), sessions["CLIENT"])
         if mode == "external":
+            await exchange.fix_app.wait_for_ingress()
             start = exchange.scheduler.current_time
             await exchange.lifecycle.advance_to(start)
             assert exchange.lifecycle.state.value == "RUN_FAILED"
@@ -409,6 +410,9 @@ async def test_failed_run_retains_outbound_latency_and_transport_retry(mode, mon
             assert len(attempts) == 1 and delivered == []
             await exchange.lifecycle.advance_to(start + timedelta(milliseconds=12))
         else:
+            # The realtime runner owns ingress and advancement. It can fail the
+            # run before a separate ACTIVE-token ingress barrier acquires the
+            # lock, so synchronize on the report this test actually requires.
             await asyncio.wait_for(complete.wait(), timeout=2)
         assert exchange.lifecycle.state.value == "RUN_FAILED"
         assert len(attempts) == 2
