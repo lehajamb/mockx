@@ -414,6 +414,13 @@ machine scheduling is necessarily nondeterministic. Manual advancement returns
 Market-data timestamps, fills, reports, and scheduler targets are always
 timezone-aware simulated UTC. Wall-clock time is not used as simulated time.
 
+The in-process `run_until_idle()` helper drains scheduled work without reversing
+the clock. Overdue events execute at the current simulated time and retain their
+original scheduled timestamps; work they schedule uses the actual execution
+time. Future events advance the clock, and an empty queue leaves it unchanged.
+Intentional `set_time()` and generation resets retain their existing behavior.
+Administrative and realtime advancement continue to use `run_until()`.
+
 ### Fail-stop scheduler failures
 
 Each scheduler generation is explicitly `RUNNING`, `FAILED`, or `STOPPED`.
@@ -880,8 +887,8 @@ Response:
 
 Naive datetimes, zero/negative deltas, and ambiguous requests return HTTP 422.
 Backward targets return `409 TIME_REVERSAL` without changing scheduler state.
-If an eligible event fails, advancement stops at that event's simulated
-timestamp and returns:
+If an eligible event fails, advancement stops at its actual simulated execution
+time and returns:
 
 ```json
 {
