@@ -173,7 +173,10 @@
           <div class="comp-desc">
             Optional buffered persistence to QuestDB. 8 tables with deduplication on
             (timestamp, run_id, metric_event_sequence). Coalesced worker with flush thresholds.
-            <span class="src">questdb_writer.py</span>
+            Failed writes retain FIFO and identities. Automatic retries use a real monotonic
+            deadline from failure completion: base delay, then capped doubling without jitter.
+            Producer wakeups cannot bypass or extend it. Explicit drains remain immediate.
+            <span class="src">metrics.py — BufferedMetricsWriter; questdb_writer.py</span>
           </div>
         </div>
         <div class="comp-row">
@@ -295,8 +298,8 @@
       <p class="lede">
         MockX strictly separates <b>simulated time</b> (the domain clock that determines
         event ordering, fill timestamps, and report scheduling) from <b>monotonic real time</b>
-        (used only to measure how long actual matching computation took on the CPU). The two
-        clocks never share a metric or influence each other.
+        (used to measure computation duration and govern persistence recovery waits).
+        Persistence retry deadlines do not advance or rewind simulated time.
       </p>
     </div>
 
@@ -316,12 +319,17 @@
         <h4>Monotonic clock</h4>
         <p>
           Backed by <code class="ref">time.perf_counter_ns()</code> via <code class="ref">PerfCounterClock</code>.
-          Used exclusively for real CPU duration measurements: match loop, book commit,
+          Used for real CPU duration measurements: match loop, book commit,
           engine command, report creation, and FIX serialization. Exposed as microsecond
           Prometheus histograms (e.g. <code class="ref">mockx_match_loop_duration_us</code>).
+          Persistence uses <code class="ref">time.monotonic_ns()</code> for retry deadlines
+          and buffered-record age. Startup health-check and explicit-flush failures also
+          defer automatic recovery. Writes clear retry state on success; healthy probes
+          clear it only with an empty buffer. Session end and shutdown's final drain
+          bypass automatic backoff while retaining their existing timeouts.
           Never influences event ordering or simulated timestamps.
         </p>
-        <div class="clock-source">latency.py — PerfCounterClock, monotonic_duration_ns()</div>
+        <div class="clock-source">latency.py — PerfCounterClock, monotonic_duration_ns(); metrics.py — BufferedMetricsWriter</div>
       </div>
     </div>
 

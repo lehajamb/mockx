@@ -609,11 +609,20 @@ class QuestDBConfig(StrictConfigModel):
         default=1_000,
         ge=1,
         le=86_400_000,
+        description=(
+            "First automatic sink retry delay, measured in real monotonic time "
+            "from failure completion; also the initial async admission retry delay."
+        ),
     )
     max_retry_delay_ms: StrictInt = Field(
         default=30_000,
         ge=1,
         le=86_400_000,
+        description=(
+            "Cap on exponential retry delays, without jitter. Producer wakeups "
+            "cannot bypass or extend an automatic sink retry deadline; explicit "
+            "and final flushing remain immediate attempts."
+        ),
     )
     overflow_retry_attempts: StrictInt = Field(
         default=3,

@@ -1,5 +1,19 @@
 # MockX Documentation Changelog
 
+## 2026-10-09 - Honor persistence retry deadlines
+
+- Prevent producer and overflow wakeups from retrying a failed sink before its
+  real monotonic deadline or extending the existing wait. Measure deadlines
+  from failure completion, starting at the configured base delay and doubling
+  consecutive delays to the cap without jitter.
+- Apply the same automatic recovery deadline after startup health-check or
+  explicit-flush failure. Successful writes clear recovery; successful health
+  checks clear it only when no queued or in-flight records remain.
+- Preserve immediate explicit drains, sink replacement and final shutdown
+  flushing with existing timeouts. Retain FIFO, metric identities and buffered
+  records across failure or cancellation; sink recovery cannot repair run-level
+  metric loss. Public fields and configuration options remain unchanged.
+
 ## 2026-10-09 - Exact numeric validation and display formatting
 
 - Reject decimal tails that are off the instrument grid instead of rounding
