@@ -486,12 +486,14 @@ class LatencyScheduler:
         return processed
 
     async def run_until_idle(self) -> int:
-        """Process all scheduled events and return the handled count."""
+        """Drain scheduled work without rewinding to overdue event timestamps."""
         self.ensure_running()
         processed = 0
         budget = [0]
         while self.event_queue:
-            self.current_time = self.event_queue[0].timestamp
+            next_time = self.event_queue[0].timestamp
+            if next_time > self.current_time:
+                self.current_time = next_time
             processed += await self._process_due_events(budget)
         return processed
 

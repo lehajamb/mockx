@@ -1,5 +1,16 @@
 # MockX Documentation Changelog
 
+## 2026-10-09 - Prevent scheduler helper clock reversal
+
+- Make `run_until_idle()` advance only forward. Overdue events execute at the
+  current simulated time with their original scheduled timestamps retained;
+  newly scheduled work uses actual execution time. An empty queue preserves
+  the clock.
+- Preserve deterministic FIFO, the shared event budget, inclusive processing
+  and fail-stop behavior. Intentional `set_time()` and generation resets remain
+  unchanged. No API fields or configuration options change; administrative and
+  realtime advancement continue to use `run_until()`.
+
 ## 2026-10-09 - Honor persistence retry deadlines
 
 - Prevent producer and overflow wakeups from retrying a failed sink before its

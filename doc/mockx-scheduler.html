@@ -173,6 +173,10 @@
         <h4><span class="tag tag-queue">Inclusive advancement</span></h4>
         <p><code class="ref">run_until(target_time)</code> processes all events with <code>timestamp ≤ target_time</code>. An event at exactly T+15 fires when you advance to T+15. The simulated clock stops at the target after the loop.</p>
       </div>
+      <div class="callout">
+        <h4><span class="tag tag-queue">Drain without clock reversal</span></h4>
+        <p>The in-process <code class="ref">run_until_idle()</code> helper advances only forward. Overdue events execute at the current simulated time while retaining their original scheduled timestamps; newly scheduled work uses actual execution time. Future events advance the clock, and an empty queue leaves it unchanged. FIFO, one shared processing budget, and fail-stop behavior are preserved. Intentional <code class="ref">set_time()</code> and generation resets are unchanged. Administrative and realtime advancement use <code class="ref">run_until()</code>.</p>
+      </div>
     </div>
     <div class="source-ref">
       <code>ScheduledEvent</code>: <code>models.py</code> (scheduled event dataclass).
