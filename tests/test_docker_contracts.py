@@ -19,32 +19,53 @@ def load_compose():
 def published_ports(service):
     pairs = []
     for value in service.get("ports", []):
-        host, container = str(value).split(":")
-        pairs.append((int(host), int(container)))
+        address, _, protocol = str(value).partition("/")
+        parts = address.rsplit(":", 2)
+        if len(parts) == 2:
+            host, container = parts
+            bind = "0.0.0.0"
+        else:
+            bind, host, container = parts
+        pairs.append((bind, int(host), int(container), protocol or "tcp"))
     return pairs
 
 
 def test_compose_has_unique_real_service_ports_and_readiness_checks():
     compose = load_compose()
     services = compose["services"]
-    assert set(services) == {"questdb", "mockx", "live-market"}
+    assert set(services) == {
+        "questdb", "mockx", "mold-host-relay", "live-market"
+    }
 
     all_host_ports = [
-        host
+        (host, protocol)
         for service in services.values()
-        for host, _ in published_ports(service)
+        for _, host, _, protocol in published_ports(service)
     ]
     assert len(all_host_ports) == len(set(all_host_ports))
     assert published_ports(services["mockx"]) == [
-        (4001, 4001),
-        (8001, 8000),
+        ("0.0.0.0", 4001, 4001, "tcp"),
+        ("0.0.0.0", 8001, 8000, "tcp"),
+        ("127.0.0.1", 18001, 18001, "tcp"),
     ]
     assert published_ports(services["questdb"]) == [
-        (9000, 9000),
-        (8812, 8812),
-        (9003, 9003),
+        ("0.0.0.0", 9000, 9000, "tcp"),
+        ("0.0.0.0", 8812, 8812, "tcp"),
+        ("0.0.0.0", 9003, 9003, "tcp"),
     ]
     assert published_ports(services["live-market"]) == []
+    relay = services["mold-host-relay"]
+    assert published_ports(relay) == []
+    assert relay["image"] == services["mockx"]["image"]
+    assert relay["entrypoint"] == ["python", "examples/moldudp64_host_relay.py"]
+    assert relay["command"] == [
+        "--multicast-group", "239.192.0.1", "--multicast-port", "18000",
+        "--target-host", "host.docker.internal", "--target-port", "18000",
+    ]
+    assert relay["depends_on"]["mockx"]["condition"] == "service_healthy"
+    assert services["live-market"]["depends_on"]["mold-host-relay"]["condition"] == (
+        "service_started"
+    )
 
     mockx_health = " ".join(services["mockx"]["healthcheck"]["test"])
     questdb_health = " ".join(

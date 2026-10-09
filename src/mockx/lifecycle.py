@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
@@ -22,6 +23,7 @@ class LifecycleState(str, Enum):
     STOPPED = "STOPPED"
     STARTING = "STARTING"
     ACTIVE = "ACTIVE"
+    RUN_FAILED = "RUN_FAILED"
     ENDING = "ENDING"
     FAILED = "FAILED"
 
@@ -44,6 +46,17 @@ class SessionEndResult:
     run_id: Optional[str]
     run_generation: Optional[int]
     final_stats: Optional[Any]
+
+
+@dataclass(frozen=True, slots=True)
+class RunFailure:
+    code: str
+    message: str
+    run_id: str
+    run_generation: int
+    failed_at: datetime
+    reason: str
+    metric_event_sequence: Optional[int]
 
 
 class LifecycleError(RuntimeError):
@@ -85,6 +98,115 @@ class ExchangeLifecycle:
         self._close_websockets: Optional[Callable[[], Awaitable[None]]] = None
         self._stats_builder: Optional[Callable[[], Any]] = None
         self.glimpse_service: Optional[Any] = None
+        self.run_failure: Optional[RunFailure] = None
+        self._command_depth = 0
+        self.metrics.on_integrity_failure = self._request_persistence_check
+        self._drain_broadcasts: Optional[Callable[[], Awaitable[None]]] = None
+        self._has_pending_broadcasts: Optional[Callable[[], bool]] = None
+
+    def bind_market_data_delivery(
+        self,
+        drain: Callable[[], Awaitable[None]],
+        pending: Callable[[], bool],
+    ) -> None:
+        self._drain_broadcasts = drain
+        self._has_pending_broadcasts = pending
+
+    @asynccontextmanager
+    async def _serialized(self, *, drain_broadcasts: bool = False):
+        while True:
+            # Broadcast tasks acquire this same lock. Await them before taking
+            # it, then recheck so an intervening command cannot lose its output.
+            if drain_broadcasts and self._drain_broadcasts is not None:
+                await self._drain_broadcasts()
+            async with self.lock:
+                if (
+                    drain_broadcasts
+                    and self._has_pending_broadcasts is not None
+                    and self._has_pending_broadcasts()
+                ):
+                    continue
+                try:
+                    yield
+                finally:
+                    self.check_persistence_failure()
+                return
+
+    def _request_persistence_check(self) -> None:
+        """Marshal writer/QuickFIX notifications onto the lifecycle owner loop."""
+        loop = self.fix_app.loop
+        if loop is None or loop.is_closed():
+            return
+
+        def apply_failure() -> None:
+            # An in-flight lifecycle operation checks again before releasing
+            # its lock. Otherwise this synchronous owner-loop callback is the
+            # serialization boundary; it cannot interrupt an engine command.
+            if not self.lock.locked():
+                self.check_persistence_failure()
+
+        loop.call_soon_threadsafe(apply_failure)
+
+    def check_persistence_failure(
+        self, *, on_rejected: Optional[Callable[[], Any]] = None
+    ) -> bool:
+        """Fail at an owner-loop command boundary, never inside matching."""
+        if self.state == LifecycleState.RUN_FAILED:
+            if on_rejected is not None:
+                on_rejected()
+            return True
+        failure = self.metrics.persistence_integrity_failure
+        if (
+            self._command_depth
+            or failure is None
+            or self.run_id is None
+            or self.state not in {
+                LifecycleState.ACTIVE, LifecycleState.STARTING, LifecycleState.ENDING
+            }
+        ):
+            return False
+        if self.run_failure is not None:
+            # ENDING temporarily changes lifecycle state, never the first fault.
+            self._publish(LifecycleState.RUN_FAILED)
+            if on_rejected is not None:
+                on_rejected()
+            return True
+        self.run_failure = RunFailure(
+            code="METRICS_INCOMPLETE",
+            message="Metrics were lost; this simulation must be rerun.",
+            run_id=self.run_id,
+            run_generation=self.run_generation,
+            failed_at=self.scheduler.current_time,
+            reason=failure.reason,
+            metric_event_sequence=failure.metric_event_sequence,
+        )
+        self._publish(LifecycleState.RUN_FAILED)
+        if on_rejected is not None:
+            on_rejected()
+        self.fix_app.fail_pending_commands(
+            f"{self.run_failure.code}: {self.run_failure.message}"
+        )
+        logger.error(
+            self.run_failure.message,
+            extra={"run_id": self.run_id, "persistence_failure_reason": failure.reason},
+        )
+        return True
+
+    def execute_command(
+        self,
+        action: Callable[[], Any],
+        *,
+        on_rejected: Callable[[], Any],
+    ) -> Any:
+        """Finish the entire synchronous handler before honoring metric loss."""
+        if self.check_persistence_failure(on_rejected=on_rejected):
+            return None
+        self._command_depth += 1
+        try:
+            return action()
+        finally:
+            self._command_depth -= 1
+            self.check_persistence_failure()
 
     @property
     def token(self) -> IngressToken:
@@ -123,6 +245,10 @@ class ExchangeLifecycle:
             )
 
     def ingress_rejection(self, token: IngressToken) -> Optional[str]:
+        if token.state == LifecycleState.RUN_FAILED or (
+            token.state == LifecycleState.ACTIVE and not self.metrics.integrity_complete
+        ):
+            return "METRICS_INCOMPLETE"
         if token.state in {LifecycleState.STARTING, LifecycleState.ENDING}:
             return "LIFECYCLE_TRANSITION_IN_PROGRESS"
         if token.state == LifecycleState.FAILED:
@@ -138,7 +264,8 @@ class ExchangeLifecycle:
         token: IngressToken,
         action: Callable[[], Any],
     ) -> Any:
-        async with self.lock:
+        async with self._serialized():
+            self.check_persistence_failure()
             current = self.token
             if (
                 token.state != LifecycleState.ACTIVE
@@ -150,14 +277,23 @@ class ExchangeLifecycle:
             current_rejection = self.ingress_rejection(current)
             if current_rejection is not None:
                 raise LifecycleIngressRejected(current_rejection)
-            result = action()
-            if inspect.isawaitable(result):
-                return await result
+            self._command_depth += 1
+            try:
+                result = action()
+                if inspect.isawaitable(result):
+                    result = await result
+            finally:
+                self._command_depth -= 1
+                self.check_persistence_failure()
             return result
 
     async def start_session(self, run_id: str) -> SessionStartResult:
-        async with self.lock:
+        async with self._serialized():
             self.raise_if_transition_or_failed()
+            if self.state == LifecycleState.RUN_FAILED:
+                raise LifecycleError(
+                    409, "RUN_REQUIRES_END", "End the failed run before starting a new run"
+                )
             if self.state == LifecycleState.ACTIVE:
                 raise LifecycleError(
                     409,
@@ -219,6 +355,10 @@ class ExchangeLifecycle:
                 self.engine.install_identifier_scope(identifiers)
                 self.fix_app.reset_run_state(identifiers)
                 self.metrics.start_run(run_id)
+                self.run_id = run_id
+                self.run_generation = generation
+                self.run_failure = None
+                self.fix_app.reschedule_deliveries_after_reset()
                 for symbol in self.engine.books:
                     snapshot = self.engine.get_market_data_snapshot(symbol)
                     if snapshot is None:
@@ -226,7 +366,10 @@ class ExchangeLifecycle:
                             f"Missing initial book snapshot for {symbol}"
                         )
                     self.metrics.update_book_metrics(snapshot)
-                self.fix_app.reschedule_deliveries_after_reset()
+                if self.check_persistence_failure():
+                    raise LifecycleError(
+                        503, self.run_failure.code, self.run_failure.message
+                    )
 
                 if self.itch_feed is not None:
                     await self.itch_feed.start_run(
@@ -237,6 +380,10 @@ class ExchangeLifecycle:
                     await self.glimpse_service.start()
                     self.glimpse_service.begin_run(generation)
 
+                if self.check_persistence_failure():
+                    raise LifecycleError(
+                        503, self.run_failure.code, self.run_failure.message
+                    )
                 self.run_id = run_id
                 self.run_generation = generation
                 self._publish(LifecycleState.ACTIVE)
@@ -253,6 +400,8 @@ class ExchangeLifecycle:
                     starting_time=self.scheduler.current_time,
                 )
             except Exception as exc:
+                if isinstance(exc, LifecycleError) and self.state == LifecycleState.RUN_FAILED:
+                    raise
                 if self.glimpse_service is not None:
                     self.glimpse_service.revoke_all()
                 self.metrics.end_run()
@@ -266,18 +415,32 @@ class ExchangeLifecycle:
                 ) from exc
 
     async def end_session(self) -> SessionEndResult:
-        async with self.lock:
+        async with self._serialized(drain_broadcasts=True):
             self.raise_if_transition_or_failed()
+            self.check_persistence_failure()
             if self.state == LifecycleState.STOPPED:
                 return SessionEndResult(None, None, None)
 
             run_id = self.run_id
             generation = self.run_generation
+            restore_state = self.state
             self._publish(LifecycleState.ENDING)
             try:
+                failure_before_flush = self.run_failure
                 flush_result = await self.metrics.flush()
+                self.check_persistence_failure()
+                if self.state == LifecycleState.RUN_FAILED:
+                    restore_state = LifecycleState.RUN_FAILED
+                if (
+                    flush_result.successful
+                    and failure_before_flush is None
+                    and self.run_failure is not None
+                ):
+                    # Settling commands after a newly observed fault may have
+                    # admitted rejection metrics after the first drain ended.
+                    flush_result = await self.metrics.flush()
                 if not flush_result.successful:
-                    self._publish(LifecycleState.ACTIVE)
+                    self._publish(restore_state)
                     raise LifecycleError(
                         503,
                         "METRICS_FLUSH_FAILED",
@@ -293,12 +456,14 @@ class ExchangeLifecycle:
             except LifecycleError:
                 raise
             except Exception as exc:
-                self._publish(LifecycleState.ACTIVE)
+                if self.check_persistence_failure():
+                    restore_state = LifecycleState.RUN_FAILED
+                self._publish(restore_state)
                 logger.exception("Session end failed before the run was closed")
                 raise LifecycleError(
                     503,
                     "SESSION_END_FAILED",
-                    "Simulation session end failed; the run remains active",
+                    "Simulation session end failed; the run remains open",
                 ) from exc
 
             self.metrics.end_run()
@@ -318,7 +483,7 @@ class ExchangeLifecycle:
 
         observed = self.token
         self.raise_if_transition_or_failed()
-        async with self.lock:
+        async with self._serialized():
             self.raise_if_transition_or_failed()
             if observed != self.token:
                 raise LifecycleError(
@@ -326,7 +491,7 @@ class ExchangeLifecycle:
                     "LIFECYCLE_TRANSITION_IN_PROGRESS",
                     "The GLIMPSE request crossed a lifecycle transition",
                 )
-            if self.state != LifecycleState.ACTIVE:
+            if self.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}:
                 raise LifecycleError(
                     409,
                     "SESSION_NOT_ACTIVE",
@@ -396,7 +561,7 @@ class ExchangeLifecycle:
         barrier = await self.fix_app.await_ingress_enqueued(
             generation=observed.generation,
         )
-        async with self.lock:
+        async with self._serialized():
             self.raise_if_transition_or_failed()
             if observed != self.token:
                 raise LifecycleError(
@@ -404,7 +569,7 @@ class ExchangeLifecycle:
                     "LIFECYCLE_TRANSITION_IN_PROGRESS",
                     "The advancement request crossed a lifecycle transition",
                 )
-            if self.state != LifecycleState.ACTIVE:
+            if self.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}:
                 raise LifecycleError(
                     409,
                     "SESSION_NOT_ACTIVE",
@@ -416,34 +581,37 @@ class ExchangeLifecycle:
             )
             result = action()
             if inspect.isawaitable(result):
-                return await result
+                result = await result
+            self.check_persistence_failure()
             return result
 
     async def advance_realtime(self, target_time: datetime) -> int:
         observed = self.token
-        if observed.state != LifecycleState.ACTIVE:
+        if observed.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}:
             return 0
         barrier = await self.fix_app.await_ingress_enqueued(
             generation=observed.generation,
         )
-        async with self.lock:
+        async with self._serialized():
             if self.token != observed:
                 return 0
             self.fix_app.drain_ingress_locked(
                 barrier.run_generation,
                 barrier.through_sequence,
             )
-            return await self.scheduler.run_until(target_time)
+            result = await self.scheduler.run_until(target_time)
+            self.check_persistence_failure()
+            return result
 
     async def advance_realtime_by(self, delta: timedelta) -> int:
         """Compute and commit one realtime tick under the lifecycle lock."""
         observed = self.token
-        if observed.state != LifecycleState.ACTIVE:
+        if observed.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}:
             return 0
         barrier = await self.fix_app.await_ingress_enqueued(
             generation=observed.generation,
         )
-        async with self.lock:
+        async with self._serialized():
             if self.token != observed:
                 return 0
             self.fix_app.drain_ingress_locked(
@@ -451,7 +619,9 @@ class ExchangeLifecycle:
                 barrier.through_sequence,
             )
             target_time = self.scheduler.current_time + delta
-            return await self.scheduler.run_until(target_time)
+            result = await self.scheduler.run_until(target_time)
+            self.check_persistence_failure()
+            return result
 
     async def websocket_snapshot(
         self,
@@ -459,7 +629,7 @@ class ExchangeLifecycle:
     ) -> Any:
         observed = self.token
         self.raise_if_transition_or_failed()
-        async with self.lock:
+        async with self._serialized():
             self.raise_if_transition_or_failed()
             if observed != self.token:
                 raise LifecycleError(
@@ -474,8 +644,11 @@ class ExchangeLifecycle:
         generation: int,
         action: Callable[[], Awaitable[None]],
     ) -> bool:
-        async with self.lock:
-            if self.state != LifecycleState.ACTIVE or generation != self.run_generation:
+        async with self._serialized():
+            if (
+                self.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}
+                or generation != self.run_generation
+            ):
                 return False
             await action()
             return True

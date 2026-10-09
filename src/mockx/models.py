@@ -53,6 +53,7 @@ class CancelRejectReason(str, Enum):
     ALREADY_CANCELED = "ALREADY_CANCELED"
     SESSION_MISMATCH = "SESSION_MISMATCH"
     INVALID_REQUEST = "INVALID_REQUEST"
+    EXCHANGE_UNAVAILABLE = "EXCHANGE_UNAVAILABLE"
 
 
 class FixCommandType(str, Enum):
@@ -88,6 +89,7 @@ class CancellationOutcome(str, Enum):
     WRONG_OWNER = "wrong_owner"
     DUPLICATE_REQUEST = "duplicate_request"
     STALE_RUN_GENERATION = "stale_run_generation"
+    EXCHANGE_UNAVAILABLE = "exchange_unavailable"
 
 
 class InvalidOrderTransition(RuntimeError):
@@ -1888,6 +1890,7 @@ class MetricsSnapshot:
     cancel_wrong_owner: int
     cancel_duplicate_request: int
     cancel_stale_run_generation: int
+    cancel_exchange_unavailable: int
     execution_reports: int
     trades: int
     traded_quantity: str
@@ -1945,6 +1948,7 @@ class MetricsSnapshot:
                 "wrong_owner": self.cancel_wrong_owner,
                 "duplicate_request": self.cancel_duplicate_request,
                 "stale_run_generation": self.cancel_stale_run_generation,
+                "exchange_unavailable": self.cancel_exchange_unavailable,
             },
             "reports": {
                 "created": self.execution_reports,

@@ -1,5 +1,21 @@
 # MockX Documentation Changelog
 
+## 2026-10-09 - Persistence isolation and failed simulation runs
+
+- Isolate metric admission failures so the current command completes its fills,
+  execution reports, latency bookkeeping and market-data output.
+- Add `RUN_FAILED`: halt further trading, reject pending commands, preserve FIX
+  delivery and permit inspection until the run is ended. This state does not
+  require a process restart.
+- Expose sticky `integrity_complete` and a typed first-failure record. A failed
+  run remains invalid after the sink recovers; session end returns HTTP 503 with
+  failed final statistics and a rerun-required message after draining accepted
+  rows. An unsuccessful drain keeps the run open and failed for retry.
+- Reserve metric identities before admission; failed runs may contain sequence
+  gaps. Preserve every-update book persistence and existing buffer limits.
+- Document the new FIX cancel rejection outcome, lifecycle/API responses and
+  recovery procedure in the README.
+
 ## 2026-08-02 - GLIMPSE 5.0 / SoupBinTCP snapshot recovery
 
 - Added an optional process-lifetime GLIMPSE 5.0 listener over SoupBinTCP 4.1.

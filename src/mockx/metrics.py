@@ -115,6 +115,16 @@ MAX_QUESTDB_LONG = (1 << 63) - 1
 
 
 @dataclass(frozen=True, slots=True)
+class PersistenceIntegrityFailure:
+    """First permanent loss or uncertain admission in one simulation run."""
+
+    run_id: str
+    metric_event_sequence: Optional[int]
+    event_timestamp_ns: Optional[int]
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class MetricRecord:
     """One immutable record shaped for a QuestDB ILP row."""
 
@@ -1038,6 +1048,7 @@ class MetricsCollector:
         instruments: InstrumentCatalog,
         persistence: Optional[BufferedMetricsWriter] = None,
         prometheus_enabled: bool = True,
+        on_integrity_failure: Optional[Callable[[], None]] = None,
     ) -> None:
         self.exchange_name = exchange_name
         self.instruments = instruments
@@ -1047,6 +1058,10 @@ class MetricsCollector:
         self._metric_event_sequence = 0
         self._last_event_timestamp_ns: Optional[int] = None
         self._persistence_run_baseline: Dict[str, int] = {}
+        self._persistence_integrity_failure: Optional[
+            PersistenceIntegrityFailure
+        ] = None
+        self.on_integrity_failure = on_integrity_failure
         self._lock = threading.RLock()
         self._engine = None
         self._counts: Dict[str, int] = {
@@ -1064,6 +1079,7 @@ class MetricsCollector:
             "cancel_wrong_owner": 0,
             "cancel_duplicate_request": 0,
             "cancel_stale_run_generation": 0,
+            "cancel_exchange_unavailable": 0,
             "execution_reports": 0,
             "report_delivery_failures": 0,
             "connected_sessions": 0,
@@ -1153,6 +1169,16 @@ class MetricsCollector:
         with self._lock:
             return self._run_id
 
+    @property
+    def integrity_complete(self) -> bool:
+        with self._lock:
+            return self._persistence_integrity_failure is None
+
+    @property
+    def persistence_integrity_failure(self) -> Optional[PersistenceIntegrityFailure]:
+        with self._lock:
+            return self._persistence_integrity_failure
+
     def start_run(self, run_id: str) -> None:
         """Start one persistence identity scope and reset its sequence."""
         if not run_id:
@@ -1165,6 +1191,7 @@ class MetricsCollector:
             self._metric_event_sequence = 0
             self._last_event_timestamp_ns = None
             self._persistence_run_baseline = self._persistence_totals_locked()
+            self._persistence_integrity_failure = None
 
     def end_run(self) -> None:
         """Clear the active run after its immutable records have flushed."""
@@ -1224,6 +1251,7 @@ class MetricsCollector:
             "cancel_wrong_owner": "Cancels rejected for wrong FIX ownership.",
             "cancel_duplicate_request": "Duplicate cancel ClOrdIDs rejected.",
             "cancel_stale_run_generation": "Stale-generation cancels rejected.",
+            "cancel_exchange_unavailable": "Cancels rejected for a failed run.",
             "execution_reports": "Order-specific execution reports created.",
             "report_delivery_failures": "Reports not delivered to their destination.",
             "trades": "Immutable fills committed by the engine.",
@@ -1690,7 +1718,7 @@ class MetricsCollector:
         if report.order_price_ticks is not None:
             fields["price_ticks"] = report.order_price_ticks
             fields["price"] = report.instrument.format_price(report.order_price_ticks)
-        self._create_record(
+        self._admit_record(
             "orders",
             tags,
             fields,
@@ -1789,7 +1817,7 @@ class MetricsCollector:
             tags.update(strategy_side="sell", has_strategy="true")
         else:
             tags.update(strategy_side="none", has_strategy="false")
-        self._create_record(
+        self._admit_record(
             "trades",
             tags,
             {
@@ -1832,7 +1860,7 @@ class MetricsCollector:
                 self._prom_self_trade_prevented_quantity.labels(
                     symbol=event.symbol
                 ).inc(float(instrument.quantity_decimal(event.prevented_qty_lots)))
-        self._create_record(
+        self._admit_record(
             "self_trade_prevention",
             {
                 "exchange": self.exchange_name,
@@ -1876,6 +1904,7 @@ class MetricsCollector:
             CancellationOutcome.WRONG_OWNER: "cancel_wrong_owner",
             CancellationOutcome.DUPLICATE_REQUEST: "cancel_duplicate_request",
             CancellationOutcome.STALE_RUN_GENERATION: ("cancel_stale_run_generation"),
+            CancellationOutcome.EXCHANGE_UNAVAILABLE: "cancel_exchange_unavailable",
         }[outcome]
         with self._lock:
             self._increment_locked(name)
@@ -2013,7 +2042,7 @@ class MetricsCollector:
             fields["cl_ord_id"] = measurement.cl_ord_id
         if measurement.orig_cl_ord_id is not None:
             fields["orig_cl_ord_id"] = measurement.orig_cl_ord_id
-        self._create_record(
+        self._admit_record(
             "latency",
             {
                 "exchange": self.exchange_name,
@@ -2264,7 +2293,7 @@ class MetricsCollector:
         direction: str,
         timestamp_ns: int,
     ) -> None:
-        self._create_record(
+        self._admit_record(
             "fix_messages",
             {
                 "exchange": self.exchange_name,
@@ -2278,7 +2307,7 @@ class MetricsCollector:
     def record_fix_connection(self, count: int, timestamp_ns: int) -> None:
         """Compatibility method; callers should pass the absolute count."""
         self.set_connected_sessions(max(0, count))
-        self._create_record(
+        self._admit_record(
             "fix_connections",
             {"exchange": self.exchange_name},
             {"count": max(0, count)},
@@ -2357,7 +2386,7 @@ class MetricsCollector:
             "tick_size": str(instrument.tick_size),
             "lot_size": str(instrument.lot_size),
         }
-        self._create_record(
+        self._admit_record(
             "book_snapshot",
             {"exchange": self.exchange_name, "symbol": update.symbol},
             fields,
@@ -2370,7 +2399,7 @@ class MetricsCollector:
         self.refresh_engine_gauges()
 
     def update_pending_events(self, count: int, timestamp_ns: int) -> None:
-        self._create_record(
+        self._admit_record(
             "pending_events",
             {"exchange": self.exchange_name},
             {"count": count},
@@ -2434,15 +2463,17 @@ class MetricsCollector:
             "lifetime_failures": health.lifetime_failures,
         }
 
-    def run_persistence_snapshot(self) -> Dict[str, int]:
+    def run_persistence_snapshot(self) -> Dict[str, int | bool]:
         current = self._persistence_totals_locked()
         with self._lock:
             baseline = dict(self._persistence_run_baseline)
-        outcomes = {
+            integrity_complete = self._persistence_integrity_failure is None
+        outcomes: Dict[str, int | bool] = {
             name: max(0, value - baseline.get(name, 0))
             for name, value in current.items()
         }
         outcomes["failures"] = outcomes.pop("lifetime_failures")
+        outcomes["integrity_complete"] = integrity_complete
         return outcomes
 
     def current_run_scheduler_snapshot(self) -> Dict[str, int]:
@@ -2511,6 +2542,7 @@ class MetricsCollector:
                 "wrong_owner": counts["cancel_wrong_owner"],
                 "duplicate_request": counts["cancel_duplicate_request"],
                 "stale_run_generation": counts["cancel_stale_run_generation"],
+                "exchange_unavailable": counts["cancel_exchange_unavailable"],
             },
             "reports": {
                 "created": counts["execution_reports"],
@@ -2624,6 +2656,7 @@ class MetricsCollector:
             cancel_wrong_owner=counts["cancel_wrong_owner"],
             cancel_duplicate_request=counts["cancel_duplicate_request"],
             cancel_stale_run_generation=counts["cancel_stale_run_generation"],
+            cancel_exchange_unavailable=counts["cancel_exchange_unavailable"],
             execution_reports=counts["execution_reports"],
             trades=counts["trades"],
             traded_quantity=format(traded_quantity, "f"),
@@ -2701,6 +2734,63 @@ class MetricsCollector:
         if counter is not None:
             counter.inc(amount)
 
+    def _mark_integrity_failure_locked(
+        self,
+        reason: str,
+        *,
+        metric_event_sequence: Optional[int] = None,
+        event_timestamp_ns: Optional[int] = None,
+    ) -> bool:
+        """Retain the first fault; the caller must hold the collector lock."""
+        if self._run_id is None or self._persistence_integrity_failure is not None:
+            return False
+        self._persistence_integrity_failure = PersistenceIntegrityFailure(
+            run_id=self._run_id,
+            metric_event_sequence=metric_event_sequence,
+            event_timestamp_ns=event_timestamp_ns,
+            reason=reason,
+        )
+        return True
+
+    def _notify_integrity_failure(self) -> None:
+        """Notify after releasing the collector lock, without interrupting work."""
+        logger.error(
+            "Simulation metrics are incomplete",
+            extra={"persistence_integrity_failure": self.persistence_integrity_failure},
+        )
+        if self.on_integrity_failure is not None:
+            try:
+                self.on_integrity_failure()
+            except Exception:
+                logger.exception("Persistence integrity observer failed")
+
+    def _admit_record(
+        self,
+        table: str,
+        symbols: Dict[str, object],
+        columns: Dict[str, object],
+        timestamp_ns: int,
+    ) -> None:
+        """Protect exchange observers from persistence validation and admission."""
+        try:
+            self._create_record(table, symbols, columns, timestamp_ns)
+        except Exception as exc:
+            # Admission errors already carry a reserved identity. Construction
+            # errors have no record identity but still invalidate an active run.
+            with self._lock:
+                newly_failed = self._mark_integrity_failure_locked(
+                    f"{type(exc).__name__}: {exc}",
+                    event_timestamp_ns=(
+                        timestamp_ns
+                        if isinstance(timestamp_ns, int)
+                        and not isinstance(timestamp_ns, bool)
+                        and 0 <= timestamp_ns <= MAX_QUESTDB_LONG
+                        else None
+                    ),
+                )
+            if newly_failed:
+                self._notify_integrity_failure()
+
     def _create_record(
         self,
         table: str,
@@ -2716,46 +2806,68 @@ class MetricsCollector:
             or timestamp_ns < 0
         ):
             raise ValueError("Metric event timestamp must be a non-negative integer")
-        with self._lock:
-            run_id = self._run_id
-            if run_id is None:
-                raise RuntimeError(
-                    "Cannot persist metrics without an active simulation run"
-                )
+        newly_failed = False
+        try:
+            with self._lock:
+                run_id = self._run_id
+                if run_id is None:
+                    raise RuntimeError(
+                        "Cannot persist metrics without an active simulation run"
+                    )
 
-            if (
-                self._last_event_timestamp_ns is not None
-                and timestamp_ns < self._last_event_timestamp_ns
-            ):
-                raise ValueError(
-                    "Metric event timestamp is backdated relative to the "
-                    "persistence sequence"
-                )
+                if (
+                    self._last_event_timestamp_ns is not None
+                    and timestamp_ns < self._last_event_timestamp_ns
+                ):
+                    raise ValueError(
+                        "Metric event timestamp is backdated relative to the "
+                        "persistence sequence"
+                    )
 
-            metric_event_sequence = self._metric_event_sequence + 1
-            if metric_event_sequence > MAX_QUESTDB_LONG:
-                raise OverflowError("Metric event sequence exhausted")
-            record = MetricRecord.create(
-                table,
-                symbols,
-                columns,
-                run_id=run_id,
-                metric_event_sequence=metric_event_sequence,
-                event_timestamp_ns=timestamp_ns,
-            )
-            outcome = self.persistence.add_nowait(record)
-            if outcome in {
-                PersistenceAddOutcome.REJECTED_CLOSED,
-                PersistenceAddOutcome.REJECTED_FULL,
-                PersistenceAddOutcome.FAILED,
-            }:
-                raise MetricsSinkError(
-                    "Metric persistence writer rejected an active-run record: "
-                    f"{outcome.value}"
+                metric_event_sequence = self._metric_event_sequence + 1
+                if metric_event_sequence > MAX_QUESTDB_LONG:
+                    raise OverflowError("Metric event sequence exhausted")
+                record = MetricRecord.create(
+                    table,
+                    symbols,
+                    columns,
+                    run_id=run_id,
+                    metric_event_sequence=metric_event_sequence,
+                    event_timestamp_ns=timestamp_ns,
                 )
+                # A writer may enqueue and then raise. Reserve identity before
+                # calling it so that even uncertain admissions cannot reuse it.
+                self._metric_event_sequence = metric_event_sequence
+                self._last_event_timestamp_ns = timestamp_ns
+                try:
+                    outcome = self.persistence.add_nowait(record)
+                except Exception as exc:
+                    newly_failed = self._mark_integrity_failure_locked(
+                        f"{type(exc).__name__}: {exc}",
+                        metric_event_sequence=metric_event_sequence,
+                        event_timestamp_ns=timestamp_ns,
+                    )
+                    raise
 
-            self._metric_event_sequence = metric_event_sequence
-            self._last_event_timestamp_ns = timestamp_ns
+                if outcome in {
+                    PersistenceAddOutcome.REJECTED_CLOSED,
+                    PersistenceAddOutcome.REJECTED_FULL,
+                    PersistenceAddOutcome.FAILED,
+                    PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST,
+                }:
+                    newly_failed = self._mark_integrity_failure_locked(
+                        outcome.value,
+                        metric_event_sequence=metric_event_sequence,
+                        event_timestamp_ns=timestamp_ns,
+                    )
+                    if outcome != PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST:
+                        raise MetricsSinkError(
+                            "Metric persistence writer rejected an active-run record: "
+                            f"{outcome.value}"
+                        )
+        finally:
+            if newly_failed:
+                self._notify_integrity_failure()
 
     async def flush(self) -> PersistenceFlushResult:
         if self.persistence is not None:

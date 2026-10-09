@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import Future
 from datetime import timedelta
 import logging
 import os
+import threading
 from typing import Optional
 
 import uvicorn
@@ -62,6 +64,8 @@ class MockExchange:
         self._started = False
         self._shutdown_complete = False
         self._callbacks_registered = False
+        self._broadcast_lock = threading.Lock()
+        self._pending_broadcasts: set[asyncio.Future | Future] = set()
 
         self.fix_enabled = self.config.fix.enabled
         self.scheduler_mode = self.config.scheduler.mode
@@ -224,21 +228,35 @@ class MockExchange:
         self._setup_callbacks()
 
     def _setup_callbacks(self) -> None:
+        self.lifecycle.bind_market_data_delivery(
+            self._drain_broadcasts, self._has_pending_broadcasts
+        )
+        def command_handler(event_type, handler):
+            def execute(data):
+                return self.lifecycle.execute_command(
+                    lambda: handler(data),
+                    on_rejected=lambda: self.fix_app.reject_failed_command(
+                        event_type, data,
+                        "METRICS_INCOMPLETE: Metrics were lost; this simulation must be rerun."
+                    ),
+                )
+            return execute
+
         self.scheduler.register_handler(
             "new_order_received",
-            self.fix_app.process_new_order_envelope,
+            command_handler("new_order_received", self.fix_app.process_new_order_envelope),
         )
         self.scheduler.register_handler(
             "cancel_received",
-            self.fix_app.process_cancel_envelope,
+            command_handler("cancel_received", self.fix_app.process_cancel_envelope),
         )
         self.scheduler.register_handler(
             "order_arrived",
-            self._handle_order_arrived,
+            command_handler("order_arrived", self._handle_order_arrived),
         )
         self.scheduler.register_handler(
             "order_process",
-            self._handle_order_process,
+            command_handler("order_process", self._handle_order_process),
         )
         self.scheduler.register_handler(
             "fix_delivery_due",
@@ -246,11 +264,11 @@ class MockExchange:
         )
         self.scheduler.register_handler(
             "cancel_arrived_at_exchange",
-            self._handle_cancel_arrived,
+            command_handler("cancel_arrived_at_exchange", self._handle_cancel_arrived),
         )
         self.scheduler.register_handler(
             "cancel_engine_process",
-            self._handle_cancel_process,
+            command_handler("cancel_engine_process", self._handle_cancel_process),
         )
         if self.itch_feed is not None:
             self.scheduler.register_handler(
@@ -503,6 +521,36 @@ class MockExchange:
         except Exception:
             logger.exception("Market-data broadcast failed")
 
+    def _track_broadcast(self, future) -> None:
+        with self._broadcast_lock:
+            self._pending_broadcasts.add(future)
+
+        def completed(result):
+            with self._broadcast_lock:
+                self._pending_broadcasts.discard(result)
+            self._log_broadcast_result(result)
+
+        future.add_done_callback(completed)
+
+    def _has_pending_broadcasts(self) -> bool:
+        with self._broadcast_lock:
+            return any(not future.done() for future in self._pending_broadcasts)
+
+    async def _drain_broadcasts(self) -> None:
+        with self._broadcast_lock:
+            pending = tuple(
+                future for future in self._pending_broadcasts if not future.done()
+            )
+        if pending:
+            await asyncio.gather(
+                *(
+                    future if isinstance(future, asyncio.Future)
+                    else asyncio.wrap_future(future)
+                    for future in pending
+                ),
+                return_exceptions=True,
+            )
+
     def _on_market_data_update(
         self,
         snapshot: MarketDataSnapshot,
@@ -521,13 +569,13 @@ class MockExchange:
 
         if running_loop is loop:
             task = loop.create_task(self.api.broadcast_market_data(snapshot))
-            task.add_done_callback(self._log_broadcast_result)
+            self._track_broadcast(task)
         elif loop.is_running():
             future = asyncio.run_coroutine_threadsafe(
                 self.api.broadcast_market_data(snapshot),
                 loop,
             )
-            future.add_done_callback(self._log_broadcast_result)
+            self._track_broadcast(future)
 
     def _on_trade(self, trade: Trade) -> None:
         self.metrics.record_trade(trade)

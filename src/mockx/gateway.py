@@ -37,6 +37,7 @@ from .models import (
     OrderType,
     OrderStatus,
     ParsedFixCommand,
+    ProcessOrderCommand,
     SessionIdentity,
     Side,
     TimeInForce,
@@ -277,7 +278,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         self._ingress_lock = threading.RLock()
         self._next_ingress_sequence = 0
         self._ingress_receipts: Dict[
-            tuple[int, int], Future[FixIngressEnvelope]
+            tuple[int, int], Future[Optional[FixIngressEnvelope]]
         ] = {}
         self._pending_ingress: list[FixIngressEnvelope] = []
         self._pending_lifecycle_actions: set[Future[None]] = set()
@@ -561,7 +562,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         with self._ingress_lock:
             sequence = self._next_ingress_sequence
             self._next_ingress_sequence += 1
-            receipt: Future[FixIngressEnvelope] = Future()
+            receipt: Future[Optional[FixIngressEnvelope]] = Future()
             self._ingress_receipts[(token.generation, sequence)] = receipt
 
         async def _enqueue() -> None:
@@ -596,19 +597,30 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 else:
                     await self.lifecycle.execute_ingress(token, _commit)
             except LifecycleIngressRejected as exc:
-                with self._ingress_lock:
-                    if not receipt.done():
-                        receipt.set_exception(exc)
-                self._send_lifecycle_reject(
-                    transport_session,
-                    exc.code,
-                    ref_msg_type=(
-                        fix.MsgType_NewOrderSingle
-                        if parsed.command_type == FixCommandType.NEW_ORDER
-                        else fix.MsgType_OrderCancelRequest
-                    ),
-                    ref_seq_num=parsed.msg_seq_num,
-                )
+                try:
+                    self._send_lifecycle_reject(
+                        transport_session,
+                        exc.code,
+                        ref_msg_type=(
+                            fix.MsgType_NewOrderSingle
+                            if parsed.command_type == FixCommandType.NEW_ORDER
+                            else fix.MsgType_OrderCancelRequest
+                        ),
+                        ref_seq_num=parsed.msg_seq_num,
+                    )
+                except Exception as rejection_error:
+                    with self._ingress_lock:
+                        if not receipt.done():
+                            receipt.set_exception(rejection_error)
+                    logger.exception("FIX lifecycle rejection could not be sent")
+                else:
+                    with self._ingress_lock:
+                        # A delivered lifecycle rejection settles this submission.
+                        # Existing barrier waiters must also be able to proceed
+                        # so completed reports can drain after run failure.
+                        if not receipt.done():
+                            receipt.set_result(None)
+                        self._ingress_receipts.pop((token.generation, sequence), None)
             except Exception as exc:
                 with self._ingress_lock:
                     if not receipt.done():
@@ -644,7 +656,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         *,
         generation: Optional[int] = None,
     ) -> IngressBarrier:
-        """Wait until the captured run-local commands are centrally enqueued."""
+        """Wait until captured submissions are enqueued or lifecycle-rejected."""
         barrier = self.ingress_high_water_mark(generation)
         target = (
             barrier.through_sequence
@@ -705,7 +717,10 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 not in ready_ids
             ]
 
-        for envelope in ready:
+        for index, envelope in enumerate(ready):
+            if self.lifecycle is not None and self.lifecycle.check_persistence_failure():
+                self._reject_failed_ingress_batch(ready[index:])
+                break
             msg_type = (
                 fix.MsgType_NewOrderSingle
                 if envelope.command_type == FixCommandType.NEW_ORDER
@@ -716,6 +731,9 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 "received",
                 self.engine.scheduler.current_time_ns(),
             )
+            if self.lifecycle is not None and self.lifecycle.check_persistence_failure():
+                self._reject_failed_ingress_batch(ready[index:])
+                break
             self.engine.scheduler.schedule_event(
                 (
                     "new_order_received"
@@ -731,6 +749,90 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     None,
                 )
         return IngressBarrier(generation, through_sequence)
+
+    def _reject_failed_ingress_batch(
+        self, envelopes: list[FixIngressEnvelope]
+    ) -> None:
+        """Settle ingress detached by the current drain before the run failed."""
+        for envelope in envelopes:
+            self.reject_failed_command(
+                "new_order_received"
+                if envelope.command_type == FixCommandType.NEW_ORDER
+                else "cancel_received",
+                envelope,
+                "METRICS_INCOMPLETE: Metrics were lost; this simulation must be rerun.",
+            )
+            self._settle_ingress_receipt(envelope)
+
+    def _settle_ingress_receipt(self, envelope: FixIngressEnvelope) -> None:
+        with self._ingress_lock:
+            receipt = self._ingress_receipts.pop(
+                (envelope.run_generation, envelope.ingress_sequence), None
+            )
+            if receipt is not None and not receipt.done():
+                receipt.set_result(envelope)
+
+    def fail_pending_commands(self, reason: str) -> None:
+        """Reject all queued trading work, retaining delivery and feed events."""
+        events = self.engine.scheduler.extract_events({
+            "new_order_received", "cancel_received", "order_arrived",
+            "order_process", "cancel_arrived_at_exchange", "cancel_engine_process",
+        })
+        for event in events:
+            self.reject_failed_command(event.event_type, event.data, reason)
+        with self._ingress_lock:
+            pending = sorted(self._pending_ingress, key=lambda item: item.ordering_key)
+            self._pending_ingress.clear()
+        for envelope in pending:
+            self.reject_failed_command(
+                "new_order_received"
+                if envelope.command_type == FixCommandType.NEW_ORDER
+                else "cancel_received",
+                envelope,
+                reason,
+            )
+            self._settle_ingress_receipt(envelope)
+
+    def reject_failed_command(
+        self, event_type: str, data: object, reason: str
+    ) -> None:
+        """Settle a removed or already-popped logical command exactly once."""
+        if event_type == "order_process":
+            if not isinstance(data, ProcessOrderCommand):
+                raise TypeError("order_process requires ProcessOrderCommand")
+            self.engine.reject_pending_order(data, reason)
+        elif event_type == "cancel_engine_process":
+            if not isinstance(data, CancelOrderCommand):
+                raise TypeError("cancel_engine_process requires CancelOrderCommand")
+            self._reject_failed_cancel(data, reason)
+        elif event_type in {"new_order_received", "cancel_received"}:
+            if not isinstance(data, FixIngressEnvelope):
+                raise TypeError("receive event requires FixIngressEnvelope")
+            if data.run_generation != self.identifier_scope.generation:
+                return
+            self.session_registry.claim_cl_ord_id(data.session.session_id, data.cl_ord_id)
+            if data.command_type == FixCommandType.NEW_ORDER:
+                self._send_input_rejection(
+                    cl_ord_id=data.cl_ord_id, symbol=data.symbol, side=data.side,
+                    order_type=data.order_type or OrderType.LIMIT,
+                    tif=data.tif or TimeInForce.GTC,
+                    order_qty_lots=data.order_qty_lots, price_ticks=data.price_ticks,
+                    session_id=data.session.session_id, session_alias=data.session.alias,
+                    participant_id=data.session.participant_id,
+                    code="METRICS_INCOMPLETE",
+                    text=reason.removeprefix("METRICS_INCOMPLETE: "),
+                )
+            else:
+                command = self._cancel_command(data, duplicate=False)
+                self.latency_tracker.cancel_received(command)
+                self._reject_failed_cancel(command, reason)
+        # Arrival events have a paired processing event; rejecting both would
+        # emit duplicate terminal reports.
+
+    def _reject_failed_cancel(self, command: CancelOrderCommand, reason: str) -> None:
+        report = self.engine.reject_cancel_unavailable(command, reason)
+        self.enqueue_report(report)
+        self.latency_tracker.cancel_report_created(command, report)
 
     async def wait_for_ingress(
         self,
@@ -1103,9 +1205,11 @@ class FIXApplication(_FIX_APPLICATION_BASE):
     ) -> None:
         """Build a terminal immutable snapshot for a malformed new order."""
         simulated_time = self.engine.scheduler.current_time
-        instrument = self.engine.instruments.require(
-            self.engine.instruments.symbols[0]
-        )
+        instrument = self.engine.instruments.get(symbol)
+        if instrument is None:
+            instrument = self.engine.instruments.require(
+                self.engine.instruments.symbols[0]
+            )
         safe_qty_lots = (
             order_qty_lots
             if isinstance(order_qty_lots, int)
@@ -1151,8 +1255,8 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             timestamp=simulated_time,
             order_version=0,
         )
-        self.metrics.record_order(report)
         self.enqueue_report(report)
+        self.metrics.record_order(report)
 
     def handle_order_cancel_request(
         self,
@@ -1276,8 +1380,8 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     text=error_text,
                     timestamp=self.engine.scheduler.current_time,
                 )
-                self.metrics.record_cancel_reject(rejection)
                 self.enqueue_report(rejection)
+                self.metrics.record_cancel_reject(rejection)
 
             self._schedule_lifecycle_action(
                 sessionID,
@@ -1299,7 +1403,23 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             envelope.session.session_id,
             envelope.cl_ord_id,
         )
-        command = CancelOrderCommand(
+        command = self._cancel_command(envelope, duplicate=duplicate)
+        self.latency_tracker.cancel_received(command)
+        self.engine.scheduler.schedule_cancel_processing(
+            command,
+            self.engine.exec_params.network_latency_ms,
+            self.engine.exec_params.engine_latency_ms,
+            session_alias=command.session_alias,
+            inbound_ms=(
+                self.engine.exec_params.inbound_network_latency_ms
+            ),
+        )
+
+    @staticmethod
+    def _cancel_command(
+        envelope: FixIngressEnvelope, *, duplicate: bool
+    ) -> CancelOrderCommand:
+        return CancelOrderCommand(
             cancel_cl_ord_id=envelope.cl_ord_id,
             orig_cl_ord_id=envelope.orig_cl_ord_id or "",
             symbol=envelope.symbol,
@@ -1313,16 +1433,6 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             ingress_sequence=envelope.ingress_sequence,
             msg_seq_num=envelope.msg_seq_num,
             duplicate_request=duplicate,
-        )
-        self.latency_tracker.cancel_received(command)
-        self.engine.scheduler.schedule_cancel_processing(
-            command,
-            self.engine.exec_params.network_latency_ms,
-            self.engine.exec_params.engine_latency_ms,
-            session_alias=command.session_alias,
-            inbound_ms=(
-                self.engine.exec_params.inbound_network_latency_ms
-            ),
         )
 
     def handle_market_data_request(
@@ -1640,12 +1750,12 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         if fresh:
             if record is None:
                 raise RuntimeError("Fresh FIX delivery has no retained record")
-            self.metrics.record_fix_delivery_enqueued()
             self.engine.scheduler.schedule_event(
                 "fix_delivery_due",
                 record.delivery_id,
                 resolved_delay,
             )
+            self.metrics.record_fix_delivery_enqueued()
             self._refresh_delivery_metrics()
         return record
 

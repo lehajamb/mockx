@@ -758,18 +758,19 @@ The exchange-wide lifecycle is:
 | `STOPPED` | Administrative start is available; FIX application ingress and time advancement are rejected |
 | `STARTING` | Ingress is gated while the previous buffer is flushed and all run state is reset |
 | `ACTIVE` | FIX application ingress and the configured clock mode are enabled |
+| `RUN_FAILED` | Metrics were lost; trading is halted, delivery and inspection remain available, and the run must be ended and rerun |
 | `ENDING` | Ingress is gated while persistence and final run statistics are captured |
 | `FAILED` | A destructive reset failed; readiness and mutating routes remain unavailable until process restart |
 
 `/readyz` reports `components.lifecycle` and returns 503 during transitions or
-in `FAILED`. Simulation-state REST reads also return
+in `RUN_FAILED` or `FAILED`. Simulation-state REST reads also return
 `503 LIFECYCLE_TRANSITION_IN_PROGRESS` during `STARTING`/`ENDING`. `/healthz`
 and `/metrics` remain available. Well-formed FIX application messages gated by
 the lifecycle receive Business Message Reject (`35=j`) with reason
 `Application not available at this time`, their captured `RefSeqNum`,
 `RefMsgType`, and one stable text code:
 `LIFECYCLE_TRANSITION_IN_PROGRESS`, `SESSION_NOT_ACTIVE`,
-`SCHEDULER_FAILED`, `LIFECYCLE_CHANGED`, or `LIFECYCLE_FAILED`. Gated messages
+`SCHEDULER_FAILED`, `LIFECYCLE_CHANGED`, `METRICS_INCOMPLETE`, or `LIFECYCLE_FAILED`. Gated messages
 do not reserve `ClOrdID`, consume run identifiers, or enter run metrics.
 
 Starting while active returns `409 SESSION_ALREADY_ACTIVE`. A successful start
@@ -782,7 +783,9 @@ non-delivered records are preserved with `(run_generation, order_id)` or
 `(run_generation, cancel_ingress_sequence)` keys; unrelated traces are reset.
 A failure before destructive reset work restores `STOPPED`; a failure after it
 begins returns `503 SESSION_START_FAILED`, enters `FAILED`, and requires
-process restart.
+process restart. Permanent metric admission loss is a separate, recoverable
+run failure: an initial-snapshot loss returns `503 METRICS_INCOMPLETE` and
+retains the failed run ID/generation so it can be ended normally.
 
 An enabled ITCH feed starts a fresh generation-qualified Mold session before
 `ACTIVE`. Runtime feed failure is noncritical and leaves the run active with
@@ -814,8 +817,8 @@ Lifecycle error codes are:
 
 | HTTP | Code |
 |---:|---|
-| 409 | `SESSION_ALREADY_ACTIVE`, `SESSION_NOT_ACTIVE`, `TIME_REVERSAL`, `CLOCK_MODE_CONFLICT` |
-| 503 | `LIFECYCLE_TRANSITION_IN_PROGRESS`, `LIFECYCLE_FAILED`, `SESSION_START_FAILED`, `SESSION_END_FAILED`, `METRICS_FLUSH_FAILED`, `SCHEDULER_FAILED` |
+| 409 | `SESSION_ALREADY_ACTIVE`, `SESSION_NOT_ACTIVE`, `TIME_REVERSAL`, `CLOCK_MODE_CONFLICT`, `RUN_REQUIRES_END` |
+| 503 | `LIFECYCLE_TRANSITION_IN_PROGRESS`, `LIFECYCLE_FAILED`, `SESSION_START_FAILED`, `SESSION_END_FAILED`, `METRICS_FLUSH_FAILED`, `METRICS_INCOMPLETE`, `SCHEDULER_FAILED` |
 
 Absolute advancement accepts any aware offset and normalizes it to UTC:
 
@@ -998,6 +1001,23 @@ success after close. Rejections and evictions are counted; no record is
 silently discarded. Typed flush and close results distinguish empty/already
 closed, sink failure, timeout, and exact unflushed counts.
 
+Ordinary metric producers isolate admission failures from exchange execution.
+If a buffer rejects a record, a queued record is evicted, or record construction
+or admission fails, the current command finishes all fills, reports and market
+data updates before the lifecycle enters `RUN_FAILED`. No subsequent queued
+order or cancel may trade, including another event at the same timestamp.
+Unprocessed new orders receive terminal rejections; queued cancels receive
+`EXCHANGE_UNAVAILABLE` (`CxlRejReason=99`) without changing their target orders.
+New FIX ingress is rejected with `METRICS_INCOMPLETE`.
+
+The book remains available for inspection. Existing FIX reports and the final
+WebSocket/ITCH updates are preserved. Realtime or external clock advancement
+continues to service delivery latency, retries and feeds without trading.
+`POST /admin/advance-time` returns HTTP 503 for a failed run, with
+`detail.code=METRICS_INCOMPLETE`, `run_failure`, the actual `current_time`,
+`events_processed` and `pending_events`; it never reports a successful simulation
+advance after metrics were lost.
+
 One coalesced worker owns threshold, interval, explicit-flush, probe, and retry
 signals. Queued and in-flight records and logical encoded bytes count against
 the configured capacity. The shipped policy is `reject_new`, which preserves
@@ -1028,9 +1048,17 @@ questdb:
   request_timeout_ms: 10000
 ```
 
+Both overflow policies retain their capacity limits. `reject_new` preserves
+accepted rows but any rejected run record invalidates the run. `drop_oldest`
+also invalidates the run on the first eviction. Size `max_buffer_records` and
+`max_buffer_bytes` for the workload and recover QuestDB before rerunning;
+there is no unbounded fallback queue or automatic continuation of a failed run.
+
 Session end performs an explicit drain and fails with
-`METRICS_FLUSH_FAILED` while leaving the run active if accepted records cannot
-be written. Process shutdown seals acceptance, stops the worker, and performs
+`METRICS_FLUSH_FAILED` if accepted records cannot be written. A previously
+active run remains active; an already failed run stays `RUN_FAILED` and cannot
+resume trading. Retry session end after the sink recovers. Process shutdown
+seals acceptance, stops the worker, and performs
 one timeout-bounded final drain/close attempt; its result reports the exact
 unflushed count rather than pretending success.
 
@@ -1043,6 +1071,25 @@ successful write or probe clears consecutive failures and restores `HEALTHY`;
 lifetime failures remain cumulative. Prometheus exposes the same state with a
 fixed state label and bounded outcome labels.
 
+Run integrity is separate from sink health. The boolean
+`/stats.persistence.current_run_outcomes.integrity_complete` becomes false on
+the first permanent loss and remains false until a new run starts. A transient
+write failure that retains every row for retry does not invalidate integrity.
+`/stats.run_failure` identifies the first loss with its code, message, run ID,
+generation, simulated failure time, reason and attempted metric sequence.
+While `RUN_FAILED`, `run_active` is false and `/readyz` stays 503 even after
+the sink becomes healthy.
+
+End the failed run with `POST /api/v1/session/end`. After remaining accepted
+records drain successfully, the endpoint closes the run to `STOPPED` but returns
+HTTP 503 with `status="session_failed"`, `detail.code="METRICS_INCOMPLETE"`,
+the ended session identifiers and `final_stats`. The error message is
+"Metrics were lost; this simulation must be rerun." Final statistics retain
+`run_failure` and `persistence.integrity_complete=false`; successful flushing
+cannot restore records rejected earlier. Starting before ending the failed run
+returns `409 RUN_REQUIRES_END`. Once it is closed and persistence has recovered,
+start a fresh run and rerun the input. No service restart is required.
+
 Persistence is optional only when disabled. When enabled it is required for
 traffic readiness: `/readyz` returns 503 unless persistence is `HEALTHY`.
 The response separately reports `core_ready`, `traffic_ready`, and
@@ -1052,8 +1099,11 @@ outage. Disabled persistence is non-critical.
 Every logical QuestDB row has a deterministic identity. All eight tables use
 the actual event time as their designated `TIMESTAMP_NS` value and store the
 same integer nanosecond value in `event_timestamp_ns`. `run_id` is a `SYMBOL`,
-and `metric_event_sequence` is a one-based, contiguous `LONG` allocated across
-all persistence tables within the run.
+and `metric_event_sequence` is a one-based `LONG` allocated across all
+persistence tables within the run. Identities are reserved before writer
+admission and never reused, including when a writer enqueues a record and then
+raises. A healthy run has contiguous sequences; a failed run may have gaps
+where attempts were rejected.
 
 Tables are daily-partitioned WAL tables with deduplication enabled on
 `(timestamp, run_id, metric_event_sequence)`. Events at the same timestamp
