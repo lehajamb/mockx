@@ -773,6 +773,22 @@ the lifecycle receive Business Message Reject (`35=j`) with reason
 `SCHEDULER_FAILED`, `LIFECYCLE_CHANGED`, `METRICS_INCOMPLETE`, or `LIFECYCLE_FAILED`. Gated messages
 do not reserve `ClOrdID`, consume run identifiers, or enter run metrics.
 
+Publishing `STARTING` or `ENDING` accepts a session transition. After that
+point, cancellation of the caller does not interrupt the transition: its owned
+task completes while the lifecycle lock remains held, then the caller receives
+cancellation. Repeated cancellation does not abandon flushing, WebSocket
+cleanup or feed initialization. A timeout that cancels the request can therefore
+take longer than its requested duration; existing dependency timeouts still
+apply. If the transition fails, the existing failure state and recovery rules
+apply, and the failure is logged even when the caller can no longer receive it.
+
+Cancellation while waiting for the lifecycle lock, or while draining final
+broadcasts before `ENDING`, does not start a transition. Already scheduled
+broadcasts remain owned by the exchange and continue. After a canceled request,
+inspect `/readyz` and `/stats` before retrying: an accepted start may now be
+active, and an accepted end may already have closed the run. Cancellation is
+not a successful HTTP response and does not introduce a new API error code.
+
 Starting while active returns `409 SESSION_ALREADY_ACTIVE`. A successful start
 flushes inactive metrics, closes WebSockets, resets scheduler/engine and
 run-local statistics, reseeds the RNG from `execution.random_seed`, assigns
@@ -786,6 +802,13 @@ begins returns `503 SESSION_START_FAILED`, enters `FAILED`, and requires
 process restart. Permanent metric admission loss is a separate, recoverable
 run failure: an initial-snapshot loss returns `503 METRICS_INCOMPLETE` and
 retains the failed run ID/generation so it can be ended normally.
+
+If a dependency cancels the transition task itself, startup restores `STOPPED`
+before reset or enters `FAILED` after reset, closing its ITCH run and revoking
+GLIMPSE run access. The GLIMPSE listener remains process-scoped. An internally
+canceled end keeps the run open in `ACTIVE` or `RUN_FAILED` for retry. Interrupted
+persistence writes restore their buffered batch with the same identities and
+FIFO order; cancellation by itself does not mark metrics incomplete.
 
 An enabled ITCH feed starts a fresh generation-qualified Mold session before
 `ACTIVE`. Runtime feed failure is noncritical and leaves the run active with

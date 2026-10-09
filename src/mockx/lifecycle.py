@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 import inspect
 import logging
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional, TypeVar
 
 from .glimpse_encoder import GlimpseOrderSnapshot, GlimpseSnapshot
 from .identifiers import RunIdentifierScope
@@ -17,6 +17,7 @@ from .models import SchedulerState
 
 
 logger = logging.getLogger(__name__)
+_TransitionResult = TypeVar("_TransitionResult")
 
 
 class LifecycleState(str, Enum):
@@ -287,6 +288,65 @@ class ExchangeLifecycle:
                 self.check_persistence_failure()
             return result
 
+    async def _complete_transition(
+        self,
+        task: asyncio.Task[_TransitionResult],
+        *,
+        operation: str,
+        run_id: Optional[str],
+    ) -> _TransitionResult:
+        """Retain the caller's lock until its accepted transition settles."""
+        caller = asyncio.current_task()
+        cancellation: Optional[asyncio.CancelledError] = None
+        while not task.done():
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError as exc:
+                # A shield also raises when its child is internally canceled.
+                # Never retry a settled child, or this becomes a busy loop.
+                if not task.cancelled() or (caller is not None and caller.cancelling()):
+                    if cancellation is None:
+                        cancellation = exc
+                if task.done():
+                    break
+            except Exception:
+                # Retrieve the settled exception below, including when the
+                # caller has already canceled and cannot receive that failure.
+                break
+
+        if cancellation is not None:
+            try:
+                task.result()
+            except (Exception, asyncio.CancelledError):
+                logger.exception(
+                    "Session %s failed after caller cancellation",
+                    operation,
+                    extra={
+                        "operation": operation,
+                        "simulation_session_id": run_id,
+                        "run_generation": self.run_generation,
+                    },
+                )
+            raise cancellation
+        return task.result()
+
+    def _fail_start_after_reset(self) -> None:
+        """Revoke an incomplete run without stopping process-owned listeners."""
+        try:
+            if self.glimpse_service is not None:
+                self.glimpse_service.revoke_all()
+        except Exception:
+            logger.exception("GLIMPSE revocation failed after session start failure")
+        try:
+            if self.itch_feed is not None:
+                self.itch_feed.end_run(self.scheduler.current_time)
+        except Exception:
+            logger.exception("ITCH cleanup failed after session start failure")
+        finally:
+            self.metrics.end_run()
+            self.run_id = None
+            self._publish(LifecycleState.FAILED)
+
     async def start_session(self, run_id: str) -> SessionStartResult:
         async with self._serialized():
             self.raise_if_transition_or_failed()
@@ -311,108 +371,126 @@ class ExchangeLifecycle:
                     ) from exc
 
             self._publish(LifecycleState.STARTING)
+            task = asyncio.create_task(
+                self._start_session(run_id), name=f"session-start:{run_id}"
+            )
             try:
-                flush_result = await self.metrics.flush()
-                if not flush_result.successful:
+                return await self._complete_transition(
+                    task, operation="start", run_id=run_id
+                )
+            except asyncio.CancelledError:
+                # A child canceled before its first step cannot run its own
+                # phase cleanup. No reset has occurred in this case.
+                if self.state == LifecycleState.STARTING:
                     self._publish(LifecycleState.STOPPED)
-                    raise LifecycleError(
-                        503,
-                        "METRICS_FLUSH_FAILED",
-                        "Buffered metrics could not be flushed",
-                    )
-                if self._close_websockets is not None:
-                    await self._close_websockets()
-            except LifecycleError:
                 raise
-            except Exception as exc:
+
+    async def _start_session(self, run_id: str) -> SessionStartResult:
+        """Finish an accepted start; the caller owns the lifecycle lock."""
+        try:
+            flush_result = await self.metrics.flush()
+            if not flush_result.successful:
                 self._publish(LifecycleState.STOPPED)
-                logger.exception("Session start failed before destructive reset")
                 raise LifecycleError(
                     503,
-                    "SESSION_START_FAILED",
-                    "Simulation session start failed before reset",
-                ) from exc
-
-            try:
-                if self.glimpse_service is not None:
-                    self.glimpse_service.revoke_all()
-                self.scheduler.reset()
-                self.engine.reset_run_state()
-                self.latency_tracker.reset(
-                    preserve_order_keys=(
-                        self.fix_app.delivery_queue.pending_order_keys()
-                    ),
-                    preserve_cancel_keys=(
-                        self.fix_app.delivery_queue.pending_cancel_keys()
-                    ),
+                    "METRICS_FLUSH_FAILED",
+                    "Buffered metrics could not be flushed",
                 )
-                self.metrics.reset_run_metrics()
-                self.metrics.refresh_engine_gauges()
-                self.engine.reseed_rng()
+            if self._close_websockets is not None:
+                await self._close_websockets()
+        except asyncio.CancelledError:
+            self._publish(LifecycleState.STOPPED)
+            raise
+        except LifecycleError:
+            raise
+        except Exception as exc:
+            self._publish(LifecycleState.STOPPED)
+            logger.exception("Session start failed before destructive reset")
+            raise LifecycleError(
+                503,
+                "SESSION_START_FAILED",
+                "Simulation session start failed before reset",
+            ) from exc
 
-                generation = self.run_generation + 1
-                identifiers = RunIdentifierScope(generation)
-                self.engine.install_identifier_scope(identifiers)
-                self.fix_app.reset_run_state(identifiers)
-                self.metrics.start_run(run_id)
-                self.run_id = run_id
-                self.run_generation = generation
-                self.run_failure = None
-                self.fix_app.reschedule_deliveries_after_reset()
-                for symbol in self.engine.books:
-                    snapshot = self.engine.get_market_data_snapshot(symbol)
-                    if snapshot is None:
-                        raise RuntimeError(
-                            f"Missing initial book snapshot for {symbol}"
-                        )
-                    self.metrics.update_book_metrics(snapshot)
-                if self.check_persistence_failure():
-                    raise LifecycleError(
-                        503, self.run_failure.code, self.run_failure.message
-                    )
+        try:
+            if self.glimpse_service is not None:
+                self.glimpse_service.revoke_all()
+            self.scheduler.reset()
+            self.engine.reset_run_state()
+            self.latency_tracker.reset(
+                preserve_order_keys=(
+                    self.fix_app.delivery_queue.pending_order_keys()
+                ),
+                preserve_cancel_keys=(
+                    self.fix_app.delivery_queue.pending_cancel_keys()
+                ),
+            )
+            self.metrics.reset_run_metrics()
+            self.metrics.refresh_engine_gauges()
+            self.engine.reseed_rng()
 
-                if self.itch_feed is not None:
-                    await self.itch_feed.start_run(
-                        generation,
-                        self.scheduler.current_time,
+            generation = self.run_generation + 1
+            identifiers = RunIdentifierScope(generation)
+            self.engine.install_identifier_scope(identifiers)
+            self.fix_app.reset_run_state(identifiers)
+            self.metrics.start_run(run_id)
+            self.run_id = run_id
+            self.run_generation = generation
+            self.run_failure = None
+            self.fix_app.reschedule_deliveries_after_reset()
+            for symbol in self.engine.books:
+                snapshot = self.engine.get_market_data_snapshot(symbol)
+                if snapshot is None:
+                    raise RuntimeError(
+                        f"Missing initial book snapshot for {symbol}"
                     )
-                if self.glimpse_service is not None:
-                    await self.glimpse_service.start()
-                    self.glimpse_service.begin_run(generation)
-
-                if self.check_persistence_failure():
-                    raise LifecycleError(
-                        503, self.run_failure.code, self.run_failure.message
-                    )
-                self.run_id = run_id
-                self.run_generation = generation
-                self._publish(LifecycleState.ACTIVE)
-                logger.info(
-                    "Simulation session started",
-                    extra={
-                        "simulation_session_id": run_id,
-                        "run_generation": generation,
-                    },
-                )
-                return SessionStartResult(
-                    run_id=run_id,
-                    run_generation=generation,
-                    starting_time=self.scheduler.current_time,
-                )
-            except Exception as exc:
-                if isinstance(exc, LifecycleError) and self.state == LifecycleState.RUN_FAILED:
-                    raise
-                if self.glimpse_service is not None:
-                    self.glimpse_service.revoke_all()
-                self.metrics.end_run()
-                self.run_id = None
-                self._publish(LifecycleState.FAILED)
-                logger.exception("Session start failed after destructive reset")
+                self.metrics.update_book_metrics(snapshot)
+            if self.check_persistence_failure():
                 raise LifecycleError(
-                    503,
-                    "SESSION_START_FAILED",
-                    "Simulation session start failed; service restart required",
-                ) from exc
+                    503, self.run_failure.code, self.run_failure.message
+                )
+
+            if self.itch_feed is not None:
+                await self.itch_feed.start_run(
+                    generation,
+                    self.scheduler.current_time,
+                )
+            if self.glimpse_service is not None:
+                await self.glimpse_service.start()
+                self.glimpse_service.begin_run(generation)
+
+            if self.check_persistence_failure():
+                raise LifecycleError(
+                    503, self.run_failure.code, self.run_failure.message
+                )
+            self.run_id = run_id
+            self.run_generation = generation
+            self._publish(LifecycleState.ACTIVE)
+            logger.info(
+                "Simulation session started",
+                extra={
+                    "simulation_session_id": run_id,
+                    "run_generation": generation,
+                },
+            )
+            return SessionStartResult(
+                run_id=run_id,
+                run_generation=generation,
+                starting_time=self.scheduler.current_time,
+            )
+        except asyncio.CancelledError:
+            self._fail_start_after_reset()
+            raise
+        except Exception as exc:
+            if isinstance(exc, LifecycleError) and self.state == LifecycleState.RUN_FAILED:
+                raise
+            self._fail_start_after_reset()
+            logger.exception("Session start failed after destructive reset")
+            raise LifecycleError(
+                503,
+                "SESSION_START_FAILED",
+                "Simulation session start failed; service restart required",
+            ) from exc
 
     async def end_session(self) -> SessionEndResult:
         async with self._serialized(drain_broadcasts=True):
@@ -425,58 +503,87 @@ class ExchangeLifecycle:
             generation = self.run_generation
             restore_state = self.state
             self._publish(LifecycleState.ENDING)
+            task = asyncio.create_task(
+                self._end_session(run_id, generation, restore_state),
+                name=f"session-end:{run_id}",
+            )
             try:
-                failure_before_flush = self.run_failure
-                flush_result = await self.metrics.flush()
-                self.check_persistence_failure()
-                if self.state == LifecycleState.RUN_FAILED:
-                    restore_state = LifecycleState.RUN_FAILED
-                if (
-                    flush_result.successful
-                    and failure_before_flush is None
-                    and self.run_failure is not None
-                ):
-                    # Settling commands after a newly observed fault may have
-                    # admitted rejection metrics after the first drain ended.
-                    flush_result = await self.metrics.flush()
-                if not flush_result.successful:
+                return await self._complete_transition(
+                    task, operation="end", run_id=run_id
+                )
+            except asyncio.CancelledError:
+                # Cover cancellation before the child's first step as well as
+                # the phase cleanup performed by a child that already ran.
+                if self.state == LifecycleState.ENDING:
+                    if self.check_persistence_failure():
+                        restore_state = LifecycleState.RUN_FAILED
                     self._publish(restore_state)
-                    raise LifecycleError(
-                        503,
-                        "METRICS_FLUSH_FAILED",
-                        "Buffered metrics could not be flushed",
-                    )
-                if self.glimpse_service is not None and generation is not None:
-                    self.glimpse_service.revoke_run(generation)
-                if self.itch_feed is not None:
-                    self.itch_feed.end_run(self.scheduler.current_time)
-                if self._stats_builder is None:
-                    raise RuntimeError("Lifecycle statistics builder is not bound")
-                final_stats = self._stats_builder()
-            except LifecycleError:
                 raise
-            except Exception as exc:
-                if self.check_persistence_failure():
-                    restore_state = LifecycleState.RUN_FAILED
+
+    async def _end_session(
+        self,
+        run_id: Optional[str],
+        generation: int,
+        restore_state: LifecycleState,
+    ) -> SessionEndResult:
+        """Finish an accepted end; the caller owns the lifecycle lock."""
+        try:
+            failure_before_flush = self.run_failure
+            flush_result = await self.metrics.flush()
+            self.check_persistence_failure()
+            if self.state == LifecycleState.RUN_FAILED:
+                restore_state = LifecycleState.RUN_FAILED
+            if (
+                flush_result.successful
+                and failure_before_flush is None
+                and self.run_failure is not None
+            ):
+                # Settling commands after a newly observed fault may have
+                # admitted rejection metrics after the first drain ended.
+                flush_result = await self.metrics.flush()
+            if not flush_result.successful:
                 self._publish(restore_state)
-                logger.exception("Session end failed before the run was closed")
                 raise LifecycleError(
                     503,
-                    "SESSION_END_FAILED",
-                    "Simulation session end failed; the run remains open",
-                ) from exc
+                    "METRICS_FLUSH_FAILED",
+                    "Buffered metrics could not be flushed",
+                )
+            if self.glimpse_service is not None and generation is not None:
+                self.glimpse_service.revoke_run(generation)
+            if self.itch_feed is not None:
+                self.itch_feed.end_run(self.scheduler.current_time)
+            if self._stats_builder is None:
+                raise RuntimeError("Lifecycle statistics builder is not bound")
+            final_stats = self._stats_builder()
+        except asyncio.CancelledError:
+            if self.check_persistence_failure():
+                restore_state = LifecycleState.RUN_FAILED
+            self._publish(restore_state)
+            raise
+        except LifecycleError:
+            raise
+        except Exception as exc:
+            if self.check_persistence_failure():
+                restore_state = LifecycleState.RUN_FAILED
+            self._publish(restore_state)
+            logger.exception("Session end failed before the run was closed")
+            raise LifecycleError(
+                503,
+                "SESSION_END_FAILED",
+                "Simulation session end failed; the run remains open",
+            ) from exc
 
-            self.metrics.end_run()
-            self.run_id = None
-            self._publish(LifecycleState.STOPPED)
-            logger.info(
-                "Simulation session ended",
-                extra={
-                    "simulation_session_id": run_id,
-                    "run_generation": generation,
-                },
-            )
-            return SessionEndResult(run_id, generation, final_stats)
+        self.metrics.end_run()
+        self.run_id = None
+        self._publish(LifecycleState.STOPPED)
+        logger.info(
+            "Simulation session ended",
+            extra={
+                "simulation_session_id": run_id,
+                "run_generation": generation,
+            },
+        )
+        return SessionEndResult(run_id, generation, final_stats)
 
     async def capture_glimpse_snapshot(self) -> GlimpseSnapshot:
         """Capture one book/ITCH cut without retaining live engine objects."""

@@ -1,5 +1,18 @@
 # MockX Documentation Changelog
 
+## 2026-10-09 - Complete accepted lifecycle transitions despite caller cancellation
+
+- Once `STARTING` or `ENDING` is published, keep the lifecycle lock until the
+  owned transition task settles, then propagate caller cancellation. Repeated
+  cancellation cannot leave a transition detached or permanently stuck.
+- Preserve final broadcasts if an end request is canceled before acceptance.
+- Restore interrupted persistence batches in FIFO order with unchanged metric
+  identities and capacity accounting, without treating cancellation as loss.
+- Apply phase-appropriate recovery if a dependency cancels the transition
+  itself, preserving `RUN_FAILED` and its first integrity fault on end retries.
+- Document cancellation timing, timeout implications and inspection/recovery;
+  existing HTTP response schemas and error codes remain unchanged.
+
 ## 2026-10-09 - Persistence isolation and failed simulation runs
 
 - Isolate metric admission failures so the current command completes its fills,
