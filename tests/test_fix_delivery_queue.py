@@ -94,10 +94,17 @@ def test_later_due_record_cannot_overtake_pending_fifo_head():
         simulated_due_timestamp=NOW,
     )
 
-    queue.mark_due(second.delivery_id)
+    second_due = queue.current_due_command(second.delivery_id)
+    assert second_due is not None
+    assert queue.mark_due(second_due, simulated_timestamp=NOW) is not None
     assert queue.head_ready(SESSION.session_id) is None
 
-    queue.mark_due(first.delivery_id)
+    first_due = queue.current_due_command(first.delivery_id)
+    assert first_due is not None
+    assert queue.mark_due(
+        first_due,
+        simulated_timestamp=NOW + timedelta(milliseconds=10),
+    ) is not None
     assert queue.head_ready(SESSION.session_id).delivery_id == first.delivery_id
     queue.start_attempt(
         first.delivery_id,
@@ -118,7 +125,9 @@ def test_retry_cycle_is_bounded_and_reset_reschedules_nonterminal_records():
         payload=report("G00000001-E00000001", 1),
         simulated_due_timestamp=NOW,
     )
-    queue.mark_due(record.delivery_id)
+    first_due = queue.current_due_command(record.delivery_id)
+    assert first_due is not None
+    assert queue.mark_due(first_due, simulated_timestamp=NOW) is not None
     queue.start_attempt(record.delivery_id, simulated_timestamp=NOW)
     failed = queue.record_transport_failure(
         record.delivery_id,
@@ -127,7 +136,12 @@ def test_retry_cycle_is_bounded_and_reset_reschedules_nonterminal_records():
     )
     assert failed.next_retry_timestamp == NOW + timedelta(milliseconds=25)
 
-    queue.mark_due(record.delivery_id)
+    retry_due = queue.current_due_command(record.delivery_id)
+    assert retry_due is not None
+    assert queue.mark_due(
+        retry_due,
+        simulated_timestamp=NOW + timedelta(milliseconds=25),
+    ) is not None
     queue.start_attempt(
         record.delivery_id,
         simulated_timestamp=NOW + timedelta(milliseconds=25),
@@ -141,9 +155,14 @@ def test_retry_cycle_is_bounded_and_reset_reschedules_nonterminal_records():
     assert exhausted.next_retry_timestamp is None
     assert exhausted.attempt_count == 2
 
-    assert queue.prepare_after_scheduler_reset(NOW) == (
-        (record.delivery_id, 0),
-    )
+    scheduled = queue.prepare_after_scheduler_reset(NOW)
+    assert len(scheduled) == 1
+    reset_due, delay_ms = scheduled[0]
+    assert reset_due.delivery_id == record.delivery_id
+    assert reset_due.due_timestamp == NOW
+    assert reset_due.schedule_version > retry_due.schedule_version
+    assert queue.current_due_command(record.delivery_id) == reset_due
+    assert delay_ms == 0
     resumed = queue.get(record.delivery_id)
     assert resumed.state == FixDeliveryState.DUE
     assert resumed.cycle_attempt_count == 0

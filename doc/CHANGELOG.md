@@ -1,5 +1,18 @@
 # MockX Documentation Changelog
 
+## 2026-10-09 - Ignore obsolete FIX delivery events
+
+- Give each armed delivery deadline an immutable command and unique schedule
+  version owned by the delivery queue. Reconnect and scheduler reset invalidate
+  old commands so they cannot retry early or bypass the attempt limit.
+- Ignore duplicate, terminal and pruned-record commands without changing FIX
+  delivery metrics or failing the scheduler. Enforce the cycle limit again at
+  sender-attempt admission.
+- Preserve immediate reconnect retries, configured timing, stable-session FIFO,
+  immutable report identities and delivery during `RUN_FAILED`.
+- Document retry deadline ownership and obsolete-event accounting. Existing FIX
+  wire fields, REST schemas and configuration options remain unchanged.
+
 ## 2026-10-09 - Complete accepted lifecycle transitions despite caller cancellation
 
 - Once `STARTING` or `ENDING` is published, keep the lifecycle lock until the

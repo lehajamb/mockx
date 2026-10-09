@@ -181,6 +181,16 @@ cycle immediately. Deterministic serialization failures become
 `PERMANENTLY_FAILED` and visibly block later records for that session. One
 blocked session never prevents another session from progressing.
 
+The queue owns the currently armed due command for each delivery. Commands
+carry a unique schedule version and simulated deadline; initial latency,
+transport retries and scheduler resets each arm a fresh command. Reconnecting
+invalidates the previous command before starting its immediate retry cycle.
+An obsolete or duplicate command cannot override a newer deadline or revive
+an exhausted cycle. The attempt limit is also enforced when a sender call is
+admitted. Due commands for unknown, terminal or pruned records are harmless.
+They still count as processed scheduler events, but do not change FIX attempt,
+retry, failure, success or latency metrics.
+
 Logon registers the replacement live transport and triggers an immediate
 FIFO drain. Logout removes only that transport. Duplicate due events,
 repeated logons, and transport retries reuse the original record and cannot
@@ -1226,8 +1236,8 @@ admin_api:
   enabled: true
 fix:
   enabled: true
-  delivery_retry_interval_ms: 1000
-  delivery_max_attempts_per_cycle: 3
+  delivery_retry_interval_ms: 1000  # simulated ms after a failed sender call
+  delivery_max_attempts_per_cycle: 3  # includes the first call; logon starts a new cycle
   delivery_terminal_retention_records: 10000
   session_participants:
     "FIX.4.4:MOCKX1->CLIENT1": "participant-1"

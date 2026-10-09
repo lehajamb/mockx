@@ -1699,6 +1699,27 @@ def create_cancel_reject(
 
 
 @dataclass(frozen=True, slots=True)
+class FixDeliveryDueCommand:
+    """One queue-owned wakeup for an outbound FIX delivery deadline."""
+
+    delivery_id: str
+    schedule_version: int
+    due_timestamp: datetime
+
+    def __post_init__(self) -> None:
+        if not self.delivery_id:
+            raise ValueError("Delivery ID is required")
+        if (
+            not isinstance(self.schedule_version, int)
+            or isinstance(self.schedule_version, bool)
+            or self.schedule_version <= 0
+        ):
+            raise ValueError("Delivery schedule version must be a positive integer")
+        if self.due_timestamp.tzinfo is None:
+            raise ValueError("Delivery due timestamp must be timezone-aware")
+
+
+@dataclass(frozen=True, slots=True)
 class OutboundFixDelivery:
     """Immutable state snapshot for one logical outbound FIX delivery."""
 

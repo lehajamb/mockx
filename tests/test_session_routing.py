@@ -89,7 +89,9 @@ def register_pair(app):
 
 def deliver(app, report):
     record = app.enqueue_report(report, delay_ms=0)
-    app.process_delivery_due(record.delivery_id)
+    due_command = app.delivery_queue.current_due_command(record.delivery_id)
+    assert due_command is not None
+    app.process_delivery_due(due_command)
     return (
         app.delivery_queue.get(record.delivery_id).state
         == FixDeliveryState.DELIVERED
