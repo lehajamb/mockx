@@ -16,6 +16,7 @@ from src.mockx.models import (
     CancelReject,
     ExecutionReport,
     ExecutionType,
+    FixDeliveryDueCommand,
     OrderStatus,
     ProcessOrderCommand,
     Side,
@@ -33,13 +34,18 @@ def test_extract_mutation_events_preserves_delivery_order_and_queue_depth():
     scheduler = engine.scheduler
     depths = []
     scheduler.on_queue_depth_change = depths.append
+    due_at = scheduler.current_time + timedelta(milliseconds=5)
+    first_delivery = FixDeliveryDueCommand("first", 1, due_at)
+    second_delivery = FixDeliveryDueCommand("second", 2, due_at)
     scheduler.schedule_event("order_process", "later", 8)
-    scheduler.schedule_event("fix_delivery_due", "first", 5)
+    scheduler.schedule_event("fix_delivery_due", first_delivery, 5)
     scheduler.schedule_event("order_process", "earlier", 2)
-    scheduler.schedule_event("fix_delivery_due", "second", 5)
+    scheduler.schedule_event("fix_delivery_due", second_delivery, 5)
     removed = scheduler.extract_events({"order_process"})
     assert [event.data for event in removed] == ["earlier", "later"]
-    assert [event.data for event in sorted(scheduler.event_queue)] == ["first", "second"]
+    assert [event.data for event in sorted(scheduler.event_queue)] == [
+        first_delivery, second_delivery,
+    ]
     assert depths[-1] == 2
 
 

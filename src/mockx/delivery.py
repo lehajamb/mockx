@@ -12,6 +12,7 @@ from typing import Callable, Deque, Dict, Iterable, Optional
 from .models import (
     CancelReject,
     ExecutionReport,
+    FixDeliveryDueCommand,
     FixDeliveryMessageType,
     FixDeliveryQueueSnapshot,
     FixDeliveryState,
@@ -59,6 +60,8 @@ class OutboundFixDeliveryQueue:
         self._wall_clock = wall_clock or (lambda: datetime.now(timezone.utc))
         self._lock = threading.RLock()
         self._records: Dict[str, OutboundFixDelivery] = {}
+        self._scheduled_due: Dict[str, FixDeliveryDueCommand] = {}
+        self._next_schedule_version = 1
         self._record_order: list[str] = []
         self._domain_index: Dict[str, str] = {}
         self._session_queues: Dict[str, Deque[str]] = defaultdict(deque)
@@ -144,6 +147,7 @@ class OutboundFixDeliveryQueue:
             self._domain_index[domain_id] = delivery_id
             self._session_queues[session_id].append(delivery_id)
             self._enqueued += 1
+            self._arm_due_locked(delivery_id, simulated_due_timestamp)
             return record, True
 
     def begin_generation(self, active_generation: int) -> None:
@@ -166,20 +170,62 @@ class OutboundFixDeliveryQueue:
                 for delivery_id in self._record_order
             )
 
-    def mark_due(self, delivery_id: str) -> OutboundFixDelivery:
+    def _arm_due_locked(
+        self, delivery_id: str, due_timestamp: datetime,
+    ) -> FixDeliveryDueCommand:
+        """Replace a deadline while holding the queue lock; versions never reset."""
+        command = FixDeliveryDueCommand(
+            delivery_id=delivery_id,
+            schedule_version=self._next_schedule_version,
+            due_timestamp=due_timestamp,
+        )
+        self._next_schedule_version += 1
+        self._scheduled_due[delivery_id] = command
+        return command
+
+    def current_due_command(
+        self, delivery_id: str,
+    ) -> Optional[FixDeliveryDueCommand]:
         with self._lock:
-            record = self._records[delivery_id]
-            if record.state in {
-                FixDeliveryState.DELIVERED,
-                FixDeliveryState.PERMANENTLY_FAILED,
+            return self._scheduled_due.get(delivery_id)
+
+    def mark_due(
+        self,
+        command: FixDeliveryDueCommand,
+        *,
+        simulated_timestamp: datetime,
+    ) -> Optional[OutboundFixDelivery]:
+        """Consume a current, elapsed deadline; obsolete events are harmless."""
+        if not isinstance(command, FixDeliveryDueCommand):
+            raise TypeError("FIX delivery due events require FixDeliveryDueCommand")
+        if simulated_timestamp.tzinfo is None:
+            raise ValueError("Delivery simulated timestamp must be timezone-aware")
+        with self._lock:
+            if self._scheduled_due.get(command.delivery_id) != command:
+                return None
+            record = self._records.get(command.delivery_id)
+            if record is None or record.state not in {
+                FixDeliveryState.PENDING,
+                FixDeliveryState.DUE,
+                FixDeliveryState.RETRY_PENDING,
             }:
-                return record
+                return None
+            if simulated_timestamp < command.due_timestamp:
+                return None
+            if record.cycle_attempt_count >= self.max_attempts_per_cycle:
+                return None
+            if (
+                record.state == FixDeliveryState.RETRY_PENDING
+                and record.next_retry_timestamp != command.due_timestamp
+            ):
+                return None
+            self._scheduled_due.pop(command.delivery_id)
             record = replace(
                 record,
                 state=FixDeliveryState.DUE,
                 next_retry_timestamp=None,
             )
-            self._records[delivery_id] = record
+            self._records[command.delivery_id] = record
             return record
 
     def head_ready(self, session_id: str) -> Optional[OutboundFixDelivery]:
@@ -199,6 +245,7 @@ class OutboundFixDeliveryQueue:
         with self._lock:
             record = self._require_due_head_locked(delivery_id)
             self._failures += 1
+            self._scheduled_due.pop(delivery_id, None)
             record = replace(
                 record,
                 state=FixDeliveryState.RETRY_PENDING,
@@ -216,6 +263,9 @@ class OutboundFixDeliveryQueue:
     ) -> OutboundFixDelivery:
         with self._lock:
             record = self._require_due_head_locked(delivery_id)
+            if record.cycle_attempt_count >= self.max_attempts_per_cycle:
+                raise ValueError("FIX delivery attempt cycle is exhausted")
+            self._scheduled_due.pop(delivery_id, None)
             self._attempts += 1
             if record.attempt_count > 0:
                 self._retries += 1
@@ -253,6 +303,10 @@ class OutboundFixDeliveryQueue:
                 next_retry_timestamp=next_retry,
             )
             self._records[delivery_id] = record
+            if next_retry is None:
+                self._scheduled_due.pop(delivery_id, None)
+            else:
+                self._arm_due_locked(delivery_id, next_retry)
             return record
 
     def record_permanent_failure(
@@ -268,6 +322,7 @@ class OutboundFixDeliveryQueue:
             record = self._require_due_head_locked(delivery_id)
             self._failures += 1
             self._permanently_failed += 1
+            self._scheduled_due.pop(delivery_id, None)
             record = replace(
                 record,
                 state=FixDeliveryState.PERMANENTLY_FAILED,
@@ -299,6 +354,7 @@ class OutboundFixDeliveryQueue:
                 next_retry_timestamp=None,
             )
             self._records[delivery_id] = record
+            self._scheduled_due.pop(delivery_id, None)
             queue.popleft()
             self._delivered += 1
             self._delivered_record_ids.append(delivery_id)
@@ -322,6 +378,7 @@ class OutboundFixDeliveryQueue:
                 )
             )
             self._records.pop(delivery_id, None)
+            self._scheduled_due.pop(delivery_id, None)
             self._domain_index.pop(record.domain_id, None)
             try:
                 self._record_order.remove(delivery_id)
@@ -349,15 +406,17 @@ class OutboundFixDeliveryQueue:
                 next_retry_timestamp=None,
             )
             self._records[record.delivery_id] = record
+            self._scheduled_due.pop(record.delivery_id, None)
             return record
 
     def prepare_after_scheduler_reset(
         self,
         current_simulated_time: datetime,
-    ) -> tuple[tuple[str, int], ...]:
+    ) -> tuple[tuple[FixDeliveryDueCommand, int], ...]:
         """Return nonterminal records to schedule in the new scheduler generation."""
-        scheduled: list[tuple[str, int]] = []
+        scheduled: list[tuple[FixDeliveryDueCommand, int]] = []
         with self._lock:
+            self._scheduled_due.clear()
             for delivery_id in self._record_order:
                 record = self._records[delivery_id]
                 if record.state in {
@@ -371,8 +430,12 @@ class OutboundFixDeliveryQueue:
                         - current_simulated_time
                     ).total_seconds()
                     delay_ms = max(0, math.ceil(seconds * 1_000))
+                    due_timestamp = max(
+                        record.simulated_due_timestamp, current_simulated_time
+                    )
                 else:
                     delay_ms = 0
+                    due_timestamp = current_simulated_time
                     record = replace(
                         record,
                         state=FixDeliveryState.DUE,
@@ -380,7 +443,8 @@ class OutboundFixDeliveryQueue:
                         next_retry_timestamp=None,
                     )
                     self._records[delivery_id] = record
-                scheduled.append((delivery_id, delay_ms))
+                command = self._arm_due_locked(delivery_id, due_timestamp)
+                scheduled.append((command, delay_ms))
         return tuple(scheduled)
 
     def pending_order_keys(self) -> set[tuple[int, int]]:

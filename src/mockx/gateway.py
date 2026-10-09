@@ -29,7 +29,7 @@ from .models import (
     CancelOrderCommand,
     ExecutionReport,
     ExecutionType,
-    FixDeliveryState,
+    FixDeliveryDueCommand,
     FixCommandType,
     FixIngressEnvelope,
     IngressBarrier,
@@ -1750,24 +1750,26 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         if fresh:
             if record is None:
                 raise RuntimeError("Fresh FIX delivery has no retained record")
+            command = self.delivery_queue.current_due_command(record.delivery_id)
+            if command is None:
+                raise RuntimeError("Fresh FIX delivery has no armed deadline")
             self.engine.scheduler.schedule_event(
                 "fix_delivery_due",
-                record.delivery_id,
+                command,
                 resolved_delay,
             )
             self.metrics.record_fix_delivery_enqueued()
             self._refresh_delivery_metrics()
         return record
 
-    def process_delivery_due(self, delivery_id: str) -> None:
-        """Mark one delivery due and attempt the destination FIFO."""
-        record = self.delivery_queue.mark_due(delivery_id)
-        self._refresh_delivery_metrics()
-        if record.state in {
-            FixDeliveryState.DELIVERED,
-            FixDeliveryState.PERMANENTLY_FAILED,
-        }:
+    def process_delivery_due(self, command: FixDeliveryDueCommand) -> None:
+        """Consume a current deadline and attempt the destination FIFO."""
+        record = self.delivery_queue.mark_due(
+            command, simulated_timestamp=self.engine.scheduler.current_time
+        )
+        if record is None:
             return
+        self._refresh_delivery_metrics()
         self._drain_session(record.destination.session_id)
 
     def retry_pending_for_session(self, session_id: str) -> None:
@@ -1780,14 +1782,14 @@ class FIXApplication(_FIX_APPLICATION_BASE):
 
     def reschedule_deliveries_after_reset(self) -> None:
         """Reinstall nonterminal delivery events after scheduler reset."""
-        for delivery_id, delay_ms in (
+        for command, delay_ms in (
             self.delivery_queue.prepare_after_scheduler_reset(
                 self.engine.scheduler.current_time
             )
         ):
             self.engine.scheduler.schedule_event(
                 "fix_delivery_due",
-                delivery_id,
+                command,
                 delay_ms,
             )
         self._refresh_delivery_metrics()
@@ -1898,9 +1900,12 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             exc_info=(type(exc), exc, exc.__traceback__),
         )
         if failed.next_retry_timestamp is not None:
+            command = self.delivery_queue.current_due_command(failed.delivery_id)
+            if command is None:
+                raise RuntimeError("FIX retry has no armed deadline")
             self.engine.scheduler.schedule_event(
                 "fix_delivery_due",
-                failed.delivery_id,
+                command,
                 self.delivery_queue.retry_interval_ms,
             )
 

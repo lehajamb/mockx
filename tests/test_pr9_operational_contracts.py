@@ -411,7 +411,11 @@ def test_delivered_fix_payload_retention_is_bounded_without_pruning_pending():
             simulated_due_timestamp=NOW,
         )
         assert fresh
-        queue.mark_due(delivery.delivery_id)
+        due_command = queue.current_due_command(delivery.delivery_id)
+        assert due_command is not None
+        assert queue.mark_due(
+            due_command, simulated_timestamp=NOW,
+        ) is not None
         queue.start_attempt(delivery.delivery_id, simulated_timestamp=NOW)
         queue.record_delivered(delivery.delivery_id)
 
