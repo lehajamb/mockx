@@ -467,6 +467,7 @@ class BufferedMetricsWriter:
         self._consecutive_failures = 0
         self._lifetime_failures = 0
         self._current_retry_delay_ms = retry_backoff_ms
+        self._retry_deadline_ns: Optional[int] = None
         self._outcomes = {outcome: 0 for outcome in PersistenceAddOutcome}
         self._dropped_records = 0
         self._last_close_result: Optional[PersistenceCloseResult] = None
@@ -765,81 +766,103 @@ class BufferedMetricsWriter:
             remaining_records=0,
         )
 
-    async def _flush_automatic(self, *, include_partial: bool) -> bool:
+    def _automatic_retry_ready(self) -> bool:
+        with self._buffer_lock:
+            return not self._stop_worker and (
+                self._retry_deadline_ns is None
+                or time.monotonic_ns() >= self._retry_deadline_ns
+            )
+
+    async def _flush_automatic(self, *, include_partial: bool) -> None:
         async with self._flush_lock:
+            # An explicit flush may have failed while this worker waited for
+            # the lock. Its new deadline also governs this automatic attempt.
+            if not self._automatic_retry_ready():
+                return
+            with self._buffer_lock:
+                include_partial = include_partial or self._retry_deadline_ns is not None
             while self.buffered_count:
+                if not self._automatic_retry_ready():
+                    return
                 with self._buffer_lock:
                     queued = len(self._buffer)
                 if not include_partial and queued < self.flush_batch_size:
-                    return True
+                    return
                 result = await self._write_one_batch()
                 if not result.successful:
-                    return False
-        return True
+                    return
 
-    async def _check_sink_health(self) -> bool:
-        checker = getattr(self.sink, "health_check", None)
-        if checker is None:
+    async def _check_sink_health(self, *, automatic: bool = False) -> bool:
+        # Startup probes share the write lock too, so a slow probe cannot
+        # race a write and overwrite its recovery state.
+        async with self._flush_lock:
+            if automatic and (
+                not self._automatic_retry_ready() or self.buffered_count
+            ):
+                return True
+            checker = getattr(self.sink, "health_check", None)
+            try:
+                if checker is not None:
+                    await checker()
+            except Exception as exc:
+                self._record_failure(exc, self.buffered_count)
+                return False
+            with self._buffer_lock:
+                wake_worker = False
+                if not self._buffer and not self._inflight:
+                    wake_worker = self._reset_retry_locked()
+            if wake_worker:
+                self._signal_worker()
             return True
-        try:
-            await checker()
-        except Exception as exc:
-            self._record_failure(exc, self.buffered_count)
-            return False
-        with self._buffer_lock:
-            if not self._buffer and not self._inflight:
-                self._consecutive_failures = 0
-                self._current_retry_delay_ms = self.retry_backoff_ms
-                self._health_state = PersistenceHealthState.HEALTHY
-        return True
 
-    def _advance_retry_delay(self) -> None:
+    def _reset_retry_locked(self) -> bool:
+        """Clear recovery while holding the buffer lock; report a changed wait."""
+        had_deadline = self._retry_deadline_ns is not None
+        self._consecutive_failures = 0
+        self._current_retry_delay_ms = self.retry_backoff_ms
+        self._retry_deadline_ns = None
+        self._health_state = PersistenceHealthState.HEALTHY
+        return had_deadline
+
+    def _automatic_wait_seconds(self) -> float:
         with self._buffer_lock:
-            self._current_retry_delay_ms = min(
-                self._current_retry_delay_ms * 2,
-                self.max_retry_delay_ms,
-            )
-            if self._current_retry_delay_ms >= self.max_retry_delay_ms:
-                self._health_state = PersistenceHealthState.UNAVAILABLE
+            if self._retry_deadline_ns is None:
+                return self.flush_interval_ms / 1_000
+            return max(0, self._retry_deadline_ns - time.monotonic_ns()) / 1_000_000_000
 
     async def _worker_loop(self) -> None:
         wake_event = self._wake_event
         if wake_event is None:
             raise RuntimeError("Metrics worker started without a wake event")
-        retrying = False
         try:
             while not self._stop_worker:
-                timeout_ms = (
-                    self._current_retry_delay_ms if retrying else self.flush_interval_ms
-                )
-                timed_out = False
-                try:
-                    await asyncio.wait_for(
-                        wake_event.wait(),
-                        timeout=timeout_ms / 1_000,
-                    )
-                except asyncio.TimeoutError:
-                    timed_out = True
+                timeout = self._automatic_wait_seconds()
+                timed_out = timeout == 0
+                if timeout > 0:
+                    try:
+                        await asyncio.wait_for(wake_event.wait(), timeout=timeout)
+                    except asyncio.TimeoutError:
+                        timed_out = True
                 wake_event.clear()
                 if self._stop_worker:
                     break
+                if not self._automatic_retry_ready():
+                    continue
+
+                with self._buffer_lock:
+                    retrying = self._retry_deadline_ns is not None
+                    health_state = self._health_state
 
                 if self.buffered_count:
-                    succeeded = await self._flush_automatic(
+                    await self._flush_automatic(
                         include_partial=timed_out or retrying,
                     )
-                    retrying = not succeeded
-                    if not succeeded:
-                        self._advance_retry_delay()
-                elif self._health_state in {
+                elif health_state in {
                     PersistenceHealthState.RETRYING,
                     PersistenceHealthState.DEGRADED,
                     PersistenceHealthState.UNAVAILABLE,
                 }:
-                    succeeded = await self._check_sink_health()
-                    retrying = not succeeded
-                    if not succeeded:
-                        self._advance_retry_delay()
+                    await self._check_sink_health(automatic=True)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -959,20 +982,29 @@ class BufferedMetricsWriter:
     def _record_successful_write(self) -> None:
         with self._buffer_lock:
             self._last_successful_write_time = datetime.now(timezone.utc)
-            self._consecutive_failures = 0
-            self._current_retry_delay_ms = self.retry_backoff_ms
-            self._health_state = PersistenceHealthState.HEALTHY
+            wake_worker = self._reset_retry_locked()
+        if wake_worker:
+            self._signal_worker()
 
     def _record_failure(self, exc: BaseException, buffer_size: int) -> None:
         with self._buffer_lock:
             self._lifetime_failures += 1
             self._consecutive_failures += 1
             self._last_failure_time = datetime.now(timezone.utc)
+            self._current_retry_delay_ms = (
+                self.retry_backoff_ms
+                if self._consecutive_failures == 1
+                else min(self._current_retry_delay_ms * 2, self.max_retry_delay_ms)
+            )
+            self._retry_deadline_ns = (
+                time.monotonic_ns() + self._current_retry_delay_ms * 1_000_000
+            )
             self._health_state = (
                 PersistenceHealthState.UNAVAILABLE
                 if self._current_retry_delay_ms >= self.max_retry_delay_ms
                 else PersistenceHealthState.RETRYING
             )
+        self._signal_worker()
         if self.on_failure is not None:
             try:
                 self.on_failure(exc, buffer_size)

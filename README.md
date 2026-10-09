@@ -1053,16 +1053,25 @@ continues to service delivery latency, retries and feeds without trading.
 `events_processed` and `pending_events`; it never reports a successful simulation
 advance after metrics were lost.
 
-One coalesced worker owns threshold, interval, explicit-flush, probe, and retry
-signals. Queued and in-flight records and logical encoded bytes count against
-the configured capacity. The shipped policy is `reject_new`, which preserves
-every accepted record. Opt-in `drop_oldest` may evict only queued records and
+One coalesced worker handles automatic threshold, interval, probe, and retry
+signals. Explicit drains share its flush lock. Queued and in-flight records and
+logical encoded bytes count against the configured capacity. The shipped policy
+is `reject_new`, which preserves every accepted record. Opt-in `drop_oldest` may
+evict only queued records and
 reports `ACCEPTED_DROPPED_OLDEST`; it never evicts an in-flight or
 delivery-required record. Async `add()` may wait for the configured bounded
 retry attempts; `add_nowait()` immediately applies the policy. Failed batches
 are restored in original order with their immutable run ID, sequence,
-designated timestamp, symbols, and columns. Runtime retry uses exponential
-backoff capped at `max_retry_delay_ms`.
+designated timestamp, symbols, and columns.
+
+Automatic recovery uses a real monotonic deadline measured from completion of
+each failed sink operation. The first retry waits `retry_backoff_ms`; consecutive
+failures double that delay up to `max_retry_delay_ms`, without jitter. Producer
+and overflow signals wake the worker but cannot bypass or extend this deadline.
+Startup health-check failures and explicit-flush failures also set the deadline
+for subsequent automatic recovery. These waits do not use simulated time.
+Explicit flushing, session end, sink replacement, and shutdown's final drain
+remain immediate attempts; their existing timeouts still apply.
 
 ```yaml
 questdb:
@@ -1102,8 +1111,10 @@ Persistence health is current state, not a sticky historical failure:
 `/stats.persistence` includes last successful write, last failure,
 consecutive and lifetime failures, buffered records/bytes, oldest age,
 accepted/rejected/dropped outcomes, worker state, and shutdown result. A
-successful write or probe clears consecutive failures and restores `HEALTHY`;
-lifetime failures remain cumulative. Prometheus exposes the same state with a
+successful write clears consecutive failures and the retry deadline and restores
+`HEALTHY`; a successful health probe does so only when no queued or in-flight
+records remain. A healthy probe cannot clear recovery for retained failed records.
+Lifetime failures remain cumulative. Prometheus exposes the same state with a
 fixed state label and bounded outcome labels.
 
 Run integrity is separate from sink health. The boolean
