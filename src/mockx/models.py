@@ -10,6 +10,7 @@ from types import MappingProxyType
 import math
 
 from .instruments import Instrument
+from .numeric import average_decimal, decimal_product
 
 
 class Side(Enum):
@@ -534,13 +535,12 @@ class Order:
 
     @property
     def average_fill_price(self) -> Optional[Decimal]:
-        """Return the exact derived average price, never a binary float."""
+        """Return a once-rounded, 28-significant-digit Decimal average."""
         if self.filled_qty_lots == 0:
             return None
-        return (
-            self.instrument.tick_size
-            * Decimal(self.filled_notional_tick_lots)
-            / Decimal(self.filled_qty_lots)
+        return average_decimal(
+            decimal_product(self.instrument.tick_size, self.filled_notional_tick_lots),
+            self.filled_qty_lots,
         )
 
     def _preview_fill(
@@ -1594,13 +1594,12 @@ class ExecutionReport:
 
     @property
     def average_fill_price(self) -> Decimal:
-        """Return the exact unrounded average captured by this report."""
+        """Return a once-rounded, 28-significant-digit Decimal average."""
         if self.cum_qty_lots == 0:
             return Decimal(0)
-        return (
-            self.instrument.tick_size
-            * Decimal(self.filled_notional_tick_lots)
-            / Decimal(self.cum_qty_lots)
+        return average_decimal(
+            decimal_product(self.instrument.tick_size, self.filled_notional_tick_lots),
+            self.cum_qty_lots,
         )
 
 

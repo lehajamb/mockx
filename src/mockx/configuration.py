@@ -24,6 +24,13 @@ from pydantic import (
 )
 import yaml
 
+from .numeric import (
+    decimal_product,
+    decimal_scale,
+    is_integral_decimal,
+    parse_decimal_value,
+)
+
 
 MAX_LATENCY_MS = 2_147_483_647
 MAX_SEED = (1 << 63) - 1
@@ -73,7 +80,7 @@ def _decimal(value: object, *, field_name: str) -> Decimal:
     if isinstance(value, bool):
         raise ValueError(f"{field_name} must be a decimal value")
     try:
-        parsed = value if isinstance(value, Decimal) else Decimal(str(value))
+        parsed = parse_decimal_value(value)
     except (InvalidOperation, ValueError, TypeError) as exc:
         raise ValueError(f"{field_name} must be a decimal value") from exc
     if not parsed.is_finite():
@@ -82,10 +89,7 @@ def _decimal(value: object, *, field_name: str) -> Decimal:
 
 
 def _scale(value: Decimal) -> int:
-    exponent = value.normalize().as_tuple().exponent
-    if not isinstance(exponent, int):
-        raise ValueError("decimal scale requires a finite value")
-    return max(0, -exponent)
+    return decimal_scale(value)
 
 
 class InstrumentConfig(StrictConfigModel):
@@ -112,6 +116,8 @@ class InstrumentConfig(StrictConfigModel):
     def positive_increment(cls, value: Decimal) -> Decimal:
         if value <= 0:
             raise ValueError("must be greater than zero")
+        if _scale(value) > 18:
+            raise ValueError("increment scale must be between 0 and 18")
         return value
 
     @field_validator("price_display_precision", "quantity_display_precision")
@@ -767,8 +773,8 @@ class ExchangeConfig(StrictConfigModel):
                 raise ValueError(
                     f"ITCH instrument symbol {symbol!r} exceeds 8 ASCII bytes"
                 )
-            scaled_tick = instrument.tick_size * Decimal(10_000)
-            if scaled_tick != scaled_tick.to_integral_value():
+            scaled_tick = decimal_product(instrument.tick_size, 10_000)
+            if not is_integral_decimal(scaled_tick):
                 raise ValueError(
                     f"ITCH tick_size for {symbol} is not representable as Price(4)"
                 )

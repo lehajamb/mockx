@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from .instruments import InstrumentCatalog
+from .numeric import decimal_product, is_integral_decimal
 from .models import Side
 
 # ---------------------------------------------------------------------------
@@ -85,15 +86,15 @@ def _price_to_itch(price_ticks: int, tick_size: Decimal) -> int:
     """
     if not isinstance(price_ticks, int) or isinstance(price_ticks, bool):
         raise ValueError("price_ticks must be an integer")
-    scaled_tick = tick_size * Decimal(10_000)
-    if scaled_tick != scaled_tick.to_integral_value():
+    scaled_tick = decimal_product(tick_size, 10_000)
+    if not is_integral_decimal(scaled_tick):
         raise ValueError(
             f"tick size {tick_size} is not exactly representable as ITCH Price(4)"
         )
-    value = int(scaled_tick) * price_ticks
+    value = decimal_product(scaled_tick, price_ticks)
     if not 0 <= value <= MAX_PRICE4:
         raise ValueError("ITCH Price(4) exceeds the maximum 200000.0000")
-    return value
+    return int(value)
 
 
 def _shares_from_lots(qty_lots: int) -> int:

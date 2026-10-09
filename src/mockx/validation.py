@@ -10,6 +10,7 @@ from typing import Optional
 
 from .instruments import InstrumentCatalog, InstrumentConversionError
 from .itch_encoder import MAX_PRICE4
+from .numeric import decimal_product, is_integral_decimal
 from .models import (
     NewOrderCommand,
     OrderType,
@@ -212,10 +213,11 @@ class OrderNormalizer:
             except InstrumentConversionError as exc:
                 raise OrderValidationError(exc.code, "price", str(exc)) from exc
             if self.itch_compatible:
-                scaled_tick = instrument.tick_size * 10_000
-                wire_price = scaled_tick * price_ticks
+                wire_price = decimal_product(
+                    instrument.tick_size, 10_000, price_ticks,
+                )
                 if (
-                    wire_price != wire_price.to_integral_value()
+                    not is_integral_decimal(wire_price)
                     or wire_price > MAX_PRICE4
                 ):
                     raise OrderValidationError(

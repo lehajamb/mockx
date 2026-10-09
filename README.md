@@ -48,7 +48,9 @@ Supported orders are limit and market orders with GTC or IOC. Replace
 All FIX and REST order values pass through one strict normalization boundary.
 Quantity must be positive, finite, and exactly divisible by the instrument lot
 size. A limit price must be positive, finite, and exactly divisible by the tick
-size. Market orders must omit price. Unsupported side, order type, or TIF values
+size. These checks use the exact decimal value, independently of Python's
+ambient decimal precision, rounding mode, exponent limits, or traps. Market
+orders must omit price. Unsupported side, order type, or TIF values
 are rejected rather than defaulted; only a missing TIF defaults to GTC.
 `ClOrdID` must contain 1-64 visible ASCII characters with no surrounding
 whitespace.
@@ -1286,7 +1288,7 @@ Validated ranges are:
 
 | Setting | Contract |
 |---|---|
-| exchange/instruments | Nonempty exchange name; nonempty normalized unique symbols; positive finite tick/lot decimals; display precision 0-18 and at least the increment scale |
+| exchange/instruments | Nonempty exchange name; nonempty normalized unique symbols; positive finite tick/lot decimals; explicit or inferred display precision 0-18 and at least the exact increment scale, ignoring trailing zeros |
 | ports/booleans | Ports 1-65535; booleans must be actual YAML booleans |
 | latency | Every main, directional, engine, and session delay is an integer 0-2,147,483,647 ms |
 | execution | Finite `reject_prob` 0-1; signed 64-bit integer seed; unknown/obsolete fields forbidden |
@@ -1298,6 +1300,12 @@ Validated ranges are:
 | QuestDB | Batch 1-100,000; record capacity from batch size to 1,000,000; byte capacity 1-1 GiB; interval/backoff/retry/shutdown/request timeout 1-86,400,000 ms; max retry at least initial backoff; policy `reject_new` or `drop_oldest`; enabled config requires REST/ILP and health URLs; username/password are optional but must be paired |
 | admin/CORS | Valid host and port; origins are unique HTTP(S) origins; wildcard is forbidden |
 
+Omitted display precision is inferred from the exact increment after ignoring
+trailing zeros. The same 0-18 limit applies to inferred and explicit precision:
+an increment of `0.2500` requires two places, while `1e-19` is rejected even
+when display precision is omitted. Low-order digits cannot be concealed by
+decimal rounding during configuration validation.
+
 For example, startup fails before any component starts with a deterministic,
 field-sorted error such as:
 
@@ -1307,18 +1315,33 @@ execution.reject_prob: Input should be less than or equal to 1; latency.engine_m
 
 ### Exact ticks, lots, and serialization
 
-The instrument catalog is immutable. Boundary conversion uses `Decimal` and
-rejects off-tick prices and off-lot quantities without rounding. Converted
-ticks/lots must fit a signed 64-bit positive unit count. Matching comparisons,
-price-level keys, FIFO lookup, fill/cancel accounting, aggregates, and
+The instrument catalog is immutable. Boundary conversion rejects off-tick
+prices and off-lot quantities using exact divisibility without rounding.
+Converted ticks/lots must fit a signed 64-bit positive unit count. The grid
+check precedes the unit-range check. A tiny positive off-grid value is rejected
+rather than underflowing to zero; a large exact grid value returns
+`NUMBER_OUT_OF_RANGE`. For example, with tick size `0.01`, price
+`1.00000000000000000000000000001` returns `OFF_TICK_PRICE`. Matching
+comparisons, price-level keys, FIFO lookup, fill/cancel accounting, aggregates, and
 invariants use integers only. There are no float compatibility fields or
 optional min/max instrument settings.
 
-REST, WebSocket, stats, FIX numeric tags, and exact QuestDB display columns use
-canonical fixed-scale decimal strings; raw ticks/lots remain internal except
-for explicit persistence audit fields. Derived average prices use deterministic
-round-half-even display formatting. Values such as
-`0.30000000000000004` are never serialized.
+REST, WebSocket, FIX numeric tags, and exact QuestDB instrument display columns
+use canonical fixed-scale decimal strings. Statistics totals use exact decimal
+strings. Products and totals preserve all significant digits, including values
+longer than the default 28-digit decimal precision. Raw ticks/lots remain
+internal except for explicit persistence audit fields.
+
+Displayed average prices, including FIX `AvgPx`, round the exact notional-to-
+quantity ratio once at configured price precision using round-half-even.
+Formatting is independent of the caller's decimal context. The internal
+`Order.average_fill_price` and `ExecutionReport.average_fill_price` properties
+remain derived `Decimal` values with a fixed 28-significant-digit,
+round-half-even context; these derived values may be approximate. Serialization
+derives its displayed average directly from integer fill totals.
+
+Existing validation codes, public fields, and configuration options are
+unchanged.
 
 Matching consumes all immediately executable eligible liquidity. Partial fills
 occur naturally only when the book cannot fill the complete order.

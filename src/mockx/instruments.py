@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
+from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
 from typing import Mapping
 
@@ -11,6 +11,13 @@ from .configuration import (
     ExchangeConfig,
     InstrumentConfig,
     MAX_INSTRUMENT_UNITS,
+)
+from .numeric import (
+    NonIntegralUnits,
+    bounded_units,
+    decimal_product,
+    format_decimal_ratio,
+    parse_decimal_value,
 )
 
 
@@ -29,7 +36,7 @@ def parse_decimal(value: object, *, field_name: str) -> Decimal:
             f"{field_name} must be a decimal value",
         )
     try:
-        parsed = value if isinstance(value, Decimal) else Decimal(str(value))
+        parsed = parse_decimal_value(value)
     except (InvalidOperation, TypeError, ValueError) as exc:
         raise InstrumentConversionError(
             "INVALID_NUMBER",
@@ -77,20 +84,18 @@ class Instrument:
         field_name: str,
         off_increment_code: str,
     ) -> int:
-        units = value / increment
-        integral = units.to_integral_value()
-        if units != integral:
+        try:
+            return bounded_units(value, increment, MAX_INSTRUMENT_UNITS)
+        except NonIntegralUnits as exc:
             raise InstrumentConversionError(
                 off_increment_code,
                 f"{field_name} must be an exact multiple of {increment}",
-            )
-        resolved = int(integral)
-        if resolved > MAX_INSTRUMENT_UNITS:
+            ) from exc
+        except OverflowError as exc:
             raise InstrumentConversionError(
                 "NUMBER_OUT_OF_RANGE",
                 f"{field_name} exceeds signed 64-bit unit bounds",
-            )
-        return resolved
+            ) from exc
 
     def quantity_to_lots(self, raw: object) -> int:
         quantity = parse_decimal(raw, field_name="quantity")
@@ -121,27 +126,24 @@ class Instrument:
         )
 
     def price_decimal(self, price_ticks: int) -> Decimal:
-        return self.tick_size * price_ticks
+        return decimal_product(self.tick_size, price_ticks)
 
     def quantity_decimal(self, quantity_lots: int) -> Decimal:
-        return self.lot_size * quantity_lots
+        return decimal_product(self.lot_size, quantity_lots)
 
     def notional_decimal(
         self,
         price_ticks: int,
         quantity_lots: int,
     ) -> Decimal:
-        return (
-            self.tick_size
-            * self.lot_size
-            * price_ticks
-            * quantity_lots
-        )
+        return self.notional_from_tick_lots(price_ticks * quantity_lots)
+
+    def notional_from_tick_lots(self, tick_lots: int) -> Decimal:
+        return decimal_product(self.tick_size, self.lot_size, tick_lots)
 
     @staticmethod
     def _format(value: Decimal, precision: int) -> str:
-        quantum = Decimal(1).scaleb(-precision)
-        return format(value.quantize(quantum, rounding=ROUND_HALF_EVEN), "f")
+        return format_decimal_ratio(value, 1, precision)
 
     def format_price(self, price_ticks: int) -> str:
         return self._format(
@@ -162,18 +164,17 @@ class Instrument:
     ) -> str:
         if filled_qty_lots == 0:
             return self._format(Decimal(0), self.price_display_precision)
-        value = (
-            self.tick_size
-            * Decimal(filled_notional_tick_lots)
-            / Decimal(filled_qty_lots)
+        return format_decimal_ratio(
+            self.price_decimal(filled_notional_tick_lots),
+            filled_qty_lots,
+            self.price_display_precision,
         )
-        return self._format(value, self.price_display_precision)
 
     def format_notional(self, tick_lots: int) -> str:
         precision = (
             self.price_display_precision + self.quantity_display_precision
         )
-        value = self.tick_size * self.lot_size * tick_lots
+        value = self.notional_from_tick_lots(tick_lots)
         return self._format(value, precision)
 
 
