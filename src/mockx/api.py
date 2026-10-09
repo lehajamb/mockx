@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 import logging
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
@@ -44,6 +43,7 @@ from .lifecycle import (
 )
 from .metrics import MetricsCollector
 from .models import MarketDataSnapshot, OrderStatus, SchedulerState
+from .numeric import format_decimal_ratio
 from .validation import (
     OrderNormalizer,
     OrderValidationError,
@@ -1134,11 +1134,19 @@ class ExchangeAPI:
                 if snapshot.asks
                 else None
             )
-            mid_price = (
-                format((Decimal(best_bid) + Decimal(best_ask)) / 2, "f")
-                if best_bid is not None and best_ask is not None
-                else None
-            )
+            mid_price = None
+            if snapshot.bids and snapshot.asks:
+                # Half a tick needs at most one extra decimal place; keep the
+                # configured display padding when that extra place is zero.
+                mid_price = format_decimal_ratio(
+                    instrument.price_decimal(
+                        snapshot.bids[0].price_ticks + snapshot.asks[0].price_ticks
+                    ),
+                    2,
+                    instrument.price_display_precision + 1,
+                )
+                if mid_price.endswith("0"):
+                    mid_price = mid_price[:-1].removesuffix(".")
             initial_book = BookSnapshotResponse.model_validate(
                 _book_payload(snapshot)
             ).model_dump(mode="json")

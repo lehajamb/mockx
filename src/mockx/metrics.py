@@ -44,6 +44,7 @@ from .latency import (
     monotonic_duration_ns,
 )
 from .instruments import InstrumentCatalog
+from .numeric import decimal_sum
 from .models import (
     CancellationOutcome,
     CancelLatencyTrace,
@@ -2342,15 +2343,9 @@ class MetricsCollector:
             else ""
         )
         if best_bid_ticks is not None and best_ask_ticks is not None:
-            best_bid_decimal = instrument.price_decimal(best_bid_ticks)
-            best_ask_decimal = instrument.price_decimal(best_ask_ticks)
-            spread = instrument._format(
-                best_ask_decimal - best_bid_decimal,
-                instrument.price_display_precision,
-            )
-            mid_price = instrument._format(
-                (best_bid_decimal + best_ask_decimal) / Decimal(2),
-                instrument.price_display_precision,
+            spread = instrument.format_price(best_ask_ticks - best_bid_ticks)
+            mid_price = instrument.format_average_price(
+                best_bid_ticks + best_ask_ticks, 2
             )
         else:
             spread = ""
@@ -2490,6 +2485,29 @@ class MetricsCollector:
                 ],
             }
 
+    def _physical_totals(
+        self,
+        symbol_totals: Mapping[str, Mapping[str, int]],
+    ) -> tuple[Decimal, Decimal, Decimal]:
+        """Convert integer aggregate totals exactly, without per-order bounds."""
+        quantities = []
+        notionals = []
+        canceled_quantities = []
+        for symbol, totals in symbol_totals.items():
+            instrument = self.instruments.require(symbol)
+            quantities.append(instrument.quantity_decimal(totals["traded_qty_lots"]))
+            notionals.append(
+                instrument.notional_from_tick_lots(totals["traded_notional_tick_lots"])
+            )
+            canceled_quantities.append(
+                instrument.quantity_decimal(totals["canceled_qty_lots"])
+            )
+        return (
+            decimal_sum(quantities),
+            decimal_sum(notionals),
+            decimal_sum(canceled_quantities),
+        )
+
     def process_lifetime_snapshot(self) -> Dict[str, object]:
         """Return cumulative process counters without current-state gauges."""
         with self._lock:
@@ -2507,20 +2525,9 @@ class MetricsCollector:
                 return None
             return latency_sums[metric] / count * multiplier
 
-        traded_quantity = Decimal(0)
-        traded_notional = Decimal(0)
-        canceled_quantity = Decimal(0)
-        for symbol, totals in symbol_totals.items():
-            instrument = self.instruments.require(symbol)
-            traded_quantity += instrument.quantity_decimal(totals["traded_qty_lots"])
-            traded_notional += (
-                instrument.tick_size
-                * instrument.lot_size
-                * totals["traded_notional_tick_lots"]
-            )
-            canceled_quantity += instrument.quantity_decimal(
-                totals["canceled_qty_lots"]
-            )
+        traded_quantity, traded_notional, canceled_quantity = self._physical_totals(
+            symbol_totals
+        )
 
         return {
             "scope": "process_lifetime",
@@ -2630,20 +2637,9 @@ class MetricsCollector:
                 return None
             return latency_sums[metric] / count * multiplier
 
-        traded_quantity = Decimal(0)
-        traded_notional = Decimal(0)
-        canceled_quantity = Decimal(0)
-        for symbol, totals in symbol_totals.items():
-            instrument = self.instruments.require(symbol)
-            traded_quantity += instrument.quantity_decimal(totals["traded_qty_lots"])
-            traded_notional += (
-                instrument.tick_size
-                * instrument.lot_size
-                * totals["traded_notional_tick_lots"]
-            )
-            canceled_quantity += instrument.quantity_decimal(
-                totals["canceled_qty_lots"]
-            )
+        traded_quantity, traded_notional, canceled_quantity = self._physical_totals(
+            symbol_totals
+        )
 
         return MetricsSnapshot(
             generated_at=datetime.now(timezone.utc),

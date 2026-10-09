@@ -366,9 +366,10 @@
           <div class="ingress-num">2</div>
           <div class="ingress-desc">
             <b>Normalization</b> → <code class="ref">OrderNormalizer</code> converts decimal strings
-            to integer ticks/lots using the instrument catalog. Rejects OFF_TICK_PRICE, OFF_LOT_QUANTITY,
-            PRICE_NOT_ALLOWED, unsupported types. Returns <code class="ref">FixIngressEnvelope</code>.
-            <span class="src">validation.py</span>
+            to integer ticks/lots by exact divisibility, independently of ambient decimal context.
+            Rejects OFF_TICK_PRICE, OFF_LOT_QUANTITY, PRICE_NOT_ALLOWED, and unsupported types;
+            positive unit counts must fit signed 64-bit bounds. Produces immutable command data.
+            <span class="src">validation.py, instruments.py</span>
           </div>
         </div>
         <div class="ingress-step">
@@ -413,6 +414,22 @@
     <div class="source-ref">
       <code>FixIngressEnvelope</code> and <code>IngressBarrier</code>:
       <code>models.py</code>. Sorted drain: <code>gateway.py</code>.
+    </div>
+    <div class="panel">
+      <h3>Exact numeric boundaries and serialization</h3>
+      <p>Instrument scale is derived from the exact increment, ignoring trailing zeros.
+        Explicit and inferred display precision both stay within 0-18 places and cannot
+        conceal low-order increment digits. Grid validation, ITCH Price(4) conversion,
+        exact products and statistics totals do not depend on the caller's decimal context.</p>
+      <p>Instrument display fields use fixed-scale decimal strings. Displayed average prices,
+        including FIX <code class="ref">AvgPx</code>, round once from the exact integer
+        notional-to-quantity ratio at configured price precision using round-half-even.
+        Internal order/report average properties retain derived <code class="ref">Decimal</code>
+        values in a fixed 28-significant-digit, round-half-even context; these values may
+        be approximate and are not used to format wire averages.</p>
+      <p>Persisted book midpoints use configured price precision; the HTML UI keeps its
+        unrounded midpoint, including a half-tick extra digit. No public fields, validation
+        codes or configuration options change.</p>
     </div>
   </div>
 </section>

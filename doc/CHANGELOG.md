@@ -1,5 +1,20 @@
 # MockX Documentation Changelog
 
+## 2026-10-09 - Exact numeric validation and display formatting
+
+- Reject decimal tails that are off the instrument grid instead of rounding
+  them into accepted ticks or lots. Keep positive signed-64-bit unit bounds and
+  stable validation codes, including for extreme decimal exponents.
+- Make numeric parsing, increment scale, ITCH conversion, display formatting,
+  and exact quantity/notional totals independent of ambient decimal context.
+  Enforce the existing 0-18 display-precision limit when precision is inferred.
+- Round displayed average prices once from the exact fill-total ratio with
+  round-half-even. Keep derived internal `Decimal` averages at a fixed
+  28-significant-digit, round-half-even context and document their approximation.
+- Preserve unrounded UI midpoints and configured-precision persisted midpoints.
+  Existing public fields, FIX tags, validation codes and configuration options
+  remain unchanged.
+
 ## 2026-10-09 - Ignore obsolete FIX delivery events
 
 - Give each armed delivery deadline an immutable command and unique schedule
