@@ -236,6 +236,41 @@ class MatchingEngine:
                 context=f"process order command {order.id}",
             )
 
+    def reject_pending_order(self, command: ProcessOrderCommand, reason: str) -> bool:
+        """Settle an unprocessed command once without touching live liquidity."""
+        if not isinstance(command, ProcessOrderCommand):
+            raise TypeError("reject_pending_order requires ProcessOrderCommand")
+        order = self.orders.get(command.order_id)
+        if (
+            order is None
+            or command.expected_version != order.version
+            or order.status != OrderStatus.PENDING_NEW
+            or order.processed
+        ):
+            return False
+        order.processed = True
+        self._reject_order(order, reason)
+        return True
+
+    def reject_cancel_unavailable(
+        self, command: CancelOrderCommand, reason: str
+    ) -> CancelReject:
+        """Reject a queued cancel against an immutable snapshot of its owner order."""
+        if not isinstance(command, CancelOrderCommand):
+            raise TypeError("reject_cancel_unavailable requires CancelOrderCommand")
+        self._notify_observer("cancel request", self.on_cancel_request, command)
+        order_id = self.client_order_index.get(
+            ClientOrderKey(command.session_id, command.orig_cl_ord_id)
+        )
+        order = self.orders.get(order_id) if order_id is not None else None
+        return self._cancel_reject(
+            command,
+            reason=CancelRejectReason.EXCHANGE_UNAVAILABLE,
+            text=reason,
+            order=order,
+            outcome=CancellationOutcome.EXCHANGE_UNAVAILABLE,
+        )
+
     def _reject_order(self, order: Order, reason: str) -> None:
         order.validate_transition_to(OrderStatus.REJECTED)
         order.cancel_remaining()

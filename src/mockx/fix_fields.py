@@ -22,6 +22,7 @@ EXEC_TYPE_FIX_VALUES = {
 }
 
 ORD_STATUS_FIX_VALUES = {
+    OrderStatus.PENDING_NEW: "A",
     OrderStatus.NEW: "0",
     OrderStatus.PARTIAL: "1",
     OrderStatus.FILLED: "2",
@@ -55,6 +56,7 @@ CANCEL_REJECT_REASON_FIX_VALUES = {
     CancelRejectReason.ALREADY_CANCELED: 0,
     CancelRejectReason.SESSION_MISMATCH: 1,
     CancelRejectReason.INVALID_REQUEST: 99,
+    CancelRejectReason.EXCHANGE_UNAVAILABLE: 99,
 }
 
 

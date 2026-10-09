@@ -171,6 +171,7 @@ async def test_stats_populated_state_matches_authoritative_events():
         "wrong_owner": 0,
         "duplicate_request": 0,
         "stale_run_generation": 0,
+        "exchange_unavailable": 0,
     }
     assert data["orders"]["active"] == 0
     assert data["orders"]["resting"] == 0

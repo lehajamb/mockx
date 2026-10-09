@@ -125,7 +125,7 @@
           <div class="comp-name accent-lifecycle">ExchangeLifecycle</div>
           <span class="comp-arrow">→</span>
           <div class="comp-desc">
-            Async-lock serialized coordinator. Manages STOPPED → STARTING → ACTIVE → ENDING → FAILED.
+            Async-lock serialized coordinator. Owns run transitions, recoverable RUN_FAILED, and restart-required FAILED.
             Owns session start/end, run reset, ingress flushing, and advancement gating.
             <span class="src">lifecycle.py</span>
           </div>
@@ -244,6 +244,10 @@
           <span class="lc-name">ACTIVE</span>
           <span class="lc-desc">Accepting traffic</span>
         </div>
+        <div class="lc-node" data-state="RUN_FAILED">
+          <span class="lc-name">RUN_FAILED</span>
+          <span class="lc-desc">Metrics lost; rerun required</span>
+        </div>
         <div class="lc-node" data-state="ENDING">
           <span class="lc-name">ENDING</span>
           <span class="lc-desc">Flushing & finalizing</span>
@@ -272,7 +276,7 @@
     <div class="source-ref">
       Lifecycle states and transitions: <code>lifecycle.py</code>. Scheduler state is a separate
       <code>SchedulerState</code> contract. Gating logic: ingress rejected with Business Message Reject (35=j)
-      during STARTING/ENDING/STOPPED/FAILED.
+      during STARTING/ENDING/STOPPED/RUN_FAILED/FAILED.
     </div>
   </div>
 </section>
@@ -516,6 +520,10 @@
     ACTIVE: {
       title: "ACTIVE",
       text: "FIX application ingress and the configured clock mode are enabled. Orders can be submitted, matches can occur, WebSocket/ITCH updates are published, and GLIMPSE can capture an atomic recovery cut. /readyz returns HTTP 200, with status=degraded if an optional market-data listener has failed. Starting while active returns HTTP 409 SESSION_ALREADY_ACTIVE.",
+    },
+    RUN_FAILED: {
+      title: "RUN_FAILED",
+      text: "A metric record was rejected, evicted, or could not be admitted. The current command completes all fills and outputs; later trading commands are rejected. Existing FIX delivery, feed activity, final WebSocket broadcasts and book inspection remain available. /readyz is 503 and run_active is false. Writer recovery does not repair lost metrics. End the run: a successful drain closes it but returns HTTP 503 session_failed, METRICS_INCOMPLETE and failed final statistics. A failed drain keeps RUN_FAILED for retry. Then start a new generation and rerun; no service restart is needed.",
     },
     ENDING: {
       title: "ENDING",

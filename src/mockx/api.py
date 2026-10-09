@@ -158,6 +158,7 @@ class CancellationStats(BaseModel):
     wrong_owner: int
     duplicate_request: int
     stale_run_generation: int
+    exchange_unavailable: int
 
 
 class ReportsStats(BaseModel):
@@ -234,6 +235,29 @@ class LatencyStats(BaseModel):
     invalid_measurements: int
 
 
+class PersistenceRunOutcomes(BaseModel):
+    accepted_records: int
+    flush_required_records: int
+    dropped_records: int
+    rejected_closed_records: int
+    rejected_full_records: int
+    failed_records: int
+    failures: int
+    integrity_complete: bool
+
+
+class RunFailureResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    code: Literal["METRICS_INCOMPLETE"]
+    message: str
+    run_id: str
+    run_generation: int
+    failed_at: datetime
+    reason: str
+    metric_event_sequence: Optional[int]
+
+
 class PersistenceStats(BaseModel):
     scope: Literal["operational"] = "operational"
     required: bool
@@ -261,18 +285,11 @@ class PersistenceStats(BaseModel):
     worker_running: bool
     close_outcome: Optional[str]
     unflushed_on_close: int
-    current_run_outcomes: Dict[str, int]
+    current_run_outcomes: PersistenceRunOutcomes
 
 
-class RunPersistenceStats(BaseModel):
+class RunPersistenceStats(PersistenceRunOutcomes):
     scope: Literal["current_run"] = "current_run"
-    accepted_records: int
-    flush_required_records: int
-    dropped_records: int
-    rejected_closed_records: int
-    rejected_full_records: int
-    failed_records: int
-    failures: int
 
 
 SchedulerMetadataValue = str | int | float | bool | None
@@ -358,6 +375,7 @@ class RunStatsResponse(BaseModel):
     run_active: bool
     run_id: Optional[str]
     run_generation: Optional[int]
+    run_failure: Optional[RunFailureResponse]
     orders: OrdersStats
     trades: TradesStats
     cancellations: CancellationStats
@@ -374,6 +392,7 @@ class StatsResponse(BaseModel):
     run_active: bool
     run_id: Optional[str]
     run_generation: Optional[int]
+    run_failure: Optional[RunFailureResponse]
     orders: OrdersStats
     trades: TradesStats
     cancellations: CancellationStats
@@ -414,6 +433,21 @@ class SessionEndResponse(BaseModel):
     session_id: Optional[str]
     run_generation: Optional[int]
     final_stats: Optional[RunStatsResponse]
+
+
+class SessionFailedResponse(BaseModel):
+    status: Literal["session_failed"] = "session_failed"
+    detail: ErrorDetail
+    session_id: str
+    run_generation: int
+    final_stats: RunStatsResponse
+
+
+class RunAdvanceFailedResponse(ErrorResponse):
+    run_failure: RunFailureResponse
+    current_time: datetime
+    events_processed: int
+    pending_events: int
 
 
 class AdvanceTimeRequest(BaseModel):
@@ -810,6 +844,9 @@ class ExchangeAPI:
         payload = self.metrics.snapshot().to_dict(run_id=self.metrics.run_id)
         payload["scope"] = "current_run"
         payload["run_active"] = run_active
+        payload["run_failure"] = (
+            self.lifecycle.run_failure if self.lifecycle is not None else None
+        )
         payload["run_generation"] = (
             self.lifecycle.run_generation
             if self.lifecycle is not None and self.lifecycle.run_id is not None
@@ -828,7 +865,12 @@ class ExchangeAPI:
         )
 
     def _stats_response(self) -> StatsResponse:
-        payload = self._run_stats_payload(run_active=self.metrics.run_id is not None)
+        payload = self._run_stats_payload(
+            run_active=(
+                self.lifecycle.state == LifecycleState.ACTIVE
+                if self.lifecycle is not None else self.metrics.run_id is not None
+            )
+        )
         health = self.metrics.persistence_health_snapshot()
         payload["persistence"] = {
             "scope": "operational",
@@ -1027,6 +1069,8 @@ class ExchangeAPI:
                         token,
                         lambda: self.engine.submit_order(command),
                     )
+                    if self.lifecycle.state == LifecycleState.RUN_FAILED:
+                        raise LifecycleIngressRejected("METRICS_INCOMPLETE")
             except OrderValidationError as exc:
                 raise _api_error(
                     422,
@@ -1265,7 +1309,7 @@ class ExchangeAPI:
         @self.app.post(
             "/api/v1/session/end",
             response_model=SessionEndResponse,
-            responses={503: {"model": ErrorResponse}},
+            responses={503: {"model": ErrorResponse | SessionFailedResponse}},
         )
         async def end_session() -> SessionEndResponse:
             self._require_admin()
@@ -1275,6 +1319,15 @@ class ExchangeAPI:
                 result = await self.lifecycle.end_session()
             except LifecycleError as exc:
                 self._raise_lifecycle_error(exc)
+            if result.final_stats is not None and result.final_stats.run_failure is not None:
+                failure = result.final_stats.run_failure
+                response = SessionFailedResponse(
+                    detail=ErrorDetail(code=failure.code, message=failure.message),
+                    session_id=result.run_id,
+                    run_generation=result.run_generation,
+                    final_stats=result.final_stats,
+                )
+                return JSONResponse(status_code=503, content=response.model_dump(mode="json"))
             return SessionEndResponse(
                 status=(
                     "session_ended"
@@ -1291,7 +1344,7 @@ class ExchangeAPI:
             response_model=AdvanceTimeResponse,
             responses={
                 409: {"model": ErrorResponse},
-                503: {"model": ErrorResponse},
+                503: {"model": ErrorResponse | RunAdvanceFailedResponse},
             },
         )
         async def advance_time(
@@ -1350,6 +1403,16 @@ class ExchangeAPI:
                         "session and start a new session to reset it"
                     ),
                 ) from exc
+            if self.lifecycle.run_failure is not None:
+                failure = self.lifecycle.run_failure
+                response = RunAdvanceFailedResponse(
+                    detail=ErrorDetail(code=failure.code, message=failure.message),
+                    run_failure=RunFailureResponse.model_validate(failure),
+                    current_time=self.scheduler.current_time,
+                    events_processed=events_processed,
+                    pending_events=self.scheduler.get_pending_count(),
+                )
+                return JSONResponse(status_code=503, content=response.model_dump(mode="json"))
             return AdvanceTimeResponse(
                 previous_time=previous_time,
                 current_time=self.scheduler.current_time,

@@ -308,6 +308,20 @@ class LatencyScheduler:
         logger.debug(f"Scheduled {event_type} at {event_time} (in {delay_ms}ms)")
         return event.event_id
 
+    def extract_events(self, event_types: set[str]) -> List[ScheduledEvent]:
+        """Remove selected pending events without disturbing retained FIFO order."""
+        extracted = sorted(
+            event for event in self.event_queue if event.event_type in event_types
+        )
+        if extracted:
+            self.event_queue[:] = [
+                event for event in self.event_queue
+                if event.event_type not in event_types
+            ]
+            heapq.heapify(self.event_queue)
+            self._notify_depth()
+        return extracted
+
     def schedule_order_processing(
         self,
         command: ProcessOrderCommand,
