@@ -87,7 +87,7 @@
           <span class="tag tag-lifecycle toc-tag">Page 1</span>
           <h3>System Architecture</h3>
           <p>
-            High-level component map, exchange lifecycle state machine,
+            High-level component map, six-state exchange lifecycle and failed-run recovery,
             two-clock design, FIX ingress pipeline, REST administration, WebSocket, ITCH, and GLIMPSE
             surfaces, run generation and identifiers, and external versus
             realtime clock modes.
@@ -118,7 +118,7 @@
           <h3>Scheduler, Timing & Delivery</h3>
           <p>
             Discrete-event min-heap queue, new-order and cancel scheduling
-            pipelines, FIX ingress sequencing, outbound delivery queue
+            pipelines, FIX ingress sequencing, outbound FIX delivery queue
             (5-state lifecycle), WebSocket, ITCH, and GLIMPSE market-data delivery,
             Mold/Soup heartbeats, fail-stop behavior, and advancement safety.
           </p>

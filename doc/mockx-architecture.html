@@ -227,7 +227,7 @@
       <span class="tag tag-lifecycle">1.2</span>
       <h2 class="h2">Exchange lifecycle</h2>
       <p class="lede">
-        The exchange has five explicit states. Every state mutation is serialized
+        The exchange has six explicit states. Every state mutation is serialized
         through one <code class="ref">asyncio.Lock</code> in <code class="ref">ExchangeLifecycle</code>.
         Click each state to see its behavior.
       </p>
@@ -262,18 +262,20 @@
       </div>
       <div class="lc-detail" id="lcDetail">
         <h4>STOPPED</h4>
-        <p>No simulation session is active. Administrative start is available. FIX application ingress and time advancement are rejected.</p>
+        <p>No simulation session is active. Administrative start is available. FIX application ingress and time advancement are rejected. Retained due FIX reports can still be attempted immediately on reconnect, without advancing the clock.</p>
       </div>
     </div>
 
     <div class="callout-grid">
       <div class="callout">
         <h4><span class="tag tag-lifecycle">Session start flow</span></h4>
-        <p>Flush inactive metrics → close WebSockets → reset engine/scheduler/sequences/RNG → increment generation → install fresh run identifiers → start a fresh ITCH/Mold session and enable its GLIMPSE snapshot generation when configured → publish ACTIVE. Resume pending FIX delivery records from previous generations. Market-data socket failure degrades only that feed; destructive core failure → FAILED.</p>
+        <p>Flush inactive metrics → close WebSockets → reset engine/scheduler/RNG → allocate the next generation and install fresh identifiers/sequences → reschedule retained FIX deliveries → admit initial book metrics → start a fresh ITCH/Mold session and enable its GLIMPSE snapshot generation when configured → publish ACTIVE.</p>
+        <p>A failure before destructive reset restores STOPPED. After reset, metric admission loss creates an endable RUN_FAILED generation, including when an initial snapshot is rejected before the feed starts. Other startup failure after reset enters restart-required FAILED. Market-data runtime failure alone does not fail an otherwise healthy run; degraded ITCH also revokes GLIMPSE access to that generation.</p>
       </div>
       <div class="callout">
         <h4><span class="tag tag-lifecycle">Session end flow</span></h4>
-        <p>Idempotent when no session is active. GLIMPSE revokes the ending generation before a coherent ITCH feed publishes end markers and Mold end-of-session. Returns only current-run business metrics. FIX delivery records remain frozen while STOPPED, then reschedule at next start.</p>
+        <p>Flush accepted metrics → revoke the ending GLIMPSE generation → publish end markers and Mold end-of-session for a coherent ITCH feed → capture current-run final statistics → close the run to STOPPED. A failed flush keeps the run open in ACTIVE or RUN_FAILED for retry. Ending an already stopped run is idempotent.</p>
+        <p>Session end retains undelivered FIX records. STOPPED does not advance the clock automatically, but reconnect can immediately attempt due backlog. The next start reschedules retained records across generations.</p>
       </div>
     </div>
     <div class="source-ref">
@@ -340,7 +342,7 @@
       </div>
       <div class="callout">
         <h4><span class="tag tag-queue">realtime mode</span></h4>
-        <p>A background task wakes every <code class="ref">scheduler.interval_ms</code> and calls <code class="ref">run_until(current + interval_ms)</code>. Simulated time tracks wall time closely enough for live FIX sessions. Manual advancement returns HTTP 409 CLOCK_MODE_CONFLICT.</p>
+        <p>A background task wakes every <code class="ref">scheduler.interval_ms</code> and calls <code class="ref">run_until(current + interval_ms)</code> while ACTIVE or RUN_FAILED. A failed run can still deliver reports and process feed activity; further trading is blocked. Manual advancement returns HTTP 409 CLOCK_MODE_CONFLICT.</p>
       </div>
     </div>
   </div>
@@ -366,7 +368,8 @@
           <div class="ingress-num">1</div>
           <div class="ingress-desc">
             <b>QuickFIX callback</b> fires → <code class="ref">ParsedFixCommand</code> is built.
-            Only MsgType, ClOrdID, Symbol, Side, OrderQty, Price, TimeInForce, OrigClOrdID are extracted.
+            MsgType and MsgSeqNum are read from the header; order fields include ClOrdID,
+            Symbol, Side, OrderQty, OrdType, Price, TimeInForce, and OrigClOrdID as applicable.
             <span class="src">gateway.py FIXApplication.onMessage()</span>
           </div>
         </div>
@@ -403,7 +406,7 @@
           <div class="ingress-desc">
             <b>Scheduler FIFO</b> preserves causal ordering among later equal-time stages.
             The ingress sequence is the final tie-break, never the sole FIFO source.
-            It resets to zero on every successful simulation start.
+            It resets to zero when a fresh run generation is installed.
           </div>
         </div>
       </div>
@@ -412,11 +415,11 @@
     <div class="callout-grid">
       <div class="callout">
         <h4><span class="tag tag-amber">Why four keys?</span></h4>
-        <p>Two commands from the same session with the same receive timestamp and different MsgSeqNum values keep their wire order. Two commands from different sessions at the same timestamp cannot depend on each other, but the stable SessionID comparison ensures deterministic replay.</p>
+        <p>Two commands from the same session with the same receive timestamp and different MsgSeqNum values keep their wire order. Different sessions share the order book but have no common wire sequence. Stable SessionID ordering makes their cross-session priority and interactions reproducible.</p>
       </div>
       <div class="callout">
         <h4><span class="tag tag-queue">Ingress barrier</span></h4>
-        <p>Callers must <code class="ref">await fix_app.wait_for_ingress()</code> before advancing time. The returned <code class="ref">IngressBarrier</code> identifies the active run generation and captured high-water sequence, guaranteeing those commands entered the scheduler before time moves.</p>
+        <p>In-process harnesses driving the scheduler directly after FIX submission must <code class="ref">await fix_app.wait_for_ingress()</code> before advancing time. The returned <code class="ref">IngressBarrier</code> identifies the run generation and captured high-water sequence. Administrative and realtime advancement capture and await this barrier automatically, then drain its commands under the lifecycle lock before moving time.</p>
       </div>
     </div>
     <div class="source-ref">
@@ -449,7 +452,9 @@
       <span class="tag tag-amber">1.5</span>
       <h2 class="h2">Run generation and public identifiers</h2>
       <p class="lede">
-        Every successful simulation session start increments a <b>run generation</b> counter.
+        Session start allocates the next <b>run generation</b> after destructive reset,
+        before admitting initial book metrics. An initial admission failure consumes that
+        generation and leaves an endable RUN_FAILED run.
         All public identifiers embed this generation, making it impossible to confuse a trade
         from run 3 with a trade from run 7.
       </p>
@@ -479,7 +484,7 @@
     <div class="source-ref">
       <code>RunIdentifierScope</code>: <code>identifiers.py</code>.
       <code>MatchingEngine.identifier_scope</code>: <code>engine.py</code>.
-      Readme section: "Public exchange identifiers include the successful simulation-run generation."
+      Readme section: "Public exchange identifiers include the allocated simulation-run generation."
     </div>
   </div>
 </section>
@@ -491,7 +496,7 @@
       <span class="tag">1.6</span>
       <h2 class="h2">API surface comparison</h2>
       <p class="lede">
-        MockX exposes four distinct interfaces, each with a different contract.
+        MockX exposes five distinct interfaces, each with a different contract.
       </p>
     </div>
 
@@ -499,7 +504,7 @@
       <div class="rule-card">
         <span class="tag tag-queue">FIX 4.4</span>
         <h4>Native order entry</h4>
-        <p>The only public order-entry interface: New Order Single (35=D) and Order Cancel Request (35=F). Execution Reports (35=8) and Order Cancel Rejects (35=9) are delivered asynchronously through the reliable application delivery queue. Market Data Request (35=V) is rejected — market data is served by REST/WebSocket.</p>
+        <p>The only public order-entry interface: New Order Single (35=D) and Order Cancel Request (35=F). Execution Reports (35=8) and Order Cancel Rejects (35=9) are delivered asynchronously through the reliable application delivery queue. Market Data Request (35=V) is rejected. Book data is available through REST/WebSocket and the optional ITCH/GLIMPSE feeds.</p>
       </div>
       <div class="rule-card">
         <span class="tag tag-amber">REST</span>
@@ -519,7 +524,7 @@
       <div class="rule-card">
         <span class="tag tag-bid">GLIMPSE 5.0</span>
         <h4>Atomic snapshot recovery</h4>
-        <p>Optional SoupBinTCP service. Sequence-1 logins receive <code class="ref">R</code>, current <code class="ref">H/T</code>, every live resting order as <code class="ref">A</code>, and final <code class="ref">G</code> with the Mold next-message sequence. Interrupted spins are replayable within strict TTL/session/byte bounds.</p>
+        <p>Optional SoupBinTCP service. Sequence-1 logins receive <code class="ref">R</code>, current <code class="ref">H</code> with trading state <code class="ref">T</code>, every live resting order as <code class="ref">A</code>, and final <code class="ref">G</code> with the Mold next-message sequence. Fresh snapshots are allowed in ACTIVE or RUN_FAILED with a healthy scheduler and coherent current-generation ITCH feed. Interrupted spins are replayable within strict TTL/session/byte bounds.</p>
       </div>
     </div>
   </div>
@@ -541,23 +546,23 @@
   const LC_DETAILS = {
     STOPPED: {
       title: "STOPPED",
-      text: "No simulation session is active. Administrative start is available. FIX application ingress and time advancement are rejected with Business Message Reject (35=j) or HTTP 409. WebSockets may still be connected but no market data is produced. /readyz reports components.lifecycle=\"stopped\".",
+      text: "No simulation session is active. Administrative start is available. FIX application ingress and time advancement are rejected with Business Message Reject (35=j) or HTTP 409. The clock does not advance automatically. Retained due FIX reports can still be attempted immediately on reconnect. WebSockets may still be connected but no new book updates are produced. /readyz reports components.lifecycle=\"stopped\"; HTTP 200 also requires healthy critical components and enabled persistence.",
     },
     STARTING: {
       title: "STARTING",
-      text: "Ingress is gated while the previous buffer is flushed and all run state is reset. The lifecycle lock is held. Flushes inactive metrics, closes WebSockets, resets engine/scheduler/sequences/RNG, increments generation, installs fresh run identifiers, starts a new ITCH/Mold session, and enables GLIMPSE snapshots when configured. Market-data runtime failure is noncritical; core failure before reset work → STOPPED and after reset → FAILED.",
+      text: "Ingress is gated and the lifecycle lock is held. Flush inactive metrics, close WebSockets, reset engine/scheduler/RNG, allocate the next generation and fresh identifiers/sequences, reschedule retained FIX deliveries, and admit initial book metrics before starting ITCH/Mold and enabling GLIMPSE. Success publishes ACTIVE. Failure before destructive reset restores STOPPED. Metric admission loss after reset leaves an endable RUN_FAILED generation; other startup failure after reset enters FAILED. Market-data runtime failure alone does not fail an otherwise healthy run; degraded ITCH also revokes GLIMPSE access to that generation. Caller cancellation lets the accepted transition settle first.",
     },
     ACTIVE: {
       title: "ACTIVE",
-      text: "FIX application ingress and the configured clock mode are enabled. Orders can be submitted, matches can occur, WebSocket/ITCH updates are published, and GLIMPSE can capture an atomic recovery cut. /readyz returns HTTP 200, with status=degraded if an optional market-data listener has failed. Starting while active returns HTTP 409 SESSION_ALREADY_ACTIVE.",
+      text: "FIX application ingress and the configured clock mode are enabled. Orders can be submitted, matches can occur, WebSocket/ITCH updates are published, and GLIMPSE can capture an atomic recovery cut when the scheduler and current ITCH feed are healthy. /readyz returns HTTP 200 only when critical components and enabled persistence are healthy; optional feed failure can then report status=degraded. A retained-record sink outage can leave the run ACTIVE while readiness is HTTP 503. Starting while active returns HTTP 409 SESSION_ALREADY_ACTIVE.",
     },
     RUN_FAILED: {
       title: "RUN_FAILED",
-      text: "A metric record was rejected, evicted, or could not be admitted. The current command completes all fills and outputs; later trading commands are rejected. Existing FIX delivery, feed activity, final WebSocket broadcasts and book inspection remain available. /readyz is 503 and run_active is false. Writer recovery does not repair lost metrics. End the run: a successful drain closes it but returns HTTP 503 session_failed, METRICS_INCOMPLETE and failed final statistics. A failed drain keeps RUN_FAILED for retry. Then start a new generation and rerun; no service restart is needed.",
+      text: "A metric record was rejected, evicted, or could not be admitted, including an initial book snapshot during start. A running command completes its fills and outputs; later trading commands are rejected. The configured clock mode can still process FIX delivery and feed activity. Administrative advancement returns HTTP 503 with the failure and actual clock position. Final WebSocket broadcasts and book inspection remain available; GLIMPSE snapshots require a healthy scheduler and coherent current-generation feed. /readyz is 503 and run_active is false. Writer recovery cannot repair lost metrics. End the run: a successful drain closes it but returns HTTP 503 session_failed, METRICS_INCOMPLETE and failed final statistics. A failed drain keeps RUN_FAILED for retry. Then start a new generation and rerun.",
     },
     ENDING: {
       title: "ENDING",
-      text: "Ingress is gated. Persistence and final run statistics are being captured. GLIMPSE revokes active/cached spins before a coherent ITCH session sends market/system/end markers and Mold end-of-session. A successful end returns current-run business metrics. FIX delivery records remain frozen. Idempotent when no session is active.",
+      text: "Ingress is gated while accepted metrics are flushed. A failed flush restores ACTIVE or RUN_FAILED and retains records for retry. After a successful flush, GLIMPSE revokes active/cached spins, a coherent ITCH session sends its end markers and Mold end-of-session, and current-run final statistics are captured before STOPPED. A closed failed run still returns HTTP 503 with failed statistics. Undelivered FIX records are retained; reconnect can attempt due backlog even while stopped. Ending an already stopped run is idempotent. Caller cancellation lets the accepted transition settle first.",
     },
     FAILED: {
       title: "FAILED",
