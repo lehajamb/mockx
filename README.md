@@ -2,11 +2,12 @@
 
 MockX is a deterministic, FIX-speaking mock exchange for strategy tests and
 simulation. It provides a price-time-priority order book, an externally
-controlled simulated clock, FIX order entry, typed REST administration,
-immutable WebSocket market data, process metrics, and optional buffered
-QuestDB persistence. An experimental downstream Nasdaq ITCH 5.0 feed can be
-published over MoldUDP64 multicast, with an optional GLIMPSE 5.0 recovery
-service over SoupBinTCP unicast for deterministic market-data tests.
+controlled simulated clock, FIX as its only public order-entry interface,
+typed REST administration, immutable WebSocket market data, process metrics,
+and optional buffered QuestDB persistence. An experimental downstream Nasdaq
+ITCH 5.0 feed can be published over MoldUDP64 multicast, with an optional
+GLIMPSE 5.0 recovery service over SoupBinTCP unicast for deterministic
+market-data tests.
 
 ## 1. What MockX implements
 
@@ -45,7 +46,11 @@ set.
 Supported orders are limit and market orders with GTC or IOC. Replace
 (`OrderCancelReplaceRequest`) is unsupported.
 
-All FIX and REST order values pass through one strict normalization boundary.
+Orders and cancellations are submitted only through FIX. REST provides
+administration, book inspection, observability, and the browser UI; it has no
+order-entry route.
+
+All FIX order values pass through one strict normalization boundary.
 Quantity must be positive, finite, and exactly divisible by the instrument lot
 size. A limit price must be positive, finite, and exactly divisible by the tick
 size. These checks use the exact decimal value, independently of Python's
@@ -54,6 +59,14 @@ orders must omit price. Unsupported side, order type, or TIF values
 are rejected rather than defaulted; only a missing TIF defaults to GTC.
 `ClOrdID` must contain 1-64 visible ASCII characters with no surrounding
 whitespace.
+
+FIX maps malformed headers to Session Reject, unusable/missing `ClOrdID` to
+Business Message Reject, and identifiable semantic order failures to rejected
+Execution Reports. Rejection `Text` begins with the stable validation code.
+NaN and infinity are never copied into orders, JSON, metrics, or persistence.
+With tick size `0.01` and lot size `0.001`, `OrderQty (38)` of `0.0005` is
+rejected as `OFF_LOT_QUANTITY`, `Price (44)` of `61234.505` as
+`OFF_TICK_PRICE`, and a MARKET order carrying a price as `PRICE_NOT_ALLOWED`.
 
 - An unfilled or partially filled IOC remainder is canceled and never rests.
 - A market-order remainder is canceled regardless of its supplied TIF.
@@ -76,10 +89,10 @@ whitespace.
 
 ### Participant ownership and self-cross prevention
 
-Every accepted order has one immutable `participant_id`. REST callers provide
-it explicitly. FIX ownership is configured by exact QuickFIX session string in
-`fix.session_participants`; every session in the QuickFIX settings file must
-have exactly one mapping, and several sessions may map to the same participant.
+Every accepted order has one immutable `participant_id`. Ownership is configured
+by exact QuickFIX session string in `fix.session_participants`; every session in
+the QuickFIX settings file must have exactly one mapping, and several sessions
+may map to the same participant.
 `session_alias` remains display metadata and never determines ownership.
 
 Self-trading cannot be enabled. When an aggressor first encounters a passive
@@ -263,7 +276,7 @@ One internal lot is exactly one ITCH share. The configured instrument
 it is never multiplied into an ITCH share field. Price(4) is exactly
 `price_ticks * tick_size * 10000`, without rounding. Enabling ITCH therefore
 requires every symbol to be ASCII and at most eight bytes and every tick size
-to be exactly representable at four decimal places. REST and FIX reject
+to be exactly representable at four decimal places. FIX rejects
 quantities that cannot fit the unsigned 32-bit share field and prices above
 the specified Price(4) maximum `200000.0000` before the order is scheduled.
 
@@ -570,7 +583,6 @@ Core routes are stable across local and Docker deployments:
 | GET | `/readyz` | Traffic readiness and component states |
 | GET | `/symbols` | Configured symbols |
 | GET | `/book/{symbol}` | Immutable current book snapshot |
-| POST | `/api/v1/orders` | Validate and enqueue one REST order |
 | GET | `/stats` | Typed process metrics snapshot |
 | GET | `/metrics` | Prometheus text exposition when enabled |
 | GET | `/ui/{symbol}` | Browser book UI |
@@ -597,39 +609,9 @@ Book response:
 }
 ```
 
-Submit orders with `POST /api/v1/orders`. The request uses decimal strings so
-conversion never passes through binary floating point:
-
-```json
-{
-  "session_id": "REST:backtest-1",
-  "participant_id": "strategy-1",
-  "cl_ord_id": "ORDER-0001",
-  "symbol": "BTC-USDT",
-  "side": "BUY",
-  "order_type": "LIMIT",
-  "quantity": "0.125",
-  "price": "61234.50",
-  "time_in_force": "GTC"
-}
-```
-
-Accepted orders return HTTP 202 with the assigned public/internal identity and
-`PENDING_NEW`. Request-shape and field/value errors return a stable structured
-422 body. Session-scoped duplicate `ClOrdID` and other request-level business
-conflicts return 400; lifecycle conflicts remain 409. FIX maps malformed
-headers to Session Reject, unusable/missing `ClOrdID` to Business Message
-Reject, and identifiable semantic order failures to rejected Execution Reports.
-Rejection `Text` begins with the stable validation code. NaN and infinity are
-never copied into orders, JSON, metrics, or persistence.
-
-With the instrument above, `quantity: "0.0005"` is rejected as
-`OFF_LOT_QUANTITY`, `price: "61234.505"` as `OFF_TICK_PRICE`, and a MARKET
-order carrying any `price` as `PRICE_NOT_ALLOWED`. Zero, negative, NaN, and
-infinite values are rejected before an engine order is registered; unsupported
-order types and TIF values are rejected rather than defaulted.
-
-Unknown symbols return HTTP 404:
+Order entry is available only through FIX; it is not exposed by the REST API
+or its OpenAPI schema. Unknown symbols requested through `/book/{symbol}` or
+`/ui/{symbol}` return HTTP 404:
 
 ```json
 {

@@ -1,5 +1,16 @@
 # MockX Documentation Changelog
 
+## 2026-10-10 - Make FIX the only public order-entry interface
+
+- Remove `POST /api/v1/orders` and its request/response models from the public
+  API and OpenAPI schema. The removed route returns HTTP 404; no compatibility
+  alias or replacement REST order route is provided.
+- Submit new orders and cancellations through the existing FIX 4.4 interface,
+  retaining exact numeric validation, rejection codes, and session-configured
+  participant ownership.
+- Preserve REST administration, book snapshots, stats, health, and metrics,
+  plus WebSocket streaming, the browser viewer, and existing examples.
+
 ## 2026-10-09 - Prevent scheduler helper clock reversal
 
 - Make `run_until_idle()` advance only forward. Overdue events execute at the

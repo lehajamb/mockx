@@ -162,7 +162,7 @@
           <div class="comp-name accent-ask">ExchangeAPI</div>
           <span class="comp-arrow">→</span>
           <div class="comp-desc">
-            FastAPI application: REST orders, book snapshots, stats, Prometheus, WebSocket
+            FastAPI application: REST book snapshots, stats, Prometheus, WebSocket
             market data, admin advancement, session control, browser book UI.
             <span class="src">api.py</span>
           </div>
@@ -499,12 +499,12 @@
       <div class="rule-card">
         <span class="tag tag-queue">FIX 4.4</span>
         <h4>Native order entry</h4>
-        <p>New Order Single (35=D) and Order Cancel Request (35=F). Execution Reports (35=8) and Order Cancel Rejects (35=9) are delivered asynchronously through the reliable application delivery queue. Market Data Request (35=V) is rejected — market data is served by REST/WebSocket.</p>
+        <p>The only public order-entry interface: New Order Single (35=D) and Order Cancel Request (35=F). Execution Reports (35=8) and Order Cancel Rejects (35=9) are delivered asynchronously through the reliable application delivery queue. Market Data Request (35=V) is rejected — market data is served by REST/WebSocket.</p>
       </div>
       <div class="rule-card">
         <span class="tag tag-amber">REST</span>
-        <h4>Administration & submission</h4>
-        <p><code class="ref">POST /api/v1/orders</code> for REST order entry. <code class="ref">GET /book/{symbol}</code> for immutable snapshots. <code class="ref">POST /api/v1/session/start</code> and <code class="ref">/end</code> for simulation control. <code class="ref">POST /admin/advance-time</code> for clock advancement. <code class="ref">GET /stats</code> and <code class="ref">/metrics</code> for observability.</p>
+        <h4>Administration & inspection</h4>
+        <p><code class="ref">GET /book/{symbol}</code> for immutable snapshots. <code class="ref">POST /api/v1/session/start</code> and <code class="ref">/end</code> for simulation control. <code class="ref">POST /admin/advance-time</code> for clock advancement. <code class="ref">GET /stats</code> and <code class="ref">/metrics</code> for observability. REST exposes no order-entry route; orders and cancellations use FIX.</p>
       </div>
       <div class="rule-card">
         <span class="tag tag-bid">WebSocket</span>

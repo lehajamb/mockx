@@ -217,7 +217,6 @@ class MockExchange:
             self.metrics,
             self.config,
             self.fix_app,
-            order_normalizer=self.order_normalizer,
             lifecycle_manager=self,
             session_lifecycle=self.lifecycle,
         )

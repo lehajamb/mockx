@@ -16,6 +16,7 @@ from src.mockx.models import (
     ExecutionReport,
     ExecutionType,
     OrderStatus,
+    OrderType,
     SessionIdentity,
 )
 
@@ -144,6 +145,63 @@ async def test_zero_latency_new_then_cancel_uses_scheduled_pipeline():
             for report in delivered
             if isinstance(report, ExecutionReport)
         ] == [ExecutionType.NEW, ExecutionType.CANCELED]
+    finally:
+        await _stop(exchange)
+
+
+@pytest.mark.asyncio
+async def test_fix_market_order_without_price_fills_and_never_rests():
+    exchange = _exchange()
+    sessions, delivered = await _start(exchange, "CLIENT", "CLIENT2")
+    try:
+        exchange.fix_app.fromApp(
+            _new_order("LIQUIDITY", 1, side=fix.Side_SELL, qty=5, price=100),
+            sessions["CLIENT2"],
+        )
+        await exchange.fix_app.wait_for_ingress()
+        await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
+        acknowledgement = delivered[0]
+        assert isinstance(acknowledgement, ExecutionReport)
+        assert acknowledgement.ord_status == OrderStatus.NEW
+        assert acknowledgement.cum_qty_lots == 0
+        assert acknowledgement.leaves_qty_lots == 5
+
+        market = _new_order("MARKET", 1, qty=7)
+        market.setField(fix.OrdType(fix.OrdType_MARKET))
+        market.removeField(44)
+        assert not market.isSetField(44)
+        exchange.fix_app.fromApp(market, sessions["CLIENT"])
+        await exchange.fix_app.wait_for_ingress()
+        await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
+
+        orders = {order.cl_ord_id: order for order in exchange.engine.orders.values()}
+        assert orders["LIQUIDITY"].status == OrderStatus.FILLED
+        assert orders["MARKET"].order_type == OrderType.MARKET
+        assert orders["MARKET"].price_ticks is None
+        assert orders["MARKET"].status == OrderStatus.CANCELLED
+        assert orders["MARKET"].filled_qty_lots == 5
+        assert orders["MARKET"].canceled_qty_lots == 2
+        assert orders["MARKET"].leaves_qty_lots == 0
+        book = exchange.engine.books["TEST"]
+        assert not book.bids and not book.asks
+        book.assert_invariants()
+
+        fills = [report for report in delivered if report.exec_type == ExecutionType.TRADE]
+        assert [report.cl_ord_id for report in fills] == ["LIQUIDITY", "MARKET"]
+        assert all(report.last_qty_lots == 5 for report in fills)
+        assert all(report.last_price_ticks == 100 for report in fills)
+        market_fill = fills[1]
+        assert market_fill.ord_status == OrderStatus.PARTIAL
+        assert market_fill.cum_qty_lots == 5
+        assert market_fill.leaves_qty_lots == 2
+        assert delivered[-1].exec_type == ExecutionType.CANCELED
+        assert delivered[-1].cl_ord_id == "MARKET"
+        assert delivered[-1].canceled_qty_lots == 2
+        assert acknowledgement.ord_status == OrderStatus.NEW
+        assert acknowledgement.cum_qty_lots == 0
+        assert acknowledgement.leaves_qty_lots == 5
+        with pytest.raises(FrozenInstanceError):
+            market_fill.leaves_qty_lots = 0
     finally:
         await _stop(exchange)
 

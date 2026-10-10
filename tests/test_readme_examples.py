@@ -2,15 +2,17 @@ from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Executable docs, OpenAPI, routes, and browser contract checks."""
 
 from pathlib import Path
+from copy import deepcopy
 import subprocess
 import sys
 
 from fastapi.testclient import TestClient
+import pytest
 
 from src.mockx.configuration import load_config
 from src.mockx.models import NewOrderCommand, Side, TimeInForce
 
-from .api_helpers import ROOT, make_exchange
+from .api_helpers import ROOT, make_exchange, process_order
 
 
 def test_documented_core_routes_exist_and_openapi_generates():
@@ -22,6 +24,7 @@ def test_documented_core_routes_exist_and_openapi_generates():
         "/metrics",
         "/book/{symbol}",
         "/ws/{symbol}",
+        "/ui/{symbol}",
         "/admin/advance-time",
         "/api/v1/session/start",
         "/api/v1/session/end",
@@ -37,6 +40,83 @@ def test_documented_core_routes_exist_and_openapi_generates():
     assert "/admin/advance-time" in paths
     assert "/api/v1/session/start" in paths
     assert "/api/v1/session/end" in paths
+
+
+def test_http_order_submission_is_absent_from_routes_and_openapi():
+    exchange = make_exchange()
+    assert "/api/v1/orders" not in {route.path for route in exchange.app.routes}
+
+    schema = exchange.app.openapi()
+    assert "/api/v1/orders" not in schema["paths"]
+    assert "SubmitOrderRequest" not in schema["components"]["schemas"]
+    assert "SubmitOrderResponse" not in schema["components"]["schemas"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        '{"session_id":"HTTP:test","participant_id":"http-participant",'
+        '"cl_ord_id":"HTTP-ORDER","symbol":"TEST","side":"BUY",'
+        '"order_type":"LIMIT","quantity":"1","price":"100"}',
+        "{}",
+        "{",
+    ],
+    ids=["numeric-strings", "missing-fields", "invalid-json"],
+)
+def test_http_order_requests_return_404_without_exchange_mutation(body):
+    exchange = make_exchange()
+    with TestClient(exchange.app) as client:
+        assert client.post(
+            "/api/v1/session/start", json={"run_id": "fix-only"}
+        ).status_code == 200
+        process_order(exchange, "RESTING", Side.SELL, 5, 101)
+        exchange.engine.submit_order(
+            exact_command(
+                cl_ord_id="PENDING",
+                symbol="TEST",
+                side=Side.BUY,
+                order_qty_lots=2,
+                price_ticks=100,
+                tif=TimeInForce.GTC,
+                participant_id="pending-participant",
+                submitted_at=exchange.scheduler.current_time,
+            )
+        )
+        orders = deepcopy(exchange.engine.orders)
+        client_index = dict(exchange.engine.client_order_index)
+        claimed_ids = set(exchange.engine._claimed_client_order_ids)
+        book = exchange.engine.books["TEST"]
+        book_index = {
+            order_id: (side, level.price_ticks)
+            for order_id, (side, level) in book._order_index.items()
+        }
+        snapshot = exchange.engine.get_market_data_snapshot("TEST")
+        queue = tuple(exchange.scheduler.event_queue)
+        clock = exchange.scheduler.current_time
+        submitted = exchange.metrics.snapshot().orders_submitted
+        next_order_id = exchange.engine.next_order_id
+
+        response = client.post(
+            "/api/v1/orders",
+            content=body,
+            headers={"Content-Type": "application/json"},
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
+        assert exchange.engine.orders == orders
+        assert exchange.engine.client_order_index == client_index
+        assert exchange.engine._claimed_client_order_ids == claimed_ids
+        assert {
+            order_id: (side, level.price_ticks)
+            for order_id, (side, level) in book._order_index.items()
+        } == book_index
+        assert exchange.engine.get_market_data_snapshot("TEST") == snapshot
+        assert tuple(exchange.scheduler.event_queue) == queue
+        assert exchange.scheduler.current_time == clock
+        assert exchange.metrics.snapshot().orders_submitted == submitted
+        assert exchange.engine.next_order_id == next_order_id
+        book.assert_invariants()
 
 
 def test_submit_orders_help_matches_readme_flags():

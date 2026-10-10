@@ -48,13 +48,13 @@
     <h1 class="h1">How <em>MockX</em> works</h1>
     <p class="lede">
       Visual documentation for the matching engine, discrete-event scheduler,
-      FIX gateway, lifecycle coordinator, REST API, WebSocket market data,
+      FIX gateway, lifecycle coordinator, REST administration, WebSocket market data,
       experimental ITCH/MoldUDP64 plus GLIMPSE/SoupBinTCP feeds, and QuestDB persistence layer. Built
       from the current Python source code.
     </p>
 
     <div class="arch">
-      <div class="arch-node">Client<br><b>FIX / REST</b></div>
+      <div class="arch-node">Order entry<br><b>FIX 4.4 only</b></div>
       <div class="arch-link"><span class="arch-dot" style="animation-delay:0s"></span></div>
       <div class="arch-node accent-lifecycle">Lifecycle<br><b>coordinator</b></div>
       <div class="arch-link"><span class="arch-dot" style="animation-delay:0.4s"></span></div>
@@ -88,7 +88,7 @@
           <h3>System Architecture</h3>
           <p>
             High-level component map, exchange lifecycle state machine,
-            two-clock design, FIX ingress pipeline, REST, WebSocket, ITCH, and GLIMPSE
+            two-clock design, FIX ingress pipeline, REST administration, WebSocket, ITCH, and GLIMPSE
             surfaces, run generation and identifiers, and external versus
             realtime clock modes.
           </p>
