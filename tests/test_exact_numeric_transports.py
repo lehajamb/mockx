@@ -1,11 +1,10 @@
-"""Untrusted numeric text remains exact through FIX, REST and ITCH boundaries."""
+"""Untrusted numeric text remains exact through FIX and ITCH boundaries."""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, localcontext
 
-from httpx import ASGITransport, AsyncClient
 import pytest
 
 from src.mockx.configuration import (
@@ -125,38 +124,6 @@ async def test_fix_cancel_invalid_numeric_quantity_preserves_resting_order(raw):
         assert exchange.engine.get_market_data_snapshot("TEST") == before
         assert exchange.scheduler.state == SchedulerState.RUNNING
         assert exchange.scheduler.dead_letter is None
-    finally:
-        await exchange.stop_components()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(("field", "raw", "code"), INVALID_NUMBERS)
-async def test_rest_invalid_numeric_text_uses_field_specific_422(field, raw, code):
-    exchange = numeric_exchange()
-    await exchange.start_components()
-    await exchange.lifecycle.start_session("exact-rest")
-    body = {
-        "session_id": "REST:exact",
-        "participant_id": "participant-rest",
-        "cl_ord_id": "REST-EXACT-INVALID",
-        "symbol": "TEST",
-        "side": "BUY",
-        "order_type": "LIMIT",
-        "quantity": "1",
-        "price": "100",
-    }
-    body[field] = raw
-    try:
-        async with AsyncClient(
-            transport=ASGITransport(app=exchange.app), base_url="http://test"
-        ) as client:
-            response = await client.post("/api/v1/orders", json=body)
-        assert response.status_code == 422
-        assert response.json()["detail"]["code"] == code
-        assert response.json()["detail"]["message"].startswith(f"{field}:")
-        assert exchange.engine.orders == {}
-        assert exchange.engine.client_order_index == {}
-        assert exchange.scheduler.state == SchedulerState.RUNNING
     finally:
         await exchange.stop_components()
 

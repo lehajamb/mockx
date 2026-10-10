@@ -32,23 +32,17 @@ from pydantic import (
 from starlette.responses import Response
 
 from .configuration import ExchangeConfig
-from .engine import DuplicateClientOrderID, MatchingEngine
+from .engine import MatchingEngine
 from .gateway import FIXApplication
 from .latency import SchedulerFailedError
 from .lifecycle import (
     ExchangeLifecycle,
     LifecycleError,
-    LifecycleIngressRejected,
     LifecycleState,
 )
 from .metrics import MetricsCollector
-from .models import MarketDataSnapshot, OrderStatus, SchedulerState
+from .models import MarketDataSnapshot, SchedulerState
 from .numeric import format_decimal_ratio
-from .validation import (
-    OrderNormalizer,
-    OrderValidationError,
-    RawOrderInput,
-)
 from .websocket_delivery import WebSocketConnection, WebSocketRegistry
 
 
@@ -493,29 +487,6 @@ class AdvanceTimeResponse(BaseModel):
     pending_events: int
 
 
-class SubmitOrderRequest(BaseModel):
-    """Exact REST order values; numeric fields intentionally remain text."""
-
-    model_config = ConfigDict(extra="forbid", strict=True)
-
-    session_id: str
-    participant_id: str
-    cl_ord_id: str
-    symbol: str
-    side: str
-    order_type: str
-    quantity: str
-    price: Optional[str] = None
-    time_in_force: Optional[str] = None
-
-
-class SubmitOrderResponse(BaseModel):
-    order_id: str
-    internal_order_id: int
-    cl_ord_id: str
-    status: Literal["PENDING_NEW"]
-
-
 def _api_error(status_code: int, code: str, message: str) -> HTTPException:
     return HTTPException(
         status_code=status_code,
@@ -582,7 +553,6 @@ class ExchangeAPI:
         config: ExchangeConfig,
         fix_app: FIXApplication,
         *,
-        order_normalizer: OrderNormalizer,
         lifecycle_manager: Optional[Any] = None,
         session_lifecycle: Optional[ExchangeLifecycle] = None,
     ) -> None:
@@ -591,7 +561,6 @@ class ExchangeAPI:
         self.metrics = metrics
         self.config = config
         self.fix_app = fix_app
-        self.order_normalizer = order_normalizer
         self.lifecycle_manager = lifecycle_manager
         self.lifecycle = session_lifecycle
 
@@ -1032,73 +1001,6 @@ class ExchangeAPI:
             self._require_stable_simulation_read()
             return SymbolsResponse(symbols=list(self.engine.books))
 
-        @self.app.post(
-            "/api/v1/orders",
-            response_model=SubmitOrderResponse,
-            status_code=202,
-            responses={
-                400: {"model": ErrorResponse},
-                409: {"model": ErrorResponse},
-                422: {"model": ErrorResponse},
-                503: {"model": ErrorResponse},
-            },
-        )
-        async def submit_order(
-            body: SubmitOrderRequest,
-        ) -> SubmitOrderResponse:
-            try:
-                command = self.order_normalizer.normalize(
-                    RawOrderInput(
-                        session_id=body.session_id,
-                        participant_id=body.participant_id,
-                        cl_ord_id=body.cl_ord_id,
-                        symbol=body.symbol,
-                        side=body.side,
-                        order_type=body.order_type,
-                        quantity=body.quantity,
-                        price=body.price,
-                        time_in_force=body.time_in_force,
-                    ),
-                    submitted_at=self.scheduler.current_time,
-                )
-                if self.lifecycle is None:
-                    internal_order_id = self.engine.submit_order(command)
-                else:
-                    token = self.lifecycle.token
-                    internal_order_id = await self.lifecycle.execute_ingress(
-                        token,
-                        lambda: self.engine.submit_order(command),
-                    )
-                    if self.lifecycle.state == LifecycleState.RUN_FAILED:
-                        raise LifecycleIngressRejected("METRICS_INCOMPLETE")
-            except OrderValidationError as exc:
-                raise _api_error(
-                    422,
-                    exc.code.value,
-                    f"{exc.field}: {exc.message}",
-                ) from exc
-            except DuplicateClientOrderID as exc:
-                raise _api_error(
-                    400,
-                    "DUPLICATE_CL_ORD_ID",
-                    str(exc),
-                ) from exc
-            except LifecycleIngressRejected as exc:
-                raise _api_error(
-                    409 if exc.code == "SESSION_NOT_ACTIVE" else 503,
-                    exc.code,
-                    "Order submission is unavailable in the current lifecycle",
-                ) from exc
-            order = self.engine.orders[internal_order_id]
-            if order.status != OrderStatus.PENDING_NEW:
-                raise RuntimeError("Newly submitted REST order is not pending")
-            return SubmitOrderResponse(
-                order_id=order.exchange_order_id or str(order.id),
-                internal_order_id=order.id,
-                cl_ord_id=order.cl_ord_id,
-                status="PENDING_NEW",
-            )
-
         @self.app.get("/stats", response_model=StatsResponse)
         async def get_stats() -> StatsResponse:
             self._require_stable_simulation_read()
@@ -1475,7 +1377,6 @@ def create_app(
         metrics,
         config,
         fix_app,
-        order_normalizer=OrderNormalizer(engine.instruments),
         session_lifecycle=lifecycle,
     )
     api.app.state.component_status.update(

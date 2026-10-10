@@ -1,6 +1,5 @@
 """PR 8A acceptance tests for strict startup and order boundaries."""
 
-from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 import re
@@ -9,7 +8,6 @@ import asyncio
 import pytest
 import quickfix as fix
 import yaml
-from fastapi.testclient import TestClient
 
 from src.mockx.configuration import ConfigurationError, validate_config
 from src.mockx.gateway import configured_fix_session_ids
@@ -23,7 +21,6 @@ from src.mockx.validation import (
 from src.mockx.instruments import InstrumentCatalog
 from src.mockx.main import MockExchange
 
-from .api_helpers import make_exchange
 from .test_fix_ingress_pipeline import _exchange, _new_order, _start, _stop
 
 
@@ -384,83 +381,6 @@ def test_market_order_requires_no_price_and_missing_tif_defaults_to_gtc(normaliz
             submitted_at=datetime.now(timezone.utc),
         )
     assert caught.value.code == OrderValidationCode.PRICE_NOT_ALLOWED
-
-
-def test_rest_shape_and_numeric_errors_share_structured_422_contract():
-    exchange = make_exchange()
-    with TestClient(exchange.app) as client:
-        assert client.post(
-            "/api/v1/session/start",
-            json={"run_id": "pr8-validation"},
-        ).status_code == 200
-        base = {
-            "session_id": "REST:test",
-            "participant_id": "participant-test",
-            "cl_ord_id": "REST-1",
-            "symbol": "TEST",
-            "side": "BUY",
-            "order_type": "LIMIT",
-            "quantity": "1",
-            "price": "100",
-        }
-
-        missing = deepcopy(base)
-        missing.pop("participant_id")
-        shape_response = client.post("/api/v1/orders", json=missing)
-        assert shape_response.status_code == 422
-        assert shape_response.json()["detail"]["code"] == (
-            "REQUEST_VALIDATION_ERROR"
-        )
-
-        invalid = {**base, "quantity": "NaN"}
-        numeric_response = client.post("/api/v1/orders", json=invalid)
-        assert numeric_response.status_code == 422
-        assert numeric_response.json()["detail"]["code"] == (
-            "NON_FINITE_NUMBER"
-        )
-        assert exchange.engine.orders == {}
-        assert exchange.engine.client_order_index == {}
-
-
-def test_rest_accepts_exact_strings_and_duplicate_scope_survives_reset():
-    exchange = make_exchange()
-    base = {
-        "session_id": "REST:one",
-        "participant_id": "participant-one",
-        "cl_ord_id": "REST-DUPLICATE",
-        "symbol": "TEST",
-        "side": "BUY",
-        "order_type": "LIMIT",
-        "quantity": "1",
-        "price": "100",
-    }
-    with TestClient(exchange.app) as client:
-        assert client.post(
-            "/api/v1/session/start",
-            json={"run_id": "rest-one"},
-        ).status_code == 200
-        accepted = client.post("/api/v1/orders", json=base)
-        assert accepted.status_code == 202
-        assert accepted.json()["status"] == "PENDING_NEW"
-        assert client.post("/api/v1/session/end").status_code == 200
-
-        assert client.post(
-            "/api/v1/session/start",
-            json={"run_id": "rest-two"},
-        ).status_code == 200
-        duplicate = client.post("/api/v1/orders", json=base)
-        assert duplicate.status_code == 400
-        assert duplicate.json()["detail"]["code"] == "DUPLICATE_CL_ORD_ID"
-
-        independent_session = {
-            **base,
-            "session_id": "REST:two",
-            "participant_id": "participant-two",
-        }
-        assert client.post(
-            "/api/v1/orders",
-            json=independent_session,
-        ).status_code == 202
 
 
 def test_fix_startup_requires_exact_quickfix_session_mapping():
