@@ -112,7 +112,7 @@ symbol labels through `mockx_self_trade_preventions_total{symbol}` and
 `mockx_self_trade_prevented_quantity_total{symbol}`. Participant identity and
 both order IDs are retained only in audit/persistence fields.
 
-Public exchange identifiers include the successful simulation-run generation:
+Public exchange identifiers include the allocated simulation-run generation:
 
 | FIX/public field | Format |
 |---|---|
@@ -192,7 +192,9 @@ sender. Transport exceptions and `sendToTarget(...) == False` are retried at
 `fix.delivery_retry_interval_ms`, with at most
 `fix.delivery_max_attempts_per_cycle` sender calls in a cycle. Exhausting a
 cycle leaves the record `RETRY_PENDING`; the next logon starts a fresh bounded
-cycle immediately. Deterministic serialization failures become
+cycle immediately. `RETRY_PENDING` also covers waiting for an automatic retry
+or a disconnected transport, before the cycle limit is reached. Deterministic
+serialization failures become
 `PERMANENTLY_FAILED` and visibly block later records for that session. One
 blocked session never prevents another session from progressing.
 
@@ -292,10 +294,11 @@ MoldUDP64 request packets, retain replay history, or serve retransmissions.
 Without GLIMPSE, consumers that detect a sequence gap must establish a later
 MockX run for a new coherent session. With GLIMPSE enabled, they can keep
 buffering live ITCH and request a new atomic snapshot in the current coherent
-run. A runtime encoder/socket failure similarly degrades only ITCH: matching
-and the other interfaces remain available, `/readyz` returns HTTP 200 with
-`status="degraded"`, no restart is attempted inside that run, and the next
-simulation generation attempts a fresh session.
+run. A runtime encoder/socket failure similarly degrades ITCH and revokes
+GLIMPSE access to that run; matching, FIX, REST and WebSocket remain available.
+If core components and enabled persistence are healthy, `/readyz` returns HTTP
+200 with `status="degraded"`. No feed restart is attempted inside that run,
+and the next simulation generation attempts a fresh session.
 
 ### GLIMPSE 5.0 / SoupBinTCP snapshot and recovery
 
@@ -303,8 +306,10 @@ When `glimpse.enabled` is true, MockX binds one process-lifetime SoupBinTCP
 listener. GLIMPSE requires the real-time ITCH/MoldUDP64 feed because the final
 Snapshot (`G`) value is the next ITCH message sequence at the atomic snapshot
 cut. The listener remains bound while no simulation run is active, but an
-authenticated login receives Soup Login Reject reason `S` until lifecycle is
-`ACTIVE` and the current ITCH session is coherent.
+authenticated login receives Soup Login Reject reason `S` unless lifecycle is
+`ACTIVE` or `RUN_FAILED`, the scheduler is not failed, and the current ITCH
+session is coherent. A persistence-failed run can therefore still provide a
+snapshot of its preserved book; trading remains blocked.
 
 A fresh client sends a Soup Login Request with an all-space Requested Session
 and Requested Sequence Number 1. The server replies with Login Accepted and
@@ -371,14 +376,18 @@ No route inspection or closure internals are used to recover ownership.
 Construction creates and validates components without starting external
 traffic. FastAPI lifespan startup then:
 
-1. Marks readiness false.
-2. Captures the running asyncio loop.
-3. Confirms the engine, scheduler, metrics, registry, API, and callbacks.
-4. Assigns the loop to the QuickFIX adapter.
+1. Marks readiness false and administrative actions unavailable, and sets
+   initial component statuses.
+2. Starts enabled persistence, including its initial health check and background
+   writer; records disabled persistence otherwise.
+3. Captures the running asyncio loop and assigns it to the QuickFIX adapter
+   before accepting traffic.
+4. Confirms engine callbacks are registered.
 5. Binds the optional GLIMPSE/SoupBinTCP listener.
 6. Starts the FIX acceptor when enabled.
 7. Starts the optional realtime scheduler task.
-8. Enables administrative actions and marks readiness true.
+8. Enables administrative actions and marks startup complete. `/readyz`
+   additionally checks component, lifecycle and persistence health.
 
 Shutdown:
 
@@ -391,8 +400,11 @@ Shutdown:
 7. Flushes and closes metrics persistence.
 8. Clears adapter loop references and marks components stopped.
 
-Shutdown is idempotent. A persistence-close failure is logged and reported as
-degraded without skipping the remaining teardown.
+Shutdown is idempotent. An unsuccessful typed persistence-close result is
+logged with its outcome and unflushed count, and the component is marked
+`closed`. An exception from metrics shutdown marks persistence `degraded`.
+Both paths continue the remaining teardown. Typed persistence diagnostics
+retain the completed close result's outcome and unflushed count.
 
 ## 4. Clock modes
 
@@ -404,9 +416,11 @@ scheduler:
 ```
 
 In `external` mode, only `POST /admin/advance-time` or direct test calls move
-the simulated clock. The route requires an `ACTIVE` simulation session;
-`STOPPED` returns `409 SESSION_NOT_ACTIVE`. Submitting a FIX order queues
-events; it does not process them until time advances.
+the simulated clock. The route permits `ACTIVE` and `RUN_FAILED` sessions;
+`STOPPED` returns `409 SESSION_NOT_ACTIVE`. Advancement during `RUN_FAILED`
+drains delivery and feed activity while trading stays blocked, and returns HTTP
+503 identifying the failed run and actual clock position. Submitting a FIX
+order queues events; it does not process them until time advances.
 
 In-process backtesters and tests that submit through QuickFIX callbacks should
 first await `exchange.fix_app.wait_for_ingress()`. The returned
@@ -417,8 +431,8 @@ scheduler receive events. Administrative and realtime advancement also
 capture, await, and flush pending ingress before running the scheduler. There
 is intentionally no public HTTP ingress-barrier endpoint.
 
-The optional `realtime` mode advances simulated time only while the lifecycle
-is `ACTIVE`, by
+The optional `realtime` mode advances simulated time while the lifecycle
+is `ACTIVE` or `RUN_FAILED`, by
 `scheduler.interval_ms` after each non-busy asyncio interval. Event ordering
 remains deterministic at a given simulated timestamp, but the relationship to
 machine scheduling is necessarily nondeterministic. Manual advancement returns
@@ -629,7 +643,8 @@ counts by delivery state, sessions with backlog, cumulative attempts,
 failures, deliveries, permanent failures, abandonments, and oldest pending
 age. The `cancellations` object
 contains `accepted`, `unknown_order`, `already_terminal`, `wrong_owner`,
-`duplicate_request`, and `stale_run_generation`. Scheduler diagnostics contain `state`,
+`duplicate_request`, `stale_run_generation`, and `exchange_unavailable`.
+Scheduler diagnostics contain `state`,
 `pending_events`, the current-generation `failure_count`, the configured
 `max_events_per_advance`, and an optional `dead_letter`. The dead letter
 contains only deterministic scalar metadata captured when the event was
@@ -672,7 +687,7 @@ One committed matching action publishes one `market_data` message. Its
   "asks": [],
   "trades": [
     {
-      "trade_id": "17",
+      "trade_id": "G00000001-T00000017",
       "price": "100.00",
       "qty": "2.000",
       "aggressor_side": "BUY",
@@ -723,18 +738,22 @@ error and close control traffic retains priority.
 
 Broadcasting only performs bounded in-memory enqueues. A blocked socket
 therefore cannot delay another symbol or client, REST work, scheduler
-progression, or market-data publication. Each network send has a five-second
-default timeout. A timed-out client is removed, its sender is terminated, and
+progression, or market-data publication. Each network send uses
+`websocket.send_timeout_seconds`, with a five-second default. A timed-out client
+is removed, its sender is terminated, and
 a bounded close with code 1013 is attempted. Session reset concurrently
 cancels all sender tasks and closes their sockets with code 1001.
 
 The browser derives `ws://` or `wss://` and host/port from
 `window.location`. It never hardcodes a container port. It tracks heartbeat and
 market-data freshness separately. Heartbeats alone do not suppress REST
-fallback; stale data enables polling, a newer WebSocket snapshot disables it,
-and duplicate or old sequences are ignored. Because sequence is global while
-each message is a complete symbol snapshot, gaps may represent activity on
-other symbols and do not themselves trigger REST polling. Reconnect uses
+fallback; stale data enables polling. Currently every WebSocket market-data
+frame refreshes freshness and disables fallback, including a duplicate.
+Duplicates do not redraw the book, but a lower sequence is accepted and can
+replace the displayed state. The viewer does not enforce monotonic WebSocket
+sequences. Because sequence is global while each message is a complete symbol
+snapshot, gaps may represent activity on other symbols and do not themselves
+trigger REST polling. Reconnect uses
 bounded exponential backoff with one timer. All browser heartbeat, freshness,
 polling, reconnect, and staleness-check timings are rendered from server YAML.
 
@@ -756,7 +775,7 @@ The exchange-wide lifecycle is:
 
 | State | Simulation behavior |
 |---|---|
-| `STOPPED` | Administrative start is available; FIX application ingress and time advancement are rejected |
+| `STOPPED` | Administrative start is available; FIX application ingress and time advancement are rejected, but reconnect can deliver already-due FIX backlog |
 | `STARTING` | Ingress is gated while the previous buffer is flushed and all run state is reset |
 | `ACTIVE` | FIX application ingress and the configured clock mode are enabled |
 | `RUN_FAILED` | Metrics were lost; trading is halted, delivery and inspection remain available, and the run must be ended and rerun |
@@ -792,9 +811,12 @@ not a successful HTTP response and does not introduce a new API error code.
 
 Starting while active returns `409 SESSION_ALREADY_ACTIVE`. A successful start
 flushes inactive metrics, closes WebSockets, resets scheduler/engine and
-run-local statistics, reseeds the RNG from `execution.random_seed`, assigns
-`last_successful_generation + 1`, installs fresh run identifier counters, and
-only then publishes `ACTIVE`. The process-lifetime FIX delivery queue and its
+run-local statistics, reseeds the RNG from `execution.random_seed`, allocates
+`previous_allocated_generation + 1`, installs fresh run identifier counters,
+and admits initial book snapshots before feed initialization and publication
+of `ACTIVE`. Allocation precedes initial snapshot admission: a start that
+loses that snapshot still consumes a generation and retains an endable failed
+run. The process-lifetime FIX delivery queue and its
 per-session sequence are not reset. Latency traces referenced by its
 non-delivered records are preserved with `(run_generation, order_id)` or
 `(run_generation, cancel_ingress_sequence)` keys; unrelated traces are reset.
@@ -812,8 +834,9 @@ persistence writes restore their buffered batch with the same identities and
 FIFO order; cancellation by itself does not mark metrics incomplete.
 
 An enabled ITCH feed starts a fresh generation-qualified Mold session before
-`ACTIVE`. Runtime feed failure is noncritical and leaves the run active with
-readiness degraded. Normal session end publishes the ITCH market/system/end
+`ACTIVE`. Runtime feed failure is noncritical and leaves an otherwise healthy
+run active, with readiness degraded when core components and required
+persistence remain healthy. Normal session end publishes the ITCH market/system/end
 markers and Mold end-of-session before closing the socket. A degraded session
 is never resumed in place; only the next generation attempts recovery.
 
@@ -829,8 +852,10 @@ Ending with no active session is idempotent and returns
 run persistence outcomes, and scheduler diagnostics. Process-lifetime FIX,
 WebSocket, and persistence totals remain available only from `/stats`; they
 are never mixed into `final_stats`. Session end does not drain or abandon
-undelivered FIX records. They remain frozen while stopped; the next
-start schedules old `PENDING` records at their original due time and old
+undelivered FIX records. Automatic clock advancement is inactive while
+stopped, but a FIX reconnect can immediately attempt already-due backlog at
+the unchanged simulated time. The next start schedules old `PENDING` records
+at their original due time and old
 `DUE`/`RETRY_PENDING` FIFO heads at the new scheduler's current time. Older
 generations remain ahead of new-run records for the same stable FIX session.
 Other pending scheduler events are discarded by the next start. A failed
@@ -926,8 +951,9 @@ mockx_serialization_duration_us
 Fixed outcome counters are exposed as
 `mockx_cancel_accepted_total`, `mockx_cancel_unknown_order_total`,
 `mockx_cancel_already_terminal_total`, `mockx_cancel_wrong_owner_total`,
-`mockx_cancel_duplicate_request_total`, and
-`mockx_cancel_stale_run_generation_total`. Persisted cancel latency samples
+`mockx_cancel_duplicate_request_total`,
+`mockx_cancel_stale_run_generation_total`, and
+`mockx_cancel_exchange_unavailable_total`. Persisted cancel latency samples
 include the run generation, ingress sequence, cancel `ClOrdID`,
 `OrigClOrdID`, stable session identity, and resolved internal order ID when
 available. Failed or disconnected terminal delivery retains its latency trace;
@@ -1154,6 +1180,13 @@ are `VARCHAR`; ticks, lots, counters, and sequences are `LONG`; flags are
 table and column auto-creation, so an unexpected producer field fails visibly
 instead of changing the schema.
 
+Ordinary production callers populate six streams: `orders`, `trades`,
+`self_trade_prevention`, `latency`, `fix_messages`, and `book_snapshot`.
+The `fix_connections` and `pending_events` tables are pre-created, but their
+persistence helpers currently have no production callers. Connected-session
+and scheduler-pending counts are updated as gauges in statistics and
+Prometheus; those gauge updates do not write rows to the two tables.
+
 Use QuestDB SQL in the Web Console to inspect a run or reconstruct global
 cross-table ordering:
 
@@ -1199,7 +1232,8 @@ one Python process do not register duplicate global collectors.
 |---|---:|---:|---|
 | MockX FIX | 4001 | 4001 | FIX 4.4 acceptor |
 | MockX API | 8000 | 8001 | REST, WebSocket, UI, `/metrics` |
-| MockX GLIMPSE | disabled | disabled | Optional SoupBinTCP snapshot service |
+| MockX GLIMPSE | 18001/TCP | 127.0.0.1:18001/TCP | Enabled SoupBinTCP snapshot service |
+| Mold host relay | 18000/UDP multicast input | host.docker.internal:18000/UDP target | Forwards MoldUDP64 packets to the host; no Docker published port |
 | Live market | - | - | Two-session FIX market driver |
 | QuestDB Web/REST/ILP | 9000 | 9000 | Console, SQL, and ingestion |
 | QuestDB PostgreSQL | 8812 | 8812 | SQL wire protocol |
@@ -1208,7 +1242,11 @@ one Python process do not register duplicate global collectors.
 Compose service discovery provides the driver with `mockx:4001` for FIX and
 `http://mockx:8000` for administration. The browser-facing API stays on
 `http://localhost:8001`, and browser WebSocket URLs use that current origin.
-QuestDB state is stored in the named `questdb-data` volume.
+The Docker exchange enables ITCH multicast at `239.192.0.1:18000` and GLIMPSE;
+the relay joins that multicast group inside the Compose network and forwards
+packets to the host. The local `examples/live_exchange.yml` configuration
+keeps both feeds disabled. QuestDB state is stored in the named
+`questdb-data` volume.
 
 ## 12. Configuration
 
@@ -1343,8 +1381,11 @@ derives its displayed average directly from integer fill totals.
 Existing validation codes, public fields, and configuration options are
 unchanged.
 
-Matching consumes all immediately executable eligible liquidity. Partial fills
-occur naturally only when the book cannot fill the complete order.
+Matching consumes all immediately executable eligible liquidity. Each fill
+produces an immutable report, so an order that fills completely across several
+passive orders can emit intermediate `PARTIAL` reports followed by `FILLED`.
+A GTC limit remainder can rest as `PARTIAL`; IOC and market remainders are
+canceled instead of resting.
 
 `execution.random_seed` is stored explicitly and must be an integer. Every
 successful start restores that seed and the epoch initial simulated time. For
@@ -1513,6 +1554,8 @@ python -m pytest -q tests/test_readme_examples.py tests/test_live_demo.py
 - GLIMPSE replay sessions are bounded and process-local. Restarting MockX loses
   interrupted spins; request a fresh sequence-1 snapshot after reconnecting.
 - No guaranteed WebSocket replay or sequence persistence across restarts.
+- The browser viewer accepts lower WebSocket sequences and treats duplicate
+  frames as fresh market data; it does not guard against display regression.
 - WebSocket delivery queues are process-local; there is no distributed fan-out
   or message broker.
 - The reliable outbound FIX queue is process-local; a process or host failure
@@ -1520,8 +1563,8 @@ python -m pytest -q tests/test_readme_examples.py tests/test_live_demo.py
   requests, and protocol-level duplicate behavior. This is not
   production-grade FIX recovery or end-to-end exactly-once delivery.
 - No replace workflow, stop orders, or new order types beyond limit/market.
-- FIX market-data requests are rejected; use REST/WebSocket or the separately
-  configured GLIMPSE/SoupBinTCP recovery service.
+- FIX market-data requests are rejected; use REST/WebSocket, the optional
+  ITCH/MoldUDP64 feed, or its GLIMPSE/SoupBinTCP recovery service.
 - No Prometheus server, Grafana, dashboard assets, OpenTelemetry, or cloud
   manifests are bundled.
 - Self-trading is always prevented by canceling both complete remainders; there
@@ -1549,14 +1592,17 @@ FIX client logs on but receives no reports:
 - Verify the target component and FIX port match the chosen instance.
 - Inspect `/stats.fix_delivery` and `components.fix_delivery` in `/readyz`.
   A `RETRY_PENDING` head is retried immediately at the next logon; a
-  `PERMANENTLY_FAILED` head requires fixing the deterministic serialization
-  problem or restarting the process.
+  `PERMANENTLY_FAILED` head remains blocked across reconnect and run reset.
+  Fix the underlying serialization problem to prevent recurrence, then restart
+  the process to clear that retained head; there is no public in-place recovery.
 
 The browser says `HTTP fallback` while heartbeats continue:
 
 - This is expected when no valid market-data message arrived within the stale
   timeout.
-- REST polling keeps the book current until a newer WebSocket sequence arrives.
+- REST polling refreshes the book until a WebSocket market-data frame arrives.
+  Even a duplicate disables fallback and refreshes freshness; a lower sequence
+  can replace the displayed state. See the viewer limitation above.
 - A global sequence gap alone does not enable fallback because updates on other
   symbols and intentional snapshot conflation can both create such gaps.
 

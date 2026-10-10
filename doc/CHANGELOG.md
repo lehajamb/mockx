@@ -1,5 +1,41 @@
 # MockX Documentation Changelog
 
+## 2026-10-10 - Align current documentation with main
+
+- Verify the README and current guides against `main@0df049c`; application
+  behavior, configuration and client examples remain unchanged.
+- Correct the six-state exchange lifecycle and five public interface counts,
+  preserving the separate five-state FIX delivery lifecycle.
+- Explain conditional readiness, permitted clock advancement and coherent
+  GLIMPSE snapshots in `RUN_FAILED`, and startup recovery before and after
+  destructive reset. Initial metric admission can consume a new generation
+  and leave an endable failed run before feed startup.
+- Describe retained FIX backlog accurately: stopping does not advance the
+  clock automatically, but reconnect can immediately attempt due records.
+- Clarify shared-book interactions between FIX sessions, extracted order/header
+  fields, and the existing market-data interfaces in current guides.
+- Correct persistence coverage and representative columns: six ordinary
+  producer streams, plus two pre-created schemas without production writer
+  calls. Keep operational gauges separate from persisted rows.
+- Include enabled GLIMPSE on TCP 18001 and the MoldUDP64 host relay in the
+  Docker topology. Describe WebSocket conflation, protected initial snapshots,
+  overflow handling and configurable send timeouts.
+- Document the browser's current sequence limitation: duplicate frames refresh
+  freshness and disable HTTP fallback; lower WebSocket sequences can replace
+  the displayed book. The browser implementation is unchanged.
+- Correct intermediate partial-fill reports, cancellation/rejection causes and
+  all seven cancellation outcomes. Fix the sweep to three orders across two
+  price levels and the unfilled example to SELL 30 @ 99.95 against bid 99.90,
+  including its visible resting ask and reset behavior. Reset and scenario
+  changes invalidate suspended matching animations so they cannot mutate the
+  restored book or a replacement scenario.
+- Align cancel-event stages, report admission, immutable event fields and FIX
+  deadline ownership. Correct the heartbeat animation to suppress the first
+  check at 2000 ms and send at 4000 ms when no further data arrives.
+- Keep historical changelog entries and the explicitly historical combined
+  engine/scheduler page unchanged. These corrections document existing behavior;
+  no application contracts are changed.
+
 ## 2026-10-10 - Make FIX the only public order-entry interface
 
 - Remove `POST /api/v1/orders` and its request/response models from the public

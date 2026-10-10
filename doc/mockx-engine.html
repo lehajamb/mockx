@@ -123,7 +123,7 @@
       <div class="transition-card">
         <div class="from-to">PENDING_NEW → PARTIAL</div>
         <div class="trigger">Trigger: apply_fill() in matching loop</div>
-        <div class="desc">GTC limit partially fills. No separate NEW report — the TRADE reports are the acknowledgment.</div>
+        <div class="desc">Any order type can partially fill during matching. No separate NEW report — the TRADE reports are the acknowledgment. Only a surviving GTC limit remainder rests.</div>
       </div>
       <div class="transition-card">
         <div class="from-to">PENDING_NEW → FILLED</div>
@@ -132,18 +132,18 @@
       </div>
       <div class="transition-card">
         <div class="from-to">PENDING_NEW → REJECTED</div>
-        <div class="trigger">Trigger: RNG reject check</div>
-        <div class="desc">Simulated rejection based on reject_prob. One REJECTED Execution Report.</div>
+        <div class="trigger">Trigger: RNG reject check or failed-run settlement</div>
+        <div class="desc">Simulated rejection based on reject_prob, or an unprocessed order rejected after persistence loss. One REJECTED Execution Report.</div>
       </div>
       <div class="transition-card">
         <div class="from-to">PENDING_NEW → CANCELLED</div>
-        <div class="trigger">Trigger: cancel_order() before processed</div>
-        <div class="desc">Cancel arrives before process_order fires. Order removed without ever touching the book.</div>
+        <div class="trigger">Trigger: pending cancel, STP, or unfilled IOC/market remainder</div>
+        <div class="desc">A pending cancel request, self-trade prevention, or an unexecuted immediate-only remainder cancels an order before it rests.</div>
       </div>
       <div class="transition-card">
         <div class="from-to">NEW/PARTIAL → CANCELLED</div>
-        <div class="trigger">Trigger: cancel_order() or STP</div>
-        <div class="desc">Resting or partially filled order cancelled by request or self-trade prevention.</div>
+        <div class="trigger">Trigger: cancel_order(), STP, or IOC/market remainder</div>
+        <div class="desc">A resting or partially filled order is cancelled by request or self-trade prevention. A PARTIAL IOC/market order also cancels its unexecuted remainder.</div>
       </div>
     </div>
     <div class="source-ref">
@@ -225,7 +225,7 @@
       <span class="tag tag-amber">2.3</span>
       <h2 class="h2">Matching loop walkthrough</h2>
       <p class="lede">
-        A BUY 100 @ 100.25 GTC sweeps three ask levels. Each fill produces
+        A BUY 100 @ 100.25 GTC sweeps three orders across two ask levels. Each fill produces
         <b>two client execution reports — passive first, aggressor second —</b>
         and one buffered displayed-order execution for the passive order. The
         loop stops when <code class="ref">leaves_qty_lots</code> reaches zero.
@@ -493,6 +493,11 @@
             <td><code class="ref">INVALID_REQUEST</code> (STALE_RUN_GENERATION)</td>
           </tr>
           <tr>
+            <td>Queued cancel when the run fails after persistence loss</td>
+            <td>CancelReject; target order is unchanged</td>
+            <td><code class="ref">EXCHANGE_UNAVAILABLE</code></td>
+          </tr>
+          <tr>
             <td>Pending (not yet processed) — cancelable</td>
             <td>Cancel accepted → CANCELLED report</td>
             <td>—</td>
@@ -514,7 +519,7 @@
 
     <div class="notes">
       <div><span class="c">// </span>Cancel resolution: <code>MatchingEngine.cancel_order()</code></div>
-      <div><span class="c">// </span>All six <code>CancellationOutcome</code> values: <code>models.py</code></div>
+      <div><span class="c">// </span>All seven <code>CancellationOutcome</code> values: <code>models.py</code></div>
       <div><span class="c">// </span>Cancel-reject creation: <code>models.py create_cancel_reject()</code></div>
       <div><span class="c">// </span>Version bump occurs in the successful cancel commit</div>
     </div>
@@ -597,13 +602,13 @@
       desc: "GTC limit order resting in the book with zero fills. Cancelable. Transitions to: PARTIAL, FILLED, CANCELLED.",
       source: "models.py — OrderStatus.NEW" },
     { key: "PARTIAL", name: "PARTIAL", terminal: false,
-      desc: "GTC limit order with some fills, still resting. Cancelable. Transitions to: PARTIAL (more fills), FILLED, CANCELLED.",
+      desc: "Some quantity filled, with positive leaves. Can be an intermediate state for any order type during matching; only a surviving GTC limit remainder rests. Transitions to: PARTIAL (more fills), FILLED, CANCELLED.",
       source: "models.py — OrderStatus.PARTIAL" },
     { key: "FILLED", name: "FILLED", terminal: true,
       desc: "All quantity filled. Terminal — no further transitions possible. Cannot be canceled.",
       source: "models.py — OrderStatus.FILLED" },
     { key: "REJECTED", name: "REJECTED", terminal: true,
-      desc: "Rejected by RNG during process_order. Terminal. Contains reject_reason text.",
+      desc: "Rejected by RNG during process_order, or settled while pending after persistence loss fails the run. Terminal. Contains reject_reason text.",
       source: "models.py — OrderStatus.REJECTED" },
     { key: "CANCELLED", name: "CANCELLED", terminal: true,
       desc: "Canceled by request, STP, or market/IOC remainder. Terminal. No quantity left in book.",
@@ -639,7 +644,12 @@
   let speedMultiplier = 1;
   speedSlider.addEventListener("input", function() { speedMultiplier = parseInt(this.value); });
 
-  function spWait(ms) { return M.wait(ms / speedMultiplier); }
+  let matchingGeneration = 0;
+
+  async function spWait(ms, generation) {
+    await M.wait(ms / speedMultiplier);
+    return generation === matchingGeneration;
+  }
 
   function feedLine(tagText, tagClass, text) { M.logLine(bookFeed, tagText, tagClass, text); }
 
@@ -648,6 +658,8 @@
 
   function resetBookDisplay(initial) {
     currentInitial = Object.assign({}, initial);
+    const restingLevel = document.getElementById("lvl-resting-300");
+    if (restingLevel) restingLevel.remove();
     lvl10010.classList.remove("gone");
     lvl10010.style.maxHeight = "";
     lvl10020.classList.remove("gone");
@@ -671,6 +683,10 @@
   }
 
   function resetMatchDisplay(desc, initial, qty) {
+    // Reset and scenario changes invalidate every suspended matching animation.
+    matchingGeneration += 1;
+    matchRunBtn.disabled = false;
+    matchStepBtn.disabled = true;
     incomingDesc.textContent = desc;
     remQtyEl.textContent = String(qty);
     bestAskEl.textContent = "100.10";
@@ -679,19 +695,20 @@
     resetBookDisplay(initial);
   }
 
-  async function fillChip(key, matchQty, remainingAfter) {
+  async function fillChip(key, matchQty, remainingAfter, generation) {
     const chip = chips[key];
     chip.classList.add("hit");
-    await spWait(220);
+    if (!(await spWait(220, generation))) return false;
     const b = chip.querySelector("b");
     if (b) b.textContent = remainingAfter;
     if (remainingAfter <= 0) {
-      await spWait(180);
+      if (!(await spWait(180, generation))) return false;
       chip.classList.add("gone");
     } else {
-      await spWait(150);
+      if (!(await spWait(150, generation))) return false;
       chip.classList.remove("hit");
     }
+    return true;
   }
 
   async function runMatchingScenario(scenario) {
@@ -707,11 +724,12 @@
       orderQty = 200; orderPrice = 100.25; orderTif = "IOC";
     } else {
       initial = { A: 40, B: 30, C: 50, D: 60 };
-      desc = "SELL 30 @ 99.85 · GTC · ORD-300";
-      orderQty = 30; orderPrice = 99.85; orderTif = "GTC";
+      desc = "SELL 30 @ 99.95 · GTC · ORD-300";
+      orderQty = 30; orderPrice = 99.95; orderTif = "GTC";
     }
 
     resetMatchDisplay(desc, initial, orderQty);
+    const generation = matchingGeneration;
     matchRunBtn.disabled = true;
     matchStepBtn.disabled = true;
 
@@ -722,103 +740,113 @@
     if (scenario === "gtc") {
       // Fill 1: A, 40 @ 100.10
       feedLine("T+15", "a", "100.10 ≤ 100.25 → crosses. Matching head of FIFO: Order A.");
-      await spWait(400);
+      if (!(await spWait(400, generation))) return;
       let matchQty = Math.min(remaining, 40);
-      await fillChip("A", matchQty, 40 - matchQty);
+      if (!(await fillChip("A", matchQty, 40 - matchQty, generation))) return;
       remaining -= matchQty; cumQty += matchQty; notional += matchQty * 100.10;
       remQtyEl.textContent = remaining; M.pulse(remQtyEl);
       feedLine("FILL", "a", matchQty + " @ 100.10 — Order A <b>FILLED</b>, level exhausted.");
       feedLine("→ A report", "g", "TRADE · cumQty 40 · <b>FILLED</b> (passive first)");
       feedLine("→ ORD-100", "", "TRADE · cumQty " + cumQty + " · <b>PARTIAL</b> (aggressor second)");
-      await spWait(250);
+      if (!(await spWait(250, generation))) return;
       lvl10010.style.maxHeight = lvl10010.scrollHeight + "px";
       void lvl10010.offsetHeight;
       lvl10010.classList.add("gone");
       lvl10010.style.maxHeight = "0px";
       bestAskEl.textContent = "100.20"; M.pulse(bestAskEl);
-      await spWait(500);
+      if (!(await spWait(500, generation))) return;
 
       // Fill 2: B, 30 @ 100.20
       feedLine("T+15", "a", "100.20 ≤ 100.25 → crosses. FIFO head: Order B.");
-      await spWait(350);
+      if (!(await spWait(350, generation))) return;
       matchQty = Math.min(remaining, 30);
-      await fillChip("B", matchQty, 30 - matchQty);
+      if (!(await fillChip("B", matchQty, 30 - matchQty, generation))) return;
       remaining -= matchQty; cumQty += matchQty; notional += matchQty * 100.20;
       remQtyEl.textContent = remaining; M.pulse(remQtyEl);
       feedLine("FILL", "a", matchQty + " @ 100.20 — Order B <b>FILLED</b>.");
       feedLine("→ B report", "g", "TRADE · cumQty 30 · <b>FILLED</b>");
       feedLine("→ ORD-100", "", "TRADE · cumQty " + cumQty + " · <b>PARTIAL</b>");
       lvl10020.querySelector(".qty-total").textContent = "50 total";
-      await spWait(500);
+      if (!(await spWait(500, generation))) return;
 
       // Fill 3: C, 30 of 50 @ 100.20
       feedLine("T+15", "a", "Level 100.20 survives → continue FIFO to Order C.");
-      await spWait(350);
+      if (!(await spWait(350, generation))) return;
       matchQty = Math.min(remaining, 50);
-      await fillChip("C", matchQty, 50 - matchQty);
+      if (!(await fillChip("C", matchQty, 50 - matchQty, generation))) return;
       remaining -= matchQty; cumQty += matchQty; notional += matchQty * 100.20;
       remQtyEl.textContent = remaining; M.pulse(remQtyEl);
       lvl10020.querySelector(".qty-total").textContent = (50 - matchQty) + " total";
       feedLine("FILL", "a", matchQty + " @ 100.20 — Order C <b>PARTIAL</b>, 20 left.");
       feedLine("→ C report", "g", "TRADE · cumQty 30 · <b>PARTIAL</b>");
       feedLine("→ ORD-100", "", "TRADE · cumQty " + cumQty + " · <b>FILLED</b>");
-      await spWait(400);
+      if (!(await spWait(400, generation))) return;
 
       feedLine("T+15", "a", "remaining_qty=0 → loop ends. GTC, filled → no remainder action.");
-      await spWait(300);
+      if (!(await spWait(300, generation))) return;
       var avgPx = (notional / cumQty).toFixed(2);
       bookSummary.innerHTML = "status <b class='status-filled'>FILLED</b> · cumQty <b>" + cumQty + "</b> · avgPx <b>" + avgPx + "</b>";
 
     } else if (scenario === "ioc") {
       // Same fills but order exhausts book with remainder
       feedLine("T+15", "a", "100.10 ≤ 100.25 → crosses. Matching Order A.");
-      await spWait(350);
+      if (!(await spWait(350, generation))) return;
       let m = Math.min(remaining, 40);
-      await fillChip("A", m, 40 - m);
+      if (!(await fillChip("A", m, 40 - m, generation))) return;
       remaining -= m; cumQty += m; notional += m * 100.10;
       remQtyEl.textContent = remaining; M.pulse(remQtyEl);
       feedLine("FILL", "a", m + " @ 100.10 — Order A FILLED, level 100.10 exhausted.");
       lvl10010.classList.add("gone");
       bestAskEl.textContent = "100.20"; M.pulse(bestAskEl);
-      await spWait(400);
+      if (!(await spWait(400, generation))) return;
 
       feedLine("T+15", "a", "100.20 ≤ 100.25 → crosses. Order B.");
-      await spWait(300);
+      if (!(await spWait(300, generation))) return;
       m = Math.min(remaining, 30);
-      await fillChip("B", m, 30 - m);
+      if (!(await fillChip("B", m, 30 - m, generation))) return;
       remaining -= m; cumQty += m; notional += m * 100.20;
       remQtyEl.textContent = remaining; M.pulse(remQtyEl);
       feedLine("FILL", "a", m + " @ 100.20 — Order B FILLED.");
       lvl10020.querySelector(".qty-total").textContent = "50 total";
-      await spWait(350);
+      if (!(await spWait(350, generation))) return;
 
       feedLine("T+15", "a", "Order C.");
-      await spWait(250);
+      if (!(await spWait(250, generation))) return;
       m = Math.min(remaining, 50);
-      await fillChip("C", m, 50 - m);
+      if (!(await fillChip("C", m, 50 - m, generation))) return;
       remaining -= m; cumQty += m; notional += m * 100.20;
       remQtyEl.textContent = remaining; M.pulse(remQtyEl);
       lvl10020.querySelector(".qty-total").textContent = (50 - m) + " total";
       feedLine("FILL", "a", m + " @ 100.20 — Order C FILLED, level 100.20 exhausted.");
       lvl10020.classList.add("gone");
       bestAskEl.textContent = "100.30"; M.pulse(bestAskEl);
-      await spWait(400);
+      if (!(await spWait(400, generation))) return;
 
       feedLine("T+15", "a", "100.30 > 100.25 → price limit reached. Stop.");
-      await spWait(300);
+      if (!(await spWait(300, generation))) return;
       feedLine("IOC", "", "remaining_qty=" + remaining + " → IOC remainder canceled.");
       feedLine("→ ORD-200", "g", "CANCELED · " + remaining + " lots unexecuted · <b>CANCELLED</b>");
       var avgPx = notional > 0 ? (notional / cumQty).toFixed(2) : "—";
       bookSummary.innerHTML = "status <b>CANCELLED</b> · cumQty <b>" + cumQty + "</b> · canceledQty <b>" + remaining + "</b> · avgPx <b>" + avgPx + "</b>";
 
     } else {
-      // Scenario 3: SELL 30 @ 99.85 — crosses nothing
-      feedLine("T+15", "a", "Best bid 99.90 < 99.85 → does not cross. No fills.");
-      await spWait(400);
+      // Scenario 3: SELL 30 @ 99.95 — crosses nothing
+      const restingPrice = orderPrice.toFixed(2);
+      feedLine("T+15", "a", "Best bid 99.90 < " + restingPrice + " → does not cross. No fills.");
+      if (!(await spWait(400, generation))) return;
       feedLine("NEW", "g", "GTC, zero fills → rests as NEW. One NEW report.");
-      await spWait(300);
-      feedLine("▸", "", "Order 300 rests at 99.85 on the ask side.");
-      bookSummary.innerHTML = "status <b>NEW</b> · cumQty <b>0</b> · resting <b>" + orderQty + " @ 99.85</b>";
+      if (!(await spWait(300, generation))) return;
+      const restingLevel = document.createElement("div");
+      restingLevel.id = "lvl-resting-300";
+      restingLevel.className = "level ask";
+      restingLevel.innerHTML =
+        '<div class="level-head"><span class="price">' + restingPrice +
+        '</span><span class="qty-total">' + orderQty + ' total</span></div>' +
+        '<div class="chips"><span class="chip">ORD-300 · <b>' + orderQty + '</b></span></div>';
+      lvl10010.parentElement.insertBefore(restingLevel, lvl10010);
+      bestAskEl.textContent = restingPrice; M.pulse(bestAskEl);
+      feedLine("▸", "", "Order 300 rests at " + restingPrice + " on the ask side.");
+      bookSummary.innerHTML = "status <b>NEW</b> · cumQty <b>0</b> · resting <b>" + orderQty + " @ " + restingPrice + "</b>";
     }
 
     matchRunBtn.disabled = false;
@@ -836,7 +864,7 @@
     } else if (scenario === "ioc") {
       resetMatchDisplay("BUY 200 @ 100.25 · IOC · ORD-200", DEFAULT_INITIAL, 200);
     } else {
-      resetMatchDisplay("SELL 30 @ 99.85 · GTC · ORD-300", DEFAULT_INITIAL, 30);
+      resetMatchDisplay("SELL 30 @ 99.95 · GTC · ORD-300", DEFAULT_INITIAL, 30);
     }
   }
 
