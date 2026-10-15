@@ -9,7 +9,7 @@ from src.mockx.api import _book_payload
 from src.mockx.configuration import MAX_INSTRUMENT_UNITS, validate_config
 from src.mockx.engine import MatchingEngine
 from src.mockx.fix_fields import execution_report_fields
-from src.mockx.instruments import InstrumentCatalog
+from src.mockx.instruments import Instrument, InstrumentCatalog
 from src.mockx.latency import LatencyScheduler
 from src.mockx.metrics import MetricsCollector
 from src.mockx.models import (
@@ -49,26 +49,27 @@ def catalog(
         instrument["price_display_precision"] = price_precision
     if quantity_precision is not None:
         instrument["quantity_display_precision"] = quantity_precision
-    config = validate_config(
-        {
-            "exchange_name": "Exact",
-            "instruments": {"TEST": instrument},
-            "latency": {"network_ms": 0, "engine_ms": 0},
-            "execution": {"reject_prob": 0.0, "random_seed": 42},
-            "admin_api": {
-                "host": "127.0.0.1",
-                "port": 8000,
-                "enabled": True,
-            },
-            "fix": {"enabled": False, "session_participants": {}},
-            "scheduler": {"mode": "external"},
-            "websocket": {},
-            "cors_origins": [],
-            "prometheus": {"enabled": False},
-        },
-        environ={},
+    price_precision = (
+        price_precision
+        if price_precision is not None
+        else max(0, -Decimal(tick_size).as_tuple().exponent)
     )
-    return InstrumentCatalog.from_config(config)
+    quantity_precision = (
+        quantity_precision
+        if quantity_precision is not None
+        else max(0, -Decimal(lot_size).as_tuple().exponent)
+    )
+    return InstrumentCatalog(
+        {
+            "TEST": Instrument(
+                "TEST",
+                Decimal(tick_size),
+                Decimal(lot_size),
+                price_precision,
+                quantity_precision,
+            )
+        }
+    )
 
 
 def raw_order(**overrides) -> RawOrderInput:
@@ -106,7 +107,6 @@ def engine_stack(
     snapshots = []
     engine.on_execution_report = reports.append
     engine.on_trade = trades.append
-    engine.on_market_data_update = snapshots.append
     return engine, reports, trades, snapshots
 
 
@@ -126,9 +126,7 @@ def submit(
             participant_id=participant_id,
             symbol="TEST",
             side=side,
-            order_type=(
-                OrderType.MARKET if price_ticks is None else OrderType.LIMIT
-            ),
+            order_type=(OrderType.MARKET if price_ticks is None else OrderType.LIMIT),
             order_qty_lots=order_qty_lots,
             price_ticks=price_ticks,
             tif=tif,
@@ -212,9 +210,7 @@ def test_very_small_and_signed_64_bit_boundary_values_are_exact():
         price_precision=0,
         quantity_precision=0,
     ).require("TEST")
-    assert large.price_to_ticks(str(MAX_INSTRUMENT_UNITS)) == (
-        MAX_INSTRUMENT_UNITS
-    )
+    assert large.price_to_ticks(str(MAX_INSTRUMENT_UNITS)) == (MAX_INSTRUMENT_UNITS)
     with pytest.raises(Exception, match="signed 64-bit"):
         large.price_to_ticks(str(MAX_INSTRUMENT_UNITS + 1))
 
@@ -264,15 +260,13 @@ def test_partial_fills_and_cancel_preserve_integer_conservation():
         )
     )
     assert (
-        passive.filled_qty_lots
-        + passive.canceled_qty_lots
-        + passive.leaves_qty_lots
+        passive.filled_qty_lots + passive.canceled_qty_lots + passive.leaves_qty_lots
     ) == passive.order_qty_lots
     assert reports[-1].cum_qty_lots == 7
     assert not engine.books["TEST"].is_resting(passive_id)
 
 
-def test_fix_rest_websocket_and_questdb_values_are_canonical_strings():
+def test_fix_and_readonly_payload_values_are_canonical_and_journal_remains_native():
     instruments = catalog(
         tick_size="0.1",
         lot_size="0.1",
@@ -288,7 +282,7 @@ def test_fix_rest_websocket_and_questdb_values_are_canonical_strings():
         order_qty_lots=3,
         price_ticks=3,
     )
-    resting_payload = _book_payload(snapshots[-1])
+    resting_payload = _book_payload(engine.get_market_data_snapshot("TEST"))
     assert resting_payload["asks"][0]["price"] == "0.3"
     assert resting_payload["asks"][0]["qty"] == "0.3"
     assert "price_ticks" not in resting_payload["asks"][0]
@@ -318,21 +312,14 @@ def test_fix_rest_websocket_and_questdb_values_are_canonical_strings():
         instruments=instruments,
         prometheus_enabled=False,
     )
-    records = []
-    metrics._create_record = lambda table, symbols, values, timestamp: (
-        records.append((table, symbols, values, timestamp))
-    )
     metrics.bind_engine(engine)
     assert metrics.record_trade(trades[0])
-    trade_fields = next(
-        values
-        for table, _, values, _ in records
-        if table == "trades"
-    )
-    assert trade_fields["price_ticks"] == 3
-    assert trade_fields["qty_lots"] == 3
-    assert trade_fields["tick_size"] == "0.1"
-    assert trade_fields["lot_size"] == "0.1"
-    assert trade_fields["price"] == "0.3"
-    assert trade_fields["quantity"] == "0.3"
-    assert "0.30000000000000004" not in str(trade_fields)
+    from src.mockx.effects import CommandEffect
+    from src.mockx.journal import encode_effect
+
+    kind, fields = encode_effect(CommandEffect("trade", trades[0]))
+    assert kind == "TRADE"
+    assert fields["price_ticks"] == 3
+    assert fields["qty_lots"] == 3
+    assert "price" not in fields and "quantity" not in fields
+    assert metrics.snapshot().traded_quantity == "0.3"

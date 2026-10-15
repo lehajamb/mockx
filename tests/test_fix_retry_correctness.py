@@ -17,8 +17,7 @@ from src.mockx.configuration import validate_config
 from src.mockx.main import MockExchange
 
 from .test_fix_ingress_pipeline import _cancel, _exchange, _new_order, _start
-from .api_helpers import api_config
-from .test_persistence_run_failure import _saturate_on_report
+from .api_helpers import api_config, make_native_exchange, cleanup_native_exchanges
 
 
 def _message(kind: str, sequence: int = 1):
@@ -80,7 +79,7 @@ async def test_reconnect_invalidates_old_deadline_and_obeys_cycle_limit(kind, fa
         ]
         before_obsolete = queue.snapshot(now=start)
 
-        assert await exchange.lifecycle.advance_to(start + timedelta(milliseconds=1000)) == 1
+        assert await exchange.lifecycle.advance_to(start + timedelta(milliseconds=1000)) == 2
         assert queue.snapshot(now=start) == before_obsolete
         assert [timestamp for timestamp, _ in attempts] == [
             start, start + timedelta(milliseconds=500)
@@ -221,7 +220,7 @@ async def test_duplicate_retry_commands_are_consumed_once_at_equal_timestamp():
         exchange.scheduler.schedule_event("fix_delivery_due", command, 1000)
         assert await exchange.lifecycle.advance_to(
             start + timedelta(milliseconds=1000)
-        ) == 3
+        ) == 4
         assert [timestamp for _, timestamp in attempts] == [
             start, start + timedelta(milliseconds=1000)
         ]
@@ -364,7 +363,7 @@ async def test_failed_run_keeps_valid_retry_latency_in_both_clock_modes(mode, mo
     raw["fix"]["session_participants"] = {"FIX.4.4:MOCKX->CLIENT": "buyer"}
     raw["scheduler"].update(mode=mode, interval_ms=1)
     raw["latency"] = {"inbound_ms": 0, "engine_ms": 0, "outbound_ms": 7}
-    exchange = MockExchange(validate_config(raw, environ={}))
+    exchange = make_native_exchange(validate_config(raw, environ={}))
     sessions, delivered = await _start(exchange)
     queue = exchange.fix_app.delivery_queue
     queue.retry_interval_ms = 20
@@ -390,7 +389,11 @@ async def test_failed_run_keeps_valid_retry_latency_in_both_clock_modes(mode, mo
 
     exchange.fix_app.transport_sender = sender
     try:
-        _saturate_on_report(exchange, monkeypatch)
+        original = exchange.engine.on_execution_report
+        def lose_required_record(report):
+            original(report)
+            exchange.metrics.mark_integrity_failure("Required record lost after report creation")
+        monkeypatch.setattr(exchange.engine, "on_execution_report", lose_required_record)
         exchange.fix_app.fromApp(_new_order("FAILED-RETRY", 1), sessions["CLIENT"])
         if mode == "external":
             await exchange.fix_app.wait_for_ingress()

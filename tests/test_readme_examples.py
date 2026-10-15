@@ -23,11 +23,10 @@ def test_documented_core_routes_exist_and_openapi_generates():
         "/stats",
         "/metrics",
         "/book/{symbol}",
-        "/ws/{symbol}",
-        "/ui/{symbol}",
         "/admin/advance-time",
         "/api/v1/session/start",
         "/api/v1/session/end",
+        "/api/v1/checkpoints",
     }
     actual_routes = {route.path for route in exchange.app.routes}
     assert expected_routes <= actual_routes
@@ -67,7 +66,7 @@ def test_http_order_requests_return_404_without_exchange_mutation(body):
     exchange = make_exchange()
     with TestClient(exchange.app) as client:
         assert client.post(
-            "/api/v1/session/start", json={"run_id": "fix-only"}
+            "/api/v1/session/start", json={"scenario_label": "fix-only"}
         ).status_code == 200
         process_order(exchange, "RESTING", Side.SELL, 5, 101)
         exchange.engine.submit_order(
@@ -202,15 +201,15 @@ def test_readme_documents_actual_routes_and_external_clock_step():
         "/stats",
         "/metrics",
         "/book/{symbol}",
-        "/ws/{symbol}",
         "/admin/advance-time",
         "/api/v1/session/start",
         "/api/v1/session/end",
+        "/api/v1/checkpoints",
     ):
         assert route in readme
     assert '"milliseconds":10' in readme
     assert "Full FIX 4.4 support" not in readme
-    assert "Grafana is intentionally not included" in readme
+    assert "Grafana" in readme
 
 
 def test_readme_documents_only_the_questdb_persistence_contract():
@@ -218,10 +217,11 @@ def test_readme_documents_only_the_questdb_persistence_contract():
     obsolete_database_name = "In" + "fluxDB"
     obsolete_config_key = "ts" + "db:"
 
-    assert "QuestDB 9.4.3" in readme
+    assert "questdb/questdb:9.4.3" in (ROOT / "docker-compose.yml").read_text()
     assert "TIMESTAMP_NS" in readme
-    assert "(timestamp, run_id, metric_event_sequence)" in readme
-    assert "questdb-data" in readme
+    assert "event_sequence" in readme
+    assert "exchange_events" in readme
+    assert "questdb-native-data" in readme
     assert obsolete_database_name not in readme
     assert obsolete_config_key not in readme
 
@@ -230,7 +230,7 @@ def test_readme_authenticates_the_questdb_health_example():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert (
-        "curl --fail --user mockx-user:mockx-password "
+        "curl.exe --fail --user mockx-user:mockx-password "
         "http://localhost:9003"
     ) in readme
     assert "curl -f http://localhost:9003" not in readme
@@ -285,7 +285,7 @@ def test_documented_in_process_session_workflow_processes_an_order():
     with TestClient(exchange.app) as client:
         started = client.post(
             "/api/v1/session/start",
-            json={"run_id": "quickstart-test"},
+            json={"scenario_label": "quickstart-test"},
         )
         assert started.status_code == 200
 

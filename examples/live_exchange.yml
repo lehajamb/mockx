@@ -1,8 +1,8 @@
-exchange_name: "MockX-Live-Demo"
+exchange_name: MockX-Live-Demo
 instruments:
   BTC-USDT:
-    tick_size: "0.01"
-    lot_size: "0.001"
+    tick_size: '0.01'
+    lot_size: '0.001'
     price_display_precision: 2
     quantity_display_precision: 3
 latency:
@@ -12,42 +12,27 @@ execution:
   reject_prob: 0.0
   random_seed: 42
 admin_api:
-  host: "127.0.0.1"
+  host: 127.0.0.1
   port: 8001
   enabled: true
 fix:
-  enabled: true
   delivery_retry_interval_ms: 1000
   delivery_max_attempts_per_cycle: 3
   delivery_terminal_retention_records: 10000
   session_participants:
-    "FIX.4.4:MOCKX_DEMO->liquidity_bot": "demo-liquidity"
-    "FIX.4.4:MOCKX_DEMO->taker_bot": "demo-taker"
+    FIX.4.4:MOCKX_DEMO->liquidity_bot: demo-liquidity
+    FIX.4.4:MOCKX_DEMO->taker_bot: demo-taker
 scheduler:
-  mode: "external"
+  mode: external
   interval_ms: 10
   max_advance_ms: 86400000
   max_events_per_advance: 100000
-websocket:
-  heartbeat_interval_seconds: 10
-  outbound_queue_capacity: 8
-  send_timeout_seconds: 5
-  heartbeat_stale_seconds: 30
-  market_data_stale_seconds: 30
-  fallback_poll_seconds: 2
-  reconnect_initial_seconds: 1
-  reconnect_max_seconds: 30
-  staleness_check_seconds: 1
-cors_origins: []
 prometheus:
   enabled: true
 itch:
-  enabled: false
-  market_category: " "
-  financial_status: " "
+  market_category: ' '
+  financial_status: ' '
   round_lot_size: 1
-glimpse:
-  enabled: false
 soupbintcp:
   host: 127.0.0.1
   port: 18001
@@ -60,3 +45,20 @@ soupbintcp:
   replay_ttl_ms: 60000
   max_cached_sessions: 32
   max_cached_bytes: 67108864
+moldudp64:
+  multicast_group: 239.192.0.1
+  multicast_port: 18000
+  session_prefix: MX
+  heartbeat_interval_ms: 1000
+  max_payload_bytes: 1400
+  interface_address: 0.0.0.0
+  ttl: 1
+questdb:
+  url: http://127.0.0.1:9000
+  health_url: http://127.0.0.1:9003
+  username: mockx-user
+  password: mockx-password
+  flush_batch_size: 1000
+  max_buffer_records: 10000
+  max_buffer_bytes: 67108864
+  flush_interval_ms: 250

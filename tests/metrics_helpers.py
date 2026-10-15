@@ -11,7 +11,7 @@ def questdb_identity(
         record.table,
         record.timestamp_ns,
         record.run_id,
-        record.metric_event_sequence,
+        record.event_sequence,
     )
 
 

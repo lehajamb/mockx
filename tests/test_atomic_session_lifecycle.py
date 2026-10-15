@@ -10,7 +10,6 @@ import re
 from httpx import ASGITransport, AsyncClient
 import pytest
 
-from src.mockx.api import market_data_message
 from src.mockx.configuration import validate_config
 from src.mockx.gateway import fix
 from src.mockx.lifecycle import (
@@ -31,7 +30,9 @@ from src.mockx.models import (
     TimeInForce,
 )
 
+from .api_helpers import cleanup_native_exchanges
 from .api_helpers import api_config, make_exchange
+from .api_helpers import make_native_exchange
 
 
 SESSION_A = "FIX.4.4:CLIENT-A->MOCKX"
@@ -94,13 +95,13 @@ async def test_two_concurrent_start_requests_have_exactly_one_success(
     first = asyncio.create_task(
         client.post(
             "/api/v1/session/start",
-            json={"run_id": "first"},
+            json={"scenario_label": "first"},
         )
     )
     await entered.wait()
     second = await client.post(
         "/api/v1/session/start",
-        json={"run_id": "second"},
+        json={"scenario_label": "second"},
     )
     release.set()
     first_response = await first
@@ -111,7 +112,7 @@ async def test_two_concurrent_start_requests_have_exactly_one_success(
         "LIFECYCLE_TRANSITION_IN_PROGRESS"
     )
     assert exchange.lifecycle.state == LifecycleState.ACTIVE
-    assert exchange.lifecycle.run_id == "first"
+    assert exchange.lifecycle.scenario_label == "first"
 
     await client.aclose()
     await exchange.stop_components()
@@ -123,11 +124,11 @@ async def test_active_start_is_409_and_empty_end_has_null_public_fields():
     client = await _open_client(exchange)
     started = await client.post(
         "/api/v1/session/start",
-        json={"run_id": "public-contract"},
+        json={"scenario_label": "public-contract"},
     )
     repeated = await client.post(
         "/api/v1/session/start",
-        json={"run_id": "duplicate"},
+        json={"scenario_label": "duplicate"},
     )
     ended = await client.post("/api/v1/session/end")
     empty = await client.post("/api/v1/session/end")
@@ -165,7 +166,7 @@ async def test_start_serializes_end_and_time_advance(monkeypatch):
     starting = asyncio.create_task(
         client.post(
             "/api/v1/session/start",
-            json={"run_id": "racing-start"},
+            json={"scenario_label": "racing-start"},
         )
     )
     await entered.wait()
@@ -219,7 +220,7 @@ async def test_fix_order_during_starting_is_session_rejected(monkeypatch):
     starting = asyncio.create_task(
         client.post(
             "/api/v1/session/start",
-            json={"run_id": "fix-starting"},
+            json={"scenario_label": "fix-starting"},
         )
     )
     await entered.wait()
@@ -250,7 +251,7 @@ async def test_fix_order_during_ending_is_session_rejected(monkeypatch):
     assert (
         await client.post(
             "/api/v1/session/start",
-            json={"run_id": "fix-ending"},
+            json={"scenario_label": "fix-ending"},
         )
     ).status_code == 200
 
@@ -306,7 +307,7 @@ async def test_mid_reset_start_failure_enters_failed_and_stays_non_ready(
     monkeypatch.setattr(exchange.engine, "reset_run_state", fail_reset)
     response = await client.post(
         "/api/v1/session/start",
-        json={"run_id": "broken"},
+        json={"scenario_label": "broken"},
     )
 
     assert response.status_code == 503
@@ -316,7 +317,7 @@ async def test_mid_reset_start_failure_enters_failed_and_stays_non_ready(
     assert (await client.get("/readyz")).status_code == 503
     repeated = await client.post(
         "/api/v1/session/start",
-        json={"run_id": "retry"},
+        json={"scenario_label": "retry"},
     )
     assert repeated.status_code == 503
     assert repeated.json()["detail"]["code"] == "LIFECYCLE_FAILED"
@@ -332,7 +333,7 @@ async def test_end_flush_failure_restores_active_for_retry(monkeypatch):
     assert (
         await client.post(
             "/api/v1/session/start",
-            json={"run_id": "end-retry"},
+            json={"scenario_label": "end-retry"},
         )
     ).status_code == 200
 
@@ -340,9 +341,9 @@ async def test_end_flush_failure_restores_active_for_retry(monkeypatch):
     failed = await client.post("/api/v1/session/end")
 
     assert failed.status_code == 503
-    assert failed.json()["detail"]["code"] == "METRICS_FLUSH_FAILED"
+    assert failed.json()["detail"]["code"] == "JOURNAL_FLUSH_FAILED"
     assert exchange.lifecycle.state == LifecycleState.ACTIVE
-    assert exchange.lifecycle.run_id == "end-retry"
+    assert exchange.lifecycle.scenario_label == "end-retry"
 
     await client.aclose()
     await exchange.stop_components()
@@ -381,7 +382,7 @@ async def _rejection_pattern(
 async def test_rng_reseeds_and_replay_differs_only_by_generation_prefix():
     config = api_config()
     config["execution"]["reject_prob"] = 0.5
-    exchange = MockExchange(validate_config(config, environ={}))
+    exchange = make_native_exchange(validate_config(config, environ={}))
 
     first_outcomes, first_ids = await _rejection_pattern(
         exchange,
@@ -394,7 +395,9 @@ async def test_rng_reseeds_and_replay_differs_only_by_generation_prefix():
         12,
     )
 
-    fresh = MockExchange(validate_config(config, environ={}))
+    fresh_config = api_config()
+    fresh_config["execution"]["reject_prob"] = 0.5
+    fresh = make_native_exchange(validate_config(fresh_config, environ={}))
     fresh_outcomes, _ = await _rejection_pattern(fresh, "fresh", 12)
     normalize = lambda value: re.sub(r"^G\d{8}", "G", value)
 
@@ -636,97 +639,32 @@ async def test_end_freezes_pending_events_until_next_start_discards_them():
         )
 
     assert getattr(caught.value, "code", None) == "SESSION_NOT_ACTIVE"
-    assert ended.final_stats.scheduler.pending_events == 1
-    assert exchange.scheduler.get_pending_count() == 1
+    assert ended.final_stats.scheduler.pending_events == 2
+    assert sum(event.event_type == "probe" for event in exchange.scheduler.event_queue) == 1
     assert handled == []
 
     await exchange.lifecycle.start_session("after-pending")
-    assert exchange.scheduler.get_pending_count() == 0
+    assert sum(event.event_type == "probe" for event in exchange.scheduler.event_queue) == 0
     assert handled == []
 
 
-class _FakeWebSocket:
-    def __init__(self):
-        self.closed = False
-        self.messages = []
 
-    async def close(self, code=1000):
-        self.closed = True
 
-    async def send_json(self, message):
-        self.messages.append(message)
 
 
 @pytest.mark.asyncio
-async def test_start_closes_websockets_and_stale_generation_is_not_broadcast():
-    exchange = make_exchange()
-    old_client = _FakeWebSocket()
-    second_old_client = _FakeWebSocket()
-    initial = exchange.engine.get_market_data_snapshot("TEST")
-    old_connection = await exchange.api.registry.register(
-        "TEST",
-        old_client,
-        market_data_message(initial).model_dump(mode="json"),
-        initial_sequence=initial.sequence,
-    )
-    second_old_connection = await exchange.api.registry.register(
-        "TEST",
-        second_old_client,
-        market_data_message(initial).model_dump(mode="json"),
-        initial_sequence=initial.sequence,
-    )
-    await exchange.lifecycle.start_session("ws-one")
-    old_snapshot = exchange.engine.get_market_data_snapshot("TEST")
-
-    assert old_client.closed
-    assert second_old_client.closed
-    assert old_connection.sender_task is not None
-    assert old_connection.sender_task.done()
-    assert second_old_connection.sender_task is not None
-    assert second_old_connection.sender_task.done()
-    assert await exchange.api.registry.connection_count() == 0
-    assert exchange.metrics.websocket_metrics_snapshot()["active_clients"] == 0
-    assert exchange.metrics.websocket_metrics_snapshot()["queue_depth"] == 0
-
-    await exchange.lifecycle.end_session()
-    await exchange.lifecycle.start_session("ws-two")
-    new_client = _FakeWebSocket()
-    current = exchange.engine.get_market_data_snapshot("TEST")
-    new_connection = await exchange.api.registry.register(
-        "TEST",
-        new_client,
-        market_data_message(current).model_dump(mode="json"),
-        initial_sequence=current.sequence,
-    )
-    for _ in range(100):
-        if new_client.messages:
-            break
-        await asyncio.sleep(0)
-    messages_before = list(new_client.messages)
-    await exchange.api.broadcast_market_data(old_snapshot)
-
-    assert new_client.messages == messages_before
-    await exchange.api.registry.disconnect(new_connection)
-
-
-@pytest.mark.asyncio
-async def test_transition_time_websocket_registration_and_realtime_tick_are_gated(
+async def test_transition_time_realtime_tick_is_gated(
     monkeypatch,
 ):
     exchange = make_exchange()
     entered = asyncio.Event()
     release = asyncio.Event()
     original_flush = exchange.metrics.flush
-    registered = False
 
     async def paused_flush():
         entered.set()
         await release.wait()
         return await original_flush()
-
-    async def register():
-        nonlocal registered
-        registered = True
 
     monkeypatch.setattr(exchange.metrics, "flush", paused_flush)
     starting = asyncio.create_task(
@@ -735,16 +673,10 @@ async def test_transition_time_websocket_registration_and_realtime_tick_are_gate
     await entered.wait()
     initial_time = exchange.scheduler.current_time
 
-    with pytest.raises(LifecycleError) as websocket_error:
-        await exchange.lifecycle.websocket_snapshot(register)
     realtime_events = await exchange.lifecycle.advance_realtime_by(
         timedelta(milliseconds=10)
     )
 
-    assert getattr(websocket_error.value, "code", None) == (
-        "LIFECYCLE_TRANSITION_IN_PROGRESS"
-    )
-    assert not registered
     assert realtime_events == 0
     assert exchange.scheduler.current_time == initial_time
 

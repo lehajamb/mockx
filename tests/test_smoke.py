@@ -1,10 +1,11 @@
 from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
+
 """Smoke tests for the mock exchange."""
 
 import pytest
 import asyncio
 from pathlib import Path
-from src.mockx.main import MockExchange
+from .api_helpers import make_native_exchange as MockExchange
 from src.mockx.cli import load_config
 from src.mockx.configuration import validate_config
 from src.mockx.models import NewOrderCommand, Order, OrderStatus, Side, TimeInForce
@@ -13,6 +14,7 @@ from .api_helpers import api_config
 
 
 FIX_CONFIG = Path(__file__).resolve().parents[1] / "configs" / "mockx1.cfg"
+
 
 @pytest.fixture
 def test_config():
@@ -70,8 +72,12 @@ async def test_engine_smoke():
 
     # --- Assertions ---
     # 1. Check the status of both orders
-    assert buy_order.status == OrderStatus.FILLED, f"Buy order status was {buy_order.status}"
-    assert sell_order.status == OrderStatus.PARTIAL, f"Sell order status was {sell_order.status}"
+    assert (
+        buy_order.status == OrderStatus.FILLED
+    ), f"Buy order status was {buy_order.status}"
+    assert (
+        sell_order.status == OrderStatus.PARTIAL
+    ), f"Sell order status was {sell_order.status}"
 
     # 2. Check filled quantities
     assert buy_order.filled_qty_lots == 5
@@ -85,10 +91,9 @@ async def test_engine_smoke():
     book = ex.engine.get_order_book_snapshot("TEST")
     assert book.get_best_bid_ticks() is None, "Book should have no bids"
     assert book.get_best_ask_ticks() == 100, "Book should have a resting ask"
-    assert (
-        book.asks[0].level_qty_lots == 5
-    ), "Resting ask quantity should be 5"
-        
+    assert book.asks[0].level_qty_lots == 5, "Resting ask quantity should be 5"
+
+
 def test_config_loading():
     """Test configuration loading."""
     config = validate_config(api_config(), environ={})
@@ -107,6 +112,10 @@ instruments:
 latency: {network_ms: 0, engine_ms: 0}
 execution: {reject_prob: 0.0, random_seed: 42}
 admin_api: {host: 127.0.0.1, port: 8999}
+fix: {session_participants: {TEST: participant}}
+questdb: {url: "http://localhost:9000", health_url: "http://localhost:9003"}
+moldudp64: {multicast_port: 18000}
+soupbintcp: {port: 18001, credentials: {TEST: PASSWORD}}
 """.strip(),
         encoding="utf-8",
     )
@@ -122,7 +131,11 @@ instruments:
 latency: {network_ms: 0, engine_ms: 0}
 execution: {reject_prob: 0.0, random_seed: 42}
 admin_api: {host: 127.0.0.1, port: 8999}
-fix: {delivery_retry_interval_ms: 0}
+fix: {session_participants: {TEST: participant}}
+questdb: {url: "http://localhost:9000", health_url: "http://localhost:9003"}
+moldudp64: {multicast_port: 18000}
+soupbintcp: {port: 18001, credentials: {TEST: PASSWORD}}
+fix: {session_participants: {TEST: participant}, delivery_retry_interval_ms: 0}
 """.strip(),
         encoding="utf-8",
     )
@@ -138,11 +151,11 @@ async def test_api_endpoints(test_config):
     """Test basic API endpoints."""
     from src.mockx.api import create_app
     from httpx import AsyncClient, ASGITransport
-    
+
     # Create minimal engine
     ex = MockExchange(test_config)
     app = ex.app
-    
+
     # Use ASGITransport to wrap the FastAPI app
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -150,17 +163,17 @@ async def test_api_endpoints(test_config):
         response = await client.get("/healthz")
         assert response.status_code == 200
         assert response.json()["status"] == "healthy"
-        
+
         # An exchange without an active simulation session is not ready.
         response = await client.get("/readyz")
         assert response.status_code == 503
         assert response.json()["status"] == "not_ready"
-        
+
         # Test symbols endpoint
         response = await client.get("/symbols")
         assert response.status_code == 200
         assert "BTC-USDT" in response.json()["symbols"]
-        
+
         # Test book endpoint
         response = await client.get("/book/BTC-USDT")
         assert response.status_code == 200
@@ -173,9 +186,9 @@ async def test_api_endpoints(test_config):
 def test_order_book_operations():
     """Test order book operations."""
     from src.mockx.models import OrderBook, Order, Side, TimeInForce
-    
+
     book = OrderBook("TEST")
-    
+
     # Add some orders
     for i in range(5):
         buy_order = exact_order(
@@ -191,7 +204,7 @@ def test_order_book_operations():
             status=OrderStatus.NEW,
         )
         book.add_bid(buy_order)
-        
+
         sell_order = exact_order(
             id=i + 10,
             cl_ord_id=f"SELL{i}",
@@ -205,12 +218,10 @@ def test_order_book_operations():
             status=OrderStatus.NEW,
         )
         book.add_ask(sell_order)
-    
+
     # Check book state
     assert len(book.bids) == 5
     assert len(book.asks) == 5
     assert book.get_best_bid_ticks() == 100
     assert book.get_best_ask_ticks() == 101
-    assert (
-        book.get_best_bid_ticks() + book.get_best_ask_ticks()
-    ) / 2 == 100.5
+    assert (book.get_best_bid_ticks() + book.get_best_ask_ticks()) / 2 == 100.5

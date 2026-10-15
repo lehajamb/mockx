@@ -21,7 +21,7 @@ from .metrics import MetricRecord, MetricsSinkError
 IDENTITY_COLUMNS: tuple[tuple[str, str], ...] = (
     ("timestamp", "TIMESTAMP_NS"),
     ("run_id", "SYMBOL"),
-    ("metric_event_sequence", "LONG"),
+    ("event_sequence", "LONG"),
     ("event_timestamp_ns", "LONG"),
 )
 
@@ -40,7 +40,7 @@ class QuestDBTableSchema:
             f"CREATE TABLE IF NOT EXISTS {self.name} (\n"
             f"    {definitions}\n"
             ") TIMESTAMP(timestamp) PARTITION BY DAY WAL "
-            "DEDUP UPSERT KEYS(timestamp, run_id, metric_event_sequence)"
+            "DEDUP UPSERT KEYS(timestamp, run_id, event_sequence)"
         )
 
 
@@ -68,118 +68,79 @@ def _schema(
 
 QUESTDB_SCHEMAS: tuple[QuestDBTableSchema, ...] = (
     _schema(
-        "orders",
-        symbols=("exchange", "symbol", "side", "status", "tif", "session_alias"),
-        longs=(
-            "order_id",
-            "order_qty_lots",
-            "filled_qty_lots",
-            "canceled_qty_lots",
-            "leaves_qty_lots",
-            "filled_notional_tick_lots",
-            "price_display_precision",
-            "quantity_display_precision",
-            "ts_submitted",
-            "trade_id",
-            "price_ticks",
-        ),
-        varchars=(
-            "exec_id",
-            "quantity",
-            "filled_quantity",
-            "canceled_quantity",
-            "leaves_quantity",
-            "average_fill_price",
-            "tick_size",
-            "lot_size",
-            "exchange_order_id",
-            "exchange_trade_id",
-            "price",
-        ),
-    ),
-    _schema(
-        "trades",
+        "exchange_events",
         symbols=(
-            "exchange",
+            "venue_id",
+            "kind",
+            "command_type",
             "symbol",
+            "side",
+            "order_type",
+            "tif",
+            "ord_status",
+            "exec_type",
+            "liquidity_category",
+            "session_alias",
             "buyer_session_alias",
             "seller_session_alias",
             "aggressor_side",
-            "strategy_side",
-            "has_strategy",
+            "metric_name",
+            "reason_code",
         ),
         longs=(
-            "trade_id",
+            "command_sequence",
+            "ordinal",
+            "event_count",
+            "ingress_sequence",
+            "order_id",
+            "logical_order_id",
+            "order_version",
             "price_ticks",
             "qty_lots",
-            "notional_tick_lots",
-            "price_display_precision",
-            "quantity_display_precision",
+            "order_qty_lots",
+            "cum_qty_lots",
+            "leaves_qty_lots",
+            "canceled_qty_lots",
+            "filled_notional_tick_lots",
+            "last_price_ticks",
+            "last_qty_lots",
+            "trade_id",
+            "match_number",
             "buyer_order_id",
             "seller_order_id",
             "aggressor_order_id",
             "passive_order_id",
-            "level",
+            "notional_tick_lots",
+            "prevented_qty_lots",
+            "remaining_qty_lots",
+            "submitted_at_ns",
+            "report_created_at_ns",
+            "duration_ns",
+            "checkpoint_id",
+            "cut_sequence",
+            "next_itch_sequence",
+            "order_count",
+            "fifo_position",
+            "price_display_precision",
+            "quantity_display_precision",
         ),
         varchars=(
-            "exchange_trade_id",
-            "price",
-            "quantity",
-            "notional",
-            "tick_size",
-            "lot_size",
-            "buyer_participant_id",
-            "seller_participant_id",
-        ),
-    ),
-    _schema(
-        "self_trade_prevention",
-        symbols=("exchange", "symbol"),
-        longs=("aggressor_order_id", "passive_order_id", "prevented_qty_lots"),
-        varchars=("participant_id", "prevented_quantity", "lot_size"),
-    ),
-    _schema(
-        "latency",
-        symbols=("exchange", "type"),
-        longs=("order_id", "run_generation", "ingress_sequence"),
-        doubles=("duration_ms", "duration_us"),
-        varchars=(
+            "run_label",
             "session_id",
-            "report_exec_id",
+            "participant_id",
             "cl_ord_id",
             "orig_cl_ord_id",
-        ),
-    ),
-    _schema(
-        "fix_messages",
-        symbols=("exchange", "msg_type", "direction"),
-        longs=("count",),
-    ),
-    _schema(
-        "fix_connections",
-        symbols=("exchange",),
-        longs=("count",),
-    ),
-    _schema(
-        "book_snapshot",
-        symbols=("exchange", "symbol"),
-        longs=("sequence", "bid_depth", "ask_depth"),
-        booleans=("has_bid", "has_ask", "spread_valid"),
-        varchars=(
-            "best_bid",
-            "best_ask",
-            "spread",
-            "mid_price",
-            "bids_json",
-            "asks_json",
+            "list_id",
+            "exec_id",
+            "exchange_order_id",
+            "exchange_trade_id",
+            "buyer_participant_id",
+            "seller_participant_id",
+            "text",
             "tick_size",
             "lot_size",
+            "metadata_json",
         ),
-    ),
-    _schema(
-        "pending_events",
-        symbols=("exchange",),
-        longs=("count",),
     ),
 )
 
@@ -268,6 +229,8 @@ class QuestDBMetricsSink:
         )
 
     def _write_sync(self, records: Sequence[MetricRecord]) -> None:
+        if any(record.table != "exchange_events" for record in records):
+            raise ValueError("The exchange sink writes only the native journal")
         with self._operation_lock:
             self._ensure_schema_sync()
             buffer = self._sender.new_buffer()
@@ -278,7 +241,7 @@ class QuestDBMetricsSink:
                     columns=record.column_map,
                     at=TimestampNanos(record.timestamp_ns),
                 )
-            self._sender.flush(buffer)
+            self._sender.flush(buffer, transactional=True)
 
     async def flush(self) -> None:
         if self._closed:
@@ -379,7 +342,7 @@ class QuestDBMetricsSink:
                 f"QuestDB table {schema.name!r} lacks its designated timestamp"
             )
         upsert_keys = {name for name, values in actual.items() if values[2]}
-        if upsert_keys != {"timestamp", "run_id", "metric_event_sequence"}:
+        if upsert_keys != {"timestamp", "run_id", "event_sequence"}:
             raise ValueError(
                 f"QuestDB table {schema.name!r} has incompatible dedup keys"
             )

@@ -33,19 +33,27 @@ class PausedSink(InMemoryMetricsSink):
 
 def _record(number):
     return MetricRecord.create(
-        "cancellation", {}, {"value": number}, run_id="cancel-run",
-        metric_event_sequence=number, event_timestamp_ns=number,
+        "cancellation",
+        {},
+        {"value": number},
+        run_id="cancel-run",
+        event_sequence=number,
+        event_timestamp_ns=number,
     )
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("internal_cancellation", [False, True])
-async def test_canceled_write_restores_fifo_identity_and_capacity(internal_cancellation):
+async def test_canceled_write_restores_fifo_identity_and_capacity(
+    internal_cancellation,
+):
     sink = PausedSink()
     records = [_record(number) for number in range(1, 4)]
     byte_capacity = sum(record.encoded_size_bytes for record in records)
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=2, max_buffer_records=3,
+        sink,
+        flush_batch_size=2,
+        max_buffer_records=3,
         max_buffer_bytes=byte_capacity,
     )
     metrics = exact_metrics("TEST", persistence=writer, prometheus_enabled=False)
@@ -77,7 +85,7 @@ async def test_canceled_write_restores_fifo_identity_and_capacity(internal_cance
     assert (await writer.flush()).successful
     persisted = [record for batch in sink.writes for record in batch]
     assert persisted == records
-    assert [record.metric_event_sequence for record in persisted] == [1, 2, 3]
+    assert [record.event_sequence for record in persisted] == [1, 2, 3]
     assert writer.buffered_count == writer.buffered_bytes == 0
     assert writer.add_nowait(_record(4)) == PersistenceAddOutcome.ACCEPTED
     assert (await writer.close()).successful
@@ -111,63 +119,34 @@ async def test_canceled_worker_can_restart_and_flush_the_retained_batch():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("from_thread", [False, True], ids=["asyncio", "concurrent"])
-async def test_cancel_end_before_acceptance_preserves_final_broadcast(from_thread, monkeypatch):
-    exchange = make_exchange()
+async def test_cancel_accepted_end_finishes_final_checkpoint_and_journal():
+    from tests.api_helpers import api_config, make_native_exchange
+    from src.mockx.configuration import validate_config
+
+    sink = PausedSink()
+    sink.release.set()
+    exchange = make_native_exchange(
+        validate_config(api_config(), environ={}), persistence_sink=sink
+    )
     await exchange.start_components()
-    await exchange.lifecycle.start_session("broadcast-run")
-    entered = asyncio.Event()
-    release = asyncio.Event()
-    drain_entered = asyncio.Event()
-    delivered = []
-    ending = None
-    owned = None
-
-    async def broadcast(symbol, message, *, sequence):
-        entered.set()
-        await release.wait()
-        delivered.append((symbol, message, sequence))
-
-    original_drain = exchange._drain_broadcasts
-
-    async def observed_drain():
-        drain_entered.set()
-        await original_drain()
-
-    monkeypatch.setattr(exchange.api.registry, "enqueue_market_data", broadcast)
-    monkeypatch.setattr(exchange.lifecycle, "_drain_broadcasts", observed_drain)
+    await exchange.lifecycle.start_session("cancel-end")
+    sink.entered.clear()
+    sink.release.clear()
+    ending = asyncio.create_task(exchange.lifecycle.end_session())
     try:
-        snapshot = exchange.engine.get_market_data_snapshot("TEST")
-        if from_thread:
-            await asyncio.to_thread(exchange._on_market_data_update, snapshot)
-        else:
-            exchange._on_market_data_update(snapshot)
-        await asyncio.wait_for(entered.wait(), timeout=2)
-        owned, = exchange._pending_broadcasts
-        assert isinstance(owned, Future if from_thread else asyncio.Future)
-        ending = asyncio.create_task(exchange.lifecycle.end_session())
-        await asyncio.wait_for(drain_entered.wait(), timeout=2)
+        await asyncio.wait_for(sink.entered.wait(), timeout=2)
         ending.cancel()
+        await asyncio.sleep(0)
+        assert not ending.done()
+        sink.release.set()
         with pytest.raises(asyncio.CancelledError):
             await ending
-
-        assert exchange.lifecycle.state == LifecycleState.ACTIVE
-        assert exchange.lifecycle.run_generation == 1
-        assert not owned.cancelled()
-        release.set()
-        await exchange._drain_broadcasts()
-        assert len(delivered) == 1
-        assert delivered[0][0] == "TEST"
-        assert delivered[0][2] == snapshot.sequence
-        assert not exchange.lifecycle.lock.locked()
-        result = await exchange.lifecycle.end_session()
-        assert result.run_id == "broadcast-run"
         assert exchange.lifecycle.state == LifecycleState.STOPPED
+        kinds = [record.symbol_map["kind"] for batch in sink.writes for record in batch]
+        assert "CHECKPOINT_COMPLETE" in kinds
+        assert "RUN_ENDED" in kinds
+        assert not exchange.lifecycle.lock.locked()
     finally:
-        release.set()
-        if ending is not None:
-            await asyncio.gather(ending, return_exceptions=True)
-        if owned is not None:
-            future = owned if isinstance(owned, asyncio.Future) else asyncio.wrap_future(owned)
-            await asyncio.gather(future, return_exceptions=True)
+        sink.release.set()
+        await asyncio.gather(ending, return_exceptions=True)
         await exchange.stop_components()

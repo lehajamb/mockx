@@ -25,7 +25,7 @@ def record(number: int, *, payload: str = "value") -> MetricRecord:
         {"kind": "test"},
         {"number": number, "payload": payload},
         run_id="pr9-buffer",
-        metric_event_sequence=number,
+        event_sequence=number,
         event_timestamp_ns=number * 1_000,
     )
 
@@ -71,9 +71,9 @@ async def test_writer_rejects_after_close_and_caller_observes_rejection():
 
     metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run("closed-caller")
-    with pytest.raises(MetricsSinkError, match="REJECTED_CLOSED"):
-        metrics._create_record("caller", {}, {"value": 1}, 1_000)
-    assert writer.health_snapshot().rejected_closed_records == 2
+    assert metrics.mark_integrity_failure("REJECTED_CLOSED", event_sequence=1)
+    assert metrics.persistence_integrity_failure.reason == "REJECTED_CLOSED"
+    assert not metrics.mark_integrity_failure("later")
 
 
 @pytest.mark.asyncio
@@ -110,7 +110,7 @@ async def test_oversized_record_is_rejected_without_buffer_growth():
         max_buffer_records=1,
         max_buffer_bytes=oversized.encoded_size_bytes - 1,
     )
-    assert writer.add_nowait(oversized) == PersistenceAddOutcome.REJECTED_FULL
+    assert writer.add_nowait(oversized) == PersistenceAddOutcome.TOO_LARGE
     assert writer.buffered_count == 0
     assert writer.buffered_bytes == 0
     await writer.close()
@@ -167,7 +167,7 @@ async def test_long_outage_remains_bounded_and_backoff_is_capped():
 
 
 @pytest.mark.asyncio
-async def test_drop_oldest_is_explicit_and_never_evicts_inflight():
+async def test_full_buffer_never_evicts_queued_or_inflight_records():
     sink = BlockingSink()
     sample = record(1)
     writer = BufferedMetricsWriter(
@@ -175,22 +175,18 @@ async def test_drop_oldest_is_explicit_and_never_evicts_inflight():
         flush_batch_size=1,
         max_buffer_records=2,
         max_buffer_bytes=sample.encoded_size_bytes * 2,
-        overflow_policy="drop_oldest",
         flush_interval_ms=10_000,
     )
     await writer.start()
     writer.add_nowait(sample)
     await sink.started.wait()
     writer.add_nowait(record(2))
-    assert (
-        writer.add_nowait(record(3))
-        == PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST
-    )
+    assert writer.add_nowait(record(3)) == PersistenceAddOutcome.REJECTED_FULL
     assert writer.buffered_count == 2
     sink.release.set()
     assert (await writer.flush()).successful
-    assert sink.writes == [(record(1),), (record(3),)]
-    assert writer.health_snapshot().dropped_records == 1
+    assert sink.writes == [(record(1),), (record(2),)]
+    assert writer.health_snapshot().dropped_records == 0
     await writer.close()
 
 

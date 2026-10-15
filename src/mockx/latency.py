@@ -1,6 +1,7 @@
 """Deterministic latency scheduler for simulated trading."""
 
 import heapq
+import asyncio
 import inspect
 import math
 import time
@@ -21,6 +22,7 @@ import logging
 
 from .models import (
     CancelOrderCommand,
+    ReplaceOrderCommand,
     ExecutionReport,
     ProcessOrderCommand,
     SchedulerEventMetadata,
@@ -146,17 +148,18 @@ def monotonic_duration_ns(
 class LatencyScheduler:
     """
     Manages deterministic event scheduling with simulated latencies.
-    
+
     This scheduler maintains a priority queue of events and executes
     them in order based on their simulated timestamps. It does not
     use real time delays, allowing backtests to run at full speed.
     """
-    
+
     def __init__(
         self,
         session_delays: Optional[Dict[str, int]] = None,
         *,
         max_events_per_advance: int = DEFAULT_MAX_EVENTS_PER_ADVANCE,
+        processing_batch_size: int = 128,
     ):
         if (
             not isinstance(max_events_per_advance, int)
@@ -167,6 +170,8 @@ class LatencyScheduler:
                 "max_events_per_advance must be a positive integer"
             )
         configured_delays = dict(session_delays or {})
+        if not isinstance(processing_batch_size, int) or isinstance(processing_batch_size, bool) or processing_batch_size <= 0:
+            raise ValueError("processing_batch_size must be a positive integer")
         if any(
             not isinstance(delay, int)
             or isinstance(delay, bool)
@@ -182,6 +187,8 @@ class LatencyScheduler:
         self.event_handlers: Dict[str, Callable] = {}
         self.session_delays = configured_delays
         self.max_events_per_advance = max_events_per_advance
+        self.processing_batch_size = processing_batch_size
+        self.on_processing_boundary: Optional[Callable[[], object]] = None
         self.state = SchedulerState.RUNNING
         self.dead_letter: Optional[SchedulerFailure] = None
         self.failure_count = 0
@@ -354,7 +361,7 @@ class LatencyScheduler:
             command,
             total_delay
         )
-        
+
         if session_delay_ms > 0:
             logger.debug(f"Applied {session_delay_ms}ms session delay for {session_alias}")
 
@@ -387,6 +394,19 @@ class LatencyScheduler:
             total_delay,
         )
 
+    def schedule_replace_processing(
+        self, command: ReplaceOrderCommand, network_ms: int, engine_ms: int,
+        *, session_alias: Optional[str] = None, inbound_ms: Optional[int] = None,
+    ) -> None:
+        """Native replacement traverses the ordinary inbound and engine delays."""
+        self.ensure_running()
+        arrival_delay = (network_ms // 2 if inbound_ms is None else inbound_ms) + self.session_delays.get(session_alias or "", 0)
+        total_delay = arrival_delay + engine_ms
+        self._validate_delay(arrival_delay)
+        self._validate_delay(total_delay)
+        self.schedule_event("replace_arrived_at_exchange", command, arrival_delay)
+        self.schedule_event("replace_engine_process", command, total_delay)
+
     def schedule_execution_report(
         self,
         report: ExecutionReport,
@@ -411,6 +431,7 @@ class LatencyScheduler:
                 break
 
             if budget[0] >= self.max_events_per_advance:
+                await self._processing_boundary()
                 event = heapq.heappop(self.event_queue)
                 self._notify_depth()
                 cause = EventProcessingLimitExceeded(
@@ -428,6 +449,7 @@ class LatencyScheduler:
             self._notify_depth()
             handler = self.event_handlers.get(event.event_type)
             if handler is None:
+                await self._processing_boundary()
                 cause = EventHandlerNotRegistered(
                     f"No handler registered for event type: {event.event_type}"
                 )
@@ -442,6 +464,10 @@ class LatencyScheduler:
                 if inspect.isawaitable(result):
                     await result
             except Exception as exc:
+                try:
+                    await self._processing_boundary()
+                except Exception:
+                    logger.exception("Processing boundary also failed while settling a handler failure")
                 self._fail_event(
                     event,
                     exc,
@@ -450,13 +476,24 @@ class LatencyScheduler:
 
             processed += 1
             budget[0] += 1
+            if processed % self.processing_batch_size == 0:
+                await self._processing_boundary()
+                await asyncio.sleep(0)
 
         return processed
+
+    async def _processing_boundary(self) -> None:
+        """Flush consumers outside command exception classification."""
+        if self.on_processing_boundary is not None:
+            result = self.on_processing_boundary()
+            if inspect.isawaitable(result):
+                await result
 
     async def process_events(self) -> int:
         """Process all due events with one bounded advancement budget."""
         self.ensure_running()
         processed = await self._process_due_events([0])
+        await self._processing_boundary()
         if processed > 0:
             logger.debug(f"Processed {processed} events at {self.current_time}")
         return processed
@@ -478,10 +515,12 @@ class LatencyScheduler:
         while self.event_queue and self.event_queue[0].timestamp <= target_time:
             next_time = self.event_queue[0].timestamp
             if next_time > self.current_time:
+                await self._processing_boundary()
                 self.current_time = next_time
 
             processed += await self._process_due_events(budget)
 
+        await self._processing_boundary()
         self.current_time = target_time
         return processed
 
@@ -493,8 +532,10 @@ class LatencyScheduler:
         while self.event_queue:
             next_time = self.event_queue[0].timestamp
             if next_time > self.current_time:
+                await self._processing_boundary()
                 self.current_time = next_time
             processed += await self._process_due_events(budget)
+        await self._processing_boundary()
         return processed
 
     def clear(self) -> None:
@@ -559,14 +600,14 @@ class LatencyProfile:
     network_ms: int
     engine_ms: int
     jitter_pct: float = 0.0  # Percentage variation in latency
-    
+
     def get_network_latency(self, rng: Any = None) -> int:
         """Get network latency with optional jitter."""
         if self.jitter_pct > 0 and rng:
             variation = int(self.network_ms * self.jitter_pct)
             return self.network_ms + rng.randint(-variation, variation)
         return self.network_ms
-        
+
     def get_engine_latency(self, rng: Any = None) -> int:
         """Get engine latency with optional jitter."""
         if self.jitter_pct > 0 and rng:

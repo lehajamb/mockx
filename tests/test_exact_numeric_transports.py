@@ -15,7 +15,7 @@ from src.mockx.configuration import (
 from src.mockx.gateway import fix
 from src.mockx.instruments import InstrumentCatalog
 from src.mockx.itch_encoder import MAX_PRICE4, _price_to_itch
-from src.mockx.main import MockExchange
+from .api_helpers import make_native_exchange as MockExchange
 from src.mockx.models import (
     CancelReject,
     CancelRejectReason,
@@ -49,9 +49,7 @@ def numeric_exchange(**instrument_overrides) -> MockExchange:
     raw = api_config()
     raw["instruments"]["TEST"].update(tick_size="0.01", lot_size="0.001")
     raw["instruments"]["TEST"].update(instrument_overrides)
-    raw["fix"]["session_participants"] = {
-        "FIX.4.4:MOCKX->CLIENT": "participant-client"
-    }
+    raw["fix"]["session_participants"] = {"FIX.4.4:MOCKX->CLIENT": "participant-client"}
     return MockExchange(validate_config(raw, environ={}))
 
 
@@ -131,9 +129,9 @@ async def test_fix_cancel_invalid_numeric_quantity_preserves_resting_order(raw):
 @pytest.mark.asyncio
 async def test_valid_large_fix_values_serialize_identically_across_transport_retry():
     exchange = numeric_exchange(
-        tick_size="1E20",
+        tick_size="0.0001",
         lot_size="1E-18",
-        price_display_precision=0,
+        price_display_precision=4,
         quantity_display_precision=18,
     )
     sessions, _ = await _start(exchange)
@@ -150,27 +148,29 @@ async def test_valid_large_fix_values_serialize_identically_across_transport_ret
     exchange.fix_app.transport_sender = serialize_and_retry
     try:
         message = _new_order("LARGE-EXACT", 1)
-        message.setField(fix.StringField(38, "9.223372036854775807"))
-        message.setField(
-            fix.StringField(44, "922337203685477580700000000000000000000")
-        )
+        message.setField(fix.StringField(38, "0.000000004294967295"))
+        message.setField(fix.StringField(44, "200000.0000"))
         exchange.fix_app.fromApp(message, sessions["CLIENT"])
         await exchange.fix_app.wait_for_ingress()
         await exchange.lifecycle.advance_to(start)
         queued = exchange.fix_app.delivery_queue.snapshot_records()[0]
         assert queued.state == FixDeliveryState.RETRY_PENDING
-        assert queued.payload.order_qty_lots == MAX_INSTRUMENT_UNITS
-        assert queued.payload.order_price_ticks == MAX_INSTRUMENT_UNITS
+        assert queued.payload.order_qty_lots == (1 << 32) - 1
+        assert queued.payload.order_price_ticks == 2_000_000_000
 
         await exchange.lifecycle.advance_to(start + timedelta(milliseconds=1000))
         assert len(payloads) == len(fields) == 2
         assert payloads[0] is payloads[1] is queued.payload
-        assert fields[0] == fields[1] == {
-            17: queued.payload.exec_id,
-            38: "9.223372036854775807",
-            44: "922337203685477580700000000000000000000",
-            151: "9.223372036854775807",
-        }
+        assert (
+            fields[0]
+            == fields[1]
+            == {
+                17: queued.payload.exec_id,
+                38: "0.000000004294967295",
+                44: "200000.0000",
+                151: "0.000000004294967295",
+            }
+        )
         final = exchange.fix_app.delivery_queue.get(queued.delivery_id)
         assert final.state == FixDeliveryState.DELIVERED
         assert final.attempt_count == 2

@@ -23,8 +23,12 @@ from src.mockx.metrics import (
 
 def record(number: int) -> MetricRecord:
     return MetricRecord.create(
-        "retry_deadline", {}, {"value": number}, run_id="retry-run",
-        metric_event_sequence=number, event_timestamp_ns=number,
+        "retry_deadline",
+        {},
+        {"value": number},
+        run_id="retry-run",
+        event_sequence=number,
+        event_timestamp_ns=number,
     )
 
 
@@ -46,7 +50,10 @@ class VirtualClock:
 
 class RecordingSink(InMemoryMetricsSink):
     def __init__(
-        self, clock: VirtualClock, *, fail_writes: set[int] | None = None,
+        self,
+        clock: VirtualClock,
+        *,
+        fail_writes: set[int] | None = None,
         fail_health: set[int] | None = None,
     ) -> None:
         super().__init__()
@@ -144,12 +151,17 @@ def attempt_times(sink: RecordingSink) -> list[int]:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("signal", ["threshold", "full", "thread"])
-async def test_producer_wakes_cannot_bypass_or_postpone_retry_deadline(monkeypatch, signal):
+async def test_producer_wakes_cannot_bypass_or_postpone_retry_deadline(
+    monkeypatch, signal
+):
     clock = VirtualClock()
     sink = RecordingSink(clock)
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, max_buffer_records=1 if signal == "full" else 4,
-        retry_backoff_ms=1_000, max_retry_delay_ms=4_000,
+        sink,
+        flush_batch_size=1,
+        max_buffer_records=1 if signal == "full" else 4,
+        retry_backoff_ms=1_000,
+        max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
     first = record(1)
@@ -163,13 +175,18 @@ async def test_producer_wakes_cannot_bypass_or_postpone_retry_deadline(monkeypat
             outcome = writer.add_nowait(record(number))
         outcomes.append(outcome)
 
-    waiter = install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 0),
-        WaitStep("signal", 200, lambda: produce(2)),
-        WaitStep("signal", 800, lambda: produce(3)),
-        WaitStep("timeout"),
-        WaitStep("stop"),
-    ])
+    waiter = install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 0),
+            WaitStep("signal", 200, lambda: produce(2)),
+            WaitStep("signal", 800, lambda: produce(3)),
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     await writer._worker_loop()
 
     assert attempt_times(sink) == [0, 1_000]
@@ -177,7 +194,8 @@ async def test_producer_wakes_cannot_bypass_or_postpone_retry_deadline(monkeypat
     assert all(batch == (first,) and batch[0] is first for _, batch in sink.attempts)
     assert writer.failure_count == 2
     expected = (
-        PersistenceAddOutcome.REJECTED_FULL if signal == "full"
+        PersistenceAddOutcome.REJECTED_FULL
+        if signal == "full"
         else PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
     )
     assert outcomes == [expected, expected]
@@ -191,20 +209,30 @@ async def test_first_retry_uses_base_delay_then_doubles_and_caps(monkeypatch):
     clock = VirtualClock()
     sink = RecordingSink(clock)
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, retry_backoff_ms=1_000,
+        sink,
+        flush_batch_size=1,
+        retry_backoff_ms=1_000,
         max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
     logical = record(1)
     writer.add_nowait(logical)
-    install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 0), *(WaitStep("timeout") for _ in range(5)),
-        WaitStep("stop"),
-    ])
+    install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 0),
+            *(WaitStep("timeout") for _ in range(5)),
+            WaitStep("stop"),
+        ],
+    )
     await writer._worker_loop()
 
     assert attempt_times(sink) == [0, 1_000, 3_000, 7_000, 11_000, 15_000]
-    assert all(batch == (logical,) and batch[0] is logical for _, batch in sink.attempts)
+    assert all(
+        batch == (logical,) and batch[0] is logical for _, batch in sink.attempts
+    )
     assert writer.failure_count == 6
     assert writer.health_snapshot().state == PersistenceHealthState.UNAVAILABLE
     assert writer.buffered_count == 1
@@ -216,18 +244,26 @@ async def test_retry_due_flushes_partial_batch_without_threshold_signal(monkeypa
     clock = VirtualClock()
     sink = RecordingSink(clock, fail_writes={1})
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=5, flush_interval_ms=10_000,
-        retry_backoff_ms=1_000, max_retry_delay_ms=4_000,
+        sink,
+        flush_batch_size=5,
+        flush_interval_ms=10_000,
+        retry_backoff_ms=1_000,
+        max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
     records = [record(1), record(2)]
     writer.add_nowait(records[0])
-    install_wait(monkeypatch, writer, clock, [
-        WaitStep("timeout"),
-        WaitStep("wake", 10_200, lambda: writer.add_nowait(records[1])),
-        WaitStep("timeout"),
-        WaitStep("stop"),
-    ])
+    install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("timeout"),
+            WaitStep("wake", 10_200, lambda: writer.add_nowait(records[1])),
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     await writer._worker_loop()
 
     assert attempt_times(sink) == [10_000, 11_000]
@@ -242,13 +278,21 @@ async def test_initial_health_failure_obeys_backoff_before_reprobe(monkeypatch):
     clock = VirtualClock()
     sink = RecordingSink(clock, fail_writes=set(), fail_health={1, 2, 3})
     writer = BufferedMetricsWriter(
-        sink, flush_interval_ms=10_000, retry_backoff_ms=1_000,
+        sink,
+        flush_interval_ms=10_000,
+        retry_backoff_ms=1_000,
         max_retry_delay_ms=4_000,
     )
-    install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 0), *(WaitStep("timeout") for _ in range(3)),
-        WaitStep("stop"),
-    ])
+    install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 0),
+            *(WaitStep("timeout") for _ in range(3)),
+            WaitStep("stop"),
+        ],
+    )
     await writer.start()
     await writer.worker_task
 
@@ -261,17 +305,29 @@ async def test_initial_health_failure_obeys_backoff_before_reprobe(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_successful_probe_cannot_reset_backoff_for_retained_failed_batch(monkeypatch):
+async def test_successful_probe_cannot_reset_backoff_for_retained_failed_batch(
+    monkeypatch,
+):
     clock = VirtualClock()
     sink = RecordingSink(clock)
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, flush_interval_ms=10_000,
-        retry_backoff_ms=1_000, max_retry_delay_ms=4_000,
+        sink,
+        flush_batch_size=1,
+        flush_interval_ms=10_000,
+        retry_backoff_ms=1_000,
+        max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
-    install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 500), WaitStep("timeout"), WaitStep("stop"),
-    ])
+    install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 500),
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     writer.add_nowait(record(1))
     assert not (await writer.flush()).successful
     clock.advance_to(500)
@@ -290,17 +346,27 @@ async def test_successful_write_resets_backoff_for_a_new_outage(monkeypatch):
     clock = VirtualClock()
     sink = RecordingSink(clock, fail_writes={1, 2, 4})
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, retry_backoff_ms=1_000,
+        sink,
+        flush_batch_size=1,
+        retry_backoff_ms=1_000,
         max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
     records = [record(1), record(2)]
     writer.add_nowait(records[0])
-    install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 0), WaitStep("timeout"), WaitStep("timeout"),
-        WaitStep("wake", 3_100, lambda: writer.add_nowait(records[1])),
-        WaitStep("timeout"), WaitStep("stop"),
-    ])
+    install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 0),
+            WaitStep("timeout"),
+            WaitStep("timeout"),
+            WaitStep("wake", 3_100, lambda: writer.add_nowait(records[1])),
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     await writer._worker_loop()
 
     assert attempt_times(sink) == [0, 1_000, 3_000, 3_100, 4_100]
@@ -311,19 +377,29 @@ async def test_successful_write_resets_backoff_for_a_new_outage(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_explicit_flush_remains_immediate_and_clears_obsolete_deadline(monkeypatch):
+async def test_explicit_flush_remains_immediate_and_clears_obsolete_deadline(
+    monkeypatch,
+):
     clock = VirtualClock()
     sink = RecordingSink(clock, fail_writes={1, 3})
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, retry_backoff_ms=1_000,
+        sink,
+        flush_batch_size=1,
+        retry_backoff_ms=1_000,
         max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
     records = [record(1), record(2)]
-    install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 300, lambda: writer.add_nowait(records[1])),
-        WaitStep("timeout"), WaitStep("stop"),
-    ])
+    install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 300, lambda: writer.add_nowait(records[1])),
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     writer.add_nowait(records[0])
     assert not (await writer.flush()).successful
     clock.advance_to(200)
@@ -352,19 +428,30 @@ class PausedFirstFailureSink(RecordingSink):
 
 
 @pytest.mark.asyncio
-async def test_automatic_retry_rechecks_deadline_after_waiting_for_flush_lock(monkeypatch):
+async def test_automatic_retry_rechecks_deadline_after_waiting_for_flush_lock(
+    monkeypatch,
+):
     clock = VirtualClock()
     sink = PausedFirstFailureSink(clock)
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, retry_backoff_ms=1_000,
+        sink,
+        flush_batch_size=1,
+        retry_backoff_ms=1_000,
         max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
     logical = record(1)
     writer.add_nowait(logical)
-    waiter = install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 100), WaitStep("timeout"), WaitStep("stop"),
-    ])
+    waiter = install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 100),
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     explicit = asyncio.create_task(writer.flush())
     await sink.entered.wait()
     worker = asyncio.create_task(writer._worker_loop())
@@ -391,19 +478,29 @@ async def test_automatic_retry_rechecks_deadline_after_waiting_for_flush_lock(mo
 
 
 @pytest.mark.asyncio
-async def test_close_interrupts_backoff_and_performs_final_drain_immediately(monkeypatch):
+async def test_close_interrupts_backoff_and_performs_final_drain_immediately(
+    monkeypatch,
+):
     clock = VirtualClock()
     sink = RecordingSink(clock, fail_writes={1})
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, retry_backoff_ms=10_000,
+        sink,
+        flush_batch_size=1,
+        retry_backoff_ms=10_000,
         max_retry_delay_ms=40_000,
     )
     bind_worker(writer)
     logical = record(1)
     writer.add_nowait(logical)
-    waiter = install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 0), WaitStep("hold"),
-    ])
+    waiter = install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 0),
+            WaitStep("hold"),
+        ],
+    )
     worker = asyncio.create_task(writer._worker_loop())
     writer._worker_task = worker
     await waiter.holding.wait()
@@ -418,12 +515,17 @@ async def test_close_interrupts_backoff_and_performs_final_drain_immediately(mon
 
 
 @pytest.mark.asyncio
-async def test_cancellation_retains_fifo_without_establishing_retry_failure(monkeypatch):
+async def test_cancellation_retains_fifo_without_establishing_retry_failure(
+    monkeypatch,
+):
     clock = VirtualClock()
     sink = PausedFirstFailureSink(clock)
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=2, max_buffer_records=3,
-        retry_backoff_ms=1_000, max_retry_delay_ms=4_000,
+        sink,
+        flush_batch_size=2,
+        max_buffer_records=3,
+        retry_backoff_ms=1_000,
+        max_retry_delay_ms=4_000,
     )
     monkeypatch.setattr(metrics_module.time, "monotonic_ns", clock.monotonic_ns)
     records = [record(index) for index in range(1, 4)]
@@ -468,16 +570,27 @@ class SinkWithoutHealthCheck:
 
 
 @pytest.mark.asyncio
-async def test_empty_writer_without_optional_health_probe_clears_expired_recovery(monkeypatch):
+async def test_empty_writer_without_optional_health_probe_clears_expired_recovery(
+    monkeypatch,
+):
     clock = VirtualClock()
     original_sink = SinkWithoutHealthCheck()
     writer = BufferedMetricsWriter(
-        original_sink, retry_backoff_ms=1_000, max_retry_delay_ms=4_000,
+        original_sink,
+        retry_backoff_ms=1_000,
+        max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
-    waiter = install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 0), WaitStep("timeout"), WaitStep("stop"),
-    ])
+    waiter = install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 0),
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     replacement = InMemoryMetricsSink()
     result = await writer.replace_sink(replacement)
     assert not result.successful
@@ -513,9 +626,15 @@ async def test_initial_health_probe_serializes_with_background_writes(monkeypatc
     writer = BufferedMetricsWriter(sink, flush_batch_size=1)
     logical = record(1)
     writer.add_nowait(logical)
-    waiter = install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 0), WaitStep("stop"),
-    ])
+    waiter = install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 0),
+            WaitStep("stop"),
+        ],
+    )
     starting = asyncio.create_task(writer.start())
     await sink.health_entered.wait()
     await waiter.first_wake_completed.wait()
@@ -534,17 +653,27 @@ async def test_initial_health_probe_serializes_with_background_writes(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_automatic_health_probe_rechecks_queue_after_waiting_for_flush_lock(monkeypatch):
+async def test_automatic_health_probe_rechecks_queue_after_waiting_for_flush_lock(
+    monkeypatch,
+):
     clock = VirtualClock()
     sink = RecordingSink(clock, fail_writes=set(), fail_health={1})
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, retry_backoff_ms=1_000,
+        sink,
+        flush_batch_size=1,
+        retry_backoff_ms=1_000,
         max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
-    waiter = install_wait(monkeypatch, writer, clock, [
-        WaitStep("timeout"), WaitStep("stop"),
-    ])
+    waiter = install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     assert not await writer._check_sink_health()
     await writer._flush_lock.acquire()
     worker = asyncio.create_task(writer._worker_loop())
@@ -575,13 +704,22 @@ async def test_manual_success_wakes_long_backoff_and_restores_normal_wait(monkey
     clock = VirtualClock()
     sink = RecordingSink(clock, fail_writes={1})
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, flush_interval_ms=30_000,
-        retry_backoff_ms=10_000, max_retry_delay_ms=40_000,
+        sink,
+        flush_batch_size=1,
+        flush_interval_ms=30_000,
+        retry_backoff_ms=10_000,
+        max_retry_delay_ms=40_000,
     )
     bind_worker(writer)
-    waiter = install_wait(monkeypatch, writer, clock, [
-        WaitStep("hold"), WaitStep("stop"),
-    ])
+    waiter = install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("hold"),
+            WaitStep("stop"),
+        ],
+    )
     logical = record(1)
     writer.add_nowait(logical)
     assert not (await writer.flush()).successful
@@ -608,13 +746,23 @@ async def test_explicit_failure_wakes_worker_from_ordinary_interval(monkeypatch)
     clock = VirtualClock()
     sink = RecordingSink(clock, fail_writes={1})
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=10, flush_interval_ms=10_000,
-        retry_backoff_ms=1_000, max_retry_delay_ms=4_000,
+        sink,
+        flush_batch_size=10,
+        flush_interval_ms=10_000,
+        retry_backoff_ms=1_000,
+        max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
-    waiter = install_wait(monkeypatch, writer, clock, [
-        WaitStep("hold"), WaitStep("timeout"), WaitStep("stop"),
-    ])
+    waiter = install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("hold"),
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     worker = asyncio.create_task(writer._worker_loop())
     await waiter.holding.wait()
     clock.advance_to(100)
@@ -657,13 +805,22 @@ async def test_canceled_manual_retry_preserves_existing_backoff_deadline(monkeyp
     clock = VirtualClock()
     sink = PausedManualRetrySink(clock)
     writer = BufferedMetricsWriter(
-        sink, flush_batch_size=1, retry_backoff_ms=1_000,
+        sink,
+        flush_batch_size=1,
+        retry_backoff_ms=1_000,
         max_retry_delay_ms=4_000,
     )
     bind_worker(writer)
-    install_wait(monkeypatch, writer, clock, [
-        WaitStep("wake", 200), WaitStep("timeout"), WaitStep("stop"),
-    ])
+    install_wait(
+        monkeypatch,
+        writer,
+        clock,
+        [
+            WaitStep("wake", 200),
+            WaitStep("timeout"),
+            WaitStep("stop"),
+        ],
+    )
     logical = record(1)
     writer.add_nowait(logical)
     assert not (await writer.flush()).successful

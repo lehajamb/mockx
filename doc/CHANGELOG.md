@@ -1,3 +1,11 @@
+# Native exchange foundation — 2026-10-14
+
+- Required FIX, ITCH, GLIMPSE and QuestDB runtime; native E lists and G replacement.
+- Immutable committed effects, one typed exchange_events journal, whole-group transactional writes and bounded pressure handling.
+- Shared order-level captures, complete checkpoint markers and shared reconstruction reader.
+- External Grafana/projector, fresh UUID run and wire identities; removed embedded UI/WebSockets and legacy durable histories.
+- See README for intentional contract changes and fresh schema deployment. CoinAPI replay and new SOR algorithms remain subsequent work.
+
 # MockX Documentation Changelog
 
 ## 2026-10-10 - Align current documentation with main

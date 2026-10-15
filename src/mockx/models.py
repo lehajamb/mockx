@@ -44,6 +44,7 @@ class ExecutionType(str, Enum):
     TRADE = "TRADE"
     CANCELED = "CANCELED"
     REJECTED = "REJECTED"
+    REPLACED = "REPLACED"
 
 
 class CancelRejectReason(str, Enum):
@@ -62,6 +63,8 @@ class FixCommandType(str, Enum):
 
     NEW_ORDER = "NEW_ORDER"
     CANCEL_ORDER = "CANCEL_ORDER"
+    REPLACE_ORDER = "REPLACE_ORDER"
+    NEW_ORDER_LIST = "NEW_ORDER_LIST"
 
 
 class FixDeliveryState(str, Enum):
@@ -176,6 +179,9 @@ ORDER_STATUSES_BY_EXECUTION_TYPE: Mapping[ExecutionType, FrozenSet[OrderStatus]]
             ),
             ExecutionType.CANCELED: frozenset({OrderStatus.CANCELLED}),
             ExecutionType.REJECTED: frozenset({OrderStatus.REJECTED}),
+            ExecutionType.REPLACED: frozenset(
+                {OrderStatus.NEW, OrderStatus.PARTIAL, OrderStatus.FILLED}
+            ),
         }
     )
 )
@@ -249,6 +255,7 @@ class NewOrderCommand:
     participant_id: str
     session_id: Optional[str] = None
     session_alias: Optional[str] = None
+    list_id: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.cl_ord_id:
@@ -295,6 +302,10 @@ class ParsedFixCommand:
     price_ticks: Optional[int] = None
     tif: Optional[TimeInForce] = None
     orig_cl_ord_id: Optional[str] = None
+    list_id: Optional[str] = None
+    exchange_order_id: Optional[str] = None
+    rejection_code: Optional[str] = None
+    rejection_text: Optional[str] = None
 
     def __post_init__(self) -> None:
         if (
@@ -309,6 +320,10 @@ class ParsedFixCommand:
             raise ValueError("Symbol is required")
         if not isinstance(self.side, Side):
             raise ValueError(f"Unsupported Side: {self.side}")
+        if self.rejection_code is not None:
+            if self.command_type != FixCommandType.NEW_ORDER or not self.rejection_text:
+                raise ValueError("Only identifiable new orders carry input rejection")
+            return
         if (
             not isinstance(self.order_qty_lots, int)
             or isinstance(self.order_qty_lots, bool)
@@ -322,6 +337,13 @@ class ParsedFixCommand:
                 raise ValueError("New orders require OrderType")
             if self.orig_cl_ord_id is not None:
                 raise ValueError("New orders cannot contain OrigClOrdID")
+        elif self.command_type == FixCommandType.REPLACE_ORDER:
+            if not self.orig_cl_ord_id:
+                raise ValueError("Replace requests require OrigClOrdID")
+            if self.order_type != OrderType.LIMIT or self.tif != TimeInForce.GTC:
+                raise ValueError("Replace supports GTC limit orders only")
+            if self.price_ticks is None or self.price_ticks <= 0:
+                raise ValueError("Replace requires positive price ticks")
         elif self.command_type == FixCommandType.CANCEL_ORDER:
             if not self.orig_cl_ord_id:
                 raise ValueError("Cancel requests require OrigClOrdID")
@@ -353,6 +375,11 @@ class FixIngressEnvelope:
     ingress_sequence: int
     simulated_receive_timestamp: datetime
     run_generation: int
+    list_id: Optional[str] = None
+    exchange_order_id: Optional[str] = None
+    rejection_code: Optional[str] = None
+    rejection_text: Optional[str] = None
+    list_seq_no: Optional[int] = None
 
     @property
     def ordering_key(self) -> Tuple[datetime, str, int, int]:
@@ -362,6 +389,65 @@ class FixIngressEnvelope:
             self.msg_seq_num,
             self.ingress_sequence,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class NewOrderListMember:
+    """One identifiable list member, valid intent or immutable rejection."""
+
+    list_seq_no: int
+    command: ParsedFixCommand
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.list_seq_no, int) or isinstance(self.list_seq_no, bool) or self.list_seq_no <= 0:
+            raise ValueError("ListSeqNo must be a positive integer")
+        if self.command.command_type != FixCommandType.NEW_ORDER:
+            raise ValueError("Lists contain new orders only")
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedOrderListCommand:
+    session: SessionIdentity
+    msg_seq_num: int
+    list_id: str
+    members: Tuple[NewOrderListMember, ...]
+
+    def __post_init__(self) -> None:
+        if not self.list_id or not isinstance(self.members, tuple) or not self.members:
+            raise ValueError("Lists require an identifier and immutable members")
+        if not isinstance(self.msg_seq_num, int) or isinstance(self.msg_seq_num, bool) or self.msg_seq_num <= 0:
+            raise ValueError("Lists require positive FIX MsgSeqNum")
+        if tuple(member.list_seq_no for member in self.members) != tuple(range(1, len(self.members) + 1)):
+            raise ValueError("List members must be ordered with contiguous ListSeqNo")
+        if any(member.command.session != self.session or member.command.msg_seq_num != self.msg_seq_num
+               or member.command.list_id != self.list_id for member in self.members):
+            raise ValueError("List members must share parent session and ListID")
+
+    @property
+    def command_type(self) -> FixCommandType:
+        return FixCommandType.NEW_ORDER_LIST
+
+
+@dataclass(frozen=True, slots=True)
+class FixOrderListIngressEnvelope:
+    """A list occupies one physical FIX ingress position and receipt."""
+
+    session: SessionIdentity
+    msg_seq_num: int
+    list_id: str
+    members: Tuple[NewOrderListMember, ...]
+    ingress_sequence: int
+    simulated_receive_timestamp: datetime
+    run_generation: int
+
+    @property
+    def command_type(self) -> FixCommandType:
+        return FixCommandType.NEW_ORDER_LIST
+
+    @property
+    def ordering_key(self) -> Tuple[datetime, str, int, int]:
+        return (self.simulated_receive_timestamp, self.session.session_id,
+                self.msg_seq_num, self.ingress_sequence)
 
 
 @dataclass(frozen=True, slots=True)
@@ -404,6 +490,9 @@ class CancelOrderCommand:
     ingress_sequence: int = 0
     msg_seq_num: int = 0
     duplicate_request: bool = False
+    list_id: Optional[str] = None
+    exchange_order_id: Optional[str] = None
+    run_id: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.cancel_cl_ord_id:
@@ -415,6 +504,37 @@ class CancelOrderCommand:
         if not self.session_id:
             raise ValueError("Cancel session_id is required")
 
+
+@dataclass(frozen=True, slots=True)
+class ReplaceOrderCommand:
+    """Native amendment resolved against execution-time chain state."""
+
+    replace_cl_ord_id: str
+    orig_cl_ord_id: str
+    symbol: str
+    side: Side
+    order_qty_lots: int
+    price_ticks: int
+    requested_at: datetime
+    session_id: str
+    session_alias: Optional[str] = None
+    participant_id: Optional[str] = None
+    run_generation: int = 0
+    ingress_sequence: int = 0
+    msg_seq_num: int = 0
+    duplicate_request: bool = False
+    list_id: Optional[str] = None
+    exchange_order_id: Optional[str] = None
+    run_id: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if not self.replace_cl_ord_id or not self.orig_cl_ord_id or not self.session_id:
+            raise ValueError("Replace requires request, original, and session IDs")
+        if any(not isinstance(value, int) or isinstance(value, bool) or value <= 0
+               for value in (self.order_qty_lots, self.price_ticks)):
+            raise ValueError("Replace quantity and price must be positive")
+        if not self.symbol or not isinstance(self.side, Side):
+            raise ValueError("Replace requires symbol and side")
 
 @dataclass(frozen=True, slots=True)
 class CancelReject:
@@ -432,11 +552,16 @@ class CancelReject:
     timestamp: datetime
     exchange_order_id: Optional[str] = None
     run_generation: int = 0
-    ingress_sequence: int = 0
+    ingress_sequence: Optional[int] = None
+    response_to: str = "1"
+    list_id: Optional[str] = None
+    run_id: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.reject_id:
             raise ValueError("Cancel reject ID is required")
+        if self.response_to not in {"1", "2"}:
+            raise ValueError("Cancel rejection response must be F or G")
 
 
 @dataclass(slots=True)
@@ -465,6 +590,9 @@ class Order:
     run_generation: int = 0
     version: int = 0
     processed: bool = False
+    list_id: Optional[str] = None
+    displayed_order_ref: Optional[int] = None
+    run_id: Optional[str] = None
     _liquidity_category: LiquidityCategory = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -733,6 +861,8 @@ class DisplayedOrderAdded:
     price_ticks: int
     qty_lots: int
     timestamp: datetime
+    logical_order_id: Optional[int] = None
+    liquidity_category: Optional[LiquidityCategory] = None
 
     def __post_init__(self) -> None:
         if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
@@ -753,6 +883,8 @@ class DisplayedOrderExecuted:
     executed_qty_lots: int
     match_number: int
     timestamp: datetime
+    logical_order_id: Optional[int] = None
+    remaining_qty_lots: Optional[int] = None
 
     def __post_init__(self) -> None:
         if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
@@ -778,16 +910,36 @@ class DisplayedOrderDeleted:
     order_id: int
     symbol: str
     timestamp: datetime
+    logical_order_id: Optional[int] = None
 
     def __post_init__(self) -> None:
         if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
             raise ValueError("Displayed delete requires generation, order, and symbol")
 
 
+@dataclass(frozen=True, slots=True)
+class DisplayedOrderReduced:
+    """A non-trade reduction retained the displayed reference and FIFO slot."""
+
+    run_generation: int
+    order_id: int
+    symbol: str
+    qty_lots: int
+    timestamp: datetime
+    logical_order_id: Optional[int] = None
+    remaining_qty_lots: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
+            raise ValueError("Displayed reduction requires generation, order, and symbol")
+        if self.qty_lots <= 0:
+            raise ValueError("Displayed reduction must remove positive quantity")
+
 DisplayedOrderEvent = Union[
     DisplayedOrderAdded,
     DisplayedOrderExecuted,
     DisplayedOrderDeleted,
+    DisplayedOrderReduced,
 ]
 
 
@@ -983,6 +1135,18 @@ class BookLevel:
         if fully_filled:
             del self.orders[queue_index]
         return applied, fully_filled
+
+    def resize_order(self, order: Order, total_qty_lots: int) -> None:
+        """Resize executable total in place while preserving queue identity."""
+        if self._order_index(order) is None:
+            raise InvalidBookMutation(f"Order {order.id} is not resting")
+        old_leaves = self._validate_resting_order(order)
+        new_leaves = total_qty_lots - order.filled_qty_lots - order.canceled_qty_lots
+        if not isinstance(total_qty_lots, int) or isinstance(total_qty_lots, bool) or new_leaves <= 0:
+            raise InvalidBookMutation("Resized resting order must have positive leaves")
+        aggregates = self._updated_aggregates(order, new_leaves - old_leaves)
+        order.order_qty_lots = total_qty_lots
+        self.level_qty_lots, self.strategy_qty_lots, self.market_qty_lots = aggregates
 
     def decrement_order(self, order: Order, quantity_lots: int) -> bool:
         """Apply an STP decrement while retaining a positive survivor."""
@@ -1221,6 +1385,15 @@ class OrderBook:
             level_removed=level_removed,
         )
 
+    def resize_order(self, order: Order, total_qty_lots: int) -> None:
+        indexed = self._order_index.get(order.id)
+        if indexed is None or indexed[0] != order.side:
+            raise InvalidBookMutation(f"Order {order.id} is not resting")
+        indexed[1].resize_order(order, total_qty_lots)
+
+    def resting_order_count(self) -> int:
+        return len(self._order_index)
+
     def decrement_order(self, order: Order, quantity_lots: int) -> bool:
         """Apply an STP decrement to a resting order and clean indexes."""
         location = self._order_index.get(order.id)
@@ -1291,11 +1464,10 @@ class OrderBook:
             (Side.SELL, self.asks),
         ):
             prices = [level.price_ticks for level in levels]
-            expected_prices = sorted(
-                prices,
-                reverse=side == Side.BUY,
-            )
-            if prices != expected_prices:
+            if any(
+                (left < right if side == Side.BUY else left > right)
+                for left, right in zip(prices, prices[1:])
+            ):
                 raise OrderBookInvariantError(
                     f"Unsorted {side.value} levels in {self.symbol}: "
                     f"prices={prices}"
@@ -1362,7 +1534,6 @@ class OrderBook:
             if (
                 indexed_side != side
                 or indexed_level is not level
-                or level._order_index(order) is None
             ):
                 raise OrderBookInvariantError(
                     f"Order index location mismatch for order {order_id}: "
@@ -1490,6 +1661,9 @@ class ExecutionReport:
     session_alias: Optional[str] = None
     participant_id: Optional[str] = None
     cancel_ingress_sequence: Optional[int] = None
+    replace_ingress_sequence: Optional[int] = None
+    list_id: Optional[str] = None
+    run_id: Optional[str] = None
 
     def __post_init__(self) -> None:
         """Reject inconsistent status, execution type, and quantity snapshots."""
@@ -1617,6 +1791,7 @@ def create_execution_report(
     orig_cl_ord_id: Optional[str] = None,
     text: Optional[str] = None,
     cancel_ingress_sequence: Optional[int] = None,
+    replace_ingress_sequence: Optional[int] = None,
 ) -> ExecutionReport:
     """Capture and validate every execution-report value from ``order`` now."""
     try:
@@ -1651,6 +1826,9 @@ def create_execution_report(
         session_alias=order.session_alias,
         participant_id=order.participant_id,
         cancel_ingress_sequence=cancel_ingress_sequence,
+        replace_ingress_sequence=replace_ingress_sequence,
+        list_id=order.list_id,
+        run_id=order.run_id,
         submitted_at=order.ts_submitted,
         timestamp=timestamp,
         order_version=order.version,
@@ -1667,7 +1845,7 @@ def create_execution_report(
 
 
 def create_cancel_reject(
-    command: CancelOrderCommand,
+    command: Union[CancelOrderCommand, ReplaceOrderCommand],
     *,
     reject_id: str,
     reason: CancelRejectReason,
@@ -1678,7 +1856,8 @@ def create_cancel_reject(
     """Capture a cancel rejection from immutable command/current scalar state."""
     return CancelReject(
         reject_id=reject_id,
-        cancel_cl_ord_id=command.cancel_cl_ord_id or "",
+        cancel_cl_ord_id=(command.replace_cl_ord_id if isinstance(command, ReplaceOrderCommand)
+                         else command.cancel_cl_ord_id),
         orig_cl_ord_id=command.orig_cl_ord_id or "",
         order_id=order.id if order else None,
         ord_status=order.status if order else None,
@@ -1689,6 +1868,9 @@ def create_cancel_reject(
         timestamp=timestamp,
         run_generation=command.run_generation,
         ingress_sequence=command.ingress_sequence,
+        response_to="2" if isinstance(command, ReplaceOrderCommand) else "1",
+        list_id=order.list_id if order else command.list_id,
+        run_id=order.run_id if order else command.run_id,
         exchange_order_id=(
             (order.exchange_order_id or f"G{order.run_generation:08d}-O{order.id:08d}")
             if order

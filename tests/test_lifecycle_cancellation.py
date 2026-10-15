@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
 
 from httpx import ASGITransport, AsyncClient
 import pytest
 
-from src.mockx.api import market_data_message
 from src.mockx.gateway import fix
 from src.mockx.lifecycle import LifecycleError, LifecycleState
 from src.mockx.metrics import BufferedMetricsWriter, InMemoryMetricsSink
 
+from .api_helpers import cleanup_native_exchanges
 from .api_helpers import make_exchange
 
 
@@ -45,6 +46,13 @@ class _Feed:
         self.active = True
         if self.start_gate is not None:
             await self.start_gate.wait()
+        return True
+
+    def flush(self):
+        return None
+
+    next_sequence = 1
+    sequence_number = 1
 
     def end_run(self, timestamp):
         self.ended.append(timestamp)
@@ -63,6 +71,7 @@ class _Glimpse:
         self.listener_started = True
         if self.start_gate is not None:
             await self.start_gate.wait()
+        return True
 
     def begin_run(self, generation):
         self.generations.append(generation)
@@ -91,8 +100,6 @@ def _start_gate(exchange, monkeypatch, stage, *, error=None):
             return await original()
 
         monkeypatch.setattr(exchange.metrics, "flush", flush)
-    elif stage == "websocket":
-        exchange.lifecycle._close_websockets = gate.wait
     elif stage == "itch":
         feed.start_gate = gate
     elif stage == "glimpse":
@@ -119,7 +126,7 @@ async def _cleanup(task, gate):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("stage", ["flush", "websocket", "itch", "glimpse"])
+@pytest.mark.parametrize("stage", ["flush", "itch", "glimpse"])
 async def test_cancelled_accepted_start_finishes_once_before_releasing_lock(
     monkeypatch, stage,
 ):
@@ -144,14 +151,14 @@ async def test_cancelled_accepted_start_finishes_once_before_releasing_lock(
             await asyncio.wait_for(starting, timeout=3)
 
         assert exchange.lifecycle.state == LifecycleState.ACTIVE
-        assert exchange.lifecycle.run_id == "cancel-start"
+        assert exchange.lifecycle.scenario_label == "cancel-start"
         assert exchange.lifecycle.run_generation == 1
-        assert exchange.metrics.run_id == "cancel-start"
-        assert gate.calls == 1
+        assert exchange.metrics.run_id == exchange.lifecycle.run_id and exchange.lifecycle.scenario_label == "cancel-start"
+        assert gate.calls == (2 if stage == "flush" else 1)
         assert feed.started == [1]
         assert glimpse.generations == [1]
         assert not exchange.lifecycle.lock.locked()
-        assert asyncio.all_tasks() <= existing_tasks
+        assert asyncio.all_tasks() - existing_tasks <= {exchange.metrics_persistence._worker_task}
     finally:
         await _cleanup(starting, gate)
 
@@ -218,7 +225,7 @@ async def test_internal_worker_cancellation_before_first_step_restores_previous_
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("stage", ["flush", "websocket", "itch", "glimpse"])
+@pytest.mark.parametrize("stage", ["flush", "itch", "glimpse"])
 async def test_internal_start_cancellation_restores_safe_state(monkeypatch, stage):
     exchange = make_exchange()
     gate, feed, glimpse = _start_gate(
@@ -260,19 +267,33 @@ class _PausedSink(InMemoryMetricsSink):
         await super().write(records)
 
 
+def _buffered_identities(writer):
+    with writer._buffer_lock:
+        return {(entry.record.run_id, entry.record.event_sequence)
+                for entry in (*writer._inflight, *writer._buffer)}
+
+
+def _assert_retained_prefix_written_once(sink, identities):
+    counts = Counter((record.run_id, record.event_sequence)
+                     for batch in sink.writes for record in batch)
+    assert identities <= counts.keys()
+    assert all(count == 1 for count in counts.values())
+
+
 async def _buffered_run(*, failed, gate):
     exchange = make_exchange()
     await exchange.lifecycle.start_session("cancel-end")
     sink = _PausedSink(gate)
-    writer = BufferedMetricsWriter(
-        sink, flush_batch_size=2, max_buffer_records=2, max_buffer_bytes=1_000_000,
-    )
+    await exchange.metrics_persistence.close()
+    writer = BufferedMetricsWriter(sink, flush_batch_size=100, max_buffer_records=100,
+                                   max_buffer_bytes=1_000_000)
     exchange.metrics.attach_persistence(writer)
-    snapshot = exchange.engine.get_market_data_snapshot("TEST")
-    exchange.metrics.update_book_metrics(snapshot)
+    exchange.metrics_persistence = writer
+    exchange.journal.writer = writer
+    await writer.add(exchange.journal._record(exchange.lifecycle.run_id, "LATENCY", exchange.scheduler.current_time,
+                                       {"metric_name": "test_latency", "duration_ns": 1}))
     if failed:
-        exchange.metrics.update_book_metrics(snapshot)
-        exchange.metrics.update_book_metrics(snapshot)
+        exchange.metrics.mark_integrity_failure("Injected required journal record loss")
         assert exchange.lifecycle.check_persistence_failure()
     return exchange, writer, sink
 
@@ -288,6 +309,8 @@ async def test_cancelled_end_settles_real_buffered_write(failed, flush_fails, ca
     ending = asyncio.create_task(exchange.lifecycle.end_session())
     try:
         await _entered(gate)
+        accepted = writer.buffered_count
+        original_identities = _buffered_identities(writer)
         ending.cancel("end disconnected")
         await _loop_barrier()
         assert not ending.done()
@@ -302,13 +325,14 @@ async def test_cancelled_end_settles_real_buffered_write(failed, flush_fails, ca
             assert exchange.lifecycle.state == (
                 LifecycleState.RUN_FAILED if failed else LifecycleState.ACTIVE
             )
-            assert exchange.lifecycle.run_id == "cancel-end"
-            assert exchange.metrics.run_id == "cancel-end"
+            assert exchange.lifecycle.scenario_label == "cancel-end"
+            assert exchange.metrics.run_id == exchange.lifecycle.run_id and exchange.lifecycle.scenario_label == "cancel-end"
             assert writer.buffered_count == accepted
+            assert _buffered_identities(writer) == original_identities
             assert sink.writes == []
             assert any(
                 getattr(record, "operation", None) == "end"
-                and getattr(record, "simulation_session_id", None) == "cancel-end"
+                and isinstance(getattr(record, "simulation_session_id", None), str)
                 and getattr(record, "run_generation", None) == 1
                 for record in caplog.records
             )
@@ -317,7 +341,7 @@ async def test_cancelled_end_settles_real_buffered_write(failed, flush_fails, ca
             assert result.final_stats.persistence.integrity_complete is (not failed)
         else:
             assert writer.buffered_count == 0
-        assert sum(len(batch) for batch in sink.writes) == accepted
+        _assert_retained_prefix_written_once(sink, original_identities)
         assert exchange.lifecycle.state == LifecycleState.STOPPED
         assert exchange.metrics.run_id is None
         assert exchange.lifecycle.run_id is None
@@ -335,6 +359,8 @@ async def test_internal_end_cancellation_retains_run_and_buffer_for_retry(failed
     ending = asyncio.create_task(exchange.lifecycle.end_session())
     try:
         await _entered(gate)
+        accepted = writer.buffered_count
+        original_identities = _buffered_identities(writer)
         gate.release.set()
         with pytest.raises(asyncio.CancelledError, match="sink cancelled"):
             await asyncio.wait_for(ending, timeout=3)
@@ -342,13 +368,14 @@ async def test_internal_end_cancellation_retains_run_and_buffer_for_retry(failed
             LifecycleState.RUN_FAILED if failed else LifecycleState.ACTIVE
         )
         assert exchange.lifecycle.run_failure is failure
-        assert exchange.lifecycle.run_id == exchange.metrics.run_id == "cancel-end"
+        assert exchange.lifecycle.run_id == exchange.metrics.run_id and exchange.lifecycle.scenario_label == "cancel-end"
         assert not exchange.lifecycle.lock.locked()
         assert writer.buffered_count == accepted
+        assert _buffered_identities(writer) == original_identities
         gate.error = None
         result = await exchange.lifecycle.end_session()
         assert result.final_stats.persistence.integrity_complete is (not failed)
-        assert sum(len(batch) for batch in sink.writes) == accepted
+        _assert_retained_prefix_written_once(sink, original_identities)
         assert exchange.lifecycle.state == LifecycleState.STOPPED
     finally:
         await _cleanup(ending, gate)
@@ -401,7 +428,7 @@ async def test_cancelled_transition_keeps_api_and_fix_ingress_gated(
     )
     client = AsyncClient(transport=ASGITransport(app=exchange.app), base_url="http://test")
     request = asyncio.create_task(
-        client.post("/api/v1/session/start", json={"run_id": "gated"})
+        client.post("/api/v1/session/start", json={"scenario_label": "gated"})
         if operation == "start" else client.post("/api/v1/session/end")
     )
     try:
@@ -411,7 +438,7 @@ async def test_cancelled_transition_keeps_api_and_fix_ingress_gated(
         response = await client.post("/admin/advance-time", json={"milliseconds": 1})
         assert response.status_code == 503
         assert response.json()["detail"]["code"] == "LIFECYCLE_TRANSITION_IN_PROGRESS"
-        response = await client.post("/api/v1/session/start", json={"run_id": "duplicate"})
+        response = await client.post("/api/v1/session/start", json={"scenario_label": "duplicate"})
         assert response.status_code == 503
         assert response.json()["detail"]["code"] == "LIFECYCLE_TRANSITION_IN_PROGRESS"
         message = fix.Message()
@@ -460,11 +487,11 @@ async def test_completion_cancellation_race_preserves_caller_cancellation(
             LifecycleState.ACTIVE if outcome == "success" else LifecycleState.STOPPED
         )
         assert not exchange.lifecycle.lock.locked()
-        assert gate.calls == 1
+        assert gate.calls == (2 if outcome == "success" else 1)
         if outcome != "success":
             assert any(
                 getattr(record, "operation", None) == "start"
-                and getattr(record, "simulation_session_id", None) == "racing"
+                and isinstance(getattr(record, "simulation_session_id", None), str)
                 and hasattr(record, "run_generation")
                 for record in caplog.records
             )
@@ -492,7 +519,7 @@ async def test_cancelled_start_holds_lock_until_competing_start_can_be_rejected(
         with pytest.raises(LifecycleError) as rejected:
             await asyncio.wait_for(second, timeout=3)
         assert rejected.value.code == "SESSION_ALREADY_ACTIVE"
-        assert exchange.lifecycle.run_id == "accepted"
+        assert exchange.lifecycle.scenario_label == "accepted"
         assert exchange.lifecycle.run_generation == 1
         assert feed.started == [1]
     finally:
@@ -501,68 +528,8 @@ async def test_cancelled_start_holds_lock_until_competing_start_can_be_rejected(
             await _cleanup(second, gate)
 
 
-class _ClosingWebSocket:
-    def __init__(self):
-        self.close_gate = _Gate()
-        self.closed = False
-        self.messages = []
-
-    async def send_json(self, message):
-        self.messages.append(message)
-
-    async def close(self, code=1000):
-        await self.close_gate.wait()
-        self.closed = True
 
 
-@pytest.mark.asyncio
-async def test_cancelled_start_finishes_real_registry_cleanup_for_every_socket():
-    exchange = make_exchange()
-    sockets = [_ClosingWebSocket(), _ClosingWebSocket()]
-    snapshot = exchange.engine.get_market_data_snapshot("TEST")
-    connections = [
-        await exchange.api.registry.register(
-            "TEST", socket, market_data_message(snapshot).model_dump(mode="json"),
-            initial_sequence=snapshot.sequence,
-        )
-        for socket in sockets
-    ]
-    starting = asyncio.create_task(exchange.lifecycle.start_session("close-all"))
-    try:
-        for socket in sockets:
-            await _entered(socket.close_gate)
-        # close_all has detached both clients, but their actual close operations
-        # are still in flight and must retain an owner after request cancellation.
-        assert await exchange.api.registry.connection_count() == 0
-        assert all(connection.sender_task.done() for connection in connections)
-        starting.cancel("request disconnected")
-        await _loop_barrier()
-        assert not starting.done()
-        assert exchange.lifecycle.lock.locked()
-        assert all(not socket.closed for socket in sockets)
-        sockets[0].close_gate.release.set()
-        await _loop_barrier()
-        assert not starting.done()
-        sockets[1].close_gate.release.set()
-        with pytest.raises(asyncio.CancelledError, match="request disconnected"):
-            await asyncio.wait_for(starting, timeout=3)
-        assert exchange.lifecycle.state == LifecycleState.ACTIVE
-        assert exchange.lifecycle.run_generation == 1
-        assert all(socket.closed for socket in sockets)
-        assert all(socket.close_gate.calls == 1 for socket in sockets)
-        assert all(connection.sender_task.done() for connection in connections)
-        assert all(connection.state.value == "CLOSED" for connection in connections)
-        assert await exchange.api.registry.connection_count() == 0
-        stats = exchange.metrics.websocket_metrics_snapshot()
-        assert stats["active_clients"] == 0
-        assert stats["queue_depth"] == 0
-        assert not exchange.lifecycle.lock.locked()
-    finally:
-        for socket in sockets:
-            socket.close_gate.release.set()
-        await _cleanup(starting, sockets[0].close_gate)
-        for connection in connections:
-            await exchange.api.registry.disconnect(connection)
 
 
 @pytest.mark.asyncio
@@ -572,23 +539,22 @@ async def test_internal_end_cancellation_reconciles_new_metric_loss():
     ending = asyncio.create_task(exchange.lifecycle.end_session())
     try:
         await _entered(gate)
-        snapshot = exchange.engine.get_market_data_snapshot("TEST")
-        exchange.metrics.update_book_metrics(snapshot)
-        exchange.metrics.update_book_metrics(snapshot)
+        original_identities = _buffered_identities(writer)
+        exchange.metrics.mark_integrity_failure("Required record lost while end was in flight")
         assert not exchange.metrics.integrity_complete
         gate.release.set()
         with pytest.raises(asyncio.CancelledError, match="sink cancelled"):
             await asyncio.wait_for(ending, timeout=3)
         assert exchange.lifecycle.state == LifecycleState.RUN_FAILED
         failure = exchange.lifecycle.run_failure
-        assert failure.run_id == "cancel-end"
-        assert writer.buffered_count == 2
+        assert failure.run_id == exchange.lifecycle.run_id
+        assert _buffered_identities(writer) == original_identities
         gate.error = None
         result = await exchange.lifecycle.end_session()
-        assert result.final_stats.run_failure.run_id == "cancel-end"
+        assert result.final_stats.run_failure.run_id == result.run_id
         assert result.final_stats.persistence.integrity_complete is False
         assert exchange.lifecycle.run_failure is failure
-        assert sum(len(batch) for batch in sink.writes) == 2
+        _assert_retained_prefix_written_once(sink, original_identities)
     finally:
         await _cleanup(ending, gate)
 
@@ -596,28 +562,23 @@ async def test_internal_end_cancellation_reconciles_new_metric_loss():
 @pytest.mark.asyncio
 async def test_cancelled_start_preserves_metric_loss_as_endable_failed_run(monkeypatch, caplog):
     exchange = make_exchange()
-    writer = BufferedMetricsWriter(
-        InMemoryMetricsSink(), flush_batch_size=1, max_buffer_records=1,
-        max_buffer_bytes=1_000_000,
-    )
-    exchange.metrics.attach_persistence(writer)
     gate, feed, _ = _start_gate(exchange, monkeypatch, "itch")
     starting = asyncio.create_task(exchange.lifecycle.start_session("lost-while-starting"))
     try:
         await _entered(gate)
         starting.cancel("request disconnected")
         await _loop_barrier()
-        exchange.metrics.update_book_metrics(exchange.engine.get_market_data_snapshot("TEST"))
+        exchange.metrics.mark_integrity_failure("Required record lost while start was in flight")
         gate.release.set()
         with pytest.raises(asyncio.CancelledError, match="request disconnected"):
             await asyncio.wait_for(starting, timeout=3)
         assert exchange.lifecycle.state == LifecycleState.RUN_FAILED
         failure = exchange.lifecycle.run_failure
-        assert failure.run_id == "lost-while-starting"
+        assert failure.run_id == exchange.lifecycle.run_id
         assert feed.active
         assert any(
             getattr(record, "operation", None) == "start"
-            and getattr(record, "simulation_session_id", None) == "lost-while-starting"
+            and isinstance(getattr(record, "simulation_session_id", None), str)
             for record in caplog.records
         )
         result = await exchange.lifecycle.end_session()

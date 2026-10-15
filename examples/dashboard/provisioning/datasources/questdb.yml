@@ -1,0 +1,18 @@
+apiVersion: 1
+datasources:
+  - name: QuestDB Native
+    uid: questdb-native
+    type: questdb-questdb-datasource
+    access: proxy
+    isDefault: true
+    editable: false
+    jsonData:
+      server: questdb
+      port: 8812
+      username: dashboard_reader
+      tlsMode: disable
+      maxOpenConnections: 8
+      maxIdleConnections: 2
+      queryTimeout: 10
+    secureJsonData:
+      password: $QDB_READER_PASSWORD

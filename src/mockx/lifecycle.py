@@ -7,10 +7,14 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from uuid import uuid4
 import inspect
 import logging
 from typing import Any, Awaitable, Callable, Optional, TypeVar
 
+from .effects import BookCheckpoint, BookOrderState
+from .journal import JournalFinalizationError
+from .latency import datetime_to_ns
 from .glimpse_encoder import GlimpseOrderSnapshot, GlimpseSnapshot
 from .identifiers import RunIdentifierScope
 from .models import SchedulerState
@@ -40,6 +44,7 @@ class SessionStartResult:
     run_id: str
     run_generation: int
     starting_time: datetime
+    scenario_label: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +89,8 @@ class ExchangeLifecycle:
         latency_tracker: Any,
         fix_app: Any,
         itch_feed: Any = None,
+        *,
+        journal: Any = None,
     ) -> None:
         self.engine = engine
         self.scheduler = engine.scheduler
@@ -91,47 +98,39 @@ class ExchangeLifecycle:
         self.latency_tracker = latency_tracker
         self.fix_app = fix_app
         self.itch_feed = itch_feed
+        self.journal = journal
+        self.command_executor: Optional[Callable] = None
+        self.scenario_label: Optional[str] = None
+        self._pending_failure: Optional[tuple[str, str]] = None
         self.lock = asyncio.Lock()
         self.state = LifecycleState.STOPPED
         self.run_id: Optional[str] = None
         self.run_generation = 0
         self._published_token = IngressToken(self.state, self.run_generation)
-        self._close_websockets: Optional[Callable[[], Awaitable[None]]] = None
         self._stats_builder: Optional[Callable[[], Any]] = None
         self.glimpse_service: Optional[Any] = None
         self.run_failure: Optional[RunFailure] = None
         self._command_depth = 0
         self.metrics.on_integrity_failure = self._request_persistence_check
-        self._drain_broadcasts: Optional[Callable[[], Awaitable[None]]] = None
-        self._has_pending_broadcasts: Optional[Callable[[], bool]] = None
-
-    def bind_market_data_delivery(
-        self,
-        drain: Callable[[], Awaitable[None]],
-        pending: Callable[[], bool],
-    ) -> None:
-        self._drain_broadcasts = drain
-        self._has_pending_broadcasts = pending
 
     @asynccontextmanager
-    async def _serialized(self, *, drain_broadcasts: bool = False):
-        while True:
-            # Broadcast tasks acquire this same lock. Await them before taking
-            # it, then recheck so an intervening command cannot lose its output.
-            if drain_broadcasts and self._drain_broadcasts is not None:
-                await self._drain_broadcasts()
-            async with self.lock:
-                if (
-                    drain_broadcasts
-                    and self._has_pending_broadcasts is not None
-                    and self._has_pending_broadcasts()
-                ):
-                    continue
-                try:
-                    yield
-                finally:
-                    self.check_persistence_failure()
-                return
+    async def _serialized(self):
+        async with self.lock:
+            self.check_persistence_failure()
+            try:
+                yield
+            finally:
+                self.check_persistence_failure()
+
+    @property
+    def failure_message(self) -> str:
+        failure = self.run_failure
+        return f"{failure.code}: {failure.message}" if failure else "RUN_INCOMPLETE"
+
+    def request_failure(self, code: str, reason: str) -> None:
+        if self._pending_failure is None and self.run_failure is None:
+            self._pending_failure = (code, reason)
+        self.check_persistence_failure()
 
     def _request_persistence_check(self) -> None:
         """Marshal writer/QuickFIX notifications onto the lifecycle owner loop."""
@@ -159,28 +158,36 @@ class ExchangeLifecycle:
         failure = self.metrics.persistence_integrity_failure
         if (
             self._command_depth
-            or failure is None
+            or (failure is None and self._pending_failure is None)
             or self.run_id is None
-            or self.state not in {
-                LifecycleState.ACTIVE, LifecycleState.STARTING, LifecycleState.ENDING
+            or self.state
+            not in {
+                LifecycleState.ACTIVE,
+                LifecycleState.STARTING,
+                LifecycleState.ENDING,
             }
         ):
             return False
         if self.run_failure is not None:
-            # ENDING temporarily changes lifecycle state, never the first fault.
             self._publish(LifecycleState.RUN_FAILED)
             if on_rejected is not None:
                 on_rejected()
             return True
+        code, reason = self._pending_failure or ("JOURNAL_INCOMPLETE", failure.reason)
         self.run_failure = RunFailure(
-            code="METRICS_INCOMPLETE",
-            message="Metrics were lost; this simulation must be rerun.",
+            code=code,
+            message="The run is incomplete; start a fresh run.",
             run_id=self.run_id,
             run_generation=self.run_generation,
             failed_at=self.scheduler.current_time,
-            reason=failure.reason,
-            metric_event_sequence=failure.metric_event_sequence,
+            reason=reason,
+            metric_event_sequence=(
+                failure.metric_event_sequence if failure is not None else None
+            ),
         )
+        self._pending_failure = None
+        if self.glimpse_service is not None:
+            self.glimpse_service.revoke_run(self.run_generation)
         self._publish(LifecycleState.RUN_FAILED)
         if on_rejected is not None:
             on_rejected()
@@ -189,7 +196,7 @@ class ExchangeLifecycle:
         )
         logger.error(
             self.run_failure.message,
-            extra={"run_id": self.run_id, "persistence_failure_reason": failure.reason},
+            extra={"run_id": self.run_id, "failure_reason": reason},
         )
         return True
 
@@ -217,10 +224,8 @@ class ExchangeLifecycle:
     def bind_api(
         self,
         *,
-        close_websockets: Callable[[], Awaitable[None]],
         stats_builder: Callable[[], Any],
     ) -> None:
-        self._close_websockets = close_websockets
         self._stats_builder = stats_builder
 
     def bind_glimpse_service(self, service: Any) -> None:
@@ -249,7 +254,7 @@ class ExchangeLifecycle:
         if token.state == LifecycleState.RUN_FAILED or (
             token.state == LifecycleState.ACTIVE and not self.metrics.integrity_complete
         ):
-            return "METRICS_INCOMPLETE"
+            return self.run_failure.code if self.run_failure else "JOURNAL_INCOMPLETE"
         if token.state in {LifecycleState.STARTING, LifecycleState.ENDING}:
             return "LIFECYCLE_TRANSITION_IN_PROGRESS"
         if token.state == LifecycleState.FAILED:
@@ -280,7 +285,11 @@ class ExchangeLifecycle:
                 raise LifecycleIngressRejected(current_rejection)
             self._command_depth += 1
             try:
-                result = action()
+                result = (
+                    self.command_executor(action)
+                    if self.command_executor is not None
+                    else action()
+                )
                 if inspect.isawaitable(result):
                     result = await result
             finally:
@@ -347,12 +356,14 @@ class ExchangeLifecycle:
             self.run_id = None
             self._publish(LifecycleState.FAILED)
 
-    async def start_session(self, run_id: str) -> SessionStartResult:
+    async def start_session(self, scenario_label: str) -> SessionStartResult:
         async with self._serialized():
             self.raise_if_transition_or_failed()
             if self.state == LifecycleState.RUN_FAILED:
                 raise LifecycleError(
-                    409, "RUN_REQUIRES_END", "End the failed run before starting a new run"
+                    409,
+                    "RUN_REQUIRES_END",
+                    "End the failed run before starting a new run",
                 )
             if self.state == LifecycleState.ACTIVE:
                 raise LifecycleError(
@@ -370,9 +381,11 @@ class ExchangeLifecycle:
                         "The next run generation cannot form an ITCH session",
                     ) from exc
 
+            run_id = str(uuid4())
             self._publish(LifecycleState.STARTING)
             task = asyncio.create_task(
-                self._start_session(run_id), name=f"session-start:{run_id}"
+                self._start_session(run_id, scenario_label),
+                name=f"session-start:{run_id}",
             )
             try:
                 return await self._complete_transition(
@@ -385,7 +398,9 @@ class ExchangeLifecycle:
                     self._publish(LifecycleState.STOPPED)
                 raise
 
-    async def _start_session(self, run_id: str) -> SessionStartResult:
+    async def _start_session(
+        self, run_id: str, scenario_label: str
+    ) -> SessionStartResult:
         """Finish an accepted start; the caller owns the lifecycle lock."""
         try:
             flush_result = await self.metrics.flush()
@@ -396,8 +411,6 @@ class ExchangeLifecycle:
                     "METRICS_FLUSH_FAILED",
                     "Buffered metrics could not be flushed",
                 )
-            if self._close_websockets is not None:
-                await self._close_websockets()
         except asyncio.CancelledError:
             self._publish(LifecycleState.STOPPED)
             raise
@@ -418,12 +431,11 @@ class ExchangeLifecycle:
             self.scheduler.reset()
             self.engine.reset_run_state()
             self.latency_tracker.reset(
-                preserve_order_keys=(
-                    self.fix_app.delivery_queue.pending_order_keys()
-                ),
+                preserve_order_keys=(self.fix_app.delivery_queue.pending_order_keys()),
                 preserve_cancel_keys=(
                     self.fix_app.delivery_queue.pending_cancel_keys()
                 ),
+                preserve_replace_keys=self.fix_app.delivery_queue.pending_replace_keys(),
             )
             self.metrics.reset_run_metrics()
             self.metrics.refresh_engine_gauges()
@@ -434,35 +446,60 @@ class ExchangeLifecycle:
             self.engine.install_identifier_scope(identifiers)
             self.fix_app.reset_run_state(identifiers)
             self.metrics.start_run(run_id)
+            self.engine.run_id = run_id
+            self.scenario_label = scenario_label
             self.run_id = run_id
             self.run_generation = generation
             self.run_failure = None
+            self._pending_failure = None
             self.fix_app.reschedule_deliveries_after_reset()
-            for symbol in self.engine.books:
-                snapshot = self.engine.get_market_data_snapshot(symbol)
-                if snapshot is None:
-                    raise RuntimeError(
-                        f"Missing initial book snapshot for {symbol}"
-                    )
-                self.metrics.update_book_metrics(snapshot)
+            if self.journal is not None:
+                await self.journal.start_run(
+                    run_id,
+                    scenario_label,
+                    tuple(
+                        self.engine.instruments.require(s)
+                        for s in self.engine.instruments.symbols
+                    ),
+                    self.scheduler.current_time,
+                    {"run_generation": generation},
+                )
             if self.check_persistence_failure():
                 raise LifecycleError(
                     503, self.run_failure.code, self.run_failure.message
                 )
 
             if self.itch_feed is not None:
-                await self.itch_feed.start_run(
-                    generation,
-                    self.scheduler.current_time,
-                )
+                if not await self.itch_feed.start_run(
+                    generation, self.scheduler.current_time
+                ):
+                    self.request_failure(
+                        "ITCH_PUBLISHER_FAILED",
+                        "Required ITCH publisher could not start",
+                    )
+                    raise LifecycleError(
+                        503, self.run_failure.code, self.run_failure.message
+                    )
             if self.glimpse_service is not None:
-                await self.glimpse_service.start()
+                if not await self.glimpse_service.start():
+                    self.request_failure(
+                        "GLIMPSE_LISTENER_FAILED",
+                        "Required GLIMPSE listener could not start",
+                    )
+                    raise LifecycleError(
+                        503, self.run_failure.code, self.run_failure.message
+                    )
                 self.glimpse_service.begin_run(generation)
 
             if self.check_persistence_failure():
                 raise LifecycleError(
                     503, self.run_failure.code, self.run_failure.message
                 )
+            if self.journal is not None:
+                await self.journal.checkpoint(self._capture_book(), reason="start")
+                flushed = await self.metrics.flush()
+                if not flushed.successful:
+                    raise RuntimeError("Initial checkpoint was not acknowledged")
             self.run_id = run_id
             self.run_generation = generation
             self._publish(LifecycleState.ACTIVE)
@@ -477,12 +514,16 @@ class ExchangeLifecycle:
                 run_id=run_id,
                 run_generation=generation,
                 starting_time=self.scheduler.current_time,
+                scenario_label=scenario_label,
             )
         except asyncio.CancelledError:
             self._fail_start_after_reset()
             raise
         except Exception as exc:
-            if isinstance(exc, LifecycleError) and self.state == LifecycleState.RUN_FAILED:
+            if (
+                isinstance(exc, LifecycleError)
+                and self.state == LifecycleState.RUN_FAILED
+            ):
                 raise
             self._fail_start_after_reset()
             logger.exception("Session start failed after destructive reset")
@@ -493,7 +534,7 @@ class ExchangeLifecycle:
             ) from exc
 
     async def end_session(self) -> SessionEndResult:
-        async with self._serialized(drain_broadcasts=True):
+        async with self._serialized():
             self.raise_if_transition_or_failed()
             self.check_persistence_failure()
             if self.state == LifecycleState.STOPPED:
@@ -527,35 +568,46 @@ class ExchangeLifecycle:
         restore_state: LifecycleState,
     ) -> SessionEndResult:
         """Finish an accepted end; the caller owns the lifecycle lock."""
+        closing_phase = False
         try:
-            failure_before_flush = self.run_failure
-            flush_result = await self.metrics.flush()
             self.check_persistence_failure()
-            if self.state == LifecycleState.RUN_FAILED:
-                restore_state = LifecycleState.RUN_FAILED
-            if (
-                flush_result.successful
-                and failure_before_flush is None
-                and self.run_failure is not None
-            ):
-                # Settling commands after a newly observed fault may have
-                # admitted rejection metrics after the first drain ended.
-                flush_result = await self.metrics.flush()
+            if self.itch_feed is not None:
+                self.itch_feed.flush()
+            if self.journal is not None:
+                if (
+                    self.run_failure is None
+                    and self.scheduler.state != SchedulerState.FAILED
+                ):
+                    await self.journal.checkpoint(self._capture_book(), reason="end")
+            flush_result = await self.metrics.flush()
             if not flush_result.successful:
                 self._publish(restore_state)
                 raise LifecycleError(
                     503,
-                    "METRICS_FLUSH_FAILED",
-                    "Buffered metrics could not be flushed",
+                    "JOURNAL_FLUSH_FAILED",
+                    "Journal acknowledgment failed; the run remains open",
                 )
+            closing_phase = True
             if self.glimpse_service is not None and generation is not None:
                 self.glimpse_service.revoke_run(generation)
             if self.itch_feed is not None:
                 self.itch_feed.end_run(self.scheduler.current_time)
+            self.check_persistence_failure()
+            if self.journal is not None:
+                await self.journal.end_run(
+                    self.scheduler.current_time,
+                    failed=self.run_failure is not None,
+                    reason=self.failure_message if self.run_failure else None,
+                )
             if self._stats_builder is None:
                 raise RuntimeError("Lifecycle statistics builder is not bound")
             final_stats = self._stats_builder()
         except asyncio.CancelledError:
+            if closing_phase:
+                self.request_failure(
+                    "SESSION_END_CANCELLED",
+                    "Run finalization was cancelled after native feed closure",
+                )
             if self.check_persistence_failure():
                 restore_state = LifecycleState.RUN_FAILED
             self._publish(restore_state)
@@ -563,6 +615,13 @@ class ExchangeLifecycle:
         except LifecycleError:
             raise
         except Exception as exc:
+            if isinstance(exc, JournalFinalizationError):
+                self.request_failure("JOURNAL_END_UNCONFIRMED", str(exc))
+            elif closing_phase:
+                self.request_failure(
+                    "SESSION_END_FAILED",
+                    "Run finalization failed after native feed closure",
+                )
             if self.check_persistence_failure():
                 restore_state = LifecycleState.RUN_FAILED
             self._publish(restore_state)
@@ -574,6 +633,8 @@ class ExchangeLifecycle:
             ) from exc
 
         self.metrics.end_run()
+        if self.journal is not None:
+            self.journal.detach_run()
         self.run_id = None
         self._publish(LifecycleState.STOPPED)
         logger.info(
@@ -585,72 +646,111 @@ class ExchangeLifecycle:
         )
         return SessionEndResult(run_id, generation, final_stats)
 
-    async def capture_glimpse_snapshot(self) -> GlimpseSnapshot:
-        """Capture one book/ITCH cut without retaining live engine objects."""
+    def _capture_book(self) -> BookCheckpoint:
+        """Copy FIFO state once, independently of wire encoding or persistence."""
+        if self.run_id is None:
+            raise LifecycleError(
+                409, "SESSION_NOT_ACTIVE", "A snapshot requires an active run"
+            )
+        if self.itch_feed is not None:
+            self.itch_feed.flush()
+        orders = []
+        for symbol in self.engine.books:
+            book = self.engine.books[symbol]
+            book.assert_invariants()
+            for levels in (book.bids, book.asks):
+                for level in levels:
+                    for order in level.orders:
+                        if (
+                            order.run_generation != self.run_generation
+                            or order.price_ticks is None
+                        ):
+                            raise RuntimeError(
+                                f"Invalid resting order {order.id} in {symbol}"
+                            )
+                        orders.append(
+                            BookOrderState(
+                                order_id=order.displayed_order_ref,
+                                logical_order_id=order.id,
+                                symbol=symbol,
+                                side=order.side,
+                                price_ticks=order.price_ticks,
+                                qty_lots=order.leaves_qty_lots,
+                                liquidity_category=order.liquidity_category.value,
+                            )
+                        )
+        return BookCheckpoint(
+            self.run_id,
+            self.scheduler.current_time,
+            self.itch_feed.sequence_number if self.itch_feed else 1,
+            tuple(orders),
+        )
 
-        observed = self.token
-        self.raise_if_transition_or_failed()
+    async def capture_checkpoint(self):
         async with self._serialized():
-            self.raise_if_transition_or_failed()
-            if observed != self.token:
+            if (
+                self.state != LifecycleState.ACTIVE
+                or self.scheduler.state != SchedulerState.RUNNING
+            ):
                 raise LifecycleError(
-                    503,
-                    "LIFECYCLE_TRANSITION_IN_PROGRESS",
-                    "The GLIMPSE request crossed a lifecycle transition",
+                    409, "RUN_NOT_COHERENT", "Checkpoint requires a coherent active run"
                 )
-            if self.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}:
+            if self.journal is None:
                 raise LifecycleError(
-                    409,
-                    "SESSION_NOT_ACTIVE",
-                    "GLIMPSE snapshots require an active simulation session",
+                    503, "JOURNAL_UNAVAILABLE", "Journal is unavailable"
                 )
-            if self.scheduler.state == SchedulerState.FAILED:
-                raise LifecycleError(
-                    503,
-                    "SCHEDULER_FAILED",
-                    "GLIMPSE snapshots are unavailable while the scheduler is failed",
-                )
+            snapshot = self._capture_book()
+
+            async def settle():
+                try:
+                    result = await self.journal.checkpoint(snapshot)
+                    self.metrics.note_journal_sequence(
+                        result, datetime_to_ns(snapshot.timestamp)
+                    )
+                    flushed = await self.metrics.flush()
+                    if not flushed.successful:
+                        raise RuntimeError("Checkpoint acknowledgment failed")
+                    return result
+                except Exception as exc:
+                    self.metrics.mark_integrity_failure(str(exc))
+                    self.request_failure("JOURNAL_INCOMPLETE", str(exc))
+                    raise LifecycleError(
+                        503,
+                        "CHECKPOINT_FAILED",
+                        "Checkpoint admission or acknowledgment failed",
+                    ) from exc
+
+            task = asyncio.create_task(settle(), name=f"checkpoint:{self.run_id}")
+            return await self._complete_transition(
+                task, operation="checkpoint", run_id=self.run_id
+            )
+
+    async def capture_glimpse_snapshot(self) -> GlimpseSnapshot:
+        observed = self.token
+        async with self._serialized():
             feed = self.itch_feed
             if (
-                feed is None
+                self.state != LifecycleState.ACTIVE
+                or observed != self.token
+                or self.scheduler.state != SchedulerState.RUNNING
+                or feed is None
                 or feed.state.value != "ready"
                 or feed.active_generation != self.run_generation
             ):
-                raise LifecycleError(
-                    503,
-                    "ITCH_UNAVAILABLE",
-                    "GLIMPSE snapshots require the current coherent ITCH session",
-                )
+                from .glimpse_service import GlimpseSessionUnavailable
 
-            orders: list[GlimpseOrderSnapshot] = []
-            for symbol in feed.encoder.symbols:
-                book = self.engine.books[symbol]
-                book.assert_invariants()
-                for levels in (book.bids, book.asks):
-                    for level in levels:
-                        for order in level.orders:
-                            if order.run_generation != self.run_generation:
-                                raise RuntimeError(
-                                    f"Stale generation order {order.id} in {symbol}"
-                                )
-                            if order.price_ticks is None:
-                                raise RuntimeError(
-                                    f"Resting order {order.id} has no limit price"
-                                )
-                            orders.append(
-                                GlimpseOrderSnapshot(
-                                    order_ref_num=order.id,
-                                    symbol=symbol,
-                                    side=order.side,
-                                    qty_lots=order.leaves_qty_lots,
-                                    price_ticks=order.price_ticks,
-                                )
-                            )
+                raise GlimpseSessionUnavailable("A coherent active feed is required")
+            snapshot = self._capture_book()
             return GlimpseSnapshot(
-                run_generation=self.run_generation,
-                timestamp=self.scheduler.current_time,
-                itch_sequence=feed.sequence_number,
-                orders=tuple(orders),
+                self.run_generation,
+                snapshot.timestamp,
+                snapshot.next_itch_sequence,
+                tuple(
+                    GlimpseOrderSnapshot(
+                        o.order_id, o.symbol, o.side, o.qty_lots, o.price_ticks
+                    )
+                    for o in snapshot.orders
+                ),
             )
 
     async def advance_to(self, target_time: datetime) -> int:
@@ -729,33 +829,3 @@ class ExchangeLifecycle:
             result = await self.scheduler.run_until(target_time)
             self.check_persistence_failure()
             return result
-
-    async def websocket_snapshot(
-        self,
-        action: Callable[[], Awaitable[Any]],
-    ) -> Any:
-        observed = self.token
-        self.raise_if_transition_or_failed()
-        async with self._serialized():
-            self.raise_if_transition_or_failed()
-            if observed != self.token:
-                raise LifecycleError(
-                    503,
-                    "LIFECYCLE_TRANSITION_IN_PROGRESS",
-                    "The WebSocket registration crossed a lifecycle transition",
-                )
-            return await action()
-
-    async def broadcast_if_current(
-        self,
-        generation: int,
-        action: Callable[[], Awaitable[None]],
-    ) -> bool:
-        async with self._serialized():
-            if (
-                self.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}
-                or generation != self.run_generation
-            ):
-                return False
-            await action()
-            return True

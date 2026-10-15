@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import asyncio
-from concurrent.futures import Future
 from datetime import timedelta
 import logging
+import inspect
 import os
-import threading
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Optional
 
 import uvicorn
 
 from .api import ExchangeAPI
+from .effects import CommandEffect, CommandEffects
+from .journal import ExchangeJournal, JournalAdmissionError
 from .configuration import ExchangeConfig
 from .engine import MatchingEngine
 from .gateway import FIXApplication, FIXGateway, SessionRegistry
@@ -20,6 +23,7 @@ from .latency import (
     LatencyScheduler,
     PerfCounterClock,
     SchedulerFailedError,
+    datetime_to_ns,
 )
 from .instruments import InstrumentCatalog
 from .glimpse_encoder import GlimpseEncoder
@@ -30,12 +34,14 @@ from .metrics import (
     BufferedMetricsWriter,
     LatencyTracker,
     MetricsCollector,
+    PersistenceBackpressureTimeout,
 )
 from .models import (
     CancelOrderCommand,
     ExecutionParams,
     ExecutionReport,
-    MarketDataSnapshot,
+    CancelReject,
+    ReplaceOrderCommand,
     ProcessOrderCommand,
     SchedulerState,
     Trade,
@@ -54,9 +60,16 @@ class MockExchange:
         self,
         config: ExchangeConfig,
         fix_cfg: Optional[str] = None,
+        *,
+        persistence_sink=None,
+        fix_gateway_factory=None,
     ) -> None:
         self.config = config
-        self.fix_cfg = fix_cfg
+        self.fix_cfg = fix_cfg or "configs/mockx1.cfg"
+        if not os.path.isfile(self.fix_cfg):
+            raise ValueError(f"FIX config file does not exist: {self.fix_cfg}")
+        self._persistence_sink = persistence_sink
+        self._fix_gateway_factory = fix_gateway_factory or FIXGateway
         self.running = False
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.server: Optional[uvicorn.Server] = None
@@ -64,10 +77,8 @@ class MockExchange:
         self._started = False
         self._shutdown_complete = False
         self._callbacks_registered = False
-        self._broadcast_lock = threading.Lock()
-        self._pending_broadcasts: set[asyncio.Future | Future] = set()
+        self._captured_effects: Optional[list[CommandEffect]] = None
 
-        self.fix_enabled = self.config.fix.enabled
         self.scheduler_mode = self.config.scheduler.mode
 
         self._init_components()
@@ -85,38 +96,39 @@ class MockExchange:
 
         self.scheduler = LatencyScheduler(
             session_delays=dict(latency_config.session_delays),
-            max_events_per_advance=(self.config.scheduler.max_events_per_advance),
+            max_events_per_advance=self.config.scheduler.max_events_per_advance,
+            processing_batch_size=self.config.scheduler.processing_batch_size,
         )
         self.monotonic_clock = PerfCounterClock()
         self.instruments = InstrumentCatalog.from_config(self.config)
         self.order_normalizer = OrderNormalizer(
             self.instruments,
-            itch_compatible=self.config.itch.enabled,
+            itch_compatible=True,
         )
 
-        self.questdb_writer = None
-        self.metrics_persistence = None
         questdb_config = self.config.questdb
-        if questdb_config is not None and questdb_config.enabled:
-            self.questdb_writer = QuestDBMetricsSink(
-                url=questdb_config.url or "",
-                health_url=questdb_config.health_url or "",
-                username=questdb_config.username,
-                password=questdb_config.password,
-                request_timeout_ms=questdb_config.request_timeout_ms,
-            )
-            self.metrics_persistence = BufferedMetricsWriter(
-                self.questdb_writer,
-                flush_batch_size=questdb_config.flush_batch_size,
-                max_buffer_records=questdb_config.max_buffer_records,
-                max_buffer_bytes=questdb_config.max_buffer_bytes,
-                flush_interval_ms=questdb_config.flush_interval_ms,
-                retry_backoff_ms=questdb_config.retry_backoff_ms,
-                max_retry_delay_ms=questdb_config.max_retry_delay_ms,
-                overflow_retry_attempts=(questdb_config.overflow_retry_attempts),
-                shutdown_timeout_ms=questdb_config.shutdown_timeout_ms,
-                overflow_policy=questdb_config.overflow_policy,
-            )
+        self.questdb_writer = self._persistence_sink or QuestDBMetricsSink(
+            url=questdb_config.url,
+            health_url=questdb_config.health_url,
+            username=questdb_config.username,
+            password=questdb_config.password,
+            request_timeout_ms=questdb_config.request_timeout_ms,
+        )
+        self.metrics_persistence = BufferedMetricsWriter(
+            self.questdb_writer,
+            flush_batch_size=questdb_config.flush_batch_size,
+            flush_batch_bytes=questdb_config.flush_batch_bytes,
+            max_buffer_records=questdb_config.max_buffer_records,
+            max_buffer_bytes=questdb_config.max_buffer_bytes,
+            flush_interval_ms=questdb_config.flush_interval_ms,
+            retry_backoff_ms=questdb_config.retry_backoff_ms,
+            max_retry_delay_ms=questdb_config.max_retry_delay_ms,
+            backpressure_timeout_ms=questdb_config.backpressure_timeout_ms,
+            shutdown_timeout_ms=questdb_config.shutdown_timeout_ms,
+        )
+        self.journal = ExchangeJournal(
+            self.metrics_persistence, self.config.exchange_name
+        )
 
         self.metrics = MetricsCollector(
             self.config.exchange_name,
@@ -137,21 +149,16 @@ class MockExchange:
         )
         self.metrics.bind_engine(self.engine)
 
-        self.itch_feed: Optional[ITCHFeedPublisher] = None
-        if self.config.itch.enabled:
-            if self.config.moldudp64 is None:
-                raise ValueError("Enabled ITCH requires MoldUDP64 configuration")
-            self.itch_feed = ITCHFeedPublisher(
-                self.instruments,
-                self.scheduler,
-                self.config.itch,
-                self.config.moldudp64,
-                self.metrics,
-                on_state_change=self._on_itch_state,
-            )
-            self.metrics.update_itch_state("idle", 1)
-        else:
-            self.metrics.update_itch_state("disabled", 1)
+        self.itch_feed = ITCHFeedPublisher(
+            self.instruments,
+            self.scheduler,
+            self.config.itch,
+            self.config.moldudp64,
+            self.metrics,
+            on_state_change=self._on_itch_state,
+        )
+        self.metrics.update_itch_state("idle", 1)
+        self.metrics_persistence.before_wait = self.itch_feed.flush
 
         self.session_registry = SessionRegistry()
         self.fix_app = FIXApplication(
@@ -162,6 +169,7 @@ class MockExchange:
             monotonic_clock=self.monotonic_clock,
             order_normalizer=self.order_normalizer,
             session_participants=self.config.fix.session_participants,
+            max_orders_per_list=self.config.fix.max_orders_per_list,
             delivery_retry_interval_ms=(self.config.fix.delivery_retry_interval_ms),
             delivery_max_attempts_per_cycle=(
                 self.config.fix.delivery_max_attempts_per_cycle
@@ -176,40 +184,35 @@ class MockExchange:
             self.latency_tracker,
             self.fix_app,
             self.itch_feed,
+            journal=self.journal,
         )
-        self.glimpse_service: Optional[GlimpseService] = None
-        if self.config.glimpse.enabled:
-            if self.itch_feed is None or self.config.soupbintcp is None:
-                raise ValueError("Enabled GLIMPSE requires ITCH and SoupBinTCP")
-            self.glimpse_service = GlimpseService(
-                self.config.soupbintcp,
-                GlimpseEncoder(
-                    self.itch_feed.encoder,
-                    market_category=self.config.itch.market_category.encode("ascii"),
-                    financial_status=self.config.itch.financial_status.encode("ascii"),
-                    round_lot_size=self.config.itch.round_lot_size,
-                ),
-                self.lifecycle.capture_glimpse_snapshot,
-                self.metrics,
-                on_state_change=self._on_glimpse_state,
-            )
-            self.lifecycle.bind_glimpse_service(self.glimpse_service)
-            self.metrics.update_glimpse_state("idle")
-        else:
-            self.metrics.update_glimpse_state("disabled")
+        self.glimpse_service = GlimpseService(
+            self.config.soupbintcp,
+            GlimpseEncoder(
+                self.itch_feed.encoder,
+                market_category=self.config.itch.market_category.encode("ascii"),
+                financial_status=self.config.itch.financial_status.encode("ascii"),
+                round_lot_size=self.config.itch.round_lot_size,
+            ),
+            self.lifecycle.capture_glimpse_snapshot,
+            self.metrics,
+            on_state_change=self._on_glimpse_state,
+        )
+        self.lifecycle.bind_glimpse_service(self.glimpse_service)
+        self.metrics.update_glimpse_state("idle")
         self.fix_app.lifecycle = self.lifecycle
-        self.fix_gateway: Optional[FIXGateway] = None
-        if self.fix_enabled:
-            if not self.fix_cfg or not os.path.isfile(self.fix_cfg):
-                raise ValueError(f"FIX config file does not exist: {self.fix_cfg}")
-            self.fix_gateway = FIXGateway(
-                self.fix_cfg,
-                self.engine,
-                self.metrics,
-                self.latency_tracker,
-                application=self.fix_app,
-                session_participants=self.config.fix.session_participants,
-            )
+        self.lifecycle.command_executor = self._execute_ingress_command
+        self._enqueue_report = self.fix_app.enqueue_report
+        self.fix_app.enqueue_report = self._queue_report
+        self.fix_app.on_report_delivered = self._on_report_delivered
+        self.fix_gateway = self._fix_gateway_factory(
+            self.fix_cfg,
+            self.engine,
+            self.metrics,
+            self.latency_tracker,
+            application=self.fix_app,
+            session_participants=self.config.fix.session_participants,
+        )
 
         # Ownership is explicit: no route endpoint introspection is involved.
         self.api = ExchangeAPI(
@@ -227,72 +230,182 @@ class MockExchange:
         self._setup_callbacks()
 
     def _setup_callbacks(self) -> None:
-        self.lifecycle.bind_market_data_delivery(
-            self._drain_broadcasts, self._has_pending_broadcasts
-        )
-        def command_handler(event_type, handler):
-            def execute(data):
-                return self.lifecycle.execute_command(
-                    lambda: handler(data),
-                    on_rejected=lambda: self.fix_app.reject_failed_command(
-                        event_type, data,
-                        "METRICS_INCOMPLETE: Metrics were lost; this simulation must be rerun."
-                    ),
-                )
-            return execute
+        handlers = {
+            "new_order_received": self.fix_app.process_new_order_envelope,
+            "cancel_received": self.fix_app.process_cancel_envelope,
+            "replace_received": self.fix_app.process_replace_envelope,
+            "order_arrived": self._handle_order_arrived,
+            "order_process": self._handle_order_process,
+            "cancel_arrived_at_exchange": self._handle_cancel_arrived,
+            "cancel_engine_process": self._handle_cancel_process,
+            "replace_arrived_at_exchange": self._handle_replace_arrived,
+            "replace_engine_process": self._handle_replace_process,
+            "fix_delivery_due": self.fix_app.process_delivery_due,
+        }
+        for event_type, handler in handlers.items():
 
-        self.scheduler.register_handler(
-            "new_order_received",
-            command_handler("new_order_received", self.fix_app.process_new_order_envelope),
-        )
-        self.scheduler.register_handler(
-            "cancel_received",
-            command_handler("cancel_received", self.fix_app.process_cancel_envelope),
-        )
-        self.scheduler.register_handler(
-            "order_arrived",
-            command_handler("order_arrived", self._handle_order_arrived),
-        )
-        self.scheduler.register_handler(
-            "order_process",
-            command_handler("order_process", self._handle_order_process),
-        )
-        self.scheduler.register_handler(
-            "fix_delivery_due",
-            self.fix_app.process_delivery_due,
-        )
-        self.scheduler.register_handler(
-            "cancel_arrived_at_exchange",
-            command_handler("cancel_arrived_at_exchange", self._handle_cancel_arrived),
-        )
-        self.scheduler.register_handler(
-            "cancel_engine_process",
-            command_handler("cancel_engine_process", self._handle_cancel_process),
-        )
-        if self.itch_feed is not None:
-            self.scheduler.register_handler(
-                self.itch_feed.HEARTBEAT_EVENT,
-                self.itch_feed.handle_heartbeat,
-            )
+            async def execute(data, event_type=event_type, handler=handler):
+                return await self._execute_committed_command(event_type, handler, data)
 
+            self.scheduler.register_handler(event_type, execute)
+        self.scheduler.register_handler(
+            self.itch_feed.HEARTBEAT_EVENT, self.itch_feed.handle_heartbeat
+        )
+        self.scheduler.on_processing_boundary = self._processing_boundary
         self.engine.on_execution_report = self._on_execution_report
-        self.engine.on_market_data_update = self._on_market_data_update
         self.engine.on_trade = self._on_trade
-        self.engine.on_self_trade_prevention = self.metrics.record_self_trade_prevention
-        self.engine.on_displayed_order_event = (
-            self.itch_feed.publish if self.itch_feed is not None else None
+        self.engine.on_self_trade_prevention = self._on_self_trade_prevention
+        self.engine.on_displayed_order_event = lambda event: self._capture(
+            "book_change", event
         )
         self.engine.on_order_submitted = self._on_order_submitted
-        self.engine.on_cancel_request = self.metrics.record_cancel_request
+        self.engine.on_cancel_request = self._on_cancel_request
         self.engine.on_cancel_reject = self.metrics.record_cancel_reject
-        self.engine.on_cancel_outcome = self.metrics.record_cancel_outcome
+        self.engine.on_cancel_outcome = self._on_cancel_outcome
+        self.engine.on_replace_request = lambda command: self._capture(
+            "replace_request", command
+        )
+        self.engine.on_replace_reject = self.metrics.record_cancel_reject
         self.engine.on_cpu_duration = self.latency_tracker.record_cpu_duration
         self.scheduler.on_queue_depth_change = self.metrics.update_scheduler_pending
-        self.scheduler.on_failure = self.metrics.record_scheduler_failure
+        self.scheduler.on_failure = self._on_scheduler_failure
         self.scheduler.on_state_change = self.metrics.update_scheduler_state
         self.metrics.update_scheduler_pending(self.scheduler.get_pending_count())
         self.metrics.update_scheduler_state(self.scheduler.state)
         self._callbacks_registered = True
+
+    def _capture(self, kind: str, payload: object) -> None:
+        if self._captured_effects is not None:
+            if isinstance(payload, dict):
+                payload = MappingProxyType(dict(payload))
+            self._captured_effects.append(CommandEffect(kind, payload))
+
+    def _queue_report(self, report) -> None:
+        if self._captured_effects is None:
+            self._enqueue_report(report)
+        else:
+            self._capture("report", report)
+
+    async def _execute_committed_command(self, event_type, handler, data):
+        # Delivery remains available after a run fault so truthful reports settle.
+        delivery = event_type == "fix_delivery_due"
+        if not delivery and self.lifecycle.check_persistence_failure():
+            self.fix_app.reject_failed_command(
+                event_type, data, self.lifecycle.failure_message
+            )
+            return
+        self.lifecycle._command_depth += 1
+        effects: list[CommandEffect] = []
+        self._captured_effects = effects
+        try:
+            result = handler(data)
+            if inspect.isawaitable(result):
+                result = await result
+        except BaseException:
+            # Mutation may have occurred. No completed marker or rollback is invented.
+            self._captured_effects = None
+            raise
+        else:
+            self._captured_effects = None
+
+            async def settle():
+                def effect_run(effect):
+                    return (
+                        effect.payload.get("run_id")
+                        if isinstance(effect.payload, Mapping)
+                        else getattr(effect.payload, "run_id", None)
+                    )
+
+                scopes = {}
+                if delivery:
+                    for effect in effects:
+                        scopes.setdefault(
+                            effect_run(effect) or self.journal.run_id, []
+                        ).append(effect)
+                else:
+                    scopes[self.journal.run_id] = effects
+                envelopes = tuple(
+                    CommandEffects(
+                        event_type,
+                        self.scheduler.current_time,
+                        tuple(group),
+                        ingress_sequence=getattr(data, "ingress_sequence", None),
+                        order_id=getattr(data, "order_id", None),
+                        run_id=run_id,
+                    )
+                    for run_id, group in scopes.items()
+                    if run_id is not None
+                )
+                try:
+                    for envelope in envelopes:
+                        sequence = await self.journal.admit_command(envelope)
+                        if (
+                            envelope.run_id is None
+                            or envelope.run_id == self.metrics.run_id
+                        ):
+                            self.metrics.note_journal_sequence(
+                                sequence, datetime_to_ns(envelope.timestamp)
+                            )
+                except asyncio.CancelledError:
+                    # A dependency cancellation after matching is a run fault,
+                    # and must still publish the command's truthful reports.
+                    reason = "Completed command journal admission was cancelled"
+                    self.metrics.mark_integrity_failure(reason)
+                    self.lifecycle.request_failure(
+                        "JOURNAL_ADMISSION_CANCELLED", reason
+                    )
+                except Exception as exc:
+                    self.metrics.mark_integrity_failure(str(exc))
+                    self.lifecycle.request_failure("JOURNAL_ADMISSION_FAILED", str(exc))
+                # Admission failure cannot turn an executed fill into a rejection.
+                for effect in effects:
+                    if effect.kind == "report":
+                        self._enqueue_report(effect.payload)
+                self.itch_feed.publish_batch(
+                    tuple(e.payload for e in effects if e.kind == "book_change")
+                )
+                await self._wait_persistence_pressure()
+                return result
+
+            task = asyncio.create_task(settle(), name=f"command-commit:{event_type}")
+            return await self.lifecycle._complete_transition(
+                task, operation="command", run_id=self.lifecycle.run_id
+            )
+        finally:
+            self._captured_effects = None
+            self.lifecycle._command_depth -= 1
+            self.lifecycle.check_persistence_failure()
+
+    async def _execute_ingress_command(self, action):
+        return await self._execute_committed_command(
+            "fix_ingress", lambda _: action(), None
+        )
+
+    async def _processing_boundary(self) -> None:
+        self.itch_feed.flush()
+        self.metrics.refresh_engine_gauges()
+        await self._wait_persistence_pressure()
+        self.lifecycle.check_persistence_failure()
+
+    async def _wait_persistence_pressure(self) -> None:
+        if self.lifecycle.state == LifecycleState.ACTIVE:
+            try:
+                await self.metrics_persistence.wait_for_pressure_relief()
+            except PersistenceBackpressureTimeout as exc:
+                self.lifecycle.request_failure(
+                    "PERSISTENCE_BACKPRESSURE_TIMEOUT", str(exc)
+                )
+            except asyncio.CancelledError:
+                self.lifecycle.request_failure(
+                    "PERSISTENCE_PRESSURE_CANCELLED",
+                    "Admitted backlog pressure wait was cancelled",
+                )
+
+    def _on_scheduler_failure(self, failure) -> None:
+        self.metrics.record_scheduler_failure(failure)
+        self.lifecycle.request_failure(
+            "ENGINE_FAILED", "Engine command failed; start a fresh run."
+        )
 
     async def start_components(self) -> None:
         """Start components in one documented, readiness-gated order."""
@@ -340,19 +453,16 @@ class MockExchange:
                 raise RuntimeError("Engine callbacks must be registered before startup")
 
             if self.glimpse_service is not None:
-                await self.glimpse_service.start()
+                if not await self.glimpse_service.start():
+                    raise RuntimeError("Required GLIMPSE listener startup failed")
 
-            if self.fix_enabled:
-                state.component_status["fix_gateway"] = "starting"
-                try:
-                    assert self.fix_gateway is not None
-                    self.fix_gateway.start()
-                except Exception:
-                    state.component_status["fix_gateway"] = "failed"
-                    raise
-                state.component_status["fix_gateway"] = "ready"
-            else:
-                state.component_status["fix_gateway"] = "disabled"
+            state.component_status["fix_gateway"] = "starting"
+            try:
+                self.fix_gateway.start()
+            except Exception:
+                state.component_status["fix_gateway"] = "failed"
+                raise
+            state.component_status["fix_gateway"] = "ready"
 
             self.running = True
             if self.scheduler_mode == "realtime":
@@ -415,10 +525,20 @@ class MockExchange:
             self.scheduler.stop()
             state.component_status["scheduler"] = "stopped"
 
-            try:
-                await self.api.close_websockets()
-            except Exception:
-                logger.exception("WebSocket shutdown failed")
+            if self.journal.run_id is not None:
+                try:
+                    await self.journal.end_run(
+                        self.scheduler.current_time,
+                        failed=True,
+                        reason=(
+                            self.lifecycle.failure_message
+                            if self.lifecycle.run_failure
+                            else "Service stopped before normal run completion"
+                        ),
+                    )
+                except Exception:
+                    logger.exception("Run shutdown journal acknowledgment failed")
+                self.journal.detach_run()
 
             try:
                 metrics_closed = await self.metrics.close()
@@ -461,13 +581,45 @@ class MockExchange:
                 and feed.active_generation is not None
             ):
                 service.revoke_run(feed.active_generation)
+            lifecycle = getattr(self, "lifecycle", None)
+            if lifecycle is not None:
+                lifecycle.request_failure(
+                    "ITCH_PUBLISHER_FAILED", "Required ITCH publisher failed"
+                )
 
     def _on_glimpse_state(self, state: str) -> None:
         api = getattr(self, "api", None)
         if api is not None:
             api.app.state.component_status["glimpse"] = state
+        if state == "degraded":
+            self.lifecycle.request_failure(
+                "GLIMPSE_LISTENER_FAILED", "Required GLIMPSE listener failed"
+            )
 
     def _on_order_submitted(self, order_id: int, command) -> None:
+        self._capture(
+            "order_submitted",
+            {
+                "order_id": order_id,
+                **{
+                    name: getattr(command, name, None)
+                    for name in (
+                        "cl_ord_id",
+                        "symbol",
+                        "side",
+                        "order_type",
+                        "tif",
+                        "price_ticks",
+                        "order_qty_lots",
+                        "session_id",
+                        "session_alias",
+                        "participant_id",
+                        "list_id",
+                        "submitted_at",
+                    )
+                },
+            },
+        )
         self.metrics.record_order_submitted(order_id, command)
         run_generation = self.engine.orders[order_id].run_generation
         self.latency_tracker.order_submitted(
@@ -497,10 +649,13 @@ class MockExchange:
         )
 
     def _on_execution_report(self, report: ExecutionReport) -> None:
-        self.metrics.record_order(report)
-        if report.cancel_ingress_sequence is None:
-            self.latency_tracker.report_created(report)
         self.fix_app.enqueue_report(report)
+        self.metrics.record_order(report)
+        if (
+            report.cancel_ingress_sequence is None
+            and report.replace_ingress_sequence is None
+        ):
+            self.latency_tracker.report_created(report)
 
     def _handle_cancel_arrived(self, command: CancelOrderCommand) -> None:
         self.latency_tracker.cancel_arrived(command)
@@ -511,75 +666,50 @@ class MockExchange:
         if not isinstance(report, ExecutionReport):
             self.fix_app.enqueue_report(report)
 
-    @staticmethod
-    def _log_broadcast_result(future) -> None:
-        try:
-            future.result()
-        except asyncio.CancelledError:
-            return
-        except Exception:
-            logger.exception("Market-data broadcast failed")
-
-    def _track_broadcast(self, future) -> None:
-        with self._broadcast_lock:
-            self._pending_broadcasts.add(future)
-
-        def completed(result):
-            with self._broadcast_lock:
-                self._pending_broadcasts.discard(result)
-            self._log_broadcast_result(result)
-
-        future.add_done_callback(completed)
-
-    def _has_pending_broadcasts(self) -> bool:
-        with self._broadcast_lock:
-            return any(not future.done() for future in self._pending_broadcasts)
-
-    async def _drain_broadcasts(self) -> None:
-        with self._broadcast_lock:
-            pending = tuple(
-                future for future in self._pending_broadcasts if not future.done()
-            )
-        if pending:
-            await asyncio.gather(
-                *(
-                    asyncio.shield(
-                        future if isinstance(future, asyncio.Future)
-                        else asyncio.wrap_future(future)
-                    )
-                    for future in pending
-                ),
-                return_exceptions=True,
-            )
-
-    def _on_market_data_update(
-        self,
-        snapshot: MarketDataSnapshot,
-    ) -> None:
-        """Record metrics and hand the immutable snapshot to the API loop."""
-        self.metrics.update_book_metrics(snapshot)
-        self.metrics.update_active_orders(snapshot)
-
-        loop = self.loop
-        if loop is None or loop.is_closed():
-            return
-        try:
-            running_loop = asyncio.get_running_loop()
-        except RuntimeError:
-            running_loop = None
-
-        if running_loop is loop:
-            task = loop.create_task(self.api.broadcast_market_data(snapshot))
-            self._track_broadcast(task)
-        elif loop.is_running():
-            future = asyncio.run_coroutine_threadsafe(
-                self.api.broadcast_market_data(snapshot),
-                loop,
-            )
-            self._track_broadcast(future)
-
     def _on_trade(self, trade: Trade) -> None:
+        self._capture("trade", trade)
         self.metrics.record_trade(trade)
+
+    def _on_self_trade_prevention(self, event) -> None:
+        self._capture("stp", event)
+        self.metrics.record_self_trade_prevention(event)
+
+    def _on_cancel_request(self, command) -> None:
+        self._capture("cancel_request", command)
+        self.metrics.record_cancel_request(command)
+
+    def _on_cancel_outcome(self, *args) -> None:
+        self._capture(
+            "request_outcome",
+            {
+                "reason_code": args[1].value,
+                "ingress_sequence": args[0].ingress_sequence,
+            },
+        )
+        self.metrics.record_cancel_outcome(*args)
+
+    def _handle_replace_arrived(self, command: ReplaceOrderCommand) -> None:
+        self.latency_tracker.replace_arrived(command)
+
+    def _handle_replace_process(self, command: ReplaceOrderCommand) -> None:
+        report = self.engine.replace_order(command)
+        self.latency_tracker.replace_report_created(command, report)
+        if not isinstance(report, ExecutionReport):
+            self.fix_app.enqueue_report(report)
+
+    def _on_report_delivered(self, report, timestamp) -> None:
+        self._capture(
+            "timing",
+            {
+                "stage": "report_delivered",
+                "timestamp": timestamp,
+                "order_id": report.order_id,
+                "run_id": report.run_id,
+                "report_id": getattr(
+                    report, "exec_id", getattr(report, "reject_id", None)
+                ),
+            },
+        )
 
     async def _run_scheduler(self) -> None:
         """Advance simulated time periodically only in explicit realtime mode."""
@@ -611,6 +741,8 @@ class MockExchange:
         )
         self.server = uvicorn.Server(config)
         await self.server.serve()
+        if not self.server.started:
+            raise RuntimeError("Required exchange component startup failed")
 
     def run(self) -> None:
         """Run Uvicorn; its lifespan owns FIX, scheduler, and persistence."""
@@ -622,7 +754,7 @@ class MockExchange:
         if self._started:
             await self.stop_components()
             return self.app.state.component_status["persistence"] != "degraded"
-        return await self.metrics.close()
+        return (await self.metrics.close()).successful
 
     def stop(self) -> None:
         """Request server shutdown; the ASGI lifespan performs teardown."""

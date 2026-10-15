@@ -15,7 +15,11 @@ from src.mockx.metrics import (
     InMemoryMetricsSink,
     MetricsCollector,
 )
+from src.mockx.effects import CommandEffect, CommandEffects
+from src.mockx.journal import ExchangeJournal
+from src.mockx.journal_reader import NativeJournalReader
 from src.mockx.models import (
+    DisplayedOrderAdded,
     ExecutionType,
     MarketDataSnapshot,
     OrderStatus,
@@ -91,7 +95,9 @@ def record_large_activity(
         aggressor_side=Side.BUY,
     )
     assert metrics.record_trade(trade)
-    assert metrics.record_execution_report(canceled_report(instrument, identity, quantity))
+    assert metrics.record_execution_report(
+        canceled_report(instrument, identity, quantity)
+    )
 
 
 @pytest.mark.parametrize("precision", [2, 28, 80])
@@ -131,8 +137,11 @@ def test_current_and_lifetime_totals_are_exact_across_run_reset(precision):
 def test_multiple_instrument_totals_preserve_small_terms_with_traps_enabled():
     first = make_instrument()
     second = Instrument(
-        "SMALL", Decimal("0.000000000000000003"),
-        Decimal("0.000000000000000007"), 18, 18,
+        "SMALL",
+        Decimal("0.000000000000000003"),
+        Decimal("0.000000000000000007"),
+        18,
+        18,
     )
     metrics = MetricsCollector(
         "TEST",
@@ -166,37 +175,54 @@ def test_multiple_instrument_totals_preserve_small_terms_with_traps_enabled():
         (1000000000000001, 1000000000000002, "10000000000000.02"),
     ],
 )
-def test_persisted_spread_and_midpoint_are_exact_and_round_once(
+def test_native_journal_preserves_exact_price_and_aggregate_units(
     bid_ticks, ask_ticks, midpoint
 ):
     instrument = make_instrument(tick="0.01")
     sink = InMemoryMetricsSink()
     writer = BufferedMetricsWriter(sink)
-    metrics = MetricsCollector(
-        "TEST",
-        instruments=InstrumentCatalog({"TEST": instrument}),
-        persistence=writer,
-        prometheus_enabled=False,
+    journal = ExchangeJournal(writer, "TEST")
+
+    async def persist():
+        await journal.start_run("exact-book", "precision", (instrument,), NOW)
+        changes = tuple(
+            CommandEffect(
+                "book_change",
+                DisplayedOrderAdded(1, i, "TEST", side, ticks, MAX_UNITS, NOW),
+            )
+            for i, side, ticks in (
+                (1, Side.BUY, bid_ticks),
+                (2, Side.BUY, bid_ticks),
+                (3, Side.SELL, ask_ticks),
+                (4, Side.SELL, ask_ticks),
+            )
+        )
+        with localcontext(altered_context(3)):
+            await journal.admit_command(CommandEffects("seed", NOW, changes))
+        await writer.flush()
+        await writer.close()
+
+    asyncio.run(persist())
+    rows = [
+        {**record.symbol_map, **record.column_map}
+        for batch in sink.writes
+        for record in batch
+    ]
+    book = NativeJournalReader()
+    book.apply_rows(rows)
+    assert book.book.depth("TEST") == (
+        ((bid_ticks, 2 * MAX_UNITS),),
+        ((ask_ticks, 2 * MAX_UNITS),),
     )
-    metrics.start_run("exact-book")
-    quantity = 2 * MAX_UNITS
-    snapshot = MarketDataSnapshot(
-        "TEST", instrument, 1, NOW,
-        (PriceLevelSnapshot(bid_ticks, quantity, quantity, 0, 2),),
-        (PriceLevelSnapshot(ask_ticks, quantity, 0, quantity, 2),),
-    )
-    with localcontext(altered_context(3)):
-        metrics.update_book_metrics(snapshot)
-    result = asyncio.run(writer.flush())
-    assert result.successful
-    record = sink.writes[0][0]
-    assert record.column_map["spread"] == "0.01"
-    assert record.column_map["mid_price"] == midpoint
-    assert (
-        format(exact_decimal(quantity * 7, -2), "f")
-        in record.column_map["bids_json"]
-    )
-    assert metrics.integrity_complete
+    adds = [row for row in rows if row["kind"] == "BOOK_ADDED"]
+    assert [row["price_ticks"] for row in adds] == [
+        bid_ticks,
+        bid_ticks,
+        ask_ticks,
+        ask_ticks,
+    ]
+    assert all(isinstance(row["qty_lots"], int) for row in adds)
+    assert all("bids_json" not in row for row in rows)
 
 
 @pytest.mark.parametrize("precision", [2, 28, 80])
@@ -204,15 +230,28 @@ def test_order_and_report_average_properties_use_explicit_28_digit_context(preci
     instrument = make_instrument(tick="0.123456789012345678", precision=18)
     notional = 10000000000000000013
     order = exact_order(
-        id=1, cl_ord_id="AVERAGE", symbol="TEST", side=Side.BUY,
-        order_qty_lots=6, price_ticks=MAX_UNITS, instrument=instrument,
-        tif=TimeInForce.GTC, ts_submitted=NOW, participant_id="participant",
-        status=OrderStatus.PARTIAL, filled_qty_lots=3,
+        id=1,
+        cl_ord_id="AVERAGE",
+        symbol="TEST",
+        side=Side.BUY,
+        order_qty_lots=6,
+        price_ticks=MAX_UNITS,
+        instrument=instrument,
+        tif=TimeInForce.GTC,
+        ts_submitted=NOW,
+        participant_id="participant",
+        status=OrderStatus.PARTIAL,
+        filled_qty_lots=3,
         filled_notional_tick_lots=notional,
     )
     report = create_execution_report(
-        order, exec_type=ExecutionType.TRADE, timestamp=NOW, exec_id="AVERAGE-REPORT",
-        last_qty_lots=3, last_price_ticks=1, trade_id=1,
+        order,
+        exec_type=ExecutionType.TRADE,
+        timestamp=NOW,
+        exec_id="AVERAGE-REPORT",
+        last_qty_lots=3,
+        last_price_ticks=1,
+        trade_id=1,
     )
     exact_numerator = exact_decimal(123456789012345678 * notional, -18)
     reference = Context(prec=28, rounding=ROUND_HALF_EVEN).divide(
@@ -230,9 +269,16 @@ def test_order_and_report_average_properties_use_explicit_28_digit_context(preci
 
 def test_unfilled_average_property_shapes_are_preserved():
     order = exact_order(
-        id=1, cl_ord_id="UNFILLED", symbol="TEST", side=Side.BUY,
-        order_qty_lots=1, price_ticks=1, tif=TimeInForce.GTC,
-        ts_submitted=NOW, participant_id="participant", status=OrderStatus.NEW,
+        id=1,
+        cl_ord_id="UNFILLED",
+        symbol="TEST",
+        side=Side.BUY,
+        order_qty_lots=1,
+        price_ticks=1,
+        tif=TimeInForce.GTC,
+        ts_submitted=NOW,
+        participant_id="participant",
+        status=OrderStatus.NEW,
     )
     report = create_execution_report(
         order, exec_type=ExecutionType.NEW, timestamp=NOW, exec_id="UNFILLED-REPORT"
@@ -253,20 +299,11 @@ def test_unfilled_average_property_shapes_are_preserved():
         ("0.000000000000000001", 18, 1, 2, "0.0000000000000000015"),
     ],
 )
-@pytest.mark.anyio
-async def test_ui_preserves_exact_unrounded_half_tick_midpoint(
+def test_exact_half_tick_value_can_be_derived_without_binary_float(
     tick, precision, bid_ticks, ask_ticks, expected
 ):
-    config = api_config(prometheus_enabled=False)
-    config["instruments"]["TEST"]["tick_size"] = tick
-    config["instruments"]["TEST"]["price_display_precision"] = precision
-    exchange = MockExchange(validate_config(config, environ={}))
-    process_order(exchange, "BID", Side.BUY, 1, bid_ticks)
-    process_order(exchange, "ASK", Side.SELL, 1, ask_ticks)
-    async with AsyncClient(
-        transport=ASGITransport(app=exchange.app), base_url="http://test"
-    ) as client:
-        with localcontext(altered_context(3)):
-            response = await client.get("/ui/TEST")
-    assert response.status_code == 200
-    assert f'id="mid-price">{expected}</span>' in response.text
+    from src.mockx.instruments import decimal_product
+
+    with localcontext(Context(prec=100)):
+        midpoint = decimal_product(Decimal(tick), bid_ticks + ask_ticks) / Decimal(2)
+    assert midpoint == Decimal(expected)

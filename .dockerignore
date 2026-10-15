@@ -7,3 +7,11 @@
 logs
 store
 tests
+graft
+build-*
+build
+**/build
+**/build-*
+**/runtime
+**/vcpkg_installed
+**/.coinapi-docker-*

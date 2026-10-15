@@ -1,0 +1,12 @@
+{
+  "python": "3.13.14",
+  "questdb": "9.4.3",
+  "projector_interval_ms": 250,
+  "projector_separate_process": true,
+  "depth_samples_before": 2,
+  "depth_samples_after": 737,
+  "new_depth_samples": 735,
+  "benchmark_runs_projected": 12,
+  "benchmark_runs_ended_at_source_head": 12,
+  "benchmark_depth_samples": 719
+}

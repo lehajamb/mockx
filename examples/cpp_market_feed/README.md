@@ -26,7 +26,10 @@ truncated UDP, malformed input, or a forward sequence gap invalidates
 continuity and causes a new GLIMPSE cut; the client never knowingly continues
 with a stale book.
 
-MockX currently changes the live book with `A`, `E`, `C`, and `D`. The client
+MockX changes the live book with `A`, `E`, `C`, `D`, and `X`. A same-price
+quantity reduction uses `X` and retains its existing FIFO position. A price
+change or quantity increase deletes the old reference and adds a fresh one.
+The client
 also consumes `R`, `H`, `S`, and the GLIMPSE-only `G`. Any other ITCH type is a
 hard error because skipping a future book-changing message would make the
 display incorrect.
@@ -60,13 +63,13 @@ Configure from the MockX Conda environment with
 `-DMOCKX_FEED_ENABLE_LIVE_TEST=ON`; the normal build leaves it disabled so the
 C++ unit tests remain dependency-free.
 
-## Enable MockX feeds
+## Configure MockX feeds
 
-Use a MockX configuration containing:
+FIX, ITCH, GLIMPSE and QuestDB are required native services. Configure the feed
+addresses alongside the FIX participant mapping and QuestDB connection:
 
 ```yaml
 itch:
-  enabled: true
   market_category: " "
   financial_status: " "
   round_lot_size: 1
@@ -78,8 +81,6 @@ moldudp64:
   max_payload_bytes: 1400
   interface_address: 0.0.0.0
   ttl: 1
-glimpse:
-  enabled: true
 soupbintcp:
   host: 127.0.0.1
   port: 18001
@@ -99,7 +100,7 @@ Start MockX and create an active simulation session before starting the client:
 ```bash
 curl -f -X POST http://127.0.0.1:8001/api/v1/session/start \
   -H "Content-Type: application/json" \
-  -d '{"session_id":"cpp-feed-demo"}'
+  -d '{"scenario_label":"cpp-feed-demo"}'
 ```
 
 ## Run

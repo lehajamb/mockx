@@ -23,7 +23,7 @@ from src.mockx.glimpse_service import (
 )
 from src.mockx.instruments import Instrument, InstrumentCatalog
 from src.mockx.itch_encoder import ITCHEncoder
-from src.mockx.main import MockExchange
+from .api_helpers import make_native_exchange as MockExchange
 from src.mockx.models import Side
 from src.mockx.soupbintcp_transport import (
     PACKET_END_SESSION,
@@ -108,9 +108,14 @@ class BlockingEncoder:
 class FakeServer:
     def __init__(self):
         self.closed = False
+        self.closed_event = asyncio.Event()
+
+    async def serve_forever(self):
+        await self.closed_event.wait()
 
     def close(self):
         self.closed = True
+        self.closed_event.set()
 
     async def wait_closed(self):
         return None
@@ -259,7 +264,9 @@ def test_one_byte_prefix_still_generates_ten_byte_alphanumeric_sessions():
         capture,
         DummyMetrics(),
     )
-    assert service._next_session_name() == "G000000001"
+    name = service._next_session_name()
+    assert len(name) == 10 and name.startswith("G") and name.isalnum()
+    assert name != service._next_session_name()
 
 
 @pytest.mark.asyncio
@@ -416,7 +423,6 @@ async def test_listener_bind_failure_degrades_and_next_start_recovers():
 @pytest.mark.asyncio
 async def test_lifecycle_capture_is_book_equivalent_and_marks_next_itch_sequence():
     raw = itch_config()
-    raw["glimpse"] = {"enabled": True}
     raw["soupbintcp"] = {
         "host": "127.0.0.1",
         "port": 18001,
@@ -493,7 +499,6 @@ def available_tcp_port():
 @pytest.mark.asyncio
 async def test_real_tcp_listener_accepts_fragmented_login_and_streams_clean_spin():
     raw = itch_config()
-    raw["glimpse"] = {"enabled": True}
     raw["soupbintcp"] = {
         "host": "127.0.0.1",
         "port": available_tcp_port(),
@@ -542,7 +547,6 @@ async def test_real_tcp_listener_accepts_fragmented_login_and_streams_clean_spin
 @pytest.mark.asyncio
 async def test_slow_tcp_writer_does_not_hold_exchange_lifecycle_lock():
     raw = itch_config()
-    raw["glimpse"] = {"enabled": True}
     raw["soupbintcp"] = {
         "host": "127.0.0.1",
         "port": 18001,
@@ -584,7 +588,6 @@ async def test_slow_tcp_writer_does_not_hold_exchange_lifecycle_lock():
 @pytest.mark.asyncio
 async def test_snapshot_encoding_runs_off_loop_and_does_not_delay_lifecycle():
     raw = itch_config()
-    raw["glimpse"] = {"enabled": True}
     raw["soupbintcp"] = {
         "host": "127.0.0.1",
         "port": 18001,

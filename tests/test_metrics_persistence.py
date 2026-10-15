@@ -1,5 +1,6 @@
 from tests.exact_helpers import exact_engine, exact_metrics
 from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
+
 """Buffered metric persistence reliability tests."""
 
 import asyncio
@@ -33,7 +34,7 @@ def record(number):
         {"sequence": number},
         {"value": float(number)},
         run_id="buffer-test",
-        metric_event_sequence=number,
+        event_sequence=number,
         event_timestamp_ns=number * 1_000,
     )
 
@@ -69,10 +70,7 @@ async def test_flushes_exact_batch_at_threshold():
 
     assert await writer.add(record(1)) == PersistenceAddOutcome.ACCEPTED
     assert await writer.add(record(2)) == PersistenceAddOutcome.ACCEPTED
-    assert (
-        await writer.add(record(3))
-        == PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
-    )
+    assert await writer.add(record(3)) == PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
     assert (await writer.flush()).successful
 
     assert sink.writes == [(record(1), record(2), record(3))]
@@ -99,17 +97,12 @@ async def test_collector_shutdown_flushes_attached_writer():
     writer = BufferedMetricsWriter(sink, flush_batch_size=3)
     metrics = exact_metrics("TEST", persistence=writer)
     metrics.start_run("shutdown")
-    metrics._create_record(
-        "shutdown",
-        {"exchange": "TEST"},
-        {"value": 1.0},
-        1_000,
-    )
+    await writer.add(record(1))
 
     assert (await metrics.close()).successful
 
     assert len(sink.writes) == 1
-    assert sink.writes[0][0].table == "shutdown"
+    assert sink.writes[0][0].table == "test"
     assert sink.close_calls == 1
 
 
@@ -169,10 +162,7 @@ async def test_repeated_close_is_idempotent():
     await writer.add(record(1))
 
     assert (await writer.close()).outcome == PersistenceCloseOutcome.CLOSED
-    assert (
-        (await writer.close()).outcome
-        == PersistenceCloseOutcome.ALREADY_CLOSED
-    )
+    assert (await writer.close()).outcome == PersistenceCloseOutcome.ALREADY_CLOSED
 
     assert sink.writes == [(record(1),)]
     assert sink.close_calls == 1
@@ -183,16 +173,13 @@ async def test_empty_flush_does_not_call_sink_write():
     sink = InMemoryMetricsSink()
     writer = BufferedMetricsWriter(sink, flush_batch_size=10)
 
-    assert (
-        (await writer.flush()).outcome
-        == PersistenceFlushOutcome.NOTHING_TO_FLUSH
-    )
+    assert (await writer.flush()).outcome == PersistenceFlushOutcome.NOTHING_TO_FLUSH
 
     assert sink.writes == []
 
 
 @pytest.mark.asyncio
-async def test_sink_failure_does_not_roll_back_valid_trade(caplog):
+async def test_operational_observers_do_not_generate_durable_rows(caplog):
     sink = FailOnceSink()
     writer = BufferedMetricsWriter(sink, flush_batch_size=100)
     metrics = exact_metrics("TEST", persistence=writer)
@@ -232,20 +219,8 @@ async def test_sink_failure_does_not_roll_back_valid_trade(caplog):
 
     passive_id = submit("PASSIVE", Side.SELL)
     aggressor_id = submit("AGGRESSOR", Side.BUY)
-    buffered_before = writer.buffered_count
-
-    with caplog.at_level("ERROR"):
-        assert (await writer.flush()).outcome == PersistenceFlushOutcome.FAILED
-
-    assert engine.orders[passive_id].filled_qty_lots == 5.0
-    assert engine.orders[aggressor_id].filled_qty_lots == 5.0
-    assert not engine.books["TEST"].bids
-    assert not engine.books["TEST"].asks
-    engine.books["TEST"].assert_invariants()
+    assert writer.buffered_count == 0
+    assert engine.orders[passive_id].status.value == "FILLED"
+    assert engine.orders[aggressor_id].status.value == "FILLED"
     assert metrics.snapshot().trades == 1
-    assert writer.buffered_count == buffered_before
-    assert metrics.snapshot().metric_sink_failures == 1
-    assert any(
-        "retained for retry" in record.getMessage()
-        for record in caplog.records
-    )
+    assert (await writer.close()).successful

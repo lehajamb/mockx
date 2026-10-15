@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
+from .api_helpers import cleanup_native_exchanges
 from .api_helpers import make_exchange
 
 
@@ -38,7 +39,7 @@ def test_ready_only_after_lifespan_finishes_critical_startup():
         )
 
 
-def test_disabled_persistence_is_noncritical_despite_historical_failure():
+def test_historical_failure_counter_does_not_hide_recovered_required_persistence():
     exchange = make_exchange()
     with TestClient(exchange.app) as client:
         exchange.metrics.record_sink_failure(
@@ -49,9 +50,9 @@ def test_disabled_persistence_is_noncritical_despite_historical_failure():
 
     assert response.status_code == 200
     assert response.json()["status"] == "ready"
-    assert response.json()["components"]["persistence"] == "disabled"
+    assert response.json()["components"]["persistence"] == "healthy"
     assert response.json()["core_ready"] is True
-    assert response.json()["persistence_required"] is False
+    assert response.json()["persistence_required"] is True
 
 
 @pytest.mark.asyncio

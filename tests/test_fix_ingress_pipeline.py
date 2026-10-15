@@ -20,7 +20,7 @@ from src.mockx.models import (
     SessionIdentity,
 )
 
-from .api_helpers import api_config
+from .api_helpers import api_config, make_native_exchange
 
 
 def _exchange(
@@ -43,7 +43,7 @@ def _exchange(
         "FIX.4.4:MOCKX->CLIENT-A": "participant-client-a",
         "FIX.4.4:MOCKX->CLIENT-B": "participant-client-b",
     }
-    return MockExchange(validate_config(config, environ={}))
+    return make_native_exchange(validate_config(config, environ={}))
 
 
 def _session(client: str = "CLIENT"):
@@ -461,7 +461,7 @@ async def test_cancel_delivery_failure_is_retained_for_bounded_retry():
         await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
 
         assert len(attempts) == 1
-        assert exchange.scheduler.get_pending_count() == 1
+        assert sum(event.event_type == "fix_delivery_due" for event in exchange.scheduler.event_queue) == 1
         assert exchange.metrics.snapshot().report_delivery_failures == 1
         cancel_metrics = {
             sample.metric

@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 import logging
+import secrets
+import string
 from typing import Callable, Optional
 
 from .configuration import ITCHConfig, MoldUDP64TransportConfig
@@ -24,6 +26,7 @@ from .models import (
     DisplayedOrderDeleted,
     DisplayedOrderEvent,
     DisplayedOrderExecuted,
+    DisplayedOrderReduced,
     ITCHHeartbeatCommand,
 )
 from .moldudp64_transport import (
@@ -82,6 +85,8 @@ class ITCHFeedPublisher:
         self._packets_sent = 0
         self._heartbeats_sent = 0
         self._failures = 0
+        self._pending_messages: list[bytes] = []
+        self._pending_bytes = 20
 
     @staticmethod
     def session_name(prefix: str, generation: int) -> str:
@@ -130,6 +135,8 @@ class ITCHFeedPublisher:
         if self.state == ITCHFeedState.DEGRADED:
             return
         self.last_error = f"{type(exc).__name__}: {exc}"
+        self._pending_messages.clear()
+        self._pending_bytes = 20
         self._failures += 1
         self.metrics.record_itch_failure(self.last_error)
         transport = self.transport
@@ -191,10 +198,14 @@ class ITCHFeedPublisher:
         if self.transport is not None:
             self.transport.stop()
         self.active_generation = generation
-        self.active_session_name = self.session_name(
-            self.mold_config.session_prefix,
-            generation,
+        # A restarted process must never reuse a previous wire session.
+        self.active_session_name = self.mold_config.session_prefix.ljust(
+            2, "_"
+        ) + "".join(
+            secrets.choice(string.ascii_letters + string.digits) for _ in range(8)
         )
+        self._pending_messages.clear()
+        self._pending_bytes = 20
         self._tracking_number = 0
         self._data_sent_since_heartbeat = False
         self.transport = self.transport_factory(
@@ -289,15 +300,49 @@ class ITCHFeedPublisher:
                     event.timestamp,
                     tracking_number=tracking,
                 )
+            elif isinstance(event, DisplayedOrderReduced):
+                message = self.encoder.order_cancel(
+                    event.symbol,
+                    event.order_id,
+                    event.qty_lots,
+                    event.timestamp,
+                    tracking_number=tracking,
+                )
             else:
                 raise TypeError(
                     f"Unsupported displayed-order event: {type(event).__name__}"
                 )
-            self._record_send(self.transport.send_messages([message]))
+            wire_bytes = len(message) + 2
+            if self._pending_messages and (
+                self._pending_bytes + wire_bytes > self.mold_config.max_payload_bytes
+            ):
+                self.flush()
+            if self.state == ITCHFeedState.READY:
+                self._pending_messages.append(message)
+                self._pending_bytes += wire_bytes
+        except Exception as exc:
+            self._degrade(exc)
+
+    def publish_batch(self, events: tuple[DisplayedOrderEvent, ...]) -> None:
+        for event in events:
+            self.publish(event)
+
+    def flush(self) -> None:
+        """Publish the bounded packet buffer before exposing a clock or book cut."""
+        if not self._pending_messages:
+            return
+        messages = self._pending_messages
+        self._pending_messages = []
+        self._pending_bytes = 20
+        if self.state != ITCHFeedState.READY or self.transport is None:
+            return
+        try:
+            self._record_send(self.transport.send_messages(messages))
         except Exception as exc:
             self._degrade(exc)
 
     def handle_heartbeat(self, command: ITCHHeartbeatCommand) -> None:
+        self.flush()
         if (
             self.state != ITCHFeedState.READY
             or command.run_generation != self.active_generation
@@ -334,6 +379,7 @@ class ITCHFeedPublisher:
         ]
 
     def end_run(self, timestamp: datetime) -> None:
+        self.flush()
         transport = self.transport
         was_ready = self.state == ITCHFeedState.READY
         generation = self.active_generation

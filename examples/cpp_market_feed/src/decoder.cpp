@@ -93,6 +93,19 @@ std::uint64_t MessageDecoder::apply(
             static_cast<std::uint16_t>(load_be(wire->stock_locate)));
         return 0;
     }
+    case 'X': {
+        if (context != DecodeContext::live_itch) {
+            throw ProtocolError("cancel is not valid in a GLIMPSE spin");
+        }
+        auto* wire = overlay<OrderCancelWire>(message.data());
+        // Both an execution and a partial cancel subtract leaves without
+        // changing the order's price or FIFO position in this client book.
+        book.execute_order(
+            load_be(wire->order_reference),
+            static_cast<std::uint16_t>(load_be(wire->stock_locate)),
+            static_cast<std::uint32_t>(load_be(wire->canceled_shares)));
+        return 0;
+    }
     case 'G': {
         if (context != DecodeContext::glimpse) {
             throw ProtocolError("GLIMPSE marker appeared in the live ITCH feed");

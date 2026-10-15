@@ -99,7 +99,7 @@ class OrderSpec:
 class VenueSpec:
     name: str
     base_url: str
-    run_id: str
+    scenario_label: str
     role: str
     orders: tuple[OrderSpec, ...]
     expected_asks: tuple[tuple[str, str, int], ...]
@@ -110,7 +110,7 @@ def venue_specs(venue_a_url: str, venue_b_url: str) -> tuple[VenueSpec, ...]:
         VenueSpec(
             name="Venue A",
             base_url=venue_a_url.rstrip("/"),
-            run_id="sor-a",
+            scenario_label="sor-a",
             role="SEED_A",
             orders=(
                 OrderSpec("100", "100.00", "0.002"),
@@ -121,7 +121,7 @@ def venue_specs(venue_a_url: str, venue_b_url: str) -> tuple[VenueSpec, ...]:
         VenueSpec(
             name="Venue B",
             base_url=venue_b_url.rstrip("/"),
-            run_id="sor-b",
+            scenario_label="sor-b",
             role="SEED_B",
             orders=(
                 OrderSpec("99", "99.00", "0.003"),
@@ -397,7 +397,7 @@ def bootstrap(
             response = client.request(
                 "POST",
                 f"{venue.base_url}/api/v1/session/start",
-                {"run_id": venue.run_id},
+                {"scenario_label": venue.scenario_label},
             )
             generations[venue.role] = _run_generation(response, venue)
 

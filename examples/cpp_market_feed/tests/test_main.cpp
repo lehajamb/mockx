@@ -127,6 +127,16 @@ std::vector<std::byte> delete_order(std::uint16_t locate, std::uint64_t order) {
     return message;
 }
 
+std::vector<std::byte> cancel_order(
+    std::uint16_t locate, std::uint64_t order, std::uint32_t shares) {
+    std::vector<std::byte> message(sizeof(OrderCancelWire));
+    message[0] = std::byte{'X'};
+    set_be(message, 1, 2, locate);
+    set_be(message, 11, 8, order);
+    set_be(message, 19, 4, shares);
+    return message;
+}
+
 std::vector<std::byte> system_event(char code) {
     std::vector<std::byte> message(sizeof(SystemEventWire));
     message[0] = std::byte{'S'};
@@ -375,7 +385,7 @@ void test_stitching_and_framing() {
             truncated, [](std::uint64_t, std::span<std::byte>) {});
     });
 
-    std::vector<std::byte> unsupported(1, std::byte{'X'});
+    std::vector<std::byte> unsupported(1, std::byte{'Z'});
     auto unsupported_packet = mold_packet("MX00000001", 6, {unsupported});
     check_throws<UnsupportedMessage>([&] {
         (void)parse_mold_packet(
@@ -384,6 +394,47 @@ void test_stitching_and_framing() {
                 (void)decoder.apply(message, book, DecodeContext::live_itch);
             });
     });
+}
+
+void test_partial_cancel() {
+    MessageDecoder decoder;
+    OrderBook book;
+    auto r = directory(1, "TEST");
+    auto first = add_order(1, "TEST", 10, 'B', 5, 1'000'000);
+    auto second = add_order(1, "TEST", 11, 'B', 3, 1'000'000);
+    (void)decoder.apply(r, book, DecodeContext::glimpse);
+    (void)decoder.apply(first, book, DecodeContext::glimpse);
+    (void)decoder.apply(second, book, DecodeContext::glimpse);
+    auto cancel = cancel_order(1, 10, 2);
+    (void)decoder.apply(cancel, book, DecodeContext::live_itch);
+    CHECK(book.leaves(10) == 3);
+    CHECK(book.leaves(11) == 3);
+    CHECK(book.order_count() == 2);
+    const auto levels = book.display(10, {});
+    CHECK(levels[0].bids[0].shares == 6);
+    CHECK(levels[0].bids[0].order_count == 2);
+    check_throws<ProtocolError>([&] {
+        (void)decoder.apply(cancel, book, DecodeContext::glimpse);
+    });
+    for (const auto shares : {0U, 4U}) {
+        auto invalid = cancel_order(1, 10, shares);
+        check_throws<ProtocolError>([&] {
+            (void)decoder.apply(invalid, book, DecodeContext::live_itch);
+        });
+        CHECK(book.leaves(10) == 3);
+    }
+    auto unknown = cancel_order(1, 99, 1);
+    check_throws<ProtocolError>([&] {
+        (void)decoder.apply(unknown, book, DecodeContext::live_itch);
+    });
+    auto wrong_locate = cancel_order(2, 10, 1);
+    check_throws<ProtocolError>([&] {
+        (void)decoder.apply(wrong_locate, book, DecodeContext::live_itch);
+    });
+    auto fill = execution(1, 10, 3);
+    (void)decoder.apply(fill, book, DecodeContext::live_itch);
+    CHECK(!book.contains(10));
+    CHECK(book.leaves(11) == 3);
 }
 
 void test_cli() {
@@ -411,6 +462,7 @@ int main() {
         {"SPSC ring", test_ring},
         {"book and decoder", test_book_and_decoder},
         {"snapshot stitching", test_stitching_and_framing},
+        {"partial order cancel", test_partial_cancel},
         {"command line", test_cli},
     };
     std::size_t failures = 0;

@@ -14,6 +14,8 @@ from src.mockx.engine import MatchingEngine
 from src.mockx.gateway import FIXApplication
 from src.mockx.latency import LatencyScheduler
 from src.mockx.main import MockExchange
+from .api_helpers import cleanup_native_exchanges
+from .api_helpers import make_native_exchange, api_config
 from src.mockx.metrics import LatencyTracker, MetricsCollector
 from src.mockx.models import (
     CancelOrderCommand,
@@ -29,28 +31,7 @@ FIX_CONFIG = Path(__file__).resolve().parents[1] / "configs" / "mockx1.cfg"
 
 
 def config():
-    return validate_config({
-        "exchange_name": "Test-Exchange",
-        "instruments": {
-            "TEST": {
-                "tick_size": "1",
-                "lot_size": "1",
-                "price_display_precision": 2,
-                "quantity_display_precision": 3,
-            }
-        },
-        "latency": {"network_ms": 0, "engine_ms": 0},
-        "execution": {
-            "reject_prob": 0.0,
-            "random_seed": 42,
-        },
-        "admin_api": {"host": "127.0.0.1", "port": 8999},
-        "fix": {"enabled": False, "session_participants": {}},
-        "scheduler": {"mode": "external"},
-        "websocket": {},
-        "cors_origins": [],
-        "prometheus": {"enabled": True},
-    }, environ={})
+    return validate_config(api_config(), environ={})
 
 
 def bare_app():
@@ -119,7 +100,7 @@ async def test_stats_empty_state_is_stable_and_json_serializable():
 
 @pytest.mark.asyncio
 async def test_stats_populated_state_matches_authoritative_events():
-    exchange = MockExchange(config(), str(FIX_CONFIG))
+    exchange = make_native_exchange(config(), str(FIX_CONFIG))
     submit(exchange, "PASSIVE", Side.SELL, 5, 100)
     submit(exchange, "TAKER", Side.BUY, 5, 100)
     cancel_id = submit(exchange, "CANCEL", Side.BUY, 3, 99)
@@ -182,7 +163,7 @@ async def test_stats_populated_state_matches_authoritative_events():
 
 @pytest.mark.asyncio
 async def test_metrics_endpoint_has_expected_names_types_and_values():
-    exchange = MockExchange(config(), str(FIX_CONFIG))
+    exchange = make_native_exchange(config(), str(FIX_CONFIG))
     submit(exchange, "PASSIVE", Side.SELL, 2, 100)
     submit(exchange, "TAKER", Side.BUY, 2, 100)
 

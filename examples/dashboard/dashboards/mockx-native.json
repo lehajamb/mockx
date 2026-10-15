@@ -1,0 +1,464 @@
+{
+  "uid": "mockx-native",
+  "title": "MockX native exchange",
+  "version": 1,
+  "schemaVersion": 41,
+  "editable": false,
+  "timezone": "utc",
+  "refresh": "250ms",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "tags": [
+    "MockX",
+    "QuestDB",
+    "native"
+  ],
+  "links": [
+    {
+      "title": "Projection and protocol guide",
+      "type": "link",
+      "url": "https://github.com/faffyswap/mockx/blob/main/examples/dashboard/README.md",
+      "targetBlank": true
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "venue",
+        "label": "Venue",
+        "type": "query",
+        "datasource": {
+          "type": "questdb-questdb-datasource",
+          "uid": "questdb-native"
+        },
+        "query": {
+          "queryType": "sql",
+          "rawSql": "SELECT DISTINCT venue_id FROM dashboard_depth ORDER BY venue_id",
+          "refId": "VariableQuery",
+          "format": 1
+        },
+        "definition": "SELECT DISTINCT venue_id FROM dashboard_depth ORDER BY venue_id",
+        "refresh": 1,
+        "sort": 0,
+        "multi": false,
+        "includeAll": false,
+        "options": [],
+        "current": {}
+      },
+      {
+        "name": "run",
+        "label": "Run UUID",
+        "type": "query",
+        "datasource": {
+          "type": "questdb-questdb-datasource",
+          "uid": "questdb-native"
+        },
+        "query": {
+          "queryType": "sql",
+          "rawSql": "SELECT DISTINCT run_id FROM dashboard_depth WHERE venue_id=${venue:sqlstring} ORDER BY run_id",
+          "refId": "VariableQuery",
+          "format": 1
+        },
+        "definition": "SELECT DISTINCT run_id FROM dashboard_depth WHERE venue_id=${venue:sqlstring} ORDER BY run_id",
+        "refresh": 1,
+        "sort": 0,
+        "multi": false,
+        "includeAll": false,
+        "options": [],
+        "current": {}
+      },
+      {
+        "name": "symbol",
+        "label": "Symbol",
+        "type": "query",
+        "datasource": {
+          "type": "questdb-questdb-datasource",
+          "uid": "questdb-native"
+        },
+        "query": {
+          "queryType": "sql",
+          "rawSql": "SELECT DISTINCT symbol FROM dashboard_depth WHERE venue_id=${venue:sqlstring} AND run_id=${run:sqlstring} ORDER BY symbol",
+          "refId": "VariableQuery",
+          "format": 1
+        },
+        "definition": "SELECT DISTINCT symbol FROM dashboard_depth WHERE venue_id=${venue:sqlstring} AND run_id=${run:sqlstring} ORDER BY symbol",
+        "refresh": 1,
+        "sort": 0,
+        "multi": false,
+        "includeAll": false,
+        "options": [],
+        "current": {}
+      },
+      {
+        "name": "mode",
+        "label": "Time mode",
+        "type": "custom",
+        "query": "Live,Historical",
+        "options": [
+          {
+            "text": "Live",
+            "value": "Live",
+            "selected": true
+          },
+          {
+            "text": "Historical",
+            "value": "Historical",
+            "selected": false
+          }
+        ],
+        "current": {
+          "text": "Live",
+          "value": "Live"
+        },
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Source cut and simulated time",
+      "type": "table",
+      "datasource": {
+        "type": "questdb-questdb-datasource",
+        "uid": "questdb-native"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "questdb-questdb-datasource",
+            "uid": "questdb-native"
+          },
+          "refId": "A",
+          "queryType": "sql",
+          "rawSql": "WITH snapshot AS (SELECT * FROM dashboard_depth WHERE venue_id = ${venue:sqlstring} AND run_id = ${run:sqlstring} AND symbol = ${symbol:sqlstring} AND (${mode:sqlstring}='Live' OR timestamp <= $__toTime) ORDER BY source_sequence DESC LIMIT 1) SELECT timestamp AS SimulatedTime, cast(source_sequence AS VARCHAR) AS BookCut, cast(source_timestamp_ns AS VARCHAR) AS SimulatedTimeNs, (cast(now() AS LONG)*1000-published_at_ns)/1000000.0 AS SnapshotAgeMs, state FROM snapshot",
+          "format": 1,
+          "selectedFormat": 1
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Projector cursor, lag and state",
+      "type": "table",
+      "datasource": {
+        "type": "questdb-questdb-datasource",
+        "uid": "questdb-native"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "questdb-questdb-datasource",
+            "uid": "questdb-native"
+          },
+          "refId": "A",
+          "queryType": "sql",
+          "rawSql": "SELECT timestamp, run_label, state, cast(source_sequence AS VARCHAR) AS Consumed, cast(source_head_sequence AS VARCHAR) AS SourceHead, cast(book_sequence AS VARCHAR) AS BookCut, source_head_sequence-source_sequence AS PendingRows, (cast(now() AS LONG)*1000-cast(timestamp AS LONG))/1000000.0 AS ProjectorAgeMs, error FROM dashboard_cursor WHERE venue_id=${venue:sqlstring} AND run_id=${run:sqlstring} ORDER BY timestamp DESC LIMIT 1",
+          "format": 1,
+          "selectedFormat": 1
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Top of book / mid",
+      "type": "nline-plotlyjs-panel",
+      "datasource": {
+        "type": "questdb-questdb-datasource",
+        "uid": "questdb-native"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "questdb-questdb-datasource",
+            "uid": "questdb-native"
+          },
+          "refId": "A",
+          "queryType": "sql",
+          "rawSql": "WITH clock AS (SELECT max(timestamp) AS last_simulated_time FROM dashboard_depth WHERE venue_id = ${venue:sqlstring} AND run_id = ${run:sqlstring} AND symbol = ${symbol:sqlstring}) SELECT timestamp AS time, best_bid AS Bid, best_ask AS Ask, (best_bid+best_ask)/2 AS Mid FROM dashboard_depth CROSS JOIN clock WHERE venue_id = ${venue:sqlstring} AND run_id = ${run:sqlstring} AND symbol = ${symbol:sqlstring} AND ((${mode:sqlstring}='Live' AND timestamp >= dateadd('h',-1,clock.last_simulated_time)) OR (${mode:sqlstring}='Historical' AND $__timeFilter(timestamp))) ORDER BY timestamp, source_sequence",
+          "format": 0,
+          "selectedFormat": 0
+        }
+      ],
+      "options": {
+        "data": [],
+        "allData": {},
+        "layout": {},
+        "config": {
+          "displayModeBar": true
+        },
+        "frames": [],
+        "imgFormat": "png",
+        "resScale": 2,
+        "syncTimeRange": false,
+        "timeCol": "",
+        "script": "const table=data.series[0];\nif(!table) return {data:[],layout:{title:'No data in the selected simulated window'}};\nconst fieldValues=(field)=>field.values.toArray ? field.values.toArray() : Array.from(field.values);\nconst time=table.fields.find(f=>f.name==='time');\nif(!time) return {data:[],layout:{title:'Waiting for timestamped data'}};\nconst x=fieldValues(time);\nconst traces=table.fields.filter(f=>f!==time).map(f=>({name:f.name,x,y:fieldValues(f),type:'scatter',mode:'lines',line:{shape:'hv',width:2}}));\nreturn {data:traces,layout:{xaxis:{type:'date',autorange:true,title:'Simulated UTC'},yaxis:{autorange:true},margin:{t:20,l:55,r:10,b:40},legend:{orientation:'h'}}};"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Market depth and liquidity walls",
+      "type": "nline-plotlyjs-panel",
+      "datasource": {
+        "type": "questdb-questdb-datasource",
+        "uid": "questdb-native"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "questdb-questdb-datasource",
+            "uid": "questdb-native"
+          },
+          "refId": "A",
+          "queryType": "sql",
+          "rawSql": "WITH snapshot AS (SELECT * FROM dashboard_depth WHERE venue_id = ${venue:sqlstring} AND run_id = ${run:sqlstring} AND symbol = ${symbol:sqlstring} AND (${mode:sqlstring}='Live' OR timestamp <= $__toTime) ORDER BY source_sequence DESC LIMIT 1) SELECT timestamp, bids[1] AS bprices, bids[2] AS bvolumes, array_cum_sum(bids[2]) AS bcumvolumes, asks[1] AS aprices, asks[2] AS avolumes, array_cum_sum(asks[2]) AS acumvolumes FROM snapshot",
+          "format": 1,
+          "selectedFormat": 1
+        }
+      ],
+      "options": {
+        "script": "// Adapted for MockX from QuestDB's Apache-2.0 market-depth chart example.\n// Original: https://github.com/questdb/blog-examples/tree/main/2026-01-visualizing-market-depth-grafana-questdb-plotly\n// Changes: Grafana ArrayVector support, empty-book handling, finite-value filtering,\n// meaningful spread gap, linear volume axis and configurable-price wall labels.\nfunction parseArray(val) {\n  if (Array.isArray(val)) return val;\n  if (typeof val === \"string\") {\n    return val.replace(/[{}]/g, \"\")\n      .split(\",\")\n      .filter(x => x.length > 0)\n      .map(Number);\n  }\n  return [];\n}\n\nconst NUM_SEGMENTS = 4; // Number of wall segments per side (tweak as you like)\nconst table = data.series[0];\nif (!table) return {data: [], layout: {title: 'Waiting for a complete projected book'}};\nfunction firstValue(field) {\n  return typeof field.values.get === 'function' ? field.values.get(0) : field.values[0];\n}\nconst fields = table.fields;\n\nconst bprices = fields.find(f => f.name === \"bprices\");\nconst bcumvolumes = fields.find(f => f.name === \"bcumvolumes\");\nconst bvolumes = fields.find(f => f.name === \"bvolumes\");\nconst aprices = fields.find(f => f.name === \"aprices\");\nconst acumvolumes = fields.find(f => f.name === \"acumvolumes\");\nconst avolumes = fields.find(f => f.name === \"avolumes\");\n\nif (!bprices || !bcumvolumes || !aprices || !acumvolumes) {\n  return {data: [], layout: {title: 'Waiting for depth projection'}};\n}\n\nconst bps = parseArray(firstValue(bprices));\nconst bvs = parseArray(firstValue(bcumvolumes));\nconst brs = bvolumes ? parseArray(firstValue(bvolumes)) : [];\nconst aps = parseArray(firstValue(aprices));\nconst avs = parseArray(firstValue(acumvolumes));\nconst ars = avolumes ? parseArray(firstValue(avolumes)) : [];\n\nconst bids = [];\nfor (let i = 0; i < Math.min(bps.length, bvs.length); i++) {\n  if (bps[i] !== null && bvs[i] !== null && Number.isFinite(bps[i]) && Number.isFinite(bvs[i])) bids.push({ x: bps[i], y: bvs[i], raw: brs[i] ?? null });\n}\n\nconst asks = [];\nfor (let i = 0; i < Math.min(aps.length, avs.length); i++) {\n  if (aps[i] !== null && avs[i] !== null && Number.isFinite(aps[i]) && Number.isFinite(avs[i])) asks.push({ x: aps[i], y: avs[i], raw: ars[i] ?? null });\n}\n\nbids.sort((a, b) => b.x - a.x);\nasks.sort((a, b) => a.x - b.x);\n\nconst mid = bids.length && asks.length ? (bids[0].x + asks[0].x) / 2 : null;\n// --- SEGMENTED WALL LOGIC ---\nfunction segmentedWalls(levels, nSegments) {\n  const N = levels.length;\n  if (N === 0) return [];\n  const result = [];\n  const segSize = Math.floor(N / nSegments);\n\n  for (let seg = 0; seg < nSegments; seg++) {\n    const start = seg * segSize;\n    const end = seg === nSegments - 1 ? N : (seg + 1) * segSize;\n    let maxIdx = -1, maxRaw = -Infinity;\n    for (let i = start; i < end; i++) {\n      if (levels[i]?.raw !== undefined && levels[i].raw > maxRaw) {\n        maxRaw = levels[i].raw;\n        maxIdx = i;\n      }\n    }\n    if (maxIdx >= 0) result.push(levels[maxIdx]);\n  }\n  return result;\n}\n\nconst topBids = segmentedWalls(bids, NUM_SEGMENTS);\nconst topAsks = segmentedWalls(asks, NUM_SEGMENTS);\n\nconst wallLines = [...topBids, ...topAsks].map(wall => ({\n  type: \"line\",\n  x0: wall.x,\n  x1: wall.x,\n  y0: 0,\n  y1: 1,\n  xref: \"x\",\n  yref: \"paper\",\n  line: {\n    color: \"yellow\",\n    width: 1,\n    dash: \"dot\"\n  }\n}));\n\nconst wallLabels = [...topBids, ...topAsks].map(wall => ({\n  x: wall.x,\n  y: 1.02,\n  xref: \"x\",\n  yref: \"paper\",\n  text: String(wall.x),\n  showarrow: false,\n  font: { color: \"yellow\", size: 10 }\n}));\n\nif (bids.length === 0 && asks.length === 0) return {data: [], layout: {title: \"Empty book\"}};\nconst prices = [...bids.map(b => b.x), ...asks.map(a => a.x)];\nconst minX = Math.min(...prices);\nconst maxX = Math.max(...prices);\nconst pad = Math.max((maxX - minX) * 0.01, Math.abs(maxX) * 0.00001, 0.0001); // 1% padding\n\nreturn {\n  data: [\n    {\n      name: \"Bids\",\n      x: bids.map(pt => pt.x),\n      y: bids.map(pt => pt.y),\n      mode: \"lines\",\n      fill: \"tozeroy\",\n      fillcolor: \"rgba(0,255,0,0.2)\",\n      line: { shape: \"hv\", color: \"rgba(0,255,0,0.7)\", width: 2 },\n      type: \"scatter\",\n      hovertemplate: \"Price: %{x}<br>CumVol: %{y}<extra></extra>\"\n    },\n    {\n      name: \"Asks\",\n      x: asks.map(pt => pt.x),\n      y: asks.map(pt => pt.y),\n      mode: \"lines\",\n      fill: \"tozeroy\",\n      fillcolor: \"rgba(255,0,0,0.2)\",\n      line: { shape: \"hv\", color: \"rgba(255,0,0,0.7)\", width: 2 },\n      type: \"scatter\",\n      hovertemplate: \"Price: %{x}<br>CumVol: %{y}<extra></extra>\"\n    }\n  ],\n  layout: {\n    plot_bgcolor: \"black\",\n    paper_bgcolor: \"black\",\n    font: { color: \"white\" },\n    xaxis: {\n      title: \"Price\",\n      type: \"linear\",\n      showgrid: true,\n      gridcolor: \"rgba(255,255,255,0.1)\",\n      zeroline: false,\n      range: [minX - pad, maxX + pad]\n    },\n    yaxis: {\n      title: \"Cumulative Volume\",\n      type: \"linear\",\n      showgrid: true,\n      gridcolor: \"rgba(255,255,255,0.1)\",\n      zeroline: false\n    },\n    margin: { t: 20, l: 55, r: 10, b: 30 },\n    shapes: [\n      ...(mid === null ? [] : [\n      {\n        type: \"line\",\n        x0: mid,\n        x1: mid,\n        y0: 0,\n        y1: 1,\n        xref: \"x\",\n        yref: \"paper\",\n        line: {\n          color: \"white\",\n          width: 1,\n          dash: \"dot\"\n        }\n      }]),\n      ...wallLines\n    ],\n    annotations: wallLabels,\n    legend: {\n      orientation: \"h\",\n      x: 0.5,\n      xanchor: \"center\",\n      y: -0.3\n    }\n  }\n};\n\n",
+        "data": [],
+        "allData": {},
+        "layout": {},
+        "config": {
+          "displayModeBar": true
+        },
+        "frames": [],
+        "imgFormat": "png",
+        "resScale": 2,
+        "syncTimeRange": false,
+        "timeCol": ""
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Bid / ask spread",
+      "type": "nline-plotlyjs-panel",
+      "datasource": {
+        "type": "questdb-questdb-datasource",
+        "uid": "questdb-native"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "questdb-questdb-datasource",
+            "uid": "questdb-native"
+          },
+          "refId": "A",
+          "queryType": "sql",
+          "rawSql": "WITH clock AS (SELECT max(timestamp) AS last_simulated_time FROM dashboard_depth WHERE venue_id = ${venue:sqlstring} AND run_id = ${run:sqlstring} AND symbol = ${symbol:sqlstring}) SELECT timestamp AS time, best_ask-best_bid AS Spread FROM dashboard_depth CROSS JOIN clock WHERE venue_id = ${venue:sqlstring} AND run_id = ${run:sqlstring} AND symbol = ${symbol:sqlstring} AND ((${mode:sqlstring}='Live' AND timestamp >= dateadd('h',-1,clock.last_simulated_time)) OR (${mode:sqlstring}='Historical' AND $__timeFilter(timestamp))) ORDER BY timestamp, source_sequence",
+          "format": 0,
+          "selectedFormat": 0
+        }
+      ],
+      "options": {
+        "data": [],
+        "allData": {},
+        "layout": {},
+        "config": {
+          "displayModeBar": true
+        },
+        "frames": [],
+        "imgFormat": "png",
+        "resScale": 2,
+        "syncTimeRange": false,
+        "timeCol": "",
+        "script": "const table=data.series[0];\nif(!table) return {data:[],layout:{title:'No data in the selected simulated window'}};\nconst fieldValues=(field)=>field.values.toArray ? field.values.toArray() : Array.from(field.values);\nconst time=table.fields.find(f=>f.name==='time');\nif(!time) return {data:[],layout:{title:'Waiting for timestamped data'}};\nconst x=fieldValues(time);\nconst traces=table.fields.filter(f=>f!==time).map(f=>({name:f.name,x,y:fieldValues(f),type:'scatter',mode:'lines',line:{shape:'hv',width:2}}));\nreturn {data:traces,layout:{xaxis:{type:'date',autorange:true,title:'Simulated UTC'},yaxis:{autorange:true},margin:{t:20,l:55,r:10,b:40},legend:{orientation:'h'}}};"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Trade volume per second",
+      "type": "nline-plotlyjs-panel",
+      "datasource": {
+        "type": "questdb-questdb-datasource",
+        "uid": "questdb-native"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "questdb-questdb-datasource",
+            "uid": "questdb-native"
+          },
+          "refId": "A",
+          "queryType": "sql",
+          "rawSql": "WITH clock AS (SELECT max(timestamp) AS last_simulated_time FROM dashboard_depth WHERE venue_id = ${venue:sqlstring} AND run_id = ${run:sqlstring} AND symbol = ${symbol:sqlstring}), trades AS (SELECT t.timestamp, t.event_sequence, t.price_ticks*cast(i.tick_size AS DOUBLE) AS price, t.qty_lots*cast(i.lot_size AS DOUBLE) AS volume, cast(t.notional_tick_lots AS DOUBLE)*cast(i.tick_size AS DOUBLE)*cast(i.lot_size AS DOUBLE) AS notional FROM exchange_events t JOIN exchange_events i ON (t.run_id=i.run_id AND t.symbol=i.symbol) JOIN exchange_events c ON (t.run_id=c.run_id AND t.command_sequence=c.command_sequence) WHERE t.kind='TRADE' AND i.kind='INSTRUMENT' AND c.kind='COMMAND_COMPLETE' AND t.venue_id = ${venue:sqlstring} AND t.run_id = ${run:sqlstring} AND t.symbol = ${symbol:sqlstring} ORDER BY t.timestamp,t.event_sequence) SELECT timestamp AS time, sum(volume) AS Volume FROM trades CROSS JOIN clock WHERE ((${mode:sqlstring}='Live' AND timestamp >= dateadd('h',-1,clock.last_simulated_time)) OR (${mode:sqlstring}='Historical' AND $__timeFilter(timestamp))) SAMPLE BY 1s",
+          "format": 0,
+          "selectedFormat": 0
+        }
+      ],
+      "options": {
+        "data": [],
+        "allData": {},
+        "layout": {},
+        "config": {
+          "displayModeBar": true
+        },
+        "frames": [],
+        "imgFormat": "png",
+        "resScale": 2,
+        "syncTimeRange": false,
+        "timeCol": "",
+        "script": "const table=data.series[0];\nif(!table) return {data:[],layout:{title:'No data in the selected simulated window'}};\nconst fieldValues=(field)=>field.values.toArray ? field.values.toArray() : Array.from(field.values);\nconst time=table.fields.find(f=>f.name==='time');\nif(!time) return {data:[],layout:{title:'Waiting for timestamped data'}};\nconst x=fieldValues(time);\nconst traces=table.fields.filter(f=>f!==time).map(f=>({name:f.name,x,y:fieldValues(f),type:'scatter',mode:'lines',line:{shape:'hv',width:2}}));\nreturn {data:traces,layout:{xaxis:{type:'date',autorange:true,title:'Simulated UTC'},yaxis:{autorange:true},margin:{t:20,l:55,r:10,b:40},legend:{orientation:'h'}}};"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Trade OHLC (one minute)",
+      "type": "nline-plotlyjs-panel",
+      "datasource": {
+        "type": "questdb-questdb-datasource",
+        "uid": "questdb-native"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "questdb-questdb-datasource",
+            "uid": "questdb-native"
+          },
+          "refId": "A",
+          "queryType": "sql",
+          "rawSql": "WITH clock AS (SELECT max(timestamp) AS last_simulated_time FROM dashboard_depth WHERE venue_id = ${venue:sqlstring} AND run_id = ${run:sqlstring} AND symbol = ${symbol:sqlstring}), trades AS (SELECT t.timestamp, t.event_sequence, t.price_ticks*cast(i.tick_size AS DOUBLE) AS price, t.qty_lots*cast(i.lot_size AS DOUBLE) AS volume, cast(t.notional_tick_lots AS DOUBLE)*cast(i.tick_size AS DOUBLE)*cast(i.lot_size AS DOUBLE) AS notional FROM exchange_events t JOIN exchange_events i ON (t.run_id=i.run_id AND t.symbol=i.symbol) JOIN exchange_events c ON (t.run_id=c.run_id AND t.command_sequence=c.command_sequence) WHERE t.kind='TRADE' AND i.kind='INSTRUMENT' AND c.kind='COMMAND_COMPLETE' AND t.venue_id = ${venue:sqlstring} AND t.run_id = ${run:sqlstring} AND t.symbol = ${symbol:sqlstring} ORDER BY t.timestamp,t.event_sequence) SELECT timestamp AS time, first(price) AS Open, max(price) AS High, min(price) AS Low, last(price) AS Close FROM trades CROSS JOIN clock WHERE ((${mode:sqlstring}='Live' AND timestamp >= dateadd('h',-1,clock.last_simulated_time)) OR (${mode:sqlstring}='Historical' AND $__timeFilter(timestamp))) SAMPLE BY 1m",
+          "format": 1,
+          "selectedFormat": 1
+        }
+      ],
+      "options": {
+        "script": "const table=data.series[0];\nif (!table) return {data:[],layout:{title:'No trades in the selected window'}};\nconst values=(name)=>{const f=table.fields.find(f=>f.name===name); return f ? (f.values.toArray ? f.values.toArray() : Array.from(f.values)) : [];};\nreturn {data:[{type:'candlestick',x:values('time'),open:values('Open'),high:values('High'),low:values('Low'),close:values('Close'),name:'Trades'}],layout:{xaxis:{type:'date',rangeslider:{visible:false}},yaxis:{title:'Price'},margin:{t:20,l:55,r:10,b:30}}};",
+        "data": [],
+        "allData": {},
+        "layout": {},
+        "config": {
+          "displayModeBar": true
+        },
+        "frames": [],
+        "imgFormat": "png",
+        "resScale": 2,
+        "syncTimeRange": false,
+        "timeCol": ""
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "Trade VWAP in selected window",
+      "type": "nline-plotlyjs-panel",
+      "datasource": {
+        "type": "questdb-questdb-datasource",
+        "uid": "questdb-native"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "questdb-questdb-datasource",
+            "uid": "questdb-native"
+          },
+          "refId": "A",
+          "queryType": "sql",
+          "rawSql": "WITH clock AS (SELECT max(timestamp) AS last_simulated_time FROM dashboard_depth WHERE venue_id = ${venue:sqlstring} AND run_id = ${run:sqlstring} AND symbol = ${symbol:sqlstring}), trades AS (SELECT t.timestamp, t.event_sequence, t.price_ticks*cast(i.tick_size AS DOUBLE) AS price, t.qty_lots*cast(i.lot_size AS DOUBLE) AS volume, cast(t.notional_tick_lots AS DOUBLE)*cast(i.tick_size AS DOUBLE)*cast(i.lot_size AS DOUBLE) AS notional FROM exchange_events t JOIN exchange_events i ON (t.run_id=i.run_id AND t.symbol=i.symbol) JOIN exchange_events c ON (t.run_id=c.run_id AND t.command_sequence=c.command_sequence) WHERE t.kind='TRADE' AND i.kind='INSTRUMENT' AND c.kind='COMMAND_COMPLETE' AND t.venue_id = ${venue:sqlstring} AND t.run_id = ${run:sqlstring} AND t.symbol = ${symbol:sqlstring} ORDER BY t.timestamp,t.event_sequence) SELECT timestamp AS time, sum(notional) OVER (ORDER BY timestamp,event_sequence ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)/sum(volume) OVER (ORDER BY timestamp,event_sequence ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS VWAP FROM trades CROSS JOIN clock WHERE ((${mode:sqlstring}='Live' AND timestamp >= dateadd('h',-1,clock.last_simulated_time)) OR (${mode:sqlstring}='Historical' AND $__timeFilter(timestamp))) ORDER BY timestamp,event_sequence",
+          "format": 0,
+          "selectedFormat": 0
+        }
+      ],
+      "options": {
+        "data": [],
+        "allData": {},
+        "layout": {},
+        "config": {
+          "displayModeBar": true
+        },
+        "frames": [],
+        "imgFormat": "png",
+        "resScale": 2,
+        "syncTimeRange": false,
+        "timeCol": "",
+        "script": "const table=data.series[0];\nif(!table) return {data:[],layout:{title:'No data in the selected simulated window'}};\nconst fieldValues=(field)=>field.values.toArray ? field.values.toArray() : Array.from(field.values);\nconst time=table.fields.find(f=>f.name==='time');\nif(!time) return {data:[],layout:{title:'Waiting for timestamped data'}};\nconst x=fieldValues(time);\nconst traces=table.fields.filter(f=>f!==time).map(f=>({name:f.name,x,y:fieldValues(f),type:'scatter',mode:'lines',line:{shape:'hv',width:2}}));\nreturn {data:traces,layout:{xaxis:{type:'date',autorange:true,title:'Simulated UTC'},yaxis:{autorange:true},margin:{t:20,l:55,r:10,b:40},legend:{orientation:'h'}}};"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    }
+  ]
+}

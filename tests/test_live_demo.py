@@ -78,7 +78,7 @@ def test_live_demo_configs_have_reversed_sessions_and_distinct_owners():
 
     assert config.scheduler.mode == "external"
     assert config.admin_api.port == 8001
-    assert config.questdb is None
+    assert config.questdb.url is not None
     assert acceptor_ids == reversed_client_ids
     assert {
         session["AllowUnknownMsgFields"] for session in client
@@ -121,7 +121,7 @@ def test_docker_live_demo_uses_compose_service_addresses():
 
     assert config.admin_api.host == "0.0.0.0"
     assert config.admin_api.port == 8000
-    assert config.questdb is None
+    assert config.questdb.url is not None
     assert acceptor_ids == reversed_client_ids
     assert {session["SocketConnectHost"] for session in client} == {
         "mockx"
@@ -253,7 +253,7 @@ def test_live_market_help_is_available():
     assert "--cycles" in result.stdout
     assert "--fix-config" in result.stdout
     assert "--base-url" in result.stdout
-    assert "--ui-base-url" in result.stdout
+    assert "--dashboard-url" in result.stdout
 
 
 def test_quickfix_helper_uses_native_utc_timestamp_constructor():
@@ -472,7 +472,7 @@ def _install_run_fakes(monkeypatch, market_action="ok"):
             if market_action == "active_run":
                 raise RuntimeError("simulation session already active")
             return {
-                "session_id": run_id,
+                "session_id": "00000000-0000-4000-8000-000000000001",
                 "run_generation": 1,
             }
 
@@ -529,8 +529,8 @@ def _install_run_fakes(monkeypatch, market_action="ok"):
     fake_fix = SimpleNamespace(
         ConfigError=type("FakeConfigError", (Exception,), {}),
         SessionSettings=lambda path: path,
-        FileStoreFactory=lambda settings: settings,
-        FileLogFactory=lambda settings: settings,
+        MemoryStoreFactory=lambda: object(),
+        ScreenLogFactory=lambda settings: settings,
         SocketInitiator=FakeInitiator,
     )
     monkeypatch.setattr(live_module, "require_quickfix", lambda: None)
@@ -580,12 +580,12 @@ def test_finite_run_waits_for_readiness_and_logons_then_cleans_up(
     ) < events.index(("start", "live-fix-demo"))
     assert markets.reconciliations == 2
     assert markets.takes == 2
-    assert admins.instances[0].ended == ["live-fix-demo"]
+    assert admins.instances[0].ended == ["00000000-0000-4000-8000-000000000001"]
     assert admins.instances[0].closed
     assert initiators.instances[0].stopped
 
 
-def test_ui_base_url_changes_only_the_printed_browser_address(
+def test_dashboard_url_changes_only_the_printed_browser_address(
     monkeypatch,
     capsys,
 ):
@@ -593,14 +593,14 @@ def test_ui_base_url_changes_only_the_printed_browser_address(
 
     assert (
         _run_fake_driver(
-            "--ui-base-url",
-            "http://localhost:8001/",
+            "--dashboard-url",
+            "http://localhost:3000/d/mockx-native",
         )
         == 0
     )
 
     output = capsys.readouterr().out
-    assert "Open http://localhost:8001/ui/BTC-USDT" in output
+    assert "Open http://localhost:3000/d/mockx-native" in output
     assert admins.instances[0].base_url == "http://127.0.0.1:8001"
     assert markets.reconciliations == 2
     assert initiators.instances[0].stopped
@@ -625,7 +625,7 @@ def test_driver_ends_owned_session_on_error_and_ctrl_c(monkeypatch):
         "error",
     )
     assert _run_fake_driver() == 1
-    assert admins.instances[0].ended == ["live-fix-demo"]
+    assert admins.instances[0].ended == ["00000000-0000-4000-8000-000000000001"]
     assert initiators.instances[0].stopped
 
     monkeypatch.undo()
@@ -634,5 +634,5 @@ def test_driver_ends_owned_session_on_error_and_ctrl_c(monkeypatch):
         "interrupt",
     )
     assert _run_fake_driver() == 130
-    assert admins.instances[0].ended == ["live-fix-demo"]
+    assert admins.instances[0].ended == ["00000000-0000-4000-8000-000000000001"]
     assert initiators.instances[0].stopped

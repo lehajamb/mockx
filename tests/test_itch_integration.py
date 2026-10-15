@@ -9,7 +9,7 @@ import pytest
 
 from src.mockx.configuration import ConfigurationError, validate_config
 from src.mockx.lifecycle import LifecycleError
-from src.mockx.main import MockExchange
+from .api_helpers import make_native_exchange as MockExchange
 from src.mockx.instruments import InstrumentCatalog
 from src.mockx.moldudp64_transport import MoldUDP64Transport
 from src.mockx.models import (
@@ -54,7 +54,6 @@ def itch_config(**instrument_overrides):
     raw = api_config()
     raw["instruments"]["TEST"].update(instrument_overrides)
     raw["itch"] = {
-        "enabled": True,
         "market_category": " ",
         "financial_status": " ",
         "round_lot_size": 1,
@@ -120,7 +119,7 @@ def replay_displayed_book(messages):
 def authoritative_wire_book(exchange):
     scaled_tick = int(exchange.instruments.require("TEST").tick_size * 10_000)
     return {
-        order.id: {
+        order.displayed_order_ref: {
             "side": b"B" if order.side == Side.BUY else b"S",
             "qty": order.leaves_qty_lots,
             "price": order.price_ticks * scaled_tick,
@@ -144,7 +143,12 @@ def submit(exchange, cl_ord_id, side, qty, price, participant):
             participant_id=participant,
         )
     )
-    exchange.engine.process_order(ProcessOrderCommand(order_id, 0))
+    exchange.engine.on_displayed_order_event = exchange.itch_feed.publish
+    try:
+        exchange.engine.process_order(ProcessOrderCommand(order_id, 0))
+        exchange.itch_feed.flush()
+    finally:
+        exchange.itch_feed.flush()
     return order_id
 
 
@@ -158,10 +162,12 @@ async def test_mock_exchange_feed_is_book_equivalent_and_sequences_messages():
     )
     await exchange.start_components()
     await exchange.lifecycle.start_session("itch-run")
-    assert exchange.itch_feed.active_session_name == "MX00000001"
+    assert exchange.itch_feed.active_session_name.startswith("MX")
+    assert len(exchange.itch_feed.active_session_name) == 10
 
     exchange.itch_feed._tracking_number = 0xFFFF
     passive_id = submit(exchange, "S1", Side.SELL, 2, 100, "SELLER")
+    exchange.itch_feed.flush()
     _, messages = decode_packets(packets)
     replayed, matches = replay_displayed_book(messages)
     assert replayed == {passive_id: {"side": b"S", "qty": 2, "price": 1_000_000}}
@@ -170,6 +176,7 @@ async def test_mock_exchange_feed_is_book_equivalent_and_sequences_messages():
     assert struct.unpack(">H", add_message[3:5])[0] == 0
 
     aggressor_id = submit(exchange, "B1", Side.BUY, 3, 100, "BUYER")
+    exchange.itch_feed.flush()
     _, messages = decode_packets(packets)
     replayed, matches = replay_displayed_book(messages)
     assert replayed == {aggressor_id: {"side": b"B", "qty": 1, "price": 1_000_000}}
@@ -195,6 +202,7 @@ async def test_mock_exchange_feed_is_book_equivalent_and_sequences_messages():
             ingress_sequence=1,
         )
     )
+    exchange.itch_feed.flush()
     _, messages = decode_packets(packets)
     replayed, matches = replay_displayed_book(messages)
     assert replayed == authoritative_wire_book(exchange) == {}
@@ -244,6 +252,7 @@ async def test_execution_price_message_is_c_not_e_or_trade():
     exchange.itch_feed.publish(
         DisplayedOrderExecuted(1, 77, "TEST", 100, 99, 1, 88, now)
     )
+    exchange.itch_feed.flush()
     _, messages = decode_packets(packets)
     order_messages = [
         message for message in messages if message[:1] in {b"A", b"E", b"C", b"P"}
@@ -267,14 +276,14 @@ async def test_feed_start_failure_degrades_readiness_but_not_matching():
         config, on_error=on_error, packets=[]
     )
     await exchange.start_components()
-    await exchange.lifecycle.start_session("degraded-run")
-    assert exchange.lifecycle.state.value == "ACTIVE"
+    with pytest.raises(LifecycleError):
+        await exchange.lifecycle.start_session("degraded-run")
+    assert exchange.lifecycle.state.value == "RUN_FAILED"
     assert exchange.app.state.component_status["itch"] == "degraded"
     status_code, readiness = exchange.api._readiness()
-    assert status_code == 200
-    assert readiness.status == "degraded"
-    order_id = submit(exchange, "B1", Side.BUY, 1, 99, "BUYER")
-    assert exchange.engine.books["TEST"].is_resting(order_id)
+    assert status_code == 503
+    assert readiness.status == "not_ready"
+    assert not exchange.engine.orders
 
     await exchange.lifecycle.end_session()
     packets = []
@@ -283,7 +292,7 @@ async def test_feed_start_failure_degrades_readiness_but_not_matching():
     )
     await exchange.lifecycle.start_session("recovered-run")
     assert exchange.itch_feed.state.value == "ready"
-    assert exchange.itch_feed.active_session_name == "MX00000002"
+    assert exchange.itch_feed.active_session_name.startswith("MX")
     packet_count = len(packets)
     exchange.itch_feed.handle_heartbeat(ITCHHeartbeatCommand(1))
     assert len(packets) == packet_count
@@ -314,8 +323,8 @@ async def test_runtime_send_failure_degrades_only_feed():
     assert exchange.itch_feed.state.value == "degraded"
     assert exchange.itch_feed.diagnostics()["failures"] == 1
     status_code, readiness = exchange.api._readiness()
-    assert status_code == 200
-    assert readiness.status == "degraded"
+    assert status_code == 503
+    assert readiness.status == "not_ready"
     await exchange.stop_components()
 
 
@@ -388,6 +397,7 @@ def test_property_based_wire_book_matches_after_every_command(actions):
                     price,
                     f"P{index}",
                 )
+                exchange.itch_feed.flush()
                 _, messages = decode_packets(packets)
                 replayed, _ = replay_displayed_book(messages)
                 assert replayed == authoritative_wire_book(exchange)
@@ -399,8 +409,8 @@ def test_property_based_wire_book_matches_after_every_command(actions):
 
 def test_itch_configuration_and_ingress_wire_bounds_are_strict():
     missing_transport = api_config()
-    missing_transport["itch"] = {"enabled": True}
-    with pytest.raises(ConfigurationError, match="requires moldudp64"):
+    del missing_transport["moldudp64"]
+    with pytest.raises(ConfigurationError, match="moldudp64"):
         validate_config(missing_transport, environ={})
 
     with pytest.raises(ConfigurationError, match="not representable"):

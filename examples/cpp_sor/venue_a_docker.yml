@@ -1,8 +1,8 @@
-exchange_name: "MOCKX_A"
+exchange_name: MOCKX_A
 instruments:
   BTC-USDT:
-    tick_size: "0.01"
-    lot_size: "0.001"
+    tick_size: '0.01'
+    lot_size: '0.001'
     price_display_precision: 2
     quantity_display_precision: 3
 latency:
@@ -12,26 +12,23 @@ execution:
   reject_prob: 0.0
   random_seed: 101
 admin_api:
-  # Published container services must listen beyond container loopback.
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 8101
   enabled: true
 fix:
-  enabled: true
   session_participants:
-    "FIX.4.4:MOCKX_A->SOR_A": "sor-demo"
-    "FIX.4.4:MOCKX_A->SEED_A": "passive-a"
+    FIX.4.4:MOCKX_A->SOR_A: sor-demo
+    FIX.4.4:MOCKX_A->SEED_A: passive-a
 scheduler:
-  mode: "realtime"
+  mode: realtime
   interval_ms: 1
   max_advance_ms: 86400000
   max_events_per_advance: 100000
 prometheus:
   enabled: false
 itch:
-  enabled: true
-  market_category: " "
-  financial_status: " "
+  market_category: ' '
+  financial_status: ' '
   round_lot_size: 1
 moldudp64:
   multicast_group: 239.192.10.1
@@ -41,11 +38,8 @@ moldudp64:
   max_payload_bytes: 1400
   interface_address: 0.0.0.0
   ttl: 1
-glimpse:
-  enabled: true
 soupbintcp:
-  # GLIMPSE is published to the host for mockx_sor.exe.
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 18101
   session_prefix: GA
   credentials:
@@ -56,4 +50,12 @@ soupbintcp:
   replay_ttl_ms: 60000
   max_cached_sessions: 8
   max_cached_bytes: 16777216
-cors_origins: []
+questdb:
+  url: http://questdb:9000
+  health_url: http://questdb:9003
+  username: mockx-user
+  password: mockx-password
+  flush_batch_size: 1000
+  max_buffer_records: 10000
+  max_buffer_bytes: 67108864
+  flush_interval_ms: 250

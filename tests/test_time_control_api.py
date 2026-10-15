@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from fastapi.testclient import TestClient
 
+from .api_helpers import cleanup_native_exchanges
 from .api_helpers import make_exchange
 
 
@@ -15,7 +16,7 @@ def test_advance_time_processes_target_timestamp_inclusively():
     with TestClient(exchange.app) as client:
         assert client.post(
             "/api/v1/session/start",
-            json={"run_id": "inclusive"},
+            json={"scenario_label": "inclusive"},
         ).status_code == 200
         exchange.scheduler.schedule_event("probe", "before", 1)
         exchange.scheduler.schedule_event("probe", "target", 2)
@@ -29,7 +30,7 @@ def test_advance_time_processes_target_timestamp_inclusively():
     assert response.status_code == 200
     assert handled == ["before", "target"]
     assert response.json()["events_processed"] == 2
-    assert response.json()["pending_events"] == 1
+    assert response.json()["pending_events"] == 2
     assert response.json()["current_time"].endswith("Z")
 
 
@@ -38,7 +39,7 @@ def test_aware_offsets_normalize_to_utc_and_naive_time_is_rejected():
     with TestClient(exchange.app) as client:
         assert client.post(
             "/api/v1/session/start",
-            json={"run_id": "offsets"},
+            json={"scenario_label": "offsets"},
         ).status_code == 200
         normalized = client.post(
             "/admin/advance-time",
@@ -59,7 +60,7 @@ def test_backward_movement_returns_stable_conflict_without_mutation():
     with TestClient(exchange.app) as client:
         assert client.post(
             "/api/v1/session/start",
-            json={"run_id": "backward"},
+            json={"scenario_label": "backward"},
         ).status_code == 200
         assert client.post(
             "/admin/advance-time",
@@ -81,7 +82,7 @@ def test_empty_relative_advancement_moves_clock_and_reports_zero_events():
     with TestClient(exchange.app) as client:
         assert client.post(
             "/api/v1/session/start",
-            json={"run_id": "empty"},
+            json={"scenario_label": "empty"},
         ).status_code == 200
         response = client.post(
             "/admin/advance-time",
@@ -90,7 +91,7 @@ def test_empty_relative_advancement_moves_clock_and_reports_zero_events():
 
     assert response.status_code == 200
     assert response.json()["events_processed"] == 0
-    assert response.json()["pending_events"] == 0
+    assert response.json()["pending_events"] == 1
     assert response.json()["current_time"] == (
         "1970-01-01T00:00:00.025000Z"
     )

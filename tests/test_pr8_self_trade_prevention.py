@@ -23,8 +23,7 @@ from .test_pr8_exact_arithmetic import catalog, engine_stack
 
 NOW = datetime(2026, 7, 29, tzinfo=timezone.utc)
 STP_TEXT_2 = (
-    "SELF_TRADE_PREVENTION: canceled passive and aggressor; "
-    "prevented_qty=0.002"
+    "SELF_TRADE_PREVENTION: canceled passive and aggressor; " "prevented_qty=0.002"
 )
 
 
@@ -46,9 +45,7 @@ def submit_owned(
             participant_id=participant_id,
             symbol="TEST",
             side=side,
-            order_type=(
-                OrderType.MARKET if price_ticks is None else OrderType.LIMIT
-            ),
+            order_type=(OrderType.MARKET if price_ticks is None else OrderType.LIMIT),
             order_qty_lots=order_qty_lots,
             price_ticks=price_ticks,
             tif=tif,
@@ -95,9 +92,7 @@ def test_same_participant_cancels_complete_remainders_before_trade_id():
     assert not engine.books["TEST"].bids
 
     cancel_reports = [
-        report
-        for report in reports
-        if report.exec_type == ExecutionType.CANCELED
+        report for report in reports if report.exec_type == ExecutionType.CANCELED
     ]
     assert [report.order_id for report in cancel_reports] == [
         passive_id,
@@ -113,8 +108,8 @@ def test_same_participant_cancels_complete_remainders_before_trade_id():
         prevented_qty_lots=2,
         timestamp=engine.scheduler.current_time,
     )
-    assert len(snapshots) == 2
-    assert snapshots[-1].asks == snapshots[-1].bids == ()
+    snapshot = engine.get_market_data_snapshot("TEST")
+    assert snapshot.asks == snapshot.bids == ()
 
 
 def test_different_participants_match_even_with_same_display_alias():
@@ -143,7 +138,9 @@ def test_different_participants_match_even_with_same_display_alias():
     assert trades[0].seller_participant_id == "participant-a"
     assert engine.orders[passive_id].status == OrderStatus.FILLED
     assert engine.orders[aggressor_id].status == OrderStatus.FILLED
-    assert not [report for report in reports if report.text and "SELF_TRADE" in report.text]
+    assert not [
+        report for report in reports if report.text and "SELF_TRADE" in report.text
+    ]
 
 
 def test_two_fix_sessions_for_one_participant_are_common_ownership():
@@ -223,10 +220,13 @@ def test_prior_third_party_fill_is_preserved_when_self_cross_cancels_both():
     ]
     assert cancel_reports[0].cum_qty_lots == 4
     assert cancel_reports[0].leaves_qty_lots == 0
-    assert cancel_reports[0].instrument.format_average_price(
-        cancel_reports[0].filled_notional_tick_lots,
-        cancel_reports[0].cum_qty_lots,
-    ) == "100.00"
+    assert (
+        cancel_reports[0].instrument.format_average_price(
+            cancel_reports[0].filled_notional_tick_lots,
+            cancel_reports[0].cum_qty_lots,
+        )
+        == "100.00"
+    )
     assert cancel_reports[0].text.endswith("prevented_qty=0.006")
 
 
@@ -311,16 +311,16 @@ def test_prevention_metrics_and_persistence_are_exact_and_bounded_label():
         prometheus_enabled=True,
     )
     records = []
-    metrics._create_record = lambda table, symbols, values, timestamp: (
-        records.append((table, symbols, values, timestamp))
-    )
     metrics.bind_engine(engine)
     engine.on_execution_report = lambda report: (
         reports.append(report),
         metrics.record_order(report),
     )
     engine.on_trade = metrics.record_trade
-    engine.on_self_trade_prevention = metrics.record_self_trade_prevention
+    engine.on_self_trade_prevention = lambda event: (
+        metrics.record_self_trade_prevention(event),
+        records.append(event),
+    )
 
     passive_id = submit_owned(
         engine,
@@ -344,26 +344,20 @@ def test_prevention_metrics_and_persistence_are_exact_and_bounded_label():
     assert snapshot.traded_quantity == "0.000"
     payload = metrics.prometheus_payload().decode()
     assert 'mockx_self_trade_preventions_total{symbol="TEST"} 1.0' in payload
-    assert (
-        'mockx_self_trade_prevented_quantity_total{symbol="TEST"} 0.002'
-        in payload
-    )
+    assert 'mockx_self_trade_prevented_quantity_total{symbol="TEST"} 0.002' in payload
     assert "private-owner-id" not in payload
     assert "policy=" not in payload
 
-    values = next(
-        values
-        for table, _, values, _ in records
-        if table == "self_trade_prevention"
-    )
-    assert values == {
-        "participant_id": "private-owner-id",
-        "aggressor_order_id": aggressor_id,
-        "passive_order_id": passive_id,
-        "prevented_qty_lots": 2,
-        "prevented_quantity": "0.002",
-        "lot_size": "0.001",
-    }
+    from src.mockx.effects import CommandEffect
+    from src.mockx.journal import encode_effect
+
+    kind, values = encode_effect(CommandEffect("stp", records[0]))
+    assert kind == "SELF_TRADE_PREVENTED"
+    assert values["participant_id"] == "private-owner-id"
+    assert values["aggressor_order_id"] == aggressor_id
+    assert values["passive_order_id"] == passive_id
+    assert values["prevented_qty_lots"] == 2
+    assert "prevented_quantity" not in values
 
 
 def test_trade_model_defensively_rejects_common_participant():

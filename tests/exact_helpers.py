@@ -83,7 +83,6 @@ def exact_metrics(*args: Any, **values: Any) -> MetricsCollector:
 
 def test_config(
     *,
-    fix_enabled: bool = False,
     scheduler_mode: str = "external",
     reject_prob: float = 0.0,
 ):
@@ -109,16 +108,12 @@ def test_config(
                 "enabled": True,
             },
             "fix": {
-                "enabled": fix_enabled,
-                "session_participants": (
-                    {"TEST-SESSION": "participant-test"}
-                    if fix_enabled
-                    else {}
-                ),
+                "session_participants": {"TEST-SESSION": "participant-test"},
             },
             "scheduler": {"mode": scheduler_mode},
-            "websocket": {},
-            "cors_origins": [],
+            "questdb": {"url": "http://127.0.0.1:9000", "health_url": "http://127.0.0.1:9000"},
+            "moldudp64": {"multicast_port": 19001},
+            "soupbintcp": {"port": 19002, "credentials": {"TEST": "PASSWORD"}},
             "prometheus": {"enabled": True},
         },
         environ={},

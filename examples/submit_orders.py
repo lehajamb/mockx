@@ -181,8 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         settings = fix.SessionSettings(args.fix_config)
         app = FIXClient()
-        store_factory = fix.FileStoreFactory(settings)
-        log_factory = fix.FileLogFactory(settings)
+        store_factory = fix.MemoryStoreFactory()
+        log_factory = fix.ScreenLogFactory(settings)
         initiator = fix.SocketInitiator(
             app,
             store_factory,

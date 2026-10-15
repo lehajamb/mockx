@@ -463,6 +463,8 @@ class OutboundFixDeliveryQueue:
             keys: set[tuple[int, int]] = set()
             for record in self._nonterminal_records_locked():
                 payload = record.payload
+                if isinstance(payload, CancelReject) and payload.response_to != "1":
+                    continue
                 ingress_sequence = (
                     payload.cancel_ingress_sequence
                     if isinstance(payload, ExecutionReport)
@@ -470,6 +472,19 @@ class OutboundFixDeliveryQueue:
                 )
                 if ingress_sequence is not None:
                     keys.add((payload.run_generation, ingress_sequence))
+            return keys
+
+    def pending_replace_keys(self) -> set[tuple[int, int]]:
+        with self._lock:
+            keys: set[tuple[int, int]] = set()
+            for record in self._nonterminal_records_locked():
+                payload = record.payload
+                if isinstance(payload, ExecutionReport):
+                    sequence = payload.replace_ingress_sequence
+                else:
+                    sequence = payload.ingress_sequence if payload.response_to == "2" else None
+                if sequence is not None:
+                    keys.add((payload.run_generation, sequence))
             return keys
 
     def snapshot(

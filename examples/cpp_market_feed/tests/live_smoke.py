@@ -16,6 +16,7 @@ from src.mockx.configuration import validate_config  # noqa: E402
 from src.mockx.main import MockExchange  # noqa: E402
 from src.mockx.models import Side  # noqa: E402
 from tests.test_itch_integration import itch_config, submit  # noqa: E402
+from tests.api_helpers import MemoryPersistenceSink, NullFIXGateway  # noqa: E402
 
 
 def available_port(sock_type: socket.SocketKind) -> int:
@@ -38,14 +39,18 @@ async def run(client: Path) -> None:
 
     raw = itch_config()
     raw["moldudp64"]["multicast_port"] = available_port(socket.SOCK_DGRAM)
-    raw["glimpse"] = {"enabled": True}
     raw["soupbintcp"] = {
         "host": "127.0.0.1",
         "port": available_port(socket.SOCK_STREAM),
         "session_prefix": "GS",
         "credentials": {"GLIMP": "SECRET"},
     }
-    exchange = MockExchange(validate_config(raw, environ={}))
+    exchange = MockExchange(
+        validate_config(raw, environ={}),
+        str(REPOSITORY_ROOT / "configs/mockx1.cfg"),
+        persistence_sink=MemoryPersistenceSink(),
+        fix_gateway_factory=NullFIXGateway,
+    )
     process: asyncio.subprocess.Process | None = None
     await exchange.start_components()
     try:

@@ -34,6 +34,9 @@ market-data ingress and explicit in-process SPSC handoffs.
 QuickFIX C++ is an intentional installed dependency. CMake searches an active
 vcpkg toolchain, pkg-config, normal install prefixes, and `QUICKFIX_ROOT`; it
 never downloads source during configure.
+Use headers compatible with C++20. Clean Linux validation used official
+QuickFIX 1.16.0 at commit `386ce46e917ae494ab6e90b1be90fd421cdbe3f9`;
+older distro 1.15.1 headers contain removed dynamic exception specifications.
 See the [QuickFIX C++ repository](https://github.com/quickfix/quickfix) for its
 source-build and vcpkg installation paths.
 
@@ -75,6 +78,11 @@ The checked-in fixtures define:
 | MoldUDP64 | 239.192.10.1:18100 | 239.192.10.2:18200 |
 | GLIMPSE | 18101 | 18201 |
 
+Both venues share the required QuestDB journal. The external Grafana viewer
+runs at [port 3001](http://localhost:3001/d/mockx-native/mockx-native-exchange);
+choose a venue, run UUID and symbol. Native FIX clients use memory session
+stores and disabled screen logs, while QuestDB retains exchange events.
+
 ### Docker quick start (recommended)
 
 The example has its own Compose stack, separate from the repository-root live
@@ -86,7 +94,7 @@ docker compose -f examples/cpp_sor/docker-compose.yml up --build
 ```
 
 Wait until `seed-books` prints the following line and exits with code 0. The
-two MockX services and feed relays remain running for `mockx_sor.exe`:
+two MockX services, feed relays, QuestDB and Grafana remain running for `mockx_sor.exe`:
 
 ```text
 SOR books ready: Venue A asks 0.002@100.00, 0.009@102.00; Venue B asks 0.003@99.00, 0.001@100.00
@@ -126,8 +134,13 @@ host, and both relay services are still running. Inspect their output with
 
 ### Manual setup
 
-To run the same topology without Docker, start each exchange in its own
-terminal from the repository root:
+To run the exchanges as local processes, first start their shared QuestDB:
+
+```powershell
+docker compose -f examples/cpp_sor/docker-compose.yml up -d questdb
+```
+
+Then start each exchange in its own terminal from the repository root:
 
 ```powershell
 python -m src.mockx.cli --config examples/cpp_sor/venue_a.yml `

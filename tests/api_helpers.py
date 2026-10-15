@@ -1,41 +1,90 @@
-from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
 """Shared deterministic fixtures for API remediation tests."""
 
 from pathlib import Path
+import socket
+import pytest_asyncio
 
 from src.mockx.configuration import validate_config
 from src.mockx.main import MockExchange
 from src.mockx.models import (
-    NewOrderCommand,
     OrderType,
     ProcessOrderCommand,
     Side,
     TimeInForce,
 )
+from tests.exact_helpers import exact_command
 
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX_CONFIG = ROOT / "configs" / "mockx1.cfg"
+_native_exchanges = []
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def cleanup_native_exchanges():
+    """Every test owns and closes its mandatory listeners and writer."""
+    start = len(_native_exchanges)
+    try:
+        yield
+    finally:
+        exchanges = _native_exchanges[start:]
+        del _native_exchanges[start:]
+        for exchange in reversed(exchanges):
+            await exchange.stop_components()
+
+
+def available_port() -> int:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        return listener.getsockname()[1]
+
+
+class MemoryPersistenceSink:
+    """Typed persistence test double, exercising the real bounded writer."""
+
+    def __init__(self):
+        self.records = []
+        self.closed = False
+
+    async def health_check(self):
+        return None
+
+    async def write(self, records):
+        self.records.extend(records)
+
+    async def close(self):
+        self.closed = True
+
+    async def flush(self):
+        return None
+
+
+class NullFIXGateway:
+    """Keep real FIX parsing/delivery while avoiding a test network acceptor."""
+
+    def __init__(self, *args, application=None, **kwargs):
+        self.application = application
+        self.started = False
+
+    def start(self):
+        self.started = True
+
+    def stop(self):
+        self.started = False
+
+
+def make_native_exchange(config, fix_cfg=None, *, persistence_sink=None, fix_gateway_factory=None):
+    exchange = MockExchange(config, fix_cfg or str(FIX_CONFIG),
+                        persistence_sink=persistence_sink or MemoryPersistenceSink(),
+                        fix_gateway_factory=fix_gateway_factory or NullFIXGateway)
+    _native_exchanges.append(exchange)
+    return exchange
 
 
 def api_config(
     *,
-    fix_enabled: bool = False,
-    heartbeat_seconds: float = 10.0,
-    queue_capacity: int = 8,
-    send_timeout_seconds: float = 5.0,
-    heartbeat_stale_seconds: float | None = None,
-    market_data_stale_seconds: float | None = None,
-    fallback_poll_seconds: float = 2.0,
-    reconnect_initial_seconds: float = 1.0,
-    reconnect_max_seconds: float = 30.0,
-    staleness_check_seconds: float = 1.0,
     prometheus_enabled: bool = True,
 ) -> dict:
-    if heartbeat_stale_seconds is None:
-        heartbeat_stale_seconds = max(30.0, heartbeat_seconds * 3)
-    if market_data_stale_seconds is None:
-        market_data_stale_seconds = max(30.0, heartbeat_seconds * 3)
     return {
         "exchange_name": "Test-Exchange",
         "instruments": {
@@ -57,7 +106,6 @@ def api_config(
             "enabled": True,
         },
         "fix": {
-            "enabled": fix_enabled,
             "session_participants": {
                 "FIX.4.4:MOCKX1->CLIENT1": "participant-1"
             },
@@ -68,26 +116,16 @@ def api_config(
             "max_advance_ms": 86_400_000,
             "max_events_per_advance": 100_000,
         },
-        "websocket": {
-            "heartbeat_interval_seconds": heartbeat_seconds,
-            "outbound_queue_capacity": queue_capacity,
-            "send_timeout_seconds": send_timeout_seconds,
-            "heartbeat_stale_seconds": heartbeat_stale_seconds,
-            "market_data_stale_seconds": market_data_stale_seconds,
-            "fallback_poll_seconds": fallback_poll_seconds,
-            "reconnect_initial_seconds": reconnect_initial_seconds,
-            "reconnect_max_seconds": reconnect_max_seconds,
-            "staleness_check_seconds": staleness_check_seconds,
-        },
-        "cors_origins": [],
+        "questdb": {"url": "http://127.0.0.1:9000", "health_url": "http://127.0.0.1:9000"},
+        "moldudp64": {"multicast_port": available_port()},
+        "soupbintcp": {"port": available_port(), "credentials": {"TEST": "PASSWORD"}},
         "prometheus": {"enabled": prometheus_enabled},
     }
 
 
 def make_exchange(**config_overrides) -> MockExchange:
     config = api_config(**config_overrides)
-    fix_cfg = str(FIX_CONFIG) if config["fix"]["enabled"] else None
-    return MockExchange(validate_config(config, environ={}), fix_cfg)
+    return make_native_exchange(validate_config(config, environ={}))
 
 
 def process_order(

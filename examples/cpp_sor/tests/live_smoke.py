@@ -17,6 +17,7 @@ from src.mockx.configuration import validate_config  # noqa: E402
 from src.mockx.main import MockExchange  # noqa: E402
 from src.mockx.models import OrderStatus, Side  # noqa: E402
 from tests.test_itch_integration import itch_config, submit  # noqa: E402
+from tests.api_helpers import MemoryPersistenceSink  # noqa: E402
 
 
 def available_ports(sock_type: socket.SocketKind, count: int) -> list[int]:
@@ -39,10 +40,6 @@ def acceptor_config(
     client: str,
     port: int,
 ) -> Path:
-    store = root / f"{venue}-server-store"
-    log = root / f"{venue}-server-log"
-    store.mkdir()
-    log.mkdir()
     path = root / f"{venue}-acceptor.cfg"
     path.write_text(
         f"""[DEFAULT]
@@ -54,8 +51,9 @@ StartTime=00:00:00
 EndTime=00:00:00
 UseDataDictionary=Y
 DataDictionary={REPOSITORY_ROOT.joinpath('configs/FIX44.xml').as_posix()}
-FileStorePath={store.as_posix()}
-FileLogPath={log.as_posix()}
+ScreenLogShowIncoming=N
+ScreenLogShowOutgoing=N
+ScreenLogShowEvents=N
 HeartBtInt=2
 ResetOnLogon=Y
 ResetOnLogout=Y
@@ -94,7 +92,6 @@ def exchange_config(
         "max_events_per_advance": 100_000,
     }
     raw["fix"] = {
-        "enabled": True,
         "session_participants": {f"FIX.4.4:{name}->{client}": "sor-demo"},
     }
     raw["moldudp64"].update(
@@ -104,7 +101,6 @@ def exchange_config(
             "session_prefix": mold_prefix,
         }
     )
-    raw["glimpse"] = {"enabled": True}
     raw["soupbintcp"] = {
         "host": "127.0.0.1",
         "port": glimpse_port,
@@ -124,10 +120,6 @@ def initiator_config(
     a_glimpse: int,
     b_glimpse: int,
 ) -> Path:
-    store = root / "client-store"
-    log = root / "client-log"
-    store.mkdir()
-    log.mkdir()
     path = root / "sor.cfg"
     path.write_text(
         f"""[DEFAULT]
@@ -137,8 +129,9 @@ StartTime=00:00:00
 EndTime=00:00:00
 UseDataDictionary=Y
 DataDictionary={REPOSITORY_ROOT.joinpath('configs/FIX44.xml').as_posix()}
-FileStorePath={store.as_posix()}
-FileLogPath={log.as_posix()}
+ScreenLogShowIncoming=N
+ScreenLogShowOutgoing=N
+ScreenLogShowEvents=N
 HeartBtInt=2
 ResetOnLogon=Y
 ResetOnLogout=Y
@@ -218,6 +211,7 @@ async def run(client: Path) -> None:
                 environ={},
             ),
             str(a_acceptor),
+            persistence_sink=MemoryPersistenceSink(),
         )
         venue_b = MockExchange(
             validate_config(
@@ -233,6 +227,7 @@ async def run(client: Path) -> None:
                 environ={},
             ),
             str(b_acceptor),
+            persistence_sink=MemoryPersistenceSink(),
         )
 
         await venue_a.start_components()

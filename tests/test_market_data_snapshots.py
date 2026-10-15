@@ -1,4 +1,4 @@
-"""Deep immutability, ordering, sequence, and trade publication tests."""
+"""On-demand diagnostics, immutable levels and native trade effects."""
 
 from dataclasses import FrozenInstanceError
 
@@ -38,8 +38,7 @@ def test_levels_are_sorted_complete_and_zero_levels_are_absent():
     assert [level.price_ticks for level in snapshot.bids] == [101, 100, 99]
     assert [level.price_ticks for level in snapshot.asks] == [102, 103]
     assert all(
-        level.level_qty_lots > 0 and level.order_count > 0
-        for level in snapshot.bids
+        level.level_qty_lots > 0 and level.order_count > 0 for level in snapshot.bids
     )
     assert snapshot.bids[1].level_qty_lots == 3
     assert snapshot.bids[1].level_qty_lots == (
@@ -63,38 +62,41 @@ def test_empty_and_one_sided_snapshot_shapes_are_valid():
 @pytest.mark.anyio
 async def test_global_sequence_is_monotonic_and_resets_with_session_start():
     exchange = make_exchange()
-    published = []
-    exchange.engine.on_market_data_update = published.append
-
-    process_order(exchange, "ONE", Side.BUY, 1, 10)
-    process_order(exchange, "TWO", Side.SELL, 1, 11)
-    process_order(exchange, "THREE", Side.BUY, 1, 9)
-
-    assert [snapshot.sequence for snapshot in published] == [1, 2, 3]
+    sequences = []
+    for name, side, price in (
+        ("ONE", Side.BUY, 10),
+        ("TWO", Side.SELL, 11),
+        ("THREE", Side.BUY, 9),
+    ):
+        process_order(exchange, name, side, 1, price)
+        sequences.append(exchange.engine.get_market_data_snapshot("TEST").sequence)
+    assert sequences == [1, 2, 3]
     await exchange.lifecycle.start_session("sequence-reset")
     assert exchange.engine.get_market_data_snapshot("TEST").sequence == 0
+    await exchange.stop_components()
 
 
-def test_multiple_fills_are_included_once_then_not_repeated():
+def test_hot_matching_creates_native_trades_once_without_full_snapshot(monkeypatch):
     exchange = make_exchange()
-    published = []
-    original = exchange.engine.on_market_data_update
+    trades = []
+    original = exchange.engine.on_trade
 
-    def observe(snapshot):
-        published.append(snapshot)
-        original(snapshot)
+    def observe(trade):
+        trades.append(trade)
+        original(trade)
 
-    exchange.engine.on_market_data_update = observe
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Hot order processing must not construct full snapshots")
+
+    monkeypatch.setattr(exchange.engine, "_create_market_data_snapshot", forbidden)
+    exchange.engine.on_trade = observe
     process_order(exchange, "ASK-1", Side.SELL, 1, 100)
     process_order(exchange, "ASK-2", Side.SELL, 2, 101)
     process_order(exchange, "TAKER", Side.BUY, 3, 101)
-
-    fill_update = published[-1]
-    assert [trade.trade_id for trade in fill_update.trades] == [
+    assert [trade.exchange_trade_id for trade in trades] == [
         "G00000000-T00000001",
         "G00000000-T00000002",
     ]
-    assert all(trade.aggressor_side is Side.BUY for trade in fill_update.trades)
-
+    assert all(trade.aggressor_side is Side.BUY for trade in trades)
     process_order(exchange, "NONTRADE", Side.BUY, 1, 90)
-    assert published[-1].trades == ()
+    assert len(trades) == 2

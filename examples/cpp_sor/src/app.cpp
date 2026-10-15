@@ -5,8 +5,8 @@
 #include "mockx_sor/config.hpp"
 #include "mockx_sor/fix_gateway.hpp"
 
-#include <quickfix/FileLog.h>
-#include <quickfix/FileStore.h>
+#include <quickfix/Log.h>
+#include <quickfix/MessageStore.h>
 #include <quickfix/ThreadedSocketInitiator.h>
 
 #include <algorithm>
@@ -240,8 +240,8 @@ int run_sor(const CommandLine& command) {
         loaded.venues,
         command.lot_size,
         {&report_rings[0], &report_rings[1]});
-    FIX::FileStoreFactory store_factory(loaded.fix_settings);
-    FIX::FileLogFactory log_factory(loaded.fix_settings);
+    FIX::MemoryStoreFactory store_factory;
+    FIX::ScreenLogFactory log_factory(loaded.fix_settings);
     FIX::ThreadedSocketInitiator initiator(
         application, store_factory, loaded.fix_settings, log_factory);
 

@@ -10,7 +10,7 @@ import quickfix as fix
 import yaml
 
 from src.mockx.configuration import ConfigurationError, validate_config
-from src.mockx.gateway import configured_fix_session_ids
+from src.mockx.gateway import configured_fix_session_ids, FIXGateway
 from src.mockx.models import ExecutionReport, OrderStatus, SchedulerState
 from src.mockx.validation import (
     OrderNormalizer,
@@ -19,7 +19,7 @@ from src.mockx.validation import (
     RawOrderInput,
 )
 from src.mockx.instruments import InstrumentCatalog
-from src.mockx.main import MockExchange
+from .api_helpers import make_native_exchange as MockExchange
 
 from .test_fix_ingress_pipeline import _exchange, _new_order, _start, _stop
 
@@ -28,46 +28,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def valid_config() -> dict:
-    return {
-        "exchange_name": "Acceptance",
-        "instruments": {
-            "BTC-USDT": {
-                "tick_size": "0.01",
-                "lot_size": "0.001",
-                "price_display_precision": 2,
-                "quantity_display_precision": 3,
-            }
-        },
-        "latency": {
-            "network_ms": 0,
-            "engine_ms": 0,
-            "session_delays": {},
-        },
-        "execution": {"reject_prob": 0.0, "random_seed": 42},
-        "admin_api": {
-            "host": "127.0.0.1",
-            "port": 8000,
-            "enabled": True,
-        },
-        "fix": {"enabled": False, "session_participants": {}},
-        "scheduler": {
-            "mode": "external",
-            "interval_ms": 10,
-            "max_advance_ms": 86_400_000,
-            "max_events_per_advance": 100_000,
-        },
-        "websocket": {
-            "heartbeat_interval_seconds": 10.0,
-            "heartbeat_stale_seconds": 30.0,
-            "market_data_stale_seconds": 30.0,
-            "fallback_poll_seconds": 2.0,
-            "outbound_queue_capacity": 8,
-            "send_timeout_seconds": 5.0,
-        },
-        "cors_origins": [],
-        "prometheus": {"enabled": True},
-        "questdb": {"enabled": False},
+    from .api_helpers import api_config
+
+    raw = api_config()
+    raw["exchange_name"] = "Acceptance"
+    raw["instruments"] = {
+        "BTC-USDT": {
+            "tick_size": "0.01",
+            "lot_size": "0.001",
+            "price_display_precision": 2,
+            "quantity_display_precision": 3,
+        }
     }
+    return raw
 
 
 def set_path(config: dict, path: str, value) -> dict:
@@ -91,8 +64,11 @@ def set_path(config: dict, path: str, value) -> dict:
         ("scheduler.interval_ms", 0),
         ("scheduler.max_advance_ms", 86_400_001),
         ("scheduler.max_events_per_advance", 0),
-        ("websocket.outbound_queue_capacity", 0),
-        ("websocket.send_timeout_seconds", 0),
+        ("fix.max_orders_per_list", 0),
+        ("fix.max_orders_per_list", 1001),
+        ("scheduler.processing_batch_size", 0),
+        ("questdb.flush_batch_bytes", 0),
+        ("questdb.backpressure_timeout_ms", 0),
         ("admin_api.port", 65_536),
         ("admin_api.enabled", "true"),
     ],
@@ -116,7 +92,7 @@ def test_negative_session_latency_is_rejected():
 
 def test_incomplete_enabled_questdb_is_rejected():
     raw = valid_config()
-    raw["questdb"] = {"enabled": True, "url": "http://localhost:9000"}
+    raw["questdb"] = {"url": "http://localhost:9000"}
 
     with pytest.raises(ConfigurationError, match="health_url"):
         validate_config(raw, environ={})
@@ -125,7 +101,6 @@ def test_incomplete_enabled_questdb_is_rejected():
 def test_questdb_authentication_requires_username_and_password_together():
     raw = valid_config()
     raw["questdb"] = {
-        "enabled": True,
         "url": "http://localhost:9000",
         "health_url": "http://localhost:9003",
         "username": "mockx-user",
@@ -137,7 +112,6 @@ def test_questdb_authentication_requires_username_and_password_together():
 
 def test_obsolete_persistence_yaml_is_rejected_without_an_alias():
     raw = valid_config()
-    raw.pop("questdb")
     obsolete_key = "ts" + "db"
     raw[obsolete_key] = {"enabled": False}
 
@@ -184,7 +158,7 @@ def test_wildcard_cors_remains_rejected():
     raw = valid_config()
     raw["cors_origins"] = ["*"]
 
-    with pytest.raises(ConfigurationError, match="wildcard CORS"):
+    with pytest.raises(ConfigurationError, match="Extra inputs are not permitted"):
         validate_config(raw, environ={})
 
 
@@ -193,35 +167,33 @@ def test_environment_overrides_merge_then_validate():
     config = validate_config(
         raw,
         environ={
-            "QUESTDB_ENABLED": "true",
             "QUESTDB_URL": "http://localhost:9000",
             "QUESTDB_HEALTH_URL": "http://localhost:9003",
             "QUESTDB_USERNAME": "mockx-user",
             "QUESTDB_PASSWORD": "mockx-password",
+            "QUESTDB_FLUSH_BATCH_BYTES": "2048",
+            "QUESTDB_BACKPRESSURE_TIMEOUT_MS": "500",
             "QUESTDB_FLUSH_BATCH_SIZE": "25",
             "QUESTDB_MAX_BUFFER_RECORDS": "50",
             "QUESTDB_MAX_BUFFER_BYTES": "4096",
             "QUESTDB_FLUSH_INTERVAL_MS": "100",
             "QUESTDB_RETRY_BACKOFF_MS": "250",
             "QUESTDB_MAX_RETRY_DELAY_MS": "1000",
-            "QUESTDB_OVERFLOW_RETRY_ATTEMPTS": "4",
             "QUESTDB_SHUTDOWN_TIMEOUT_MS": "750",
-            "QUESTDB_OVERFLOW_POLICY": "drop_oldest",
             "QUESTDB_REQUEST_TIMEOUT_MS": "500",
         },
     )
 
     assert config.questdb is not None
-    assert config.questdb.enabled is True
     assert config.questdb.flush_batch_size == 25
+    assert config.questdb.flush_batch_bytes == 2048
+    assert config.questdb.backpressure_timeout_ms == 500
     assert config.questdb.max_buffer_records == 50
     assert config.questdb.max_buffer_bytes == 4096
     assert config.questdb.flush_interval_ms == 100
     assert config.questdb.retry_backoff_ms == 250
     assert config.questdb.max_retry_delay_ms == 1000
-    assert config.questdb.overflow_retry_attempts == 4
     assert config.questdb.shutdown_timeout_ms == 750
-    assert config.questdb.overflow_policy == "drop_oldest"
     assert config.questdb.request_timeout_ms == 500
 
     with pytest.raises(ConfigurationError) as caught:
@@ -229,9 +201,7 @@ def test_environment_overrides_merge_then_validate():
             raw,
             environ={"QUESTDB_FLUSH_BATCH_SIZE": "not-an-integer"},
         )
-    assert caught.value.issues[0].path == (
-        "environment.QUESTDB_FLUSH_BATCH_SIZE"
-    )
+    assert caught.value.issues[0].path == ("environment.QUESTDB_FLUSH_BATCH_SIZE")
 
 
 def test_obsolete_database_environment_is_ignored_without_an_alias():
@@ -245,7 +215,7 @@ def test_obsolete_database_environment_is_ignored_without_an_alias():
     )
 
     assert config.questdb is not None
-    assert config.questdb.enabled is False
+    assert config.questdb.url == "http://127.0.0.1:9000"
 
 
 def test_every_shipped_yaml_passes_strict_validation():
@@ -386,14 +356,12 @@ def test_market_order_requires_no_price_and_missing_tif_defaults_to_gtc(normaliz
 def test_fix_startup_requires_exact_quickfix_session_mapping():
     raw = valid_config()
     raw["fix"] = {
-        "enabled": True,
-        "session_participants": {
-            "FIX.4.4:MOCKX1->NOT-CONFIGURED": "participant"
-        },
+        "session_participants": {"FIX.4.4:MOCKX1->NOT-CONFIGURED": "participant"},
     }
     exchange = MockExchange(
         validate_config(raw, environ={}),
         str(ROOT / "configs" / "mockx1.cfg"),
+        fix_gateway_factory=FIXGateway,
     )
     exchange.fix_app.loop = object()
 
@@ -420,8 +388,7 @@ async def test_invalid_fix_number_becomes_reject_without_scheduler_failure():
         rejected = [
             report
             for report in delivered
-            if isinstance(report, ExecutionReport)
-            and report.cl_ord_id == "BAD-NUMBER"
+            if isinstance(report, ExecutionReport) and report.cl_ord_id == "BAD-NUMBER"
         ]
         assert len(rejected) == 1
         assert rejected[0].ord_status == OrderStatus.REJECTED

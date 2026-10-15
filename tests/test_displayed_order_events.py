@@ -12,6 +12,7 @@ from src.mockx.models import (
     DisplayedOrderDeleted,
     DisplayedOrderExecuted,
     ExecutionParams,
+    LiquidityCategory,
     ProcessOrderCommand,
     Side,
     TimeInForce,
@@ -67,7 +68,8 @@ def test_passive_fill_has_one_match_event_and_partial_aggressor_rests_last():
         participant="SELLER",
     )
     assert events == [
-        DisplayedOrderAdded(1, passive_id, "TEST", Side.SELL, 100, 2, NOW)
+        DisplayedOrderAdded(1, passive_id, "TEST", Side.SELL, 100, 2, NOW,
+                            logical_order_id=passive_id, liquidity_category=LiquidityCategory.MARKET)
     ]
 
     events.clear()
@@ -81,8 +83,10 @@ def test_passive_fill_has_one_match_event_and_partial_aggressor_rests_last():
     )
 
     assert events == [
-        DisplayedOrderExecuted(1, passive_id, "TEST", 100, 100, 2, 1, NOW),
-        DisplayedOrderAdded(1, aggressor_id, "TEST", Side.BUY, 100, 1, NOW),
+        DisplayedOrderExecuted(1, passive_id, "TEST", 100, 100, 2, 1, NOW,
+                               logical_order_id=passive_id, remaining_qty_lots=0),
+        DisplayedOrderAdded(1, aggressor_id, "TEST", Side.BUY, 100, 1, NOW,
+                            logical_order_id=aggressor_id, liquidity_category=LiquidityCategory.MARKET),
     ]
 
 
@@ -111,7 +115,7 @@ def test_resting_cancel_emits_delete_but_pending_cancel_emits_nothing():
             ingress_sequence=1,
         )
     )
-    assert events == [DisplayedOrderDeleted(1, resting_id, "TEST", NOW)]
+    assert events == [DisplayedOrderDeleted(1, resting_id, "TEST", NOW, logical_order_id=resting_id)]
 
     pending_id = engine.submit_order(
         exact_command(
@@ -141,7 +145,7 @@ def test_resting_cancel_emits_delete_but_pending_cancel_emits_nothing():
         )
     )
     assert pending_id > 0
-    assert events == [DisplayedOrderDeleted(1, resting_id, "TEST", NOW)]
+    assert events == [DisplayedOrderDeleted(1, resting_id, "TEST", NOW, logical_order_id=resting_id)]
 
 
 def test_ioc_and_market_remainders_never_emit_add_or_delete():
@@ -194,8 +198,10 @@ def test_multi_fill_uses_fill_ids_once_and_preserves_mutation_order():
         participant="BUYER",
     )
     assert events == [
-        DisplayedOrderExecuted(1, first_id, "TEST", 99, 99, 1, 1, NOW),
-        DisplayedOrderExecuted(1, second_id, "TEST", 100, 100, 1, 2, NOW),
+        DisplayedOrderExecuted(1, first_id, "TEST", 99, 99, 1, 1, NOW,
+                               logical_order_id=first_id, remaining_qty_lots=0),
+        DisplayedOrderExecuted(1, second_id, "TEST", 100, 100, 1, 2, NOW,
+                               logical_order_id=second_id, remaining_qty_lots=0),
     ]
 
 
@@ -219,7 +225,7 @@ def test_self_trade_prevention_deletes_only_the_displayed_passive_order():
         participant="OWNER",
     )
     assert aggressor_id != passive_id
-    assert events == [DisplayedOrderDeleted(1, passive_id, "TEST", NOW)]
+    assert events == [DisplayedOrderDeleted(1, passive_id, "TEST", NOW, logical_order_id=passive_id)]
 
 
 def test_observer_failure_does_not_change_engine_result():

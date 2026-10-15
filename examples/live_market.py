@@ -196,10 +196,10 @@ class DemoAdmin:
             time.sleep(0.1)
         raise RuntimeError(f"MockX did not become ready: {last_error}")
 
-    def start_session(self, run_id: str) -> dict:
+    def start_session(self, scenario_label: str) -> dict:
         response = self.client.post(
             "/api/v1/session/start",
-            json={"run_id": run_id},
+            json={"scenario_label": scenario_label},
         )
         self._raise(response)
         return response.json()
@@ -419,15 +419,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Admin API base URL (defaults to the YAML host and port)",
     )
     parser.add_argument(
-        "--ui-base-url",
-        default=None,
-        help=(
-            "Browser-facing UI base URL printed after startup "
-            "(defaults to the admin API base URL)"
-        ),
+        "--dashboard-url",
+        default="http://localhost:3000/d/mockx-native/mockx-native-exchange",
+        help="External Grafana dashboard URL printed after startup",
     )
     parser.add_argument("--symbol", default="BTC-USDT")
-    parser.add_argument("--run-id", default="live-fix-demo")
+    parser.add_argument("--scenario-label", default="live-fix-demo")
     parser.add_argument("--mid-price", default="100.00")
     parser.add_argument("--quote-quantity", default="1.000")
     parser.add_argument("--levels", type=int, default=8)
@@ -486,14 +483,10 @@ def run(argv: list[str] | None = None) -> int:
         return 2
 
     admin_base_url = _base_url(config, args.base_url)
-    ui_base_url = (
-        args.ui_base_url.rstrip("/")
-        if args.ui_base_url
-        else admin_base_url
-    )
     admin = DemoAdmin(admin_base_url, args.timeout)
     initiator = None
     started_session = False
+    owned_run_id = None
     interrupted = False
     try:
         app = MultiSessionFIXApplication(
@@ -502,8 +495,8 @@ def run(argv: list[str] | None = None) -> int:
         state = LiveMarketState(instrument)
         app.add_listener(state.record_report)
         settings = fix.SessionSettings(args.fix_config)
-        store_factory = fix.FileStoreFactory(settings)
-        log_factory = fix.FileLogFactory(settings)
+        store_factory = fix.MemoryStoreFactory()
+        log_factory = fix.ScreenLogFactory(settings)
         initiator = fix.SocketInitiator(
             app,
             store_factory,
@@ -519,13 +512,14 @@ def run(argv: list[str] | None = None) -> int:
             raise TimeoutError(
                 "Timed out waiting for liquidity_bot and taker_bot logons"
             )
-        started = admin.start_session(args.run_id)
+        started = admin.start_session(args.scenario_label)
         started_session = True
+        owned_run_id = started['session_id']
         print(
             f"Started {started['session_id']} generation "
             f"{started['run_generation']}"
         )
-        print(f"Open {ui_base_url}/ui/{instrument.symbol}")
+        print(f"Open {args.dashboard_url}")
 
         rng = random.Random(args.seed)
         market = LiveMarket(
@@ -572,8 +566,8 @@ def run(argv: list[str] | None = None) -> int:
     finally:
         if started_session:
             try:
-                if admin.end_session_if_owned(args.run_id):
-                    print(f"Ended simulation session {args.run_id}")
+                if admin.end_session_if_owned(owned_run_id):
+                    print(f"Ended simulation session {owned_run_id}")
             except Exception as exc:
                 print(
                     f"Failed to end simulation session: {exc}",

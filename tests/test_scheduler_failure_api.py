@@ -18,7 +18,9 @@ from src.mockx.models import (
     TimeInForce,
 )
 
+from .api_helpers import cleanup_native_exchanges
 from .api_helpers import api_config, make_exchange
+from .api_helpers import make_native_exchange
 
 
 def _submit_scheduled_limit_order(exchange: MockExchange) -> int:
@@ -48,7 +50,7 @@ def test_failed_advance_is_503_not_ready_observable_and_session_resettable():
     with TestClient(exchange.app) as client:
         started = client.post(
             "/api/v1/session/start",
-            json={"run_id": "failed-run"},
+            json={"scenario_label": "failed-run"},
         )
         assert started.status_code == 200
 
@@ -91,7 +93,9 @@ def test_failed_advance_is_503_not_ready_observable_and_session_resettable():
         assert repeated.status_code == 503
 
         ended = client.post("/api/v1/session/end")
-        assert ended.status_code == 200
+        assert ended.status_code == 503
+        assert ended.json()["detail"]["code"] == "ENGINE_FAILED"
+        assert exchange.lifecycle.state.value == "STOPPED"
         assert (
             ended.json()["final_stats"]["scheduler"]["state"]
             == "FAILED"
@@ -99,7 +103,7 @@ def test_failed_advance_is_503_not_ready_observable_and_session_resettable():
 
         restarted = client.post(
             "/api/v1/session/start",
-            json={"run_id": "clean-run"},
+            json={"scenario_label": "clean-run"},
         )
         assert restarted.status_code == 200
         reset_stats = client.get("/stats").json()["scheduler"]
@@ -118,7 +122,7 @@ def test_post_mutation_engine_failure_cannot_look_healthy(
     with TestClient(exchange.app) as client:
         assert client.post(
             "/api/v1/session/start",
-            json={"run_id": "post-mutation-failure"},
+            json={"scenario_label": "post-mutation-failure"},
         ).status_code == 200
         order_id = _submit_scheduled_limit_order(exchange)
         order = exchange.engine.orders[order_id]
@@ -165,7 +169,7 @@ def test_post_mutation_engine_failure_cannot_look_healthy(
     assert order.processed is True
     assert order.status == OrderStatus.PENDING_NEW
     assert later_events == []
-    assert exchange.scheduler.get_pending_count() == 1
+    assert sum(event.event_type == "later" for event in exchange.scheduler.event_queue) == 1
     assert exchange.scheduler.state == SchedulerState.STOPPED
     assert stats["scheduler"]["state"] == "FAILED"
     assert stats["scheduler"]["dead_letter"]["event_type"] == "order_process"
@@ -182,7 +186,7 @@ async def test_realtime_scheduler_freezes_after_failure_and_resumes_on_reset():
     config = api_config()
     config["scheduler"]["mode"] = "realtime"
     config["scheduler"]["interval_ms"] = 1
-    exchange = MockExchange(validate_config(config, environ={}))
+    exchange = make_native_exchange(validate_config(config, environ={}))
     later_events = []
 
     exchange.scheduler.register_handler(

@@ -14,12 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY ./src ./src
-COPY ./templates ./templates
 COPY ./examples ./examples
 COPY ./configs/FIX44.xml ./configs/FIX44.xml
-
-# Create necessary directories
-RUN mkdir -p logs store
 
 # Create non-root user
 RUN useradd -ms /bin/bash trader && \

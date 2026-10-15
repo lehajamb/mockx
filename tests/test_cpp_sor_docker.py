@@ -39,6 +39,7 @@ def test_cpp_sor_compose_wires_two_venues_relays_and_seed_service():
         "venue-a-mold-relay",
         "venue-b-mold-relay",
         "seed-books",
+        "questdb", "dashboard-projector", "grafana",
     }
 
     venue_a = services["venue-a"]
@@ -210,7 +211,7 @@ class FakeHttpClient:
         if url.endswith("/api/v1/session/start"):
             generation = 7 if "venue-a" in url else 9
             return {
-                "session_id": payload["run_id"],
+                "session_id": payload["scenario_label"],
                 "run_generation": generation,
             }
         if url.endswith("/book/BTC-USDT"):
@@ -280,12 +281,12 @@ def test_seed_books_resets_starts_submits_over_fix_and_verifies_depth():
         (
             "POST",
             "http://venue-a:8101/api/v1/session/start",
-            {"run_id": "sor-a"},
+            {"scenario_label": "sor-a"},
         ),
         (
             "POST",
             "http://venue-b:8102/api/v1/session/start",
-            {"run_id": "sor-b"},
+            {"scenario_label": "sor-b"},
         ),
     ]
     expected_calls.extend(
@@ -340,13 +341,13 @@ def test_seed_books_resets_starts_submits_over_fix_and_verifies_depth():
             "http",
             "POST",
             "http://venue-a:8101/api/v1/session/start",
-            {"run_id": "sor-a"},
+            {"scenario_label": "sor-a"},
         ),
         (
             "http",
             "POST",
             "http://venue-b:8102/api/v1/session/start",
-            {"run_id": "sor-b"},
+            {"scenario_label": "sor-b"},
         ),
         ("fix", "start"),
         ("fix", "wait_for_sessions", ("SEED_A", "SEED_B"), 1),

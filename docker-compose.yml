@@ -6,113 +6,152 @@ services:
       QDB_HTTP_PASSWORD: mockx-password
       QDB_PG_USER: mockx-user
       QDB_PG_PASSWORD: mockx-password
-      QDB_LINE_AUTO_CREATE_NEW_TABLES: "false"
-      QDB_LINE_AUTO_CREATE_NEW_COLUMNS: "false"
+      QDB_PG_READONLY_USER_ENABLED: 'true'
+      QDB_PG_READONLY_USER: dashboard_reader
+      QDB_PG_READONLY_PASSWORD: mockx-dashboard-password
+      QDB_LINE_AUTO_CREATE_NEW_TABLES: 'false'
+      QDB_LINE_AUTO_CREATE_NEW_COLUMNS: 'false'
     ports:
-      - "9000:9000"
-      - "8812:8812"
-      - "9003:9003"
+    - 9000:9000
+    - 8812:8812
+    - 9003:9003
     volumes:
-      - questdb-data:/var/lib/questdb
+    - questdb-native-data:/var/lib/questdb
     healthcheck:
       test:
-        - CMD-SHELL
-        - >-
-          curl --fail --silent --show-error
-          --user "$${QDB_HTTP_USER}:$${QDB_HTTP_PASSWORD}"
-          http://localhost:9003
+      - CMD-SHELL
+      - curl --fail --silent --show-error --user "$${QDB_HTTP_USER}:$${QDB_HTTP_PASSWORD}"
+        http://localhost:9003
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 10s
-
   mockx:
     build: .
     image: mockx-live-demo:local
     environment:
       CFG_PATH: /opt/mockx/examples/live_exchange_docker.yml
       FIX_CONFIG_FILE: /opt/mockx/examples/live_acceptor.cfg
-      QUESTDB_ENABLED: "true"
       QUESTDB_URL: http://questdb:9000
       QUESTDB_HEALTH_URL: http://questdb:9003
       QUESTDB_USERNAME: mockx-user
       QUESTDB_PASSWORD: mockx-password
-      QUESTDB_FLUSH_BATCH_SIZE: "1000"
-      QUESTDB_MAX_BUFFER_RECORDS: "10000"
-      QUESTDB_MAX_BUFFER_BYTES: "67108864"
-      QUESTDB_FLUSH_INTERVAL_MS: "1000"
-      QUESTDB_RETRY_BACKOFF_MS: "1000"
-      QUESTDB_MAX_RETRY_DELAY_MS: "30000"
-      QUESTDB_OVERFLOW_RETRY_ATTEMPTS: "3"
-      QUESTDB_SHUTDOWN_TIMEOUT_MS: "10000"
-      QUESTDB_OVERFLOW_POLICY: reject_new
-      QUESTDB_REQUEST_TIMEOUT_MS: "10000"
+      QUESTDB_FLUSH_BATCH_SIZE: '1000'
+      QUESTDB_MAX_BUFFER_RECORDS: '10000'
+      QUESTDB_MAX_BUFFER_BYTES: '67108864'
+      QUESTDB_FLUSH_INTERVAL_MS: '1000'
+      QUESTDB_RETRY_BACKOFF_MS: '1000'
+      QUESTDB_MAX_RETRY_DELAY_MS: '30000'
+      QUESTDB_SHUTDOWN_TIMEOUT_MS: '10000'
+      QUESTDB_REQUEST_TIMEOUT_MS: '10000'
     ports:
-      - "4001:4001"
-      - "8001:8000"
-      - "127.0.0.1:18001:18001/tcp"
+    - 4001:4001
+    - 8001:8000
+    - 127.0.0.1:18001:18001/tcp
     depends_on:
       questdb:
         condition: service_healthy
     healthcheck:
       test:
-        - CMD
-        - curl
-        - -f
-        - http://localhost:8000/readyz
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8000/readyz
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 10s
-
   mold-host-relay:
     image: mockx-live-demo:local
     pull_policy: never
     environment:
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
     entrypoint:
-      - python
-      - examples/moldudp64_host_relay.py
+    - python
+    - examples/moldudp64_host_relay.py
     command:
-      - --multicast-group
-      - 239.192.0.1
-      - --multicast-port
-      - "18000"
-      - --target-host
-      - host.docker.internal
-      - --target-port
-      - "18000"
+    - --multicast-group
+    - 239.192.0.1
+    - --multicast-port
+    - '18000'
+    - --target-host
+    - host.docker.internal
+    - --target-port
+    - '18000'
     depends_on:
       mockx:
         condition: service_healthy
     init: true
     restart: on-failure
-
   live-market:
     image: mockx-live-demo:local
     pull_policy: never
     environment:
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
     entrypoint:
-      - python
-      - examples/live_market.py
+    - python
+    - examples/live_market.py
     command:
-      - --config
-      - examples/live_exchange_docker.yml
-      - --fix-config
-      - examples/live_client_docker.cfg
-      - --base-url
-      - http://mockx:8000
-      - --ui-base-url
-      - http://localhost:8001
+    - --config
+    - examples/live_exchange_docker.yml
+    - --fix-config
+    - examples/live_client_docker.cfg
+    - --base-url
+    - http://mockx:8000
+    - --dashboard-url
+    - http://localhost:3000/d/mockx-native/mockx-native-exchange
     depends_on:
       mockx:
         condition: service_healthy
       mold-host-relay:
         condition: service_started
+      dashboard-projector:
+        condition: service_started
     init: true
     stop_signal: SIGTERM
     stop_grace_period: 30s
-
+  dashboard-projector:
+    image: mockx-live-demo:local
+    pull_policy: never
+    environment:
+      PYTHONUNBUFFERED: '1'
+      QUESTDB_URL: http://questdb:9000
+      QUESTDB_USERNAME: mockx-user
+      QUESTDB_PASSWORD: mockx-password
+    entrypoint:
+    - python
+    - examples/dashboard/projector.py
+    depends_on:
+      questdb:
+        condition: service_healthy
+      mockx:
+        condition: service_healthy
+    init: true
+    restart: on-failure
+  grafana:
+    image: grafana/grafana:12.3.3
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: mockx-dashboard
+      GF_DASHBOARDS_MIN_REFRESH_INTERVAL: 250ms
+      GF_PLUGINS_PREINSTALL_SYNC: questdb-questdb-datasource@0.1.8,nline-plotlyjs-panel@1.8.1
+      QDB_READER_PASSWORD: mockx-dashboard-password
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    ports:
+    - 3000:3000
+    volumes:
+    - ./examples/dashboard/provisioning:/etc/grafana/provisioning:ro
+    - ./examples/dashboard/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      questdb:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -q -O /dev/null http://localhost:3000/api/health
+      interval: 5s
+      timeout: 3s
+      retries: 15
 volumes:
-  questdb-data:
+  questdb-native-data: {}

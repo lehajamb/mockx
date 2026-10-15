@@ -46,7 +46,7 @@ class FakeSender:
     def new_buffer(self):
         return FakeBuffer()
 
-    def flush(self, buffer=None) -> None:
+    def flush(self, buffer=None, *, transactional=False) -> None:
         if buffer is None:
             if self.fail_flush:
                 raise RuntimeError("flush failed")
@@ -54,6 +54,7 @@ class FakeSender:
             return
         if self.fail_write:
             raise RuntimeError("write failed")
+        assert transactional
         self.buffers.append(buffer)
 
     def close(self, *, flush=True) -> None:
@@ -115,7 +116,7 @@ class FakeHTTPClient:
         if "table_columns(" in query:
             name = re.search(r"table_columns\('([^']+)'\)", query).group(1)
             schema = next(item for item in adapter.QUESTDB_SCHEMAS if item.name == name)
-            upsert_keys = {"timestamp", "run_id", "metric_event_sequence"}
+            upsert_keys = {"timestamp", "run_id", "event_sequence"}
             return FakeResponse(
                 {
                     "columns": [
@@ -170,42 +171,30 @@ def patched_adapter(monkeypatch):
 
 def metric_record(timestamp_ns: int = 1_000_000_123) -> MetricRecord:
     return MetricRecord.create(
-        "orders",
-        {"exchange": "TEST", "symbol": "BTC-USDT"},
-        {"order_id": 7, "exec_id": "E7", "price": "100.00"},
+        "exchange_events",
+        {"venue_id": "TEST", "symbol": "BTC-USDT", "kind": "REPORT_CREATED"},
+        {"order_id": 7, "exec_id": "E7", "price_ticks": 10000},
         run_id="questdb-run",
-        metric_event_sequence=3,
+        event_sequence=3,
         event_timestamp_ns=timestamp_ns,
     )
 
 
 def test_schema_ddl_is_explicit_wal_nanosecond_and_deduplicated():
-    assert {schema.name for schema in adapter.QUESTDB_SCHEMAS} == {
-        "orders",
-        "trades",
-        "self_trade_prevention",
-        "latency",
-        "fix_messages",
-        "fix_connections",
-        "book_snapshot",
-        "pending_events",
-    }
+    assert {schema.name for schema in adapter.QUESTDB_SCHEMAS} == {"exchange_events"}
     for schema in adapter.QUESTDB_SCHEMAS:
         assert "timestamp TIMESTAMP_NS" in schema.ddl
         assert "PARTITION BY DAY WAL" in schema.ddl
-        assert (
-            "DEDUP UPSERT KEYS(timestamp, run_id, metric_event_sequence)" in schema.ddl
-        )
+        assert "DEDUP UPSERT KEYS(timestamp, run_id, event_sequence)" in schema.ddl
         assert dict(schema.columns)["run_id"] == "SYMBOL"
         assert dict(schema.columns)["event_timestamp_ns"] == "LONG"
 
-    schemas = {schema.name: dict(schema.columns) for schema in adapter.QUESTDB_SCHEMAS}
-    assert schemas["orders"]["status"] == "SYMBOL"
-    assert schemas["orders"]["exec_id"] == "VARCHAR"
-    assert schemas["trades"]["price_ticks"] == "LONG"
-    assert schemas["latency"]["duration_ms"] == "DOUBLE"
-    assert schemas["book_snapshot"]["has_bid"] == "BOOLEAN"
-    assert schemas["book_snapshot"]["bids_json"] == "VARCHAR"
+    columns = dict(adapter.QUESTDB_SCHEMAS[0].columns)
+    assert columns["ord_status"] == "SYMBOL"
+    assert columns["exec_id"] == "VARCHAR"
+    assert columns["price_ticks"] == "LONG"
+    assert columns["duration_ns"] == "LONG"
+    assert "bids_json" not in columns
 
 
 def test_client_uses_http_auth_timeout_and_disables_internal_batching(

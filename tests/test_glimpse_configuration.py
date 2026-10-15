@@ -10,7 +10,6 @@ from .test_itch_integration import itch_config
 
 def enabled_glimpse_config():
     raw = itch_config()
-    raw["glimpse"] = {"enabled": True}
     raw["soupbintcp"] = {
         "host": "127.0.0.1",
         "port": 18001,
@@ -26,22 +25,20 @@ def enabled_glimpse_config():
     return raw
 
 
-def test_glimpse_defaults_disabled_without_transport():
+def test_native_glimpse_is_required_and_legacy_flags_are_rejected():
     config = validate_config(api_config(), environ={})
-    assert not config.glimpse.enabled
-    assert config.soupbintcp is None
+    assert config.soupbintcp is not None
+    raw = api_config()
+    raw["glimpse"] = {"enabled": False}
+    with pytest.raises(ConfigurationError, match="glimpse"):
+        validate_config(raw, environ={})
 
 
-def test_enabled_glimpse_requires_itch_and_soup_transport():
-    missing_itch = api_config()
-    missing_itch["glimpse"] = {"enabled": True}
-    with pytest.raises(ConfigurationError, match="requires enabled ITCH"):
-        validate_config(missing_itch, environ={})
-
-    missing_soup = itch_config()
-    missing_soup["glimpse"] = {"enabled": True}
-    with pytest.raises(ConfigurationError, match="requires soupbintcp"):
-        validate_config(missing_soup, environ={})
+def test_native_glimpse_requires_soup_transport():
+    raw = api_config()
+    del raw["soupbintcp"]
+    with pytest.raises(ConfigurationError, match="soupbintcp"):
+        validate_config(raw, environ={})
 
 
 def test_soup_credentials_are_ascii_bounded_and_case_insensitively_unique():
@@ -89,6 +86,5 @@ def test_soup_resource_and_timeout_bounds_are_strict(field, value):
 
 def test_enabled_glimpse_configuration_normalizes_credentials():
     config = validate_config(enabled_glimpse_config(), environ={})
-    assert config.glimpse.enabled
     assert config.soupbintcp is not None
     assert dict(config.soupbintcp.credentials) == {"GLIMP": "SECRET"}

@@ -1,5 +1,6 @@
 from tests.exact_helpers import exact_engine, exact_metrics
 from tests.exact_helpers import exact_command, exact_cancel_command, exact_order
+
 """Regression tests for immutable execution-report snapshots."""
 
 from dataclasses import FrozenInstanceError, replace
@@ -65,9 +66,7 @@ def new_report(order: Order):
 
 def fill_order(order: Order) -> None:
     order.filled_qty_lots = order.order_qty_lots
-    order.filled_notional_tick_lots = (
-        order.order_qty_lots * order.price_ticks
-    )
+    order.filled_notional_tick_lots = order.order_qty_lots * order.price_ticks
     order.transition_to(OrderStatus.FILLED)
 
 
@@ -159,9 +158,7 @@ async def test_delayed_new_report_remains_new_when_delivered_after_fill():
 
     await scheduler.run_until_idle()
 
-    passive_reports = [
-        report for report in delivered if report.order_id == passive_id
-    ]
+    passive_reports = [report for report in delivered if report.order_id == passive_id]
     assert passive_reports[0] is captured_new
     assert passive_reports[0].exec_type == "NEW"
     assert passive_reports[0].ord_status == OrderStatus.NEW
@@ -169,9 +166,7 @@ async def test_delayed_new_report_remains_new_when_delivered_after_fill():
     assert passive_reports[0].cum_qty_lots == 0.0
 
     fill_report = next(
-        report
-        for report in passive_reports
-        if report.ord_status == OrderStatus.FILLED
+        report for report in passive_reports if report.ord_status == OrderStatus.FILLED
     )
     assert fill_report.leaves_qty_lots == 0.0
     assert fill_report.cum_qty_lots == 10.0
@@ -241,6 +236,7 @@ def test_terminal_cleanup_uses_report_snapshot_status():
     )
     fake_exchange = SimpleNamespace(
         latency_tracker=Mock(),
+        on_report_delivered=None,
         engine=SimpleNamespace(
             scheduler=SimpleNamespace(current_time=NOW),
         ),
@@ -263,24 +259,15 @@ def test_metrics_record_report_snapshot_not_live_order():
     fill_order(order)
 
     collector = exact_metrics("TEST-EXCHANGE")
-    captured = {}
+    from src.mockx.effects import CommandEffect
+    from src.mockx.journal import encode_effect
 
-    def capture_record(table, symbols, columns, timestamp_ns):
-        captured.update(
-            table=table,
-            symbols=symbols,
-            columns=columns,
-            timestamp_ns=timestamp_ns,
-        )
-
-    collector._create_record = capture_record
     collector.record_order(report)
-
-    assert captured["table"] == "orders"
-    assert captured["symbols"]["status"] == "NEW"
-    assert captured["columns"]["order_qty_lots"] == 10
-    assert captured["columns"]["filled_qty_lots"] == 0
-    assert captured["columns"]["quantity"] == "10.000"
-    assert captured["columns"]["filled_quantity"] == "0.000"
-    assert captured["columns"]["average_fill_price"] == "0.00"
-    assert captured["timestamp_ns"] == int(NOW.timestamp() * 1_000_000_000)
+    kind, fields = encode_effect(CommandEffect("report", report))
+    assert kind == "REPORT_CREATED"
+    assert fields["ord_status"] == "NEW"
+    assert fields["order_qty_lots"] == 10
+    assert fields["cum_qty_lots"] == 0
+    assert fields["filled_notional_tick_lots"] == 0
+    assert fields["report_created_at_ns"] == int(NOW.timestamp() * 1_000_000_000)
+    assert "quantity" not in fields

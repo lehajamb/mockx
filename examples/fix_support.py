@@ -9,8 +9,10 @@ from typing import Callable, Iterable, Mapping, Optional
 
 try:
     import quickfix as fix
+    import quickfix44 as fix44
 except ImportError:  # Keep example ``--help`` commands usable.
     fix = None
+    fix44 = None
 
 
 ApplicationBase = fix.Application if fix is not None else object
@@ -94,6 +96,7 @@ class FixReport:
     last_price: Optional[str]
     last_qty: Optional[str]
     text: Optional[str]
+    list_id: Optional[str] = None
 
 
 def require_quickfix() -> None:
@@ -223,6 +226,7 @@ class MultiSessionFIXApplication(ApplicationBase):
                 last_price=_optional_field_value(message, fix.LastPx()),
                 last_qty=_optional_field_value(message, fix.LastQty()),
                 text=_optional_field_value(message, fix.Text()),
+                list_id=_optional_field_value(message, fix.StringField(66)),
             )
         if value == fix.MsgType_OrderCancelReject:
             ord_status = _field_value(message, fix.OrdStatus())
@@ -307,6 +311,7 @@ def send_cancel(
     symbol: str,
     side: str,
     quantity: str,
+    list_id: str | None = None,
 ) -> None:
     require_quickfix()
     message = fix.Message()
@@ -319,4 +324,75 @@ def send_cancel(
     message.setField(fix.Side(side))
     message.setField(fix.StringField(38, quantity))
     message.setField(_transact_time())
+    if list_id is not None:
+        message.setField(fix.StringField(66, list_id))
     _send(message, session_id)
+
+
+@dataclass(frozen=True)
+class ListOrder:
+    """A member of an immediate FIX list; quantities/prices stay decimal text."""
+
+    cl_ord_id: str
+    symbol: str
+    side: str
+    quantity: str
+    price: str | None = None
+    tif: str = "1"
+
+
+def build_order_list(list_id: str, orders: Iterable[ListOrder]):
+    """Build MockX's unfragmented, non-bidding NewOrderList profile."""
+    require_quickfix()
+    members = tuple(orders)
+    if not members:
+        raise ValueError("an order list must contain at least one order")
+    message = fix44.NewOrderList()
+    message.setField(fix.StringField(66, list_id))
+    message.setField(fix.IntField(394, 3))
+    message.setField(fix.CharField(433, "1"))
+    message.setField(fix.IntField(414, 3))
+    message.setField(fix.IntField(68, len(members)))
+    for sequence, order in enumerate(members, start=1):
+        group = fix44.NewOrderList.NoOrders()
+        group.setField(fix.ClOrdID(order.cl_ord_id))
+        group.setField(fix.IntField(67, sequence))
+        group.setField(fix.Symbol(order.symbol))
+        group.setField(fix.Side(order.side))
+        group.setField(fix.StringField(38, order.quantity))
+        group.setField(fix.OrdType("2" if order.price is not None else "1"))
+        if order.price is not None:
+            group.setField(fix.StringField(44, order.price))
+        group.setField(fix.TimeInForce(order.tif))
+        group.setField(_transact_time())
+        message.addGroup(group)
+    return message
+
+
+def send_order_list(session_id, *, list_id: str, orders: Iterable[ListOrder]) -> None:
+    _send(build_order_list(list_id, orders), session_id)
+
+
+def build_replace(
+    *, cl_ord_id: str, orig_cl_ord_id: str, symbol: str, side: str,
+    quantity: str, price: str, list_id: str | None = None,
+):
+    """Replace a GTC limit using total chain quantity, including prior fills."""
+    require_quickfix()
+    message = fix44.OrderCancelReplaceRequest()
+    message.setField(fix.ClOrdID(cl_ord_id))
+    message.setField(fix.OrigClOrdID(orig_cl_ord_id))
+    message.setField(fix.Symbol(symbol))
+    message.setField(fix.Side(side))
+    message.setField(fix.StringField(38, quantity))
+    message.setField(fix.OrdType("2"))
+    message.setField(fix.StringField(44, price))
+    message.setField(fix.TimeInForce("1"))
+    message.setField(_transact_time())
+    if list_id is not None:
+        message.setField(fix.StringField(66, list_id))
+    return message
+
+
+def send_replace(session_id, **fields) -> None:
+    _send(build_replace(**fields), session_id)

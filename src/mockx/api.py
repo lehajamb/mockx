@@ -1,4 +1,4 @@
-"""Typed REST API and reliable WebSocket delivery for MockX."""
+"""Typed REST lifecycle, diagnostics, and observability for MockX."""
 
 from __future__ import annotations
 
@@ -6,20 +6,15 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 import logging
-from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import (
     FastAPI,
     HTTPException,
     Request,
-    WebSocket,
-    WebSocketDisconnect,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST
 from pydantic import (
     AliasChoices,
@@ -42,8 +37,6 @@ from .lifecycle import (
 )
 from .metrics import MetricsCollector
 from .models import MarketDataSnapshot, SchedulerState
-from .numeric import format_decimal_ratio
-from .websocket_delivery import WebSocketConnection, WebSocketRegistry
 
 
 logger = logging.getLogger(__name__)
@@ -105,24 +98,6 @@ class BookSnapshotResponse(BaseModel):
     timestamp: datetime = Field(description="Timezone-aware simulated UTC")
     bids: list[PriceLevelResponse]
     asks: list[PriceLevelResponse]
-
-
-class MarketDataMessage(BookSnapshotResponse):
-    type: Literal["market_data"] = "market_data"
-    trades: list[TradeResponse] = Field(default_factory=list)
-
-
-class HeartbeatMessage(BaseModel):
-    type: Literal["heartbeat"] = "heartbeat"
-    symbol: str
-    timestamp: datetime
-    last_sequence: int
-
-
-class WebSocketErrorMessage(BaseModel):
-    type: Literal["error"] = "error"
-    code: str
-    message: str
 
 
 class OrdersStats(BaseModel):
@@ -243,7 +218,7 @@ class PersistenceRunOutcomes(BaseModel):
 class RunFailureResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    code: Literal["METRICS_INCOMPLETE"]
+    code: str
     message: str
     run_id: str
     run_generation: int
@@ -317,17 +292,6 @@ class SchedulerStats(BaseModel):
     event_processing_limit_failures: int = 0
 
 
-class WebSocketStats(BaseModel):
-    scope: Literal["process_lifetime"] = "process_lifetime"
-    active_clients: int
-    queue_depth: int
-    snapshots_conflated: int
-    snapshots_dropped: int
-    slow_client_disconnects: int
-    send_failures: int
-    send_successes: int
-
-
 class ITCHStats(BaseModel):
     scope: Literal["process_lifetime"] = "process_lifetime"
     enabled: bool
@@ -368,6 +332,7 @@ class RunStatsResponse(BaseModel):
     scope: Literal["current_run"] = "current_run"
     run_active: bool
     run_id: Optional[str]
+    scenario_label: Optional[str]
     run_generation: Optional[int]
     run_failure: Optional[RunFailureResponse]
     orders: OrdersStats
@@ -385,6 +350,7 @@ class StatsResponse(BaseModel):
     scope: Literal["current_run"] = "current_run"
     run_active: bool
     run_id: Optional[str]
+    scenario_label: Optional[str]
     run_generation: Optional[int]
     run_failure: Optional[RunFailureResponse]
     orders: OrdersStats
@@ -393,7 +359,6 @@ class StatsResponse(BaseModel):
     reports: ReportsStats
     sessions: SessionsStats
     fix_delivery: FixDeliveryStats
-    websocket: WebSocketStats
     itch: ITCHStats
     glimpse: GlimpseStats
     book: BookStats
@@ -404,20 +369,16 @@ class StatsResponse(BaseModel):
 
 
 class SessionBody(BaseModel):
-    """Start one explicitly named simulation session."""
+    """Start a fresh UUID run with a caller-selected scenario label."""
 
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
-
-    run_id: str = Field(
-        min_length=1,
-        max_length=128,
-        validation_alias=AliasChoices("run_id", "session_id"),
-    )
+    model_config = ConfigDict(extra="forbid")
+    scenario_label: str = Field(min_length=1, max_length=128)
 
 
 class SessionStartResponse(BaseModel):
     status: Literal["session_started"]
     session_id: str
+    scenario_label: str
     run_generation: int
     starting_time: datetime
 
@@ -523,26 +484,6 @@ def _book_payload(snapshot: MarketDataSnapshot) -> dict[str, Any]:
     }
 
 
-def market_data_message(
-    snapshot: MarketDataSnapshot,
-) -> MarketDataMessage:
-    """Build the testable public WebSocket envelope from one snapshot."""
-    return MarketDataMessage(
-        type="market_data",
-        **_book_payload(snapshot),
-        trades=[
-            {
-                "trade_id": trade.trade_id,
-                "price": snapshot.instrument.format_price(trade.price_ticks),
-                "qty": snapshot.instrument.format_quantity(trade.qty_lots),
-                "aggressor_side": trade.aggressor_side.value,
-                "timestamp": trade.timestamp,
-            }
-            for trade in snapshot.trades
-        ],
-    )
-
-
 class ExchangeAPI:
     """One explicitly owned FastAPI service for one exchange instance."""
 
@@ -563,31 +504,6 @@ class ExchangeAPI:
         self.fix_app = fix_app
         self.lifecycle_manager = lifecycle_manager
         self.lifecycle = session_lifecycle
-
-        websocket_config = config.websocket
-        self.heartbeat_interval_seconds = websocket_config.heartbeat_interval_seconds
-        self.websocket_queue_capacity = websocket_config.outbound_queue_capacity
-        self.websocket_send_timeout_seconds = websocket_config.send_timeout_seconds
-        heartbeat_stale_seconds = websocket_config.heartbeat_stale_seconds
-        market_data_stale_seconds = websocket_config.market_data_stale_seconds
-        fallback_poll_seconds = websocket_config.fallback_poll_seconds
-        reconnect_initial_seconds = websocket_config.reconnect_initial_seconds
-        reconnect_max_seconds = websocket_config.reconnect_max_seconds
-        staleness_check_seconds = websocket_config.staleness_check_seconds
-        self.registry = WebSocketRegistry(
-            metrics,
-            queue_capacity=self.websocket_queue_capacity,
-            send_timeout_seconds=self.websocket_send_timeout_seconds,
-        )
-        self.websocket_browser_timing = {
-            "heartbeatIntervalMs": round(self.heartbeat_interval_seconds * 1000),
-            "heartbeatStaleMs": round(heartbeat_stale_seconds * 1000),
-            "marketDataStaleMs": round(market_data_stale_seconds * 1000),
-            "fallbackPollMs": round(fallback_poll_seconds * 1000),
-            "reconnectInitialMs": round(reconnect_initial_seconds * 1000),
-            "reconnectMaxMs": round(reconnect_max_seconds * 1000),
-            "stalenessCheckMs": round(staleness_check_seconds * 1000),
-        }
 
         @asynccontextmanager
         async def lifespan(app: FastAPI):
@@ -622,7 +538,6 @@ class ExchangeAPI:
                 if self.lifecycle_manager is not None:
                     await self.lifecycle_manager.stop_components()
                 else:
-                    await self.registry.close_all()
                     try:
                         if not await self.metrics.close():
                             logger.error("Metrics close reported a failure")
@@ -697,21 +612,8 @@ class ExchangeAPI:
             ),
         }
 
-        origins = config.cors_origins
-        if origins:
-            self.app.add_middleware(
-                CORSMiddleware,
-                allow_origins=list(origins),
-                allow_credentials=False,
-                allow_methods=["GET", "POST"],
-                allow_headers=["Content-Type"],
-            )
-
-        template_dir = Path(__file__).resolve().parents[2] / "templates"
-        self.templates = Jinja2Templates(directory=str(template_dir))
         if self.lifecycle is not None:
             self.lifecycle.bind_api(
-                close_websockets=self.close_websockets,
                 stats_builder=self._final_run_stats_response,
             )
         self._setup_routes()
@@ -746,7 +648,7 @@ class ExchangeAPI:
             )
         persistence_health = self.metrics.persistence_health_snapshot()
         components["persistence"] = persistence_health.state.value.lower()
-        if not getattr(self.lifecycle_manager, "fix_enabled", False):
+        if self.lifecycle_manager is None:
             components["fix_delivery"] = "disabled"
         else:
             delivery = self.fix_app.delivery_queue.snapshot()
@@ -760,8 +662,10 @@ class ExchangeAPI:
                 else "ready"
             )
 
-        critical_names = ["engine", "scheduler", "api", "metrics"]
-        if getattr(self.lifecycle_manager, "fix_enabled", False):
+        critical_names = ["engine", "scheduler", "api", "metrics", "glimpse"]
+        if self.lifecycle is not None and self.lifecycle.state == LifecycleState.ACTIVE:
+            critical_names.append("itch")
+        if self.lifecycle_manager is not None:
             critical_names.append("fix_gateway")
         ready_values = {"ready", "waiting_external"}
         core_ready = all(
@@ -772,9 +676,7 @@ class ExchangeAPI:
             LifecycleState.ACTIVE,
         }
         core_ready = bool(self.app.state.ready and core_ready and lifecycle_ready)
-        persistence_required = bool(
-            self.config.questdb is not None and self.config.questdb.enabled
-        )
+        persistence_required = True
         persistence_ready = (
             not persistence_required or persistence_health.state.value == "HEALTHY"
         )
@@ -813,6 +715,9 @@ class ExchangeAPI:
         payload = self.metrics.snapshot().to_dict(run_id=self.metrics.run_id)
         payload["scope"] = "current_run"
         payload["run_active"] = run_active
+        payload["scenario_label"] = (
+            self.lifecycle.scenario_label if self.lifecycle else None
+        )
         payload["run_failure"] = (
             self.lifecycle.run_failure if self.lifecycle is not None else None
         )
@@ -837,15 +742,14 @@ class ExchangeAPI:
         payload = self._run_stats_payload(
             run_active=(
                 self.lifecycle.state == LifecycleState.ACTIVE
-                if self.lifecycle is not None else self.metrics.run_id is not None
+                if self.lifecycle is not None
+                else self.metrics.run_id is not None
             )
         )
         health = self.metrics.persistence_health_snapshot()
         payload["persistence"] = {
             "scope": "operational",
-            "required": bool(
-                self.config.questdb is not None and self.config.questdb.enabled
-            ),
+            "required": True,
             "state": health.state.value,
             "last_successful_write_time": health.last_successful_write_time,
             "last_failure_time": health.last_failure_time,
@@ -868,10 +772,6 @@ class ExchangeAPI:
             "current_run_outcomes": self.metrics.run_persistence_snapshot(),
         }
         payload["process_lifetime"] = self.metrics.process_lifetime_snapshot()
-        payload["websocket"] = {
-            "scope": "process_lifetime",
-            **self.metrics.websocket_metrics_snapshot(),
-        }
         itch_feed = getattr(self.lifecycle_manager, "itch_feed", None)
         if itch_feed is None:
             payload["itch"] = {
@@ -1021,176 +921,24 @@ class ExchangeAPI:
                 media_type=CONTENT_TYPE_LATEST,
             )
 
-        @self.app.get("/ui/{symbol}", response_class=HTMLResponse)
-        async def book_ui(request: Request, symbol: str):
-            self._require_stable_simulation_read()
-            snapshot = self._snapshot_or_404(symbol)
-            instrument = snapshot.instrument
-            best_bid = (
-                instrument.format_price(snapshot.bids[0].price_ticks)
-                if snapshot.bids
-                else None
-            )
-            best_ask = (
-                instrument.format_price(snapshot.asks[0].price_ticks)
-                if snapshot.asks
-                else None
-            )
-            mid_price = None
-            if snapshot.bids and snapshot.asks:
-                # Half a tick needs at most one extra decimal place; keep the
-                # configured display padding when that extra place is zero.
-                mid_price = format_decimal_ratio(
-                    instrument.price_decimal(
-                        snapshot.bids[0].price_ticks + snapshot.asks[0].price_ticks
-                    ),
-                    2,
-                    instrument.price_display_precision + 1,
-                )
-                if mid_price.endswith("0"):
-                    mid_price = mid_price[:-1].removesuffix(".")
-            initial_book = BookSnapshotResponse.model_validate(
-                _book_payload(snapshot)
-            ).model_dump(mode="json")
-            return self.templates.TemplateResponse(
-                request=request,
-                name="book.html",
-                context={
-                    "symbol": snapshot.symbol,
-                    "bids": [
-                        {
-                            "price": instrument.format_price(level.price_ticks),
-                            "qty": instrument.format_quantity(level.level_qty_lots),
-                            "orders": level.order_count,
-                        }
-                        for level in snapshot.bids[:20]
-                    ],
-                    "asks": [
-                        {
-                            "price": instrument.format_price(level.price_ticks),
-                            "qty": instrument.format_quantity(level.level_qty_lots),
-                            "orders": level.order_count,
-                        }
-                        for level in snapshot.asks[:20]
-                    ],
-                    "best_bid": best_bid,
-                    "best_ask": best_ask,
-                    "mid_price": mid_price,
-                    "initial_book": initial_book,
-                    "websocket_timing": self.websocket_browser_timing,
-                },
-            )
-
-        @self.app.websocket("/ws/{symbol}")
-        async def websocket_endpoint(
-            websocket: WebSocket,
-            symbol: str,
-        ) -> None:
-            normalized = self._normalized_symbol(symbol)
-            if normalized not in self.engine.books:
-                await websocket.accept()
-                await websocket.send_json(
-                    WebSocketErrorMessage(
-                        code="UNKNOWN_SYMBOL",
-                        message=f"Unknown symbol: {normalized}",
-                    ).model_dump(mode="json")
-                )
-                await websocket.close(code=1008)
-                return
-
-            await websocket.accept()
-            connection: Optional[WebSocketConnection] = None
-            try:
-
-                async def _register_and_snapshot():
-                    snapshot = self.engine.get_market_data_snapshot(normalized)
-                    if snapshot is None:
-                        raise RuntimeError(
-                            f"Symbol vanished after validation: {normalized}"
-                        )
-                    return await self.registry.register(
-                        normalized,
-                        websocket,
-                        market_data_message(snapshot).model_dump(mode="json"),
-                        initial_sequence=snapshot.sequence,
-                    )
-
-                if self.lifecycle is not None:
-                    try:
-                        connection = await self.lifecycle.websocket_snapshot(
-                            _register_and_snapshot
-                        )
-                    except LifecycleError as exc:
-                        await websocket.send_json(
-                            WebSocketErrorMessage(
-                                code=exc.code,
-                                message=exc.message,
-                            ).model_dump(mode="json")
-                        )
-                        await websocket.close(code=1013)
-                        return
-                else:
-                    connection = await _register_and_snapshot()
-
-                while True:
-                    assert connection.sender_task is not None
-                    receive_task = asyncio.create_task(websocket.receive_text())
-                    done, _ = await asyncio.wait(
-                        (receive_task, connection.sender_task),
-                        timeout=self.heartbeat_interval_seconds,
-                        return_when=asyncio.FIRST_COMPLETED,
-                    )
-                    if connection.sender_task in done:
-                        if receive_task.done():
-                            try:
-                                await receive_task
-                            except (
-                                WebSocketDisconnect,
-                                RuntimeError,
-                                ConnectionError,
-                                OSError,
-                            ):
-                                pass
-                        else:
-                            receive_task.cancel()
-                            try:
-                                await receive_task
-                            except asyncio.CancelledError:
-                                pass
-                        break
-                    if receive_task not in done:
-                        receive_task.cancel()
-                        try:
-                            await receive_task
-                        except asyncio.CancelledError:
-                            pass
-                        heartbeat = HeartbeatMessage(
-                            symbol=normalized,
-                            timestamp=self.scheduler.current_time,
-                            last_sequence=self.engine.market_data_sequence,
-                        )
-                        self.registry.enqueue_heartbeat(
-                            connection,
-                            heartbeat.model_dump(mode="json"),
-                        )
-                        continue
-                    try:
-                        await receive_task
-                    except (
-                        WebSocketDisconnect,
-                        RuntimeError,
-                        ConnectionError,
-                        OSError,
-                    ):
-                        break
-            finally:
-                if connection is not None:
-                    await self.registry.disconnect(connection)
-
         if self.config.admin_api.enabled:
             self._setup_admin_routes()
 
     def _setup_admin_routes(self) -> None:
+        @self.app.post("/api/v1/checkpoints")
+        async def checkpoint():
+            self._require_admin()
+            assert self.lifecycle is not None
+            try:
+                result = await self.lifecycle.capture_checkpoint()
+            except LifecycleError as exc:
+                self._raise_lifecycle_error(exc)
+            return {
+                "status": "checkpoint_completed",
+                "run_id": self.lifecycle.run_id,
+                "checkpoint": result,
+            }
+
         @self.app.post(
             "/api/v1/session/start",
             response_model=SessionStartResponse,
@@ -1206,12 +954,13 @@ class ExchangeAPI:
             assert self.lifecycle is not None
             try:
                 self.lifecycle.raise_if_transition_or_failed()
-                result = await self.lifecycle.start_session(session.run_id)
+                result = await self.lifecycle.start_session(session.scenario_label)
             except LifecycleError as exc:
                 self._raise_lifecycle_error(exc)
             return SessionStartResponse(
                 status="session_started",
                 session_id=result.run_id,
+                scenario_label=result.scenario_label,
                 run_generation=result.run_generation,
                 starting_time=result.starting_time,
             )
@@ -1229,7 +978,10 @@ class ExchangeAPI:
                 result = await self.lifecycle.end_session()
             except LifecycleError as exc:
                 self._raise_lifecycle_error(exc)
-            if result.final_stats is not None and result.final_stats.run_failure is not None:
+            if (
+                result.final_stats is not None
+                and result.final_stats.run_failure is not None
+            ):
                 failure = result.final_stats.run_failure
                 response = SessionFailedResponse(
                     detail=ErrorDetail(code=failure.code, message=failure.message),
@@ -1237,7 +989,9 @@ class ExchangeAPI:
                     run_generation=result.run_generation,
                     final_stats=result.final_stats,
                 )
-                return JSONResponse(status_code=503, content=response.model_dump(mode="json"))
+                return JSONResponse(
+                    status_code=503, content=response.model_dump(mode="json")
+                )
             return SessionEndResponse(
                 status=(
                     "session_ended"
@@ -1322,38 +1076,15 @@ class ExchangeAPI:
                     events_processed=events_processed,
                     pending_events=self.scheduler.get_pending_count(),
                 )
-                return JSONResponse(status_code=503, content=response.model_dump(mode="json"))
+                return JSONResponse(
+                    status_code=503, content=response.model_dump(mode="json")
+                )
             return AdvanceTimeResponse(
                 previous_time=previous_time,
                 current_time=self.scheduler.current_time,
                 events_processed=events_processed,
                 pending_events=self.scheduler.get_pending_count(),
             )
-
-    async def broadcast_market_data(
-        self,
-        snapshot: MarketDataSnapshot,
-    ) -> None:
-        """Deliver one immutable payload once to each current subscriber."""
-
-        async def _broadcast() -> None:
-            message = market_data_message(snapshot).model_dump(mode="json")
-            await self.registry.enqueue_market_data(
-                snapshot.symbol,
-                message,
-                sequence=snapshot.sequence,
-            )
-
-        if self.lifecycle is not None:
-            await self.lifecycle.broadcast_if_current(
-                snapshot.run_generation,
-                _broadcast,
-            )
-        else:
-            await _broadcast()
-
-    async def close_websockets(self) -> None:
-        await self.registry.close_all()
 
 
 def create_app(

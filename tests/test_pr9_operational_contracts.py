@@ -22,6 +22,11 @@ from src.mockx.metrics import (
     PersistenceHealthState,
 )
 from src.mockx.models import MarketDataSnapshot, PriceLevelSnapshot, Side
+from src.mockx.effects import BookCheckpoint, BookOrderState
+from src.mockx.journal import ExchangeJournal
+from src.mockx.journal_reader import NativeJournalReader
+from tests.exact_helpers import TEST_INSTRUMENT
+from tests.api_helpers import make_native_exchange
 from tests.api_helpers import api_config, make_exchange, process_order
 from tests.exact_helpers import exact_metrics
 from tests.test_fix_delivery_queue import NOW, SESSION, report
@@ -32,20 +37,18 @@ NOW_UTC = datetime(2026, 7, 29, tzinfo=timezone.utc)
 
 def enabled_questdb() -> dict[str, object]:
     return {
-        "enabled": True,
         "url": "http://localhost:9000",
         "health_url": "http://localhost:9003",
         "username": "user",
         "password": "password",
         "flush_batch_size": 10,
+        "flush_batch_bytes": 500_000,
         "max_buffer_records": 20,
         "max_buffer_bytes": 1_000_000,
         "flush_interval_ms": 10_000,
         "retry_backoff_ms": 10,
         "max_retry_delay_ms": 100,
-        "overflow_retry_attempts": 1,
         "shutdown_timeout_ms": 1_000,
-        "overflow_policy": "reject_new",
         "request_timeout_ms": 1_000,
     }
 
@@ -104,76 +107,59 @@ def level(price: int, quantity: int) -> PriceLevelSnapshot:
 
 
 @pytest.mark.asyncio
-async def test_bid_ask_empty_and_depth_shrink_are_complete_snapshots():
+async def test_empty_one_sided_and_depth_shrink_checkpoints_reconstruct():
     sink = InMemoryMetricsSink()
     writer = BufferedMetricsWriter(sink, flush_batch_size=100)
-    metrics = exact_metrics("TEST", persistence=writer)
-    metrics.start_run("book-shapes")
-
-    metrics.update_book_metrics(snapshot(metrics, 1, bids=(level(100, 2),)))
-    metrics.update_book_metrics(snapshot(metrics, 2, asks=(level(101, 3),)))
-    metrics.update_book_metrics(snapshot(metrics, 3))
-    metrics.update_book_metrics(
-        snapshot(metrics, 4, bids=(level(100, 2), level(99, 4)))
+    journal = ExchangeJournal(writer, "TEST")
+    await journal.start_run("run", "shapes", (TEST_INSTRUMENT,), NOW_UTC)
+    shapes = (
+        ((BookOrderState(1, "TEST", Side.BUY, 100, 2),), (((100, 2),), ())),
+        ((BookOrderState(2, "TEST", Side.SELL, 101, 3),), ((), ((101, 3),))),
+        ((), ((), ())),
+        (
+            (
+                BookOrderState(3, "TEST", Side.BUY, 100, 2),
+                BookOrderState(4, "TEST", Side.BUY, 99, 4),
+            ),
+            (((100, 2), (99, 4)), ()),
+        ),
+        ((BookOrderState(3, "TEST", Side.BUY, 100, 1),), (((100, 1),), ())),
     )
-    metrics.update_book_metrics(snapshot(metrics, 5, bids=(level(100, 1),)))
-    assert (await writer.flush()).successful
-
-    records = [
-        item
-        for batch in sink.writes
-        for item in batch
-        if item.table == "book_snapshot"
-    ]
-    assert len(records) == 5
-    bid_only, ask_only, empty, deep, shrunk = (
-        item.column_map for item in records
-    )
-    assert (bid_only["has_bid"], bid_only["has_ask"]) == (True, False)
-    assert (bid_only["best_bid"], bid_only["best_ask"]) == ("100.00", "")
-    assert bid_only["spread_valid"] is False
-    assert (ask_only["has_bid"], ask_only["has_ask"]) == (False, True)
-    assert (ask_only["best_bid"], ask_only["best_ask"]) == ("", "101.00")
-    assert empty["has_bid"] is empty["has_ask"] is False
-    assert json.loads(empty["bids_json"]) == []
-    assert json.loads(empty["asks_json"]) == []
-    assert len(json.loads(deep["bids_json"])) == 2
-    assert json.loads(shrunk["bids_json"]) == [
-        {
-            "market_quantity": "1.000",
-            "order_count": 1,
-            "price": "100.00",
-            "quantity": "1.000",
-            "strategy_quantity": "0.000",
-        }
-    ]
-    assert shrunk["bid_depth"] == 1
-    assert shrunk["sequence"] == 5
+    for orders, expected in shapes:
+        await journal.checkpoint(BookCheckpoint("run", NOW_UTC, 1, orders))
+        await writer.flush()
+        rows = [
+            {**r.symbol_map, **r.column_map} for batch in sink.writes for r in batch
+        ]
+        latest = max(row.get("checkpoint_id", 0) for row in rows)
+        spin = [row for row in rows if row.get("checkpoint_id") == latest]
+        reader = NativeJournalReader()
+        reader.bootstrap_checkpoint(spin)
+        assert reader.book.depth("TEST") == expected
     await writer.close()
 
 
 @pytest.mark.asyncio
-async def test_run_start_persists_initial_empty_snapshot_per_symbol():
-    exchange = make_exchange()
+async def test_run_start_persists_instrument_metadata_and_empty_checkpoint():
     sink = InMemoryMetricsSink()
-    writer = BufferedMetricsWriter(sink, flush_batch_size=100)
-    exchange.metrics.attach_persistence(writer)
+    exchange = make_native_exchange(
+        validate_config(api_config(), environ={}), persistence_sink=sink
+    )
     await exchange.start_components()
     try:
-        await exchange.lifecycle.start_session("initial-empty")
-        assert (await writer.flush()).successful
-        snapshots = [
-            item
-            for batch in sink.writes
-            for item in batch
-            if item.table == "book_snapshot"
+        started = await exchange.lifecycle.start_session("initial-empty")
+        await exchange.metrics_persistence.flush()
+        records = [
+            {**r.symbol_map, **r.column_map} for batch in sink.writes for r in batch
         ]
-        assert len(snapshots) == len(exchange.engine.books) == 1
-        fields = snapshots[0].column_map
-        assert fields["sequence"] == 0
-        assert fields["has_bid"] is fields["has_ask"] is False
-        assert json.loads(fields["bids_json"]) == []
-        assert json.loads(fields["asks_json"]) == []
+        assert sum(row["kind"] == "INSTRUMENT" for row in records) == len(
+            exchange.engine.books
+        )
+        checkpoints = [row for row in records if row["kind"] == "CHECKPOINT_COMPLETE"]
+        assert len(checkpoints) == 1
+        assert checkpoints[0]["order_count"] == 0
+        assert checkpoints[0]["run_id"] == started.run_id
+        assert "book_snapshot" not in {r.table for batch in sink.writes for r in batch}
     finally:
         await exchange.stop_components()
 
@@ -211,9 +197,6 @@ async def test_run_final_stats_are_isolated_and_lifetime_remains_cumulative():
 
 def test_stats_and_prometheus_label_all_operational_sections_and_units():
     exchange = make_exchange()
-    exchange.metrics.record_websocket_snapshot_conflated()
-    exchange.metrics.record_websocket_snapshot_dropped()
-    exchange.metrics.record_websocket_slow_client_disconnect()
     exchange.scheduler.schedule_event("pending", object(), 10)
     stats = exchange.api._stats_response().model_dump(mode="json")
 
@@ -222,10 +205,7 @@ def test_stats_and_prometheus_label_all_operational_sections_and_units():
     assert stats["scheduler"]["scope"] == "current_run"
     assert stats["scheduler"]["pending_events"] == 1
     assert stats["fix_delivery"]["scope"] == "process_lifetime"
-    assert stats["websocket"]["scope"] == "process_lifetime"
-    assert stats["websocket"]["snapshots_conflated"] == 1
-    assert stats["websocket"]["snapshots_dropped"] == 1
-    assert stats["websocket"]["slow_client_disconnects"] == 1
+    assert "websocket" not in stats
     assert stats["process_lifetime"]["scope"] == "process_lifetime"
 
     body = exchange.metrics.prometheus_payload().decode()
@@ -237,9 +217,6 @@ def test_stats_and_prometheus_label_all_operational_sections_and_units():
         "mockx_fix_delivery_queue_depth",
         "mockx_fix_delivery_retries_total",
         "mockx_fix_delivery_permanent_failures_total",
-        "mockx_websocket_snapshots_conflated_total",
-        "mockx_websocket_snapshots_dropped_total",
-        "mockx_websocket_slow_client_disconnects_total",
         "mockx_match_loop_duration_us",
         "mockx_book_commit_duration_us",
         "mockx_engine_command_duration_us",
@@ -292,10 +269,7 @@ async def test_scheduler_failure_observers_update_run_lifetime_and_prometheus():
     body = exchange.metrics.prometheus_payload().decode()
     assert "mockx_scheduler_failed 1.0" in body
     assert "mockx_scheduler_dead_letters_total 1.0" in body
-    assert (
-        "mockx_scheduler_event_processing_limit_failures_total 1.0"
-        in body
-    )
+    assert "mockx_scheduler_event_processing_limit_failures_total 1.0" in body
 
 
 class ToggleSink(InMemoryMetricsSink):
@@ -320,7 +294,9 @@ async def test_required_persistence_readiness_recovers_but_history_remains(
         "src.mockx.main.QuestDBMetricsSink",
         lambda **kwargs: sink,
     )
-    exchange = MockExchange(validate_config(raw, environ={}))
+    exchange = make_native_exchange(
+        validate_config(raw, environ={}), persistence_sink=sink
+    )
     assert exchange.metrics_persistence is not None
     await exchange.start_components()
     try:
@@ -330,7 +306,7 @@ async def test_required_persistence_readiness_recovers_but_history_remains(
             {},
             {"value": 1},
             run_id="health",
-            metric_event_sequence=1,
+            event_sequence=1,
             event_timestamp_ns=1_000,
         )
         assert exchange.metrics_persistence.add_nowait(logical) == (
@@ -413,9 +389,13 @@ def test_delivered_fix_payload_retention_is_bounded_without_pruning_pending():
         assert fresh
         due_command = queue.current_due_command(delivery.delivery_id)
         assert due_command is not None
-        assert queue.mark_due(
-            due_command, simulated_timestamp=NOW,
-        ) is not None
+        assert (
+            queue.mark_due(
+                due_command,
+                simulated_timestamp=NOW,
+            )
+            is not None
+        )
         queue.start_attempt(delivery.delivery_id, simulated_timestamp=NOW)
         queue.record_delivered(delivery.delivery_id)
 

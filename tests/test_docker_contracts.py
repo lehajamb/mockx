@@ -34,7 +34,8 @@ def test_compose_has_unique_real_service_ports_and_readiness_checks():
     compose = load_compose()
     services = compose["services"]
     assert set(services) == {
-        "questdb", "mockx", "mold-host-relay", "live-market"
+        "questdb", "mockx", "mold-host-relay", "live-market",
+        "dashboard-projector", "grafana"
     }
 
     all_host_ports = [
@@ -54,6 +55,8 @@ def test_compose_has_unique_real_service_ports_and_readiness_checks():
         ("0.0.0.0", 9003, 9003, "tcp"),
     ]
     assert published_ports(services["live-market"]) == []
+    assert published_ports(services["dashboard-projector"]) == []
+    assert published_ports(services["grafana"]) == [("0.0.0.0", 3000, 3000, "tcp")]
     relay = services["mold-host-relay"]
     assert published_ports(relay) == []
     assert relay["image"] == services["mockx"]["image"]
@@ -108,8 +111,8 @@ def test_compose_runs_live_market_with_container_and_public_addresses():
         "examples/live_client_docker.cfg",
         "--base-url",
         "http://mockx:8000",
-        "--ui-base-url",
-        "http://localhost:8001",
+        "--dashboard-url",
+        "http://localhost:3000/d/mockx-native/mockx-native-exchange",
     ]
     assert driver["init"] is True
     assert driver["stop_signal"] == "SIGTERM"
@@ -142,7 +145,6 @@ def test_docker_live_config_loads_with_compose_questdb_environment():
     assert config.scheduler.mode == "external"
     assert config.scheduler.max_events_per_advance == 100_000
     assert config.questdb is not None
-    assert config.questdb.enabled
     assert config.questdb.url == "http://questdb:9000"
     assert config.questdb.health_url == "http://questdb:9003"
     assert config.questdb.username == "mockx-user"
@@ -153,8 +155,8 @@ def test_compose_persists_questdb_data_in_named_volume():
     compose = load_compose()
     questdb = compose["services"]["questdb"]
 
-    assert "questdb-data:/var/lib/questdb" in questdb["volumes"]
-    assert "questdb-data" in compose["volumes"]
+    assert "questdb-native-data:/var/lib/questdb" in questdb["volumes"]
+    assert "questdb-native-data" in compose["volumes"]
 
 
 def test_compose_pins_questdb_and_disables_schema_auto_creation():
@@ -166,9 +168,26 @@ def test_compose_pins_questdb_and_disables_schema_auto_creation():
         "QDB_HTTP_PASSWORD": "mockx-password",
         "QDB_PG_USER": "mockx-user",
         "QDB_PG_PASSWORD": "mockx-password",
+        "QDB_PG_READONLY_USER_ENABLED": "true",
+        "QDB_PG_READONLY_USER": "dashboard_reader",
+        "QDB_PG_READONLY_PASSWORD": "mockx-dashboard-password",
         "QDB_LINE_AUTO_CREATE_NEW_TABLES": "false",
         "QDB_LINE_AUTO_CREATE_NEW_COLUMNS": "false",
     }
+
+
+def test_dashboard_has_pinned_plugins_and_readonly_database_credentials():
+    services = load_compose()["services"]
+    grafana = services["grafana"]
+    assert grafana["image"] == "grafana/grafana:12.3.3"
+    assert grafana["environment"]["GF_PLUGINS_PREINSTALL_SYNC"] == (
+        "questdb-questdb-datasource@0.1.8,nline-plotlyjs-panel@1.8.1"
+    )
+    datasource = yaml.safe_load((ROOT / "examples/dashboard/provisioning/datasources/questdb.yml").read_text())["datasources"][0]
+    assert datasource["jsonData"]["username"] == "dashboard_reader"
+    assert datasource["jsonData"]["port"] == 8812
+    assert datasource["secureJsonData"]["password"] == "$QDB_READER_PASSWORD"
+    assert services["dashboard-projector"]["entrypoint"] == ["python", "examples/dashboard/projector.py"]
 
 
 def test_scheduler_processing_limit_defaults_and_validates(tmp_path):
@@ -218,58 +237,14 @@ def test_execution_random_seed_is_required_and_must_be_an_integer(tmp_path):
         load_config(str(invalid_path))
 
 
-@pytest.mark.parametrize(
-    ("field", "value", "message"),
-    [
-        (
-            "outbound_queue_capacity",
-            0,
-            "websocket.outbound_queue_capacity:",
-        ),
-        (
-            "send_timeout_seconds",
-            0,
-            "websocket.send_timeout_seconds:",
-        ),
-        (
-            "heartbeat_stale_seconds",
-            10,
-            "websocket: heartbeat_stale_seconds must exceed heartbeat cadence",
-        ),
-        (
-            "reconnect_initial_seconds",
-            0,
-            "websocket.reconnect_initial_seconds:",
-        ),
-        (
-            "reconnect_max_seconds",
-            0.5,
-            "websocket: reconnect_max_seconds must be at least reconnect_initial_seconds",
-        ),
-        (
-            "staleness_check_seconds",
-            0,
-            "websocket.staleness_check_seconds:",
-        ),
-    ],
-)
-def test_websocket_delivery_and_browser_timing_validation(
-    tmp_path,
-    field,
-    value,
-    message,
-):
-    source = yaml.safe_load(
-        (ROOT / "configs" / "mockx-local.yml").read_text(encoding="utf-8")
-    )
-    source["websocket"][field] = value
-    if field == "reconnect_max_seconds":
-        source["websocket"]["reconnect_initial_seconds"] = 1
-    config_path = tmp_path / f"invalid-{field}.yml"
-    config_path.write_text(yaml.safe_dump(source), encoding="utf-8")
-
-    with pytest.raises(ValueError, match=message):
-        load_config(str(config_path))
+@pytest.mark.parametrize("section", ["fix", "itch", "questdb"])
+def test_native_protocol_stack_rejects_obsolete_enable_flags(tmp_path, section):
+    source = yaml.safe_load((ROOT / "configs/mockx-local.yml").read_text())
+    source[section]["enabled"] = False
+    path = tmp_path / "obsolete.yml"
+    path.write_text(yaml.safe_dump(source))
+    with pytest.raises(ValueError, match=section):
+        load_config(str(path))
 
 
 def test_monitoring_documentation_matches_deployed_assets():
@@ -277,9 +252,8 @@ def test_monitoring_documentation_matches_deployed_assets():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "prometheus" not in compose["services"]
-    assert "grafana" not in compose["services"]
-    assert "separate metrics server or metrics host port" in readme
-    assert "Grafana is intentionally not included" in readme
-    assert "mockx:8000/metrics" in readme
+    assert "grafana" in compose["services"]
+    assert "Prometheus" in readme and "`/metrics`" in readme
+    assert "Grafana" in readme
     assert "mockx1:8000/metrics" not in readme
     assert "mockx2:8000/metrics" not in readme

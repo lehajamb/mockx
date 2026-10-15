@@ -9,6 +9,8 @@ from src.mockx.configuration import validate_config
 from src.mockx.fix_fields import cancel_reject_fields, execution_report_fields
 from src.mockx.gateway import fix
 from src.mockx.main import MockExchange
+from .api_helpers import cleanup_native_exchanges
+from .api_helpers import make_native_exchange, api_config
 from src.mockx.lifecycle import LifecycleIngressRejected
 from src.mockx.metrics import BufferedMetricsWriter, InMemoryMetricsSink
 from src.mockx.models import (
@@ -109,13 +111,13 @@ async def test_fail_pending_commands_settles_each_staged_order_and_cancel_once()
         exchange.fix_app.fromApp(_cancel("cancel", "pending", 2), session)
         await exchange.fix_app.wait_for_ingress()
         await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
-        assert {event.event_type for event in exchange.scheduler.event_queue} == {
+        assert {event.event_type for event in exchange.scheduler.event_queue if event.event_type != "itch_heartbeat"} == {
             "order_arrived", "order_process", "cancel_arrived_at_exchange", "cancel_engine_process"
         }
         exchange.fix_app.fail_pending_commands(FAILURE)
         exchange.fix_app.fail_pending_commands(FAILURE)
         assert delivered == []
-        assert {event.event_type for event in exchange.scheduler.event_queue} == {"fix_delivery_due"}
+        assert {event.event_type for event in exchange.scheduler.event_queue if event.event_type != "itch_heartbeat"} == {"fix_delivery_due"}
         await exchange.lifecycle.advance_to(exchange.scheduler.current_time + timedelta(milliseconds=7))
         assert len(delivered) == 2
         assert isinstance(delivered[0], ExecutionReport)
@@ -128,15 +130,16 @@ async def test_fail_pending_commands_settles_each_staged_order_and_cancel_once()
 
 
 @pytest.mark.asyncio
-async def test_loss_during_detached_ingress_batch_rejects_every_request_once():
+async def test_loss_during_detached_ingress_batch_rejects_every_request_once(monkeypatch):
     exchange = _exchange()
     sessions, delivered = await _start(exchange)
     try:
-        writer = BufferedMetricsWriter(
-            InMemoryMetricsSink(), flush_batch_size=1,
-            max_buffer_records=1, max_buffer_bytes=100_000,
-        )
-        exchange.metrics.attach_persistence(writer)
+        original = exchange.metrics.record_fix_message
+        def lose_required_record(msg_type, direction, timestamp):
+            original(msg_type, direction, timestamp)
+            if msg_type == "D" and direction == "received":
+                exchange.metrics.mark_integrity_failure("Required native journal record lost at ingress")
+        monkeypatch.setattr(exchange.metrics, "record_fix_message", lose_required_record)
         session = sessions["CLIENT"]
         exchange.fix_app.fromApp(_new_order("before-loss", 1), session)
         exchange.fix_app.fromApp(_new_order("at-loss", 2), session)
@@ -157,7 +160,7 @@ async def test_loss_during_detached_ingress_batch_rejects_every_request_once():
             r.exec_type == ExecutionType.REJECTED
             for r in delivered if isinstance(r, ExecutionReport)
         )
-        assert exchange.scheduler.event_queue == []
+        assert all(event.event_type == "itch_heartbeat" for event in exchange.scheduler.event_queue)
     finally:
         await _stop(exchange)
 
@@ -195,7 +198,7 @@ async def test_failed_ingress_rejection_uses_the_orders_instrument():
     config["fix"]["session_participants"] = {
         "FIX.4.4:MOCKX->CLIENT": "participant-client"
     }
-    exchange = MockExchange(validate_config(config, environ={}))
+    exchange = make_native_exchange(validate_config(config, environ={}))
     sessions, delivered = await _start(exchange)
     try:
         message = _new_order("other", 1, qty=1.5, price=10.25)
@@ -232,19 +235,13 @@ async def test_uncommitted_ingress_rejected_at_failure_does_not_block_report_dra
         await exchange.fix_app.wait_for_ingress()
         await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
         assert delivered == []
-        writer = BufferedMetricsWriter(
-            InMemoryMetricsSink(), flush_batch_size=1,
-            max_buffer_records=1, max_buffer_bytes=100_000,
-        )
-        exchange.metrics.attach_persistence(writer)
         async with exchange.lifecycle.lock:
             exchange.fix_app.fromApp(_new_order("uncommitted", 2), session)
             if barrier_already_waiting:
                 barrier = asyncio.create_task(exchange.fix_app.await_ingress_enqueued())
                 await asyncio.sleep(0)
                 assert not barrier.done()
-            exchange.metrics.record_fix_message("D", "received", 0)
-            exchange.metrics.record_fix_message("D", "received", 0)
+            exchange.metrics.mark_integrity_failure("Required journal record lost before enqueue commit")
             assert exchange.lifecycle.check_persistence_failure()
         # Let the scheduled enqueue acquire the lock and reject its stale token.
         await asyncio.sleep(0)
@@ -253,7 +250,7 @@ async def test_uncommitted_ingress_rejected_at_failure_does_not_block_report_dra
             await barrier
         await exchange.lifecycle.advance_to(exchange.scheduler.current_time + timedelta(milliseconds=10))
         assert len(rejected) == 1
-        assert "METRICS_INCOMPLETE" in str(rejected[0])
+        assert "JOURNAL_INCOMPLETE" in str(rejected[0])
         assert exchange.fix_app._ingress_receipts == {}
         assert len(delivered) == 1
         assert delivered[0].cl_ord_id == "committed"

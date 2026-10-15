@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from src.mockx.api import ExchangeAPI
 
+from .api_helpers import cleanup_native_exchanges
 from .api_helpers import make_exchange
 
 
@@ -23,7 +24,7 @@ def test_mock_exchange_directly_owns_one_api_service():
 def test_startup_hands_off_loop_before_fix_acceptor_and_gates_readiness(
     monkeypatch,
 ):
-    exchange = make_exchange(fix_enabled=True)
+    exchange = make_exchange()
     events = []
 
     def fake_start():
@@ -51,29 +52,47 @@ def test_startup_hands_off_loop_before_fix_acceptor_and_gates_readiness(
     assert not exchange.app.state.ready
 
 
-def test_shutdown_order_is_idempotent_and_flushes_after_websockets(
+def test_shutdown_order_is_idempotent_and_closes_persistence_last(
     monkeypatch,
 ):
     exchange = make_exchange()
     events = []
 
-    async def close_websockets():
+    original_glimpse_stop = exchange.glimpse_service.stop
+    original_metrics_close = exchange.metrics.close
+    original_fix_stop = exchange.fix_gateway.stop
+    original_itch_shutdown = exchange.itch_feed.shutdown
+
+    async def close_glimpse():
         assert not exchange.app.state.ready
-        events.append("websockets")
+        events.append("glimpse")
+        await original_glimpse_stop()
 
     async def close_metrics():
         events.append("metrics")
-        return True
+        result = await original_metrics_close()
+        assert result.successful
+        return result
 
-    monkeypatch.setattr(exchange.api, "close_websockets", close_websockets)
+    def close_fix():
+        events.append("fix")
+        original_fix_stop()
+
+    def close_itch(timestamp):
+        events.append("itch")
+        original_itch_shutdown(timestamp)
+
+    monkeypatch.setattr(exchange.glimpse_service, "stop", close_glimpse)
+    monkeypatch.setattr(exchange.fix_gateway, "stop", close_fix)
+    monkeypatch.setattr(exchange.itch_feed, "shutdown", close_itch)
     monkeypatch.setattr(exchange.metrics, "close", close_metrics)
 
     with TestClient(exchange.app):
         assert exchange.app.state.ready
 
-    assert events == ["websockets", "metrics"]
+    assert events == ["glimpse", "fix", "itch", "metrics"]
     asyncio.run(exchange.stop_components())
-    assert events == ["websockets", "metrics"]
+    assert events == ["glimpse", "fix", "itch", "metrics"]
 
 
 def test_multiple_app_instances_have_no_registry_or_state_leakage():
@@ -81,7 +100,8 @@ def test_multiple_app_instances_have_no_registry_or_state_leakage():
     second = make_exchange()
 
     assert first.api is not second.api
-    assert first.api.registry is not second.api.registry
+    assert first.journal is not second.journal
+    assert first.glimpse_service is not second.glimpse_service
     assert first.app.state is not second.app.state
     assert first.metrics.registry is not second.metrics.registry
 

@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 import hmac
 import logging
+import secrets
+import string
 import time
 from typing import Any, Awaitable, Callable, Optional
 
@@ -86,6 +88,7 @@ class GlimpseService:
         self.monotonic = monotonic
         self.state = GlimpseServiceState.IDLE
         self.server: Optional[Any] = None
+        self._listener_task: Optional[asyncio.Task] = None
         self.last_error: Optional[str] = None
         self.active_generation: Optional[int] = None
         self._session_serial = 0
@@ -131,9 +134,7 @@ class GlimpseService:
         )
 
     def _update_cache_metrics(self) -> None:
-        self._metrics_call(
-            "update_glimpse_cache", len(self._cache), self._cached_bytes
-        )
+        self._metrics_call("update_glimpse_cache", len(self._cache), self._cached_bytes)
 
     async def start(self) -> bool:
         if self.server is not None:
@@ -154,11 +155,29 @@ class GlimpseService:
             return False
         self.last_error = None
         self._set_state(GlimpseServiceState.READY)
+        self._listener_task = asyncio.create_task(
+            self._watch_listener(self.server), name="glimpse-listener"
+        )
         logger.info(
             "GLIMPSE SoupBinTCP listener started",
             extra={"host": self.config.host, "port": self.config.port},
         )
         return True
+
+    async def _watch_listener(self, server) -> None:
+        try:
+            await server.serve_forever()
+            raise RuntimeError("Required GLIMPSE listener stopped unexpectedly")
+        except asyncio.CancelledError:
+            if self.server is not server:
+                return
+            self.last_error = "Required GLIMPSE listener was closed unexpectedly"
+        except Exception as exc:
+            self.last_error = f"{type(exc).__name__}: {exc}"
+        if self.server is server:
+            self._record("failures")
+            self.revoke_all()
+            self._set_state(GlimpseServiceState.DEGRADED)
 
     def begin_run(self, generation: int) -> None:
         self.revoke_all()
@@ -189,6 +208,10 @@ class GlimpseService:
         self.revoke_all()
         server = self.server
         self.server = None
+        if self._listener_task is not None:
+            self._listener_task.cancel()
+            await asyncio.gather(self._listener_task, return_exceptions=True)
+            self._listener_task = None
         if server is not None:
             server.close()
             try:
@@ -213,7 +236,10 @@ class GlimpseService:
         if self._session_serial >= (10**digit_width) - 1:
             raise GlimpseSessionUnavailable("Soup session identifier space exhausted")
         self._session_serial += 1
-        return f"{self.config.session_prefix}{self._session_serial:0{digit_width}d}"
+        return self.config.session_prefix + "".join(
+            secrets.choice(string.ascii_letters + string.digits)
+            for _ in range(digit_width)
+        )
 
     def _remove_cached(self, session: str) -> None:
         entry = self._cache.pop(session, None)
@@ -277,11 +303,7 @@ class GlimpseService:
                 raise GlimpseSessionUnavailable("GLIMPSE run is not available")
 
             instrument_count = len(self.encoder.itch_encoder.symbols)
-            wire_bytes = (
-                instrument_count * (42 + 28)
-                + len(snapshot.orders) * 39
-                + 24
-            )
+            wire_bytes = instrument_count * (42 + 28) + len(snapshot.orders) * 39 + 24
             if wire_bytes > self.config.max_cached_bytes:
                 raise GlimpseSessionUnavailable("GLIMPSE spin exceeds replay capacity")
             if self._cached_bytes + wire_bytes > self.config.max_cached_bytes:
@@ -292,7 +314,16 @@ class GlimpseService:
                 actual_wire_bytes = sum(3 + len(message) for message in encoded)
                 return encoded, actual_wire_bytes
 
-            messages, actual_wire_bytes = await asyncio.to_thread(encode_spin)
+            try:
+                messages, actual_wire_bytes = await asyncio.to_thread(encode_spin)
+            except Exception as exc:
+                self.last_error = f"{type(exc).__name__}: {exc}"
+                self._record("failures")
+                self.revoke_all()
+                self._set_state(GlimpseServiceState.DEGRADED)
+                raise GlimpseSessionUnavailable(
+                    "Required GLIMPSE encoder failed"
+                ) from exc
             if (
                 self.active_generation is None
                 or snapshot.run_generation != self.active_generation
@@ -335,7 +366,10 @@ class GlimpseService:
         while True:
             elapsed = self.monotonic() - connection.last_outbound
             await asyncio.sleep(max(0.001, self.SERVER_HEARTBEAT_SECONDS - elapsed))
-            if self.monotonic() - connection.last_outbound >= self.SERVER_HEARTBEAT_SECONDS:
+            if (
+                self.monotonic() - connection.last_outbound
+                >= self.SERVER_HEARTBEAT_SECONDS
+            ):
                 await self._write(connection, encode_server_heartbeat())
                 self._record("heartbeats_sent")
 

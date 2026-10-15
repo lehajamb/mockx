@@ -19,6 +19,7 @@ EXEC_TYPE_FIX_VALUES = {
     ExecutionType.TRADE: "F",
     ExecutionType.CANCELED: "4",
     ExecutionType.REJECTED: "8",
+    ExecutionType.REPLACED: "5",
 }
 
 ORD_STATUS_FIX_VALUES = {
@@ -89,6 +90,8 @@ def execution_report_fields(report: ExecutionReport) -> Dict[str, object]:
     }
     if report.orig_cl_ord_id is not None:
         fields["OrigClOrdID"] = report.orig_cl_ord_id
+    if report.list_id is not None:
+        fields["ListID"] = report.list_id
     if report.trade_id is not None:
         fields["TradeID"] = (
             report.exchange_trade_id
@@ -123,9 +126,11 @@ def cancel_reject_fields(reject: CancelReject) -> Dict[str, object]:
             else ORD_STATUS_FIX_VALUES[OrderStatus.REJECTED]
         ),
         "CxlRejReason": CANCEL_REJECT_REASON_FIX_VALUES[reject.reason],
-        "CxlRejResponseTo": "1",
+        "CxlRejResponseTo": reject.response_to,
         "Text": reject.text,
     }
+    if reject.list_id is not None:
+        fields["ListID"] = reject.list_id
     if reject.order_id is not None:
         fields["OrderID"] = (
             reject.exchange_order_id

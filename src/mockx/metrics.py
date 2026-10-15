@@ -9,7 +9,7 @@ import math
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
@@ -49,6 +49,7 @@ from .models import (
     CancellationOutcome,
     CancelLatencyTrace,
     CancelOrderCommand,
+    ReplaceOrderCommand,
     CancelReject,
     ExecutionReport,
     ExecutionType,
@@ -81,6 +82,10 @@ SIM_CANCEL_INBOUND_LATENCY = "mockx_sim_cancel_inbound_latency_ms"
 SIM_CANCEL_ENGINE_LATENCY = "mockx_sim_cancel_engine_latency_ms"
 SIM_CANCEL_OUTBOUND_LATENCY = "mockx_sim_cancel_outbound_latency_ms"
 SIM_CANCEL_END_TO_END_LATENCY = "mockx_sim_cancel_end_to_end_latency_ms"
+SIM_REPLACE_INBOUND_LATENCY = "mockx_sim_replace_inbound_latency_ms"
+SIM_REPLACE_ENGINE_LATENCY = "mockx_sim_replace_engine_latency_ms"
+SIM_REPLACE_OUTBOUND_LATENCY = "mockx_sim_replace_outbound_latency_ms"
+SIM_REPLACE_END_TO_END_LATENCY = "mockx_sim_replace_end_to_end_latency_ms"
 MATCH_LOOP_DURATION = "mockx_match_loop_duration_us"
 BOOK_COMMIT_DURATION = "mockx_book_commit_duration_us"
 ENGINE_COMMAND_DURATION = "mockx_engine_command_duration_us"
@@ -97,6 +102,10 @@ LATENCY_METRICS = frozenset(
         SIM_CANCEL_ENGINE_LATENCY,
         SIM_CANCEL_OUTBOUND_LATENCY,
         SIM_CANCEL_END_TO_END_LATENCY,
+        SIM_REPLACE_INBOUND_LATENCY,
+        SIM_REPLACE_ENGINE_LATENCY,
+        SIM_REPLACE_OUTBOUND_LATENCY,
+        SIM_REPLACE_END_TO_END_LATENCY,
         MATCH_LOOP_DURATION,
         BOOK_COMMIT_DURATION,
         ENGINE_COMMAND_DURATION,
@@ -111,7 +120,7 @@ SIMULATED_LATENCY_METRICS = frozenset(
 CPU_DURATION_METRICS = LATENCY_METRICS - SIMULATED_LATENCY_METRICS
 
 METRIC_IDENTITY_SYMBOLS = frozenset({"run_id"})
-METRIC_IDENTITY_COLUMNS = frozenset({"metric_event_sequence", "event_timestamp_ns"})
+METRIC_IDENTITY_COLUMNS = frozenset({"event_sequence", "event_timestamp_ns"})
 MAX_QUESTDB_LONG = (1 << 63) - 1
 
 
@@ -133,6 +142,21 @@ class MetricRecord:
     symbols: Tuple[Tuple[str, str], ...]
     columns: Tuple[Tuple[str, Any], ...]
     timestamp_ns: int
+    _encoded_size_bytes: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        payload = {
+            "table": self.table,
+            "symbols": self.symbols,
+            "columns": self.columns,
+            "timestamp_ns": self.timestamp_ns,
+        }
+        size = len(
+            json.dumps(
+                payload, ensure_ascii=False, separators=(",", ":"), default=str
+            ).encode("utf-8")
+        )
+        object.__setattr__(self, "_encoded_size_bytes", size)
 
     @classmethod
     def create(
@@ -142,7 +166,7 @@ class MetricRecord:
         columns: Mapping[str, object],
         *,
         run_id: str,
-        metric_event_sequence: int,
+        event_sequence: int,
         event_timestamp_ns: int,
     ) -> "MetricRecord":
         if not table:
@@ -150,11 +174,11 @@ class MetricRecord:
         if not run_id:
             raise ValueError("Metric run_id is required")
         if (
-            not isinstance(metric_event_sequence, int)
-            or isinstance(metric_event_sequence, bool)
-            or not 1 <= metric_event_sequence <= MAX_QUESTDB_LONG
+            not isinstance(event_sequence, int)
+            or isinstance(event_sequence, bool)
+            or not 1 <= event_sequence <= MAX_QUESTDB_LONG
         ):
-            raise ValueError("metric_event_sequence must be a positive QuestDB LONG")
+            raise ValueError("event_sequence must be a positive QuestDB LONG")
 
         event_timestamp_ns = int(event_timestamp_ns)
         if not 0 <= event_timestamp_ns <= MAX_QUESTDB_LONG:
@@ -177,7 +201,7 @@ class MetricRecord:
         record_symbols["run_id"] = run_id
         record_columns = dict(columns)
         record_columns.update(
-            metric_event_sequence=metric_event_sequence,
+            event_sequence=event_sequence,
             event_timestamp_ns=event_timestamp_ns,
         )
         return cls(
@@ -198,8 +222,8 @@ class MetricRecord:
         return dict(self.columns)
 
     @property
-    def metric_event_sequence(self) -> int:
-        return int(self.column_map["metric_event_sequence"])
+    def event_sequence(self) -> int:
+        return int(self.column_map["event_sequence"])
 
     @property
     def run_id(self) -> str:
@@ -207,25 +231,16 @@ class MetricRecord:
 
     @property
     def encoded_size_bytes(self) -> int:
-        """Return a deterministic logical payload size for buffer limits."""
-        payload = {
-            "table": self.table,
-            "symbols": self.symbols,
-            "columns": self.columns,
-            "timestamp_ns": self.timestamp_ns,
-        }
-        return len(
-            json.dumps(
-                payload,
-                ensure_ascii=False,
-                separators=(",", ":"),
-                default=str,
-            ).encode("utf-8")
-        )
+        """Cached immutable logical payload size used by buffer accounting."""
+        return self._encoded_size_bytes
 
 
 class MetricsSinkError(RuntimeError):
     """Expected persistence-adapter failure."""
+
+
+class PersistenceBackpressureTimeout(MetricsSinkError):
+    """The admitted backlog did not fall below the low watermark in time."""
 
 
 class PersistenceAddOutcome(str, Enum):
@@ -233,10 +248,11 @@ class PersistenceAddOutcome(str, Enum):
 
     ACCEPTED = "ACCEPTED"
     ACCEPTED_FLUSH_REQUIRED = "ACCEPTED_FLUSH_REQUIRED"
-    ACCEPTED_DROPPED_OLDEST = "ACCEPTED_DROPPED_OLDEST"
     REJECTED_CLOSED = "REJECTED_CLOSED"
     REJECTED_FULL = "REJECTED_FULL"
     FAILED = "FAILED"
+    TIMED_OUT = "TIMED_OUT"
+    TOO_LARGE = "TOO_LARGE"
 
 
 class PersistenceFlushOutcome(str, Enum):
@@ -266,11 +282,6 @@ class PersistenceHealthState(str, Enum):
     DEGRADED = "DEGRADED"
     UNAVAILABLE = "UNAVAILABLE"
     CLOSED = "CLOSED"
-
-
-class PersistenceOverflowPolicy(str, Enum):
-    REJECT_NEW = "reject_new"
-    DROP_OLDEST = "drop_oldest"
 
 
 @dataclass(frozen=True, slots=True)
@@ -336,22 +347,6 @@ class MetricsSink(Protocol):
     async def health_check(self) -> None: ...
 
 
-class NoOpMetricsSink:
-    """Sink used when external metric persistence is disabled."""
-
-    async def write(self, records: Sequence[MetricRecord]) -> None:
-        return None
-
-    async def flush(self) -> None:
-        return None
-
-    async def close(self) -> None:
-        return None
-
-    async def health_check(self) -> None:
-        return None
-
-
 class InMemoryMetricsSink:
     """Deterministic sink for tests and local inspection."""
 
@@ -384,6 +379,7 @@ class _BufferedMetricRecord:
     record: MetricRecord
     encoded_size_bytes: int
     enqueued_monotonic_ns: int
+    group_id: int = 0
 
 
 class BufferedMetricsWriter:
@@ -394,16 +390,14 @@ class BufferedMetricsWriter:
         sink: MetricsSink,
         *,
         flush_batch_size: int = 1_000,
+        flush_batch_bytes: int | None = None,
         max_buffer_records: int = 10_000,
         max_buffer_bytes: int = 67_108_864,
-        flush_interval_ms: int = 1_000,
+        flush_interval_ms: int = 100,
         retry_backoff_ms: int = 1_000,
         max_retry_delay_ms: int = 30_000,
-        overflow_retry_attempts: int = 3,
         shutdown_timeout_ms: int = 10_000,
-        overflow_policy: str | PersistenceOverflowPolicy = (
-            PersistenceOverflowPolicy.REJECT_NEW
-        ),
+        backpressure_timeout_ms: int = 10_000,
         on_failure: Optional[Callable[[BaseException, int], None]] = None,
         on_outcome: Optional[Callable[[PersistenceAddOutcome, int], None]] = None,
     ) -> None:
@@ -414,42 +408,44 @@ class BufferedMetricsWriter:
             ("flush_interval_ms", flush_interval_ms),
             ("retry_backoff_ms", retry_backoff_ms),
             ("max_retry_delay_ms", max_retry_delay_ms),
-            ("overflow_retry_attempts", overflow_retry_attempts),
             ("shutdown_timeout_ms", shutdown_timeout_ms),
+            ("backpressure_timeout_ms", backpressure_timeout_ms),
         ):
             if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-                raise ValueError(f"Metrics {name} must be positive")
+                raise ValueError(f"Persistence {name} must be positive")
         if max_buffer_records < flush_batch_size:
-            raise ValueError(
-                "Metrics max_buffer_records must be at least " "flush_batch_size"
-            )
+            raise ValueError("max_buffer_records must be at least flush_batch_size")
         if max_retry_delay_ms < retry_backoff_ms:
-            raise ValueError(
-                "Metrics max_retry_delay_ms must be at least " "retry_backoff_ms"
-            )
-        try:
-            resolved_policy = PersistenceOverflowPolicy(overflow_policy)
-        except ValueError as exc:
-            raise ValueError(
-                "Metrics overflow_policy must be 'reject_new' or " "'drop_oldest'"
-            ) from exc
-
+            raise ValueError("max_retry_delay_ms must be at least retry_backoff_ms")
+        if flush_batch_bytes is None:
+            flush_batch_bytes = min(4_194_304, max_buffer_bytes)
+        if (
+            not isinstance(flush_batch_bytes, int)
+            or isinstance(flush_batch_bytes, bool)
+            or not 1 <= flush_batch_bytes <= max_buffer_bytes
+        ):
+            raise ValueError("flush_batch_bytes must fit the buffer byte capacity")
         self.sink = sink
         self.flush_batch_size = flush_batch_size
+        self.flush_batch_bytes = flush_batch_bytes
         self.max_buffer_records = max_buffer_records
         self.max_buffer_bytes = max_buffer_bytes
         self.flush_interval_ms = flush_interval_ms
         self.retry_backoff_ms = retry_backoff_ms
         self.max_retry_delay_ms = max_retry_delay_ms
-        self.overflow_retry_attempts = overflow_retry_attempts
         self.shutdown_timeout_ms = shutdown_timeout_ms
-        self.overflow_policy = resolved_policy
+        self.backpressure_timeout_ms = backpressure_timeout_ms
         self.on_failure = on_failure
         self.on_outcome = on_outcome
-
+        self._admission_lock = asyncio.Lock()
+        self._progress_event: Optional[asyncio.Event] = None
+        self._next_group_id = 0
+        self._drain_requested = False
+        self.before_wait: Optional[Callable[[], None]] = None
         self._buffer: Deque[_BufferedMetricRecord] = deque()
         self._inflight: Tuple[_BufferedMetricRecord, ...] = ()
         self._buffered_bytes = 0
+        self._queued_bytes = 0
         self._buffer_lock = threading.RLock()
         self._flush_lock = asyncio.Lock()
         self._close_lock = asyncio.Lock()
@@ -510,6 +506,7 @@ class BufferedMetricsWriter:
                 return
             self._loop = loop
             self._wake_event = asyncio.Event()
+            self._progress_event = asyncio.Event()
             self._stop_worker = False
             self._worker_task = loop.create_task(
                 self._worker_loop(),
@@ -518,97 +515,54 @@ class BufferedMetricsWriter:
         if not await self._check_sink_health():
             self._signal_worker()
 
-    def _capacity_available(self, encoded_size_bytes: int) -> bool:
+    def _capacity_available(self, encoded_size_bytes: int, records: int = 1) -> bool:
         return (
-            len(self._buffer) + len(self._inflight) < self.max_buffer_records
+            self.buffered_count + records <= self.max_buffer_records
             and self._buffered_bytes + encoded_size_bytes <= self.max_buffer_bytes
         )
 
-    def _can_fit_after_dropping_queued(
-        self,
-        encoded_size_bytes: int,
-    ) -> bool:
-        inflight_bytes = sum(entry.encoded_size_bytes for entry in self._inflight)
-        return (
-            len(self._inflight) + 1 <= self.max_buffer_records
-            and inflight_bytes + encoded_size_bytes <= self.max_buffer_bytes
-        )
+    def _append(self, record: MetricRecord) -> PersistenceAddOutcome:
+        return self._append_group((record,))
 
-    def _drop_oldest_until_fits(self, encoded_size_bytes: int) -> int:
-        dropped = 0
-        while self._buffer and not self._capacity_available(encoded_size_bytes):
-            removed = self._buffer.popleft()
-            self._buffered_bytes -= removed.encoded_size_bytes
-            dropped += 1
-        return dropped
-
-    def _append(
-        self,
-        record: MetricRecord,
-    ) -> PersistenceAddOutcome:
-        try:
-            entry = _BufferedMetricRecord(
-                record=record,
-                encoded_size_bytes=record.encoded_size_bytes,
-                enqueued_monotonic_ns=time.monotonic_ns(),
-            )
-        except Exception:
-            logger.exception("Metric record size calculation failed")
-            return PersistenceAddOutcome.FAILED
-
+    def _append_group(self, records: Sequence[MetricRecord]) -> PersistenceAddOutcome:
+        records = tuple(records)
+        if not records:
+            raise ValueError("A persistence group cannot be empty")
+        size = sum(record.encoded_size_bytes for record in records)
         with self._buffer_lock:
             if self._closed or self._closing:
                 return PersistenceAddOutcome.REJECTED_CLOSED
-
-            dropped = 0
-            if not self._capacity_available(entry.encoded_size_bytes):
-                if (
-                    self.overflow_policy == PersistenceOverflowPolicy.DROP_OLDEST
-                    and self._can_fit_after_dropping_queued(entry.encoded_size_bytes)
-                ):
-                    dropped = self._drop_oldest_until_fits(entry.encoded_size_bytes)
-                if not self._capacity_available(entry.encoded_size_bytes):
-                    if self._health_state not in {
-                        PersistenceHealthState.RETRYING,
-                        PersistenceHealthState.UNAVAILABLE,
-                    }:
-                        self._health_state = PersistenceHealthState.DEGRADED
-                    return PersistenceAddOutcome.REJECTED_FULL
-
-            self._buffer.append(entry)
-            self._buffered_bytes += entry.encoded_size_bytes
-            if dropped:
-                self._dropped_records += dropped
-                self._health_state = PersistenceHealthState.DEGRADED
-                return PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST
-            if self.buffered_count >= self.flush_batch_size:
+            if len(records) > self.max_buffer_records or size > self.max_buffer_bytes:
+                return PersistenceAddOutcome.TOO_LARGE
+            if not self._capacity_available(size, len(records)):
+                return PersistenceAddOutcome.REJECTED_FULL
+            self._next_group_id += 1
+            now = time.monotonic_ns()
+            entries = tuple(
+                _BufferedMetricRecord(
+                    record, record.encoded_size_bytes, now, self._next_group_id
+                )
+                for record in records
+            )
+            self._buffer.extend(entries)
+            self._buffered_bytes += size
+            self._queued_bytes += size
+            queued_bytes = self._queued_bytes
+            if (
+                len(self._buffer) >= self.flush_batch_size
+                or queued_bytes >= self.flush_batch_bytes
+            ):
                 return PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
             return PersistenceAddOutcome.ACCEPTED
 
-    def _record_outcome(self, outcome: PersistenceAddOutcome) -> None:
+    def _record_outcome(self, outcome: PersistenceAddOutcome, amount: int = 1) -> None:
         with self._buffer_lock:
-            self._outcomes[outcome] += 1
+            self._outcomes[outcome] += amount
         if self.on_outcome is not None:
             try:
-                self.on_outcome(outcome, 1)
+                self.on_outcome(outcome, amount)
             except Exception:
-                logger.exception("Metrics outcome observer failed")
-        if outcome == PersistenceAddOutcome.REJECTED_CLOSED:
-            logger.warning(
-                "Metric record rejected while writer is closing",
-                extra={
-                    "metric_sink": type(self.sink).__name__,
-                    "buffer_size": self.buffered_count,
-                },
-            )
-        elif outcome == PersistenceAddOutcome.REJECTED_FULL:
-            logger.error(
-                "Metric record rejected because the persistence buffer is full",
-                extra={
-                    "max_buffer_records": self.max_buffer_records,
-                    "max_buffer_bytes": self.max_buffer_bytes,
-                },
-            )
+                logger.exception("Persistence outcome observer failed")
 
     def _signal_worker(self) -> None:
         loop = self._loop
@@ -624,61 +578,145 @@ class BufferedMetricsWriter:
         else:
             loop.call_soon_threadsafe(wake_event.set)
 
-    def add_nowait(
-        self,
-        record: MetricRecord,
-    ) -> PersistenceAddOutcome:
-        """Admit without blocking and wake the single worker when needed."""
+    def add_nowait(self, record: MetricRecord) -> PersistenceAddOutcome:
         outcome = self._append(record)
         self._record_outcome(outcome)
         if outcome in {
             PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED,
-            PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST,
             PersistenceAddOutcome.REJECTED_FULL,
         }:
             self._signal_worker()
         return outcome
 
-    async def add(
-        self,
-        record: MetricRecord,
+    async def add(self, record: MetricRecord) -> PersistenceAddOutcome:
+        return await self.add_group((record,))
+
+    async def add_group(
+        self, records: Sequence[MetricRecord], *, timeout_ms: int | None = None
     ) -> PersistenceAddOutcome:
-        """Admit after bounded capacity retries where awaiting is safe."""
+        """Stage one immutable group; admit every row together or none."""
+        records = tuple(records)
+        if not records:
+            raise ValueError("A persistence group cannot be empty")
         if self._worker_task is None:
             await self.start()
-        outcome = self._append(record)
-        delay_ms = self.retry_backoff_ms
-        attempts = 0
-        while (
-            outcome == PersistenceAddOutcome.REJECTED_FULL
-            and attempts < self.overflow_retry_attempts
-        ):
+        deadline = (
+            asyncio.get_running_loop().time()
+            + (timeout_ms or self.backpressure_timeout_ms) / 1000
+        )
+        async with self._admission_lock:
+            while True:
+                progress = self._progress_event
+                if progress is not None:
+                    progress.clear()
+                outcome = self._append_group(records)
+                if outcome != PersistenceAddOutcome.REJECTED_FULL:
+                    self._record_outcome(outcome, len(records))
+                    if outcome == PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED:
+                        self._signal_worker()
+                    return outcome
+                self._drain_requested = True
+                if self.before_wait is not None:
+                    self.before_wait()
+                self._signal_worker()
+                if not await self._wait_progress(deadline):
+                    self._record_outcome(PersistenceAddOutcome.TIMED_OUT, len(records))
+                    return PersistenceAddOutcome.TIMED_OUT
+
+    async def _wait_progress(self, deadline: float) -> bool:
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0 or self._progress_event is None:
+            return False
+        try:
+            await asyncio.wait_for(self._progress_event.wait(), remaining)
+            return True
+        except asyncio.TimeoutError:
+            return False
+
+    def _notify_progress(self) -> None:
+        loop, progress = self._loop, self._progress_event
+        if loop is None or progress is None or loop.is_closed():
+            return
+        try:
+            if asyncio.get_running_loop() is loop:
+                progress.set()
+            else:
+                loop.call_soon_threadsafe(progress.set)
+        except RuntimeError:
+            loop.call_soon_threadsafe(progress.set)
+
+    async def wait_for_pressure_relief(self, *, timeout_ms: int | None = None) -> bool:
+        """At 80% pressure, drain to 50%, respecting the sink retry deadline."""
+        if self._worker_task is None:
+            await self.start()
+        with self._buffer_lock:
+            pressured = (
+                self.buffered_count * 5 >= self.max_buffer_records * 4
+                or self._buffered_bytes * 5 >= self.max_buffer_bytes * 4
+            )
+        if not pressured:
+            return True
+        deadline = (
+            asyncio.get_running_loop().time()
+            + (timeout_ms or self.backpressure_timeout_ms) / 1000
+        )
+        while True:
+            if self._progress_event is not None:
+                self._progress_event.clear()
+            with self._buffer_lock:
+                if self._closed or self._closing:
+                    raise MetricsSinkError(
+                        "Persistence writer closed during backpressure"
+                    )
+                if (
+                    self.buffered_count * 2 <= self.max_buffer_records
+                    and self._buffered_bytes * 2 <= self.max_buffer_bytes
+                ):
+                    return True
+            self._drain_requested = True
+            if self.before_wait is not None:
+                self.before_wait()
             self._signal_worker()
-            await asyncio.sleep(delay_ms / 1_000)
-            outcome = self._append(record)
-            attempts += 1
-            delay_ms = min(delay_ms * 2, self.max_retry_delay_ms)
-        self._record_outcome(outcome)
-        if outcome in {
-            PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED,
-            PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST,
-        }:
-            self._signal_worker()
-        return outcome
+            if not await self._wait_progress(deadline):
+                raise PersistenceBackpressureTimeout(
+                    "PERSISTENCE_BACKPRESSURE_TIMEOUT: admitted backlog did not drain"
+                )
 
     def _take_batch(self) -> Tuple[_BufferedMetricRecord, ...]:
         with self._buffer_lock:
             if self._inflight:
-                raise RuntimeError("Metrics writer already has an in-flight batch")
-            batch = tuple(
-                self._buffer.popleft()
-                for _ in range(min(self.flush_batch_size, len(self._buffer)))
-            )
-            self._inflight = batch
-            return batch
+                raise RuntimeError("Persistence writer already has an in-flight batch")
+            batch: list[_BufferedMetricRecord] = []
+            size = 0
+            while self._buffer:
+                group_id = self._buffer[0].group_id
+                group = []
+                for entry in self._buffer:
+                    if entry.group_id != group_id:
+                        break
+                    group.append(entry)
+                group_size = sum(entry.encoded_size_bytes for entry in group)
+                if batch and (
+                    len(batch) + len(group) > self.flush_batch_size
+                    or size + group_size > self.flush_batch_bytes
+                ):
+                    break
+                batch.extend(self._buffer.popleft() for _ in group)
+                size += group_size
+                if (
+                    len(batch) >= self.flush_batch_size
+                    or size >= self.flush_batch_bytes
+                ):
+                    break
+            self._inflight = tuple(batch)
+            self._queued_bytes -= size
+            return self._inflight
 
     def _restore_inflight(self) -> int:
         with self._buffer_lock:
+            self._queued_bytes += sum(
+                entry.encoded_size_bytes for entry in self._inflight
+            )
             for entry in reversed(self._inflight):
                 self._buffer.appendleft(entry)
             self._inflight = ()
@@ -691,7 +729,8 @@ class BufferedMetricsWriter:
                 entry.encoded_size_bytes for entry in self._inflight
             )
             self._inflight = ()
-            return written
+        self._notify_progress()
+        return written
 
     async def _write_one_batch(self) -> PersistenceFlushResult:
         batch = self._take_batch()
@@ -786,7 +825,12 @@ class BufferedMetricsWriter:
                     return
                 with self._buffer_lock:
                     queued = len(self._buffer)
-                if not include_partial and queued < self.flush_batch_size:
+                    queued_bytes = self._queued_bytes
+                if (
+                    not include_partial
+                    and queued < self.flush_batch_size
+                    and queued_bytes < self.flush_batch_bytes
+                ):
                     return
                 result = await self._write_one_batch()
                 if not result.successful:
@@ -796,9 +840,7 @@ class BufferedMetricsWriter:
         # Startup probes share the write lock too, so a slow probe cannot
         # race a write and overwrite its recovery state.
         async with self._flush_lock:
-            if automatic and (
-                not self._automatic_retry_ready() or self.buffered_count
-            ):
+            if automatic and (not self._automatic_retry_ready() or self.buffered_count):
                 return True
             checker = getattr(self.sink, "health_check", None)
             try:
@@ -854,8 +896,9 @@ class BufferedMetricsWriter:
                     health_state = self._health_state
 
                 if self.buffered_count:
+                    self._drain_requested, requested = False, self._drain_requested
                     await self._flush_automatic(
-                        include_partial=timed_out or retrying,
+                        include_partial=timed_out or retrying or requested,
                     )
                 elif health_state in {
                     PersistenceHealthState.RETRYING,
@@ -890,6 +933,7 @@ class BufferedMetricsWriter:
                 self._stop_worker = True
                 initial_unflushed_records = len(self._buffer) + len(self._inflight)
             self._signal_worker()
+            self._notify_progress()
 
             async def _finalize() -> PersistenceCloseResult:
                 worker = self._worker_task
@@ -1044,7 +1088,6 @@ class BufferedMetricsWriter:
                 accepted_records=(
                     self._outcomes[PersistenceAddOutcome.ACCEPTED]
                     + self._outcomes[PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED]
-                    + self._outcomes[PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST]
                 ),
                 flush_required_records=self._outcomes[
                     PersistenceAddOutcome.ACCEPTED_FLUSH_REQUIRED
@@ -1056,7 +1099,14 @@ class BufferedMetricsWriter:
                 rejected_full_records=self._outcomes[
                     PersistenceAddOutcome.REJECTED_FULL
                 ],
-                failed_records=self._outcomes[PersistenceAddOutcome.FAILED],
+                failed_records=sum(
+                    self._outcomes[outcome]
+                    for outcome in (
+                        PersistenceAddOutcome.FAILED,
+                        PersistenceAddOutcome.TIMED_OUT,
+                        PersistenceAddOutcome.TOO_LARGE,
+                    )
+                ),
                 worker_running=(
                     self._worker_task is not None and not self._worker_task.done()
                 ),
@@ -1091,14 +1141,15 @@ class MetricsCollector:
         self.exchange_name = exchange_name
         self.instruments = instruments
         self.persistence = persistence
+        self._fix_message_counts: dict[tuple[str, str], int] = {}
         self._run_id: Optional[str] = None
         self._run_ended = False
         self._metric_event_sequence = 0
         self._last_event_timestamp_ns: Optional[int] = None
         self._persistence_run_baseline: Dict[str, int] = {}
-        self._persistence_integrity_failure: Optional[
-            PersistenceIntegrityFailure
-        ] = None
+        self._persistence_integrity_failure: Optional[PersistenceIntegrityFailure] = (
+            None
+        )
         self.on_integrity_failure = on_integrity_failure
         self._lock = threading.RLock()
         self._engine = None
@@ -1150,15 +1201,6 @@ class MetricsCollector:
         self._seen_report_exec_ids: set[str] = set()
         self._seen_cancel_reject_ids: set[str] = set()
         self._seen_trade_ids: set[str] = set()
-        self._websocket_active_clients = 0
-        self._websocket_queue_depth = 0
-        self._websocket_counts: Dict[str, int] = {
-            "websocket_snapshots_conflated": 0,
-            "websocket_snapshots_dropped": 0,
-            "websocket_slow_client_disconnects": 0,
-            "websocket_send_failures": 0,
-            "websocket_send_successes": 0,
-        }
         self._itch_counts: Dict[str, int] = {
             "itch_sessions_started": 0,
             "itch_sessions_ended": 0,
@@ -1384,48 +1426,6 @@ class MetricsCollector:
         )
         for name, metric_name, help_text in (
             (
-                "websocket_snapshots_conflated",
-                "mockx_websocket_snapshots_conflated_total",
-                "Queued WebSocket snapshots replaced by a newer full snapshot.",
-            ),
-            (
-                "websocket_snapshots_dropped",
-                "mockx_websocket_snapshots_dropped_total",
-                "Incoming WebSocket snapshots dropped as obsolete or full.",
-            ),
-            (
-                "websocket_slow_client_disconnects",
-                "mockx_websocket_slow_client_disconnects_total",
-                "WebSocket clients disconnected after a send timeout.",
-            ),
-            (
-                "websocket_send_failures",
-                "mockx_websocket_send_failures_total",
-                "WebSocket JSON send attempts that failed or timed out.",
-            ),
-            (
-                "websocket_send_successes",
-                "mockx_websocket_send_successes_total",
-                "WebSocket JSON frames sent successfully.",
-            ),
-        ):
-            self._prom_counters[name] = Counter(
-                metric_name,
-                help_text,
-                registry=self.registry,
-            )
-        self._prom_gauges["websocket_active_clients"] = Gauge(
-            "mockx_websocket_active_clients",
-            "Currently active valid-symbol WebSocket subscriptions.",
-            registry=self.registry,
-        )
-        self._prom_gauges["websocket_outbound_queue_depth"] = Gauge(
-            "mockx_websocket_outbound_queue_depth",
-            "Aggregate queued WebSocket frames, excluding in-flight sends.",
-            registry=self.registry,
-        )
-        for name, metric_name, help_text in (
-            (
                 "itch_sessions_started",
                 "mockx_itch_sessions_started_total",
                 "Run-scoped ITCH sessions successfully started.",
@@ -1635,6 +1635,10 @@ class MetricsCollector:
             SIM_CANCEL_END_TO_END_LATENCY: (
                 "Simulated cancel report delivery minus FIX receive time."
             ),
+            SIM_REPLACE_INBOUND_LATENCY: "Simulated replace exchange arrival minus FIX receive.",
+            SIM_REPLACE_ENGINE_LATENCY: "Simulated replace report creation minus arrival.",
+            SIM_REPLACE_OUTBOUND_LATENCY: "Simulated replace delivery minus creation.",
+            SIM_REPLACE_END_TO_END_LATENCY: "Simulated replace delivery minus FIX receive.",
             MATCH_LOOP_DURATION: "Monotonic duration of the match loop.",
             BOOK_COMMIT_DURATION: (
                 "Monotonic duration of authoritative book mutations."
@@ -1701,68 +1705,11 @@ class MetricsCollector:
                 return False
             self._submitted_order_ids.add(order_id)
             self._increment_locked("orders_submitted")
-        self.refresh_engine_gauges()
         return True
 
     def record_order(self, report: ExecutionReport) -> bool:
-        """Record one immutable execution-report creation snapshot."""
-        fresh = self.record_execution_report(report)
-        if not fresh:
-            return False
-
-        tags: Dict[str, object] = {
-            "exchange": self.exchange_name,
-            "symbol": report.symbol,
-            "side": report.side.value,
-            "status": report.ord_status.value,
-            "tif": report.tif.value,
-        }
-        if report.session_alias:
-            tags["session_alias"] = report.session_alias
-        fields: Dict[str, object] = {
-            "order_id": report.order_id,
-            "exec_id": report.exec_id,
-            "order_qty_lots": report.order_qty_lots,
-            "filled_qty_lots": report.cum_qty_lots,
-            "canceled_qty_lots": report.canceled_qty_lots,
-            "leaves_qty_lots": report.leaves_qty_lots,
-            "filled_notional_tick_lots": (report.filled_notional_tick_lots),
-            "quantity": report.instrument.format_quantity(report.order_qty_lots),
-            "filled_quantity": report.instrument.format_quantity(report.cum_qty_lots),
-            "canceled_quantity": report.instrument.format_quantity(
-                report.canceled_qty_lots
-            ),
-            "leaves_quantity": report.instrument.format_quantity(
-                report.leaves_qty_lots
-            ),
-            "average_fill_price": report.instrument.format_average_price(
-                report.filled_notional_tick_lots,
-                report.cum_qty_lots,
-            ),
-            "tick_size": str(report.instrument.tick_size),
-            "lot_size": str(report.instrument.lot_size),
-            "price_display_precision": (report.instrument.price_display_precision),
-            "quantity_display_precision": (
-                report.instrument.quantity_display_precision
-            ),
-            "ts_submitted": datetime_to_ns(report.submitted_at),
-        }
-        if report.exchange_order_id is not None:
-            fields["exchange_order_id"] = report.exchange_order_id
-        if report.trade_id is not None:
-            fields["trade_id"] = report.trade_id
-        if report.exchange_trade_id is not None:
-            fields["exchange_trade_id"] = report.exchange_trade_id
-        if report.order_price_ticks is not None:
-            fields["price_ticks"] = report.order_price_ticks
-            fields["price"] = report.instrument.format_price(report.order_price_ticks)
-        self._admit_record(
-            "orders",
-            tags,
-            fields,
-            datetime_to_ns(report.timestamp),
-        )
-        return True
+        """Count one immutable report; the native journal owns persistence."""
+        return self.record_execution_report(report)
 
     def record_execution_report(self, report: ExecutionReport) -> bool:
         """Update report and order lifecycle counters at report creation."""
@@ -1807,7 +1754,6 @@ class MetricsCollector:
             ):
                 self._filled_order_ids.add(report.order_id)
                 self._increment_locked("orders_filled")
-        self.refresh_engine_gauges()
         return True
 
     def record_trade(self, trade: Trade) -> bool:
@@ -1836,52 +1782,6 @@ class MetricsCollector:
                 float(instrument.format_notional(trade.notional_tick_lots)),
             )
 
-        tags: Dict[str, object] = {
-            "exchange": self.exchange_name,
-            "symbol": trade.symbol,
-            "buyer_session_alias": trade.buyer_session_alias or "unaliased",
-            "seller_session_alias": trade.seller_session_alias or "unaliased",
-            "aggressor_side": trade.aggressor_side.value,
-        }
-        if (
-            liquidity_category_for_session(trade.buyer_session_alias)
-            == LiquidityCategory.STRATEGY
-        ):
-            tags.update(strategy_side="buy", has_strategy="true")
-        elif (
-            liquidity_category_for_session(trade.seller_session_alias)
-            == LiquidityCategory.STRATEGY
-        ):
-            tags.update(strategy_side="sell", has_strategy="true")
-        else:
-            tags.update(strategy_side="none", has_strategy="false")
-        self._admit_record(
-            "trades",
-            tags,
-            {
-                "trade_id": trade.id,
-                "exchange_trade_id": identity,
-                "price_ticks": trade.price_ticks,
-                "qty_lots": trade.qty_lots,
-                "notional_tick_lots": trade.notional_tick_lots,
-                "price": instrument.format_price(trade.price_ticks),
-                "quantity": instrument.format_quantity(trade.qty_lots),
-                "notional": instrument.format_notional(trade.notional_tick_lots),
-                "tick_size": str(instrument.tick_size),
-                "lot_size": str(instrument.lot_size),
-                "price_display_precision": (instrument.price_display_precision),
-                "quantity_display_precision": (instrument.quantity_display_precision),
-                "buyer_order_id": trade.buyer_order_id,
-                "seller_order_id": trade.seller_order_id,
-                "aggressor_order_id": trade.aggressor_order_id,
-                "passive_order_id": trade.passive_order_id,
-                "buyer_participant_id": trade.buyer_participant_id,
-                "seller_participant_id": trade.seller_participant_id,
-                "level": trade.level,
-            },
-            datetime_to_ns(trade.timestamp),
-        )
-        self.refresh_engine_gauges()
         return True
 
     def record_self_trade_prevention(
@@ -1898,24 +1798,6 @@ class MetricsCollector:
                 self._prom_self_trade_prevented_quantity.labels(
                     symbol=event.symbol
                 ).inc(float(instrument.quantity_decimal(event.prevented_qty_lots)))
-        self._admit_record(
-            "self_trade_prevention",
-            {
-                "exchange": self.exchange_name,
-                "symbol": event.symbol,
-            },
-            {
-                "participant_id": event.participant_id,
-                "aggressor_order_id": event.aggressor_order_id,
-                "passive_order_id": event.passive_order_id,
-                "prevented_qty_lots": event.prevented_qty_lots,
-                "prevented_quantity": instrument.format_quantity(
-                    event.prevented_qty_lots
-                ),
-                "lot_size": str(instrument.lot_size),
-            },
-            datetime_to_ns(event.timestamp),
-        )
 
     def record_cancel_request(self, command: CancelOrderCommand) -> None:
         with self._lock:
@@ -2063,32 +1945,6 @@ class MetricsCollector:
             histogram = self._prom_histograms.get(measurement.metric)
             if histogram is not None:
                 histogram.observe(measurement.value)
-        fields: Dict[str, object] = {
-            f"duration_{expected_unit}": measurement.value,
-        }
-        if measurement.order_id is not None:
-            fields["order_id"] = measurement.order_id
-        if measurement.session_id is not None:
-            fields["session_id"] = measurement.session_id
-        if measurement.report_exec_id is not None:
-            fields["report_exec_id"] = measurement.report_exec_id
-        if measurement.run_generation is not None:
-            fields["run_generation"] = measurement.run_generation
-        if measurement.ingress_sequence is not None:
-            fields["ingress_sequence"] = measurement.ingress_sequence
-        if measurement.cl_ord_id is not None:
-            fields["cl_ord_id"] = measurement.cl_ord_id
-        if measurement.orig_cl_ord_id is not None:
-            fields["orig_cl_ord_id"] = measurement.orig_cl_ord_id
-        self._admit_record(
-            "latency",
-            {
-                "exchange": self.exchange_name,
-                "type": measurement.metric,
-            },
-            fields,
-            datetime_to_ns(measurement.timestamp),
-        )
         return True
 
     def record_sink_failure(
@@ -2148,72 +2004,6 @@ class MetricsCollector:
                     1 if health.state == state else 0
                 )
         return health
-
-    def websocket_client_connected(self) -> None:
-        with self._lock:
-            self._websocket_active_clients += 1
-            gauge = self._prom_gauges.get("websocket_active_clients")
-            if gauge is not None:
-                gauge.set(self._websocket_active_clients)
-
-    def websocket_client_disconnected(self) -> None:
-        with self._lock:
-            self._websocket_active_clients = max(
-                0,
-                self._websocket_active_clients - 1,
-            )
-            gauge = self._prom_gauges.get("websocket_active_clients")
-            if gauge is not None:
-                gauge.set(self._websocket_active_clients)
-
-    def adjust_websocket_queue_depth(self, delta: int) -> None:
-        with self._lock:
-            self._websocket_queue_depth = max(
-                0,
-                self._websocket_queue_depth + delta,
-            )
-            gauge = self._prom_gauges.get("websocket_outbound_queue_depth")
-            if gauge is not None:
-                gauge.set(self._websocket_queue_depth)
-
-    def _record_websocket_count(self, name: str) -> None:
-        with self._lock:
-            self._websocket_counts[name] += 1
-            self._prom_increment(name, 1)
-
-    def record_websocket_snapshot_conflated(self) -> None:
-        self._record_websocket_count("websocket_snapshots_conflated")
-
-    def record_websocket_snapshot_dropped(self) -> None:
-        self._record_websocket_count("websocket_snapshots_dropped")
-
-    def record_websocket_slow_client_disconnect(self) -> None:
-        self._record_websocket_count("websocket_slow_client_disconnects")
-
-    def record_websocket_send_failure(self) -> None:
-        self._record_websocket_count("websocket_send_failures")
-
-    def record_websocket_send_success(self) -> None:
-        self._record_websocket_count("websocket_send_successes")
-
-    def websocket_metrics_snapshot(self) -> Dict[str, int]:
-        """Return internal process-lifetime WebSocket metrics for tests."""
-        with self._lock:
-            return {
-                "active_clients": self._websocket_active_clients,
-                "queue_depth": self._websocket_queue_depth,
-                "snapshots_conflated": self._websocket_counts[
-                    "websocket_snapshots_conflated"
-                ],
-                "snapshots_dropped": self._websocket_counts[
-                    "websocket_snapshots_dropped"
-                ],
-                "slow_client_disconnects": self._websocket_counts[
-                    "websocket_slow_client_disconnects"
-                ],
-                "send_failures": self._websocket_counts["websocket_send_failures"],
-                "send_successes": self._websocket_counts["websocket_send_successes"],
-            }
 
     def _record_itch_count(self, name: str, amount: int = 1) -> None:
         if amount < 0:
@@ -2326,117 +2116,22 @@ class MetricsCollector:
             }
 
     def record_fix_message(
-        self,
-        msg_type: str,
-        direction: str,
-        timestamp_ns: int,
+        self, msg_type: str, direction: str, timestamp_ns: int
     ) -> None:
-        self._admit_record(
-            "fix_messages",
-            {
-                "exchange": self.exchange_name,
-                "msg_type": msg_type,
-                "direction": direction,
-            },
-            {"count": 1},
-            timestamp_ns,
-        )
+        """FIX message receipt accounting remains an operational concern."""
+        with self._lock:
+            key = (msg_type, direction)
+            self._fix_message_counts[key] = self._fix_message_counts.get(key, 0) + 1
 
     def record_fix_connection(self, count: int, timestamp_ns: int) -> None:
-        """Compatibility method; callers should pass the absolute count."""
         self.set_connected_sessions(max(0, count))
-        self._admit_record(
-            "fix_connections",
-            {"exchange": self.exchange_name},
-            {"count": max(0, count)},
-            timestamp_ns,
-        )
-
-    def update_book_metrics(
-        self,
-        update: MarketDataSnapshot,
-    ) -> None:
-        """Persist one complete immutable book snapshot, including emptiness."""
-        timestamp_ns = datetime_to_ns(update.timestamp)
-        instrument = update.instrument
-        has_bid = bool(update.bids)
-        has_ask = bool(update.asks)
-        spread_valid = has_bid and has_ask
-        best_bid_ticks = update.bids[0].price_ticks if has_bid else None
-        best_ask_ticks = update.asks[0].price_ticks if has_ask else None
-        best_bid = (
-            instrument.format_price(best_bid_ticks)
-            if best_bid_ticks is not None
-            else ""
-        )
-        best_ask = (
-            instrument.format_price(best_ask_ticks)
-            if best_ask_ticks is not None
-            else ""
-        )
-        if best_bid_ticks is not None and best_ask_ticks is not None:
-            spread = instrument.format_price(best_ask_ticks - best_bid_ticks)
-            mid_price = instrument.format_average_price(
-                best_bid_ticks + best_ask_ticks, 2
-            )
-        else:
-            spread = ""
-            mid_price = ""
-
-        def level_payload(level) -> Dict[str, object]:
-            return {
-                "market_quantity": instrument.format_quantity(level.market_qty_lots),
-                "order_count": level.order_count,
-                "price": instrument.format_price(level.price_ticks),
-                "quantity": instrument.format_quantity(level.level_qty_lots),
-                "strategy_quantity": instrument.format_quantity(
-                    level.strategy_qty_lots
-                ),
-            }
-
-        fields: Dict[str, object] = {
-            "sequence": update.sequence,
-            "has_bid": has_bid,
-            "has_ask": has_ask,
-            "best_bid": best_bid,
-            "best_ask": best_ask,
-            "spread_valid": spread_valid,
-            "spread": spread,
-            "mid_price": mid_price,
-            "bid_depth": len(update.bids),
-            "ask_depth": len(update.asks),
-            "bids_json": json.dumps(
-                [level_payload(level) for level in update.bids],
-                separators=(",", ":"),
-                sort_keys=True,
-            ),
-            "asks_json": json.dumps(
-                [level_payload(level) for level in update.asks],
-                separators=(",", ":"),
-                sort_keys=True,
-            ),
-            "tick_size": str(instrument.tick_size),
-            "lot_size": str(instrument.lot_size),
-        }
-        self._admit_record(
-            "book_snapshot",
-            {"exchange": self.exchange_name, "symbol": update.symbol},
-            fields,
-            timestamp_ns,
-        )
-        self.refresh_engine_gauges()
 
     def update_active_orders(self, update: MarketDataSnapshot) -> None:
         """Refresh gauges derived from authoritative engine state."""
         self.refresh_engine_gauges()
 
     def update_pending_events(self, count: int, timestamp_ns: int) -> None:
-        self._admit_record(
-            "pending_events",
-            {"exchange": self.exchange_name},
-            {"count": count},
-            timestamp_ns,
-        )
+        self.update_scheduler_pending(count)
 
     def refresh_engine_gauges(self) -> Tuple[int, int, int]:
         active, resting, levels = self._authoritative_engine_counts()
@@ -2785,6 +2480,29 @@ class MetricsCollector:
         )
         return True
 
+    def mark_integrity_failure(
+        self,
+        reason: str,
+        *,
+        event_sequence: int | None = None,
+        event_timestamp_ns: int | None = None,
+    ) -> bool:
+        with self._lock:
+            changed = self._mark_integrity_failure_locked(
+                reason,
+                metric_event_sequence=event_sequence,
+                event_timestamp_ns=event_timestamp_ns,
+            )
+        if changed:
+            self._notify_integrity_failure()
+        return changed
+
+    def note_journal_sequence(self, sequence: int, timestamp_ns: int) -> None:
+        """Expose the native journal cut through operational run diagnostics."""
+        with self._lock:
+            self._metric_event_sequence = sequence
+            self._last_event_timestamp_ns = timestamp_ns
+
     def _notify_integrity_failure(self) -> None:
         """Notify after releasing the collector lock, without interrupting work."""
         logger.error(
@@ -2796,111 +2514,6 @@ class MetricsCollector:
                 self.on_integrity_failure()
             except Exception:
                 logger.exception("Persistence integrity observer failed")
-
-    def _admit_record(
-        self,
-        table: str,
-        symbols: Dict[str, object],
-        columns: Dict[str, object],
-        timestamp_ns: int,
-    ) -> None:
-        """Protect exchange observers from persistence validation and admission."""
-        try:
-            self._create_record(table, symbols, columns, timestamp_ns)
-        except Exception as exc:
-            # Admission errors already carry a reserved identity. Construction
-            # errors have no record identity but still invalidate an active run.
-            with self._lock:
-                newly_failed = self._mark_integrity_failure_locked(
-                    f"{type(exc).__name__}: {exc}",
-                    event_timestamp_ns=(
-                        timestamp_ns
-                        if isinstance(timestamp_ns, int)
-                        and not isinstance(timestamp_ns, bool)
-                        and 0 <= timestamp_ns <= MAX_QUESTDB_LONG
-                        else None
-                    ),
-                )
-            if newly_failed:
-                self._notify_integrity_failure()
-
-    def _create_record(
-        self,
-        table: str,
-        symbols: Dict[str, object],
-        columns: Dict[str, object],
-        timestamp_ns: int,
-    ) -> None:
-        if self.persistence is None:
-            return
-        if (
-            not isinstance(timestamp_ns, int)
-            or isinstance(timestamp_ns, bool)
-            or timestamp_ns < 0
-        ):
-            raise ValueError("Metric event timestamp must be a non-negative integer")
-        newly_failed = False
-        try:
-            with self._lock:
-                run_id = self._run_id
-                if run_id is None:
-                    raise RuntimeError(
-                        "Cannot persist metrics without an active simulation run"
-                    )
-
-                if (
-                    self._last_event_timestamp_ns is not None
-                    and timestamp_ns < self._last_event_timestamp_ns
-                ):
-                    raise ValueError(
-                        "Metric event timestamp is backdated relative to the "
-                        "persistence sequence"
-                    )
-
-                metric_event_sequence = self._metric_event_sequence + 1
-                if metric_event_sequence > MAX_QUESTDB_LONG:
-                    raise OverflowError("Metric event sequence exhausted")
-                record = MetricRecord.create(
-                    table,
-                    symbols,
-                    columns,
-                    run_id=run_id,
-                    metric_event_sequence=metric_event_sequence,
-                    event_timestamp_ns=timestamp_ns,
-                )
-                # A writer may enqueue and then raise. Reserve identity before
-                # calling it so that even uncertain admissions cannot reuse it.
-                self._metric_event_sequence = metric_event_sequence
-                self._last_event_timestamp_ns = timestamp_ns
-                try:
-                    outcome = self.persistence.add_nowait(record)
-                except Exception as exc:
-                    newly_failed = self._mark_integrity_failure_locked(
-                        f"{type(exc).__name__}: {exc}",
-                        metric_event_sequence=metric_event_sequence,
-                        event_timestamp_ns=timestamp_ns,
-                    )
-                    raise
-
-                if outcome in {
-                    PersistenceAddOutcome.REJECTED_CLOSED,
-                    PersistenceAddOutcome.REJECTED_FULL,
-                    PersistenceAddOutcome.FAILED,
-                    PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST,
-                }:
-                    newly_failed = self._mark_integrity_failure_locked(
-                        outcome.value,
-                        metric_event_sequence=metric_event_sequence,
-                        event_timestamp_ns=timestamp_ns,
-                    )
-                    if outcome != PersistenceAddOutcome.ACCEPTED_DROPPED_OLDEST:
-                        raise MetricsSinkError(
-                            "Metric persistence writer rejected an active-run record: "
-                            f"{outcome.value}"
-                        )
-        finally:
-            if newly_failed:
-                self._notify_integrity_failure()
 
     async def flush(self) -> PersistenceFlushResult:
         if self.persistence is not None:
@@ -2921,6 +2534,20 @@ class MetricsCollector:
         )
 
 
+@dataclass(slots=True)
+class ReplaceLatencyTrace:
+    run_generation: int
+    ingress_sequence: int
+    session_id: str
+    replace_cl_ord_id: str
+    orig_cl_ord_id: str
+    sim_received_at: datetime
+    order_id: int | None = None
+    sim_arrived_at: datetime | None = None
+    sim_report_created_at: datetime | None = None
+    sim_report_delivered_at: datetime | None = None
+
+
 class LatencyTracker:
     """Own typed order traces and emit immutable, clock-safe measurements."""
 
@@ -2935,6 +2562,7 @@ class LatencyTracker:
         self.monotonic_clock = monotonic_clock or PerfCounterClock()
         self.orders: Dict[tuple[int, int], OrderLatencyTrace] = {}
         self.cancels: Dict[tuple[int, int], CancelLatencyTrace] = {}
+        self.replaces: Dict[tuple[int, int], ReplaceLatencyTrace] = {}
         self.measurements: list[LatencyMeasurement] = []
         self._delivered_exec_ids: set[str] = set()
         self._completed_order_ids: set[tuple[int, int]] = set()
@@ -2945,6 +2573,7 @@ class LatencyTracker:
         *,
         preserve_order_keys: Optional[set[tuple[int, int]]] = None,
         preserve_cancel_keys: Optional[set[tuple[int, int]]] = None,
+        preserve_replace_keys: Optional[set[tuple[int, int]]] = None,
     ) -> None:
         with self._lock:
             if preserve_order_keys is None:
@@ -2964,6 +2593,14 @@ class LatencyTracker:
                     key: trace
                     for key, trace in self.cancels.items()
                     if key in preserve_cancel_keys
+                }
+            if preserve_replace_keys is None:
+                self.replaces.clear()
+            else:
+                self.replaces = {
+                    key: trace
+                    for key, trace in self.replaces.items()
+                    if key in preserve_replace_keys
                 }
             self.measurements.clear()
             self._delivered_exec_ids.clear()
@@ -3465,6 +3102,181 @@ class LatencyTracker:
                 "run_generation": command.run_generation,
                 "ingress_sequence": command.ingress_sequence,
                 "cancel_cl_ord_id": command.cancel_cl_ord_id,
+                "latency_stage": stage,
+            },
+        )
+
+    @staticmethod
+    def _replace_key(command: ReplaceOrderCommand) -> tuple[int, int]:
+        return command.run_generation, command.ingress_sequence
+
+    def replace_received(self, command: ReplaceOrderCommand) -> None:
+        """Start a replace trace keyed independently of client order IDs."""
+        key = self._replace_key(command)
+        with self._lock:
+            if key in self.replaces:
+                return
+            self.replaces[key] = ReplaceLatencyTrace(
+                run_generation=command.run_generation,
+                ingress_sequence=command.ingress_sequence,
+                session_id=command.session_id,
+                replace_cl_ord_id=command.replace_cl_ord_id,
+                orig_cl_ord_id=command.orig_cl_ord_id,
+                sim_received_at=command.requested_at,
+            )
+
+    def replace_arrived(self, command: ReplaceOrderCommand) -> None:
+        key = self._replace_key(command)
+        with self._lock:
+            trace = self.replaces.get(key)
+            if trace is None:
+                self._missing_replace_trace(command, "replace_arrived")
+                return
+            if trace.sim_arrived_at is not None:
+                return
+            trace.sim_arrived_at = self.scheduler.current_time
+            measurement = self._replace_duration_measurement(
+                trace,
+                SIM_REPLACE_INBOUND_LATENCY,
+                trace.sim_received_at,
+                trace.sim_arrived_at,
+            )
+        self._publish(measurement)
+
+    def replace_report_created(
+        self,
+        command: ReplaceOrderCommand,
+        report: ExecutionReport | CancelReject,
+    ) -> None:
+        key = self._replace_key(command)
+        with self._lock:
+            trace = self.replaces.get(key)
+            if trace is None:
+                self._missing_replace_trace(command, "replace_report_created")
+                return
+            if trace.sim_report_created_at is not None:
+                return
+            trace.order_id = report.order_id
+            trace.sim_report_created_at = report.timestamp
+            if trace.sim_arrived_at is None:
+                self._missing_replace_trace(
+                    command,
+                    "replace_report_created_without_arrival",
+                )
+                return
+            measurement = self._replace_duration_measurement(
+                trace,
+                SIM_REPLACE_ENGINE_LATENCY,
+                trace.sim_arrived_at,
+                report.timestamp,
+                report_exec_id=(
+                    report.exec_id
+                    if isinstance(report, ExecutionReport)
+                    else report.reject_id
+                ),
+            )
+        self._publish(measurement)
+
+    def replace_report_delivered(
+        self,
+        report: ExecutionReport | CancelReject,
+        *,
+        delivered_at: Optional[datetime] = None,
+    ) -> bool:
+        """Finish a replace trace only after successful report delivery."""
+        ingress_sequence = (
+            report.replace_ingress_sequence
+            if isinstance(report, ExecutionReport)
+            else report.ingress_sequence
+        )
+        if ingress_sequence is None:
+            return False
+        key = (report.run_generation, ingress_sequence)
+        with self._lock:
+            trace = self.replaces.get(key)
+            if trace is None:
+                logger.warning(
+                    "Replace latency trace missing",
+                    extra={
+                        "run_generation": report.run_generation,
+                        "ingress_sequence": ingress_sequence,
+                        "latency_stage": "replace_report_delivered",
+                    },
+                )
+                return False
+            if trace.sim_report_delivered_at is not None:
+                return False
+            resolved_delivered_at = delivered_at or self.scheduler.current_time
+            trace.sim_report_delivered_at = resolved_delivered_at
+            outbound = self._replace_duration_measurement(
+                trace,
+                SIM_REPLACE_OUTBOUND_LATENCY,
+                report.timestamp,
+                resolved_delivered_at,
+                report_exec_id=(
+                    report.exec_id
+                    if isinstance(report, ExecutionReport)
+                    else report.reject_id
+                ),
+            )
+            end_to_end = self._replace_duration_measurement(
+                trace,
+                SIM_REPLACE_END_TO_END_LATENCY,
+                trace.sim_received_at,
+                resolved_delivered_at,
+                report_exec_id=(
+                    report.exec_id
+                    if isinstance(report, ExecutionReport)
+                    else report.reject_id
+                ),
+            )
+            self.replaces.pop(key, None)
+        self._publish(outbound)
+        self._publish(end_to_end)
+        return True
+
+    def _replace_duration_measurement(
+        self,
+        trace: ReplaceLatencyTrace,
+        metric: str,
+        start: datetime,
+        end: datetime,
+        *,
+        report_exec_id: Optional[str] = None,
+    ) -> Optional[LatencyMeasurement]:
+        milliseconds = (end - start).total_seconds() * 1_000.0
+        if not math.isfinite(milliseconds) or milliseconds < 0.0:
+            self.metrics.record_invalid_latency(
+                metric=metric,
+                order_id=trace.order_id,
+                session_id=trace.session_id,
+            )
+            return None
+        return LatencyMeasurement(
+            order_id=trace.order_id,
+            session_id=trace.session_id,
+            metric=metric,
+            value=milliseconds,
+            unit="ms",
+            timestamp=end,
+            report_exec_id=report_exec_id,
+            run_generation=trace.run_generation,
+            ingress_sequence=trace.ingress_sequence,
+            cl_ord_id=trace.replace_cl_ord_id,
+            orig_cl_ord_id=trace.orig_cl_ord_id,
+        )
+
+    @staticmethod
+    def _missing_replace_trace(
+        command: ReplaceOrderCommand,
+        stage: str,
+    ) -> None:
+        logger.warning(
+            "Replace latency trace missing",
+            extra={
+                "run_generation": command.run_generation,
+                "ingress_sequence": command.ingress_sequence,
+                "replace_cl_ord_id": command.replace_cl_ord_id,
                 "latency_stage": stage,
             },
         )
