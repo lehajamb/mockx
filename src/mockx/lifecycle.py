@@ -415,14 +415,19 @@ class ExchangeLifecycle:
         try:
             if self.glimpse_service is not None:
                 self.glimpse_service.revoke_all()
+            previous_sim_time = self.scheduler.current_time
             self.scheduler.reset()
             self.engine.reset_run_state()
             self.latency_tracker.reset(
+                previous_sim_time=previous_sim_time,
                 preserve_order_keys=(
                     self.fix_app.delivery_queue.pending_order_keys()
                 ),
                 preserve_cancel_keys=(
                     self.fix_app.delivery_queue.pending_cancel_keys()
+                ),
+                preserve_replace_keys=(
+                    self.fix_app.delivery_queue.pending_replace_keys()
                 ),
             )
             self.metrics.reset_run_metrics()
@@ -639,7 +644,7 @@ class ExchangeLifecycle:
                                 )
                             orders.append(
                                 GlimpseOrderSnapshot(
-                                    order_ref_num=order.id,
+                                    order_ref_num=order.displayed_order_ref,
                                     symbol=symbol,
                                     side=order.side,
                                     qty_lots=order.leaves_qty_lots,

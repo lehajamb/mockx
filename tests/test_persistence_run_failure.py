@@ -19,7 +19,7 @@ from src.mockx.metrics import (
     PersistenceAddOutcome,
 )
 from src.mockx.models import (
-    CancelReject,
+    OrderCancelReject,
     ExecutionReport,
     ExecutionType,
     OrderStatus,
@@ -201,9 +201,9 @@ async def test_loss_in_first_fill_completes_command_then_rejects_same_time_reque
             and item.exec_type == ExecutionType.REJECTED
         ]
         assert [item.cl_ord_id for item in rejects] == ["NEXT"]
-        cancels = [item for item in delivered if isinstance(item, CancelReject)]
+        cancels = [item for item in delivered if isinstance(item, OrderCancelReject)]
         assert len(cancels) == 1
-        assert cancels[0].cancel_cl_ord_id == "C-REST"
+        assert cancels[0].cl_ord_id == "C-REST"
         assert cancels[0].reason.value == "EXCHANGE_UNAVAILABLE"
         assert exchange.lifecycle.state.value == "RUN_FAILED"
         assert len(broadcasts) == 1

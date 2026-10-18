@@ -109,6 +109,15 @@ struct OrderExecutedWithPriceWire {
     Bytes<4> execution_price;
 };
 
+struct OrderCancelWire {
+    char type;
+    Bytes<2> stock_locate;
+    Bytes<2> tracking_number;
+    Bytes<6> timestamp;
+    Bytes<8> order_reference;
+    Bytes<4> canceled_shares;
+};
+
 struct OrderDeleteWire {
     char type;
     Bytes<2> stock_locate;
@@ -137,6 +146,7 @@ static_assert(
     valid_wire_type<OrderExecutedWithPriceWire>
     && sizeof(OrderExecutedWithPriceWire) == 36);
 static_assert(valid_wire_type<OrderDeleteWire> && sizeof(OrderDeleteWire) == 19);
+static_assert(valid_wire_type<OrderCancelWire> && sizeof(OrderCancelWire) == 23);
 static_assert(valid_wire_type<EndSnapshotWire> && sizeof(EndSnapshotWire) == 21);
 
 template <typename T>
@@ -229,6 +239,8 @@ template <std::size_t N>
         return sizeof(OrderExecutedWithPriceWire);
     case 'D':
         return sizeof(OrderDeleteWire);
+    case 'X':
+        return sizeof(OrderCancelWire);
     case 'G':
         return sizeof(EndSnapshotWire);
     default:

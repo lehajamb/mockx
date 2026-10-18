@@ -33,6 +33,7 @@ from .metrics import (
 )
 from .models import (
     CancelOrderCommand,
+    ReplaceOrderCommand,
     ExecutionParams,
     ExecutionReport,
     MarketDataSnapshot,
@@ -250,6 +251,10 @@ class MockExchange:
             command_handler("cancel_received", self.fix_app.process_cancel_envelope),
         )
         self.scheduler.register_handler(
+            "replace_received",
+            command_handler("replace_received", self.fix_app.process_replace_envelope),
+        )
+        self.scheduler.register_handler(
             "order_arrived",
             command_handler("order_arrived", self._handle_order_arrived),
         )
@@ -269,6 +274,14 @@ class MockExchange:
             "cancel_engine_process",
             command_handler("cancel_engine_process", self._handle_cancel_process),
         )
+        self.scheduler.register_handler(
+            "replace_arrived_at_exchange",
+            command_handler("replace_arrived_at_exchange", self._handle_replace_arrived),
+        )
+        self.scheduler.register_handler(
+            "replace_engine_process",
+            command_handler("replace_engine_process", self._handle_replace_process),
+        )
         if self.itch_feed is not None:
             self.scheduler.register_handler(
                 self.itch_feed.HEARTBEAT_EVENT,
@@ -286,6 +299,9 @@ class MockExchange:
         self.engine.on_cancel_request = self.metrics.record_cancel_request
         self.engine.on_cancel_reject = self.metrics.record_cancel_reject
         self.engine.on_cancel_outcome = self.metrics.record_cancel_outcome
+        self.engine.on_replace_request = self.metrics.record_replace_request
+        self.engine.on_replace_reject = self.metrics.record_replace_reject
+        self.engine.on_replace_outcome = self.metrics.record_replace_outcome
         self.engine.on_cpu_duration = self.latency_tracker.record_cpu_duration
         self.scheduler.on_queue_depth_change = self.metrics.update_scheduler_pending
         self.scheduler.on_failure = self.metrics.record_scheduler_failure
@@ -498,7 +514,7 @@ class MockExchange:
 
     def _on_execution_report(self, report: ExecutionReport) -> None:
         self.metrics.record_order(report)
-        if report.cancel_ingress_sequence is None:
+        if report.cancel_ingress_sequence is None and report.replace_ingress_sequence is None:
             self.latency_tracker.report_created(report)
         self.fix_app.enqueue_report(report)
 
@@ -508,6 +524,15 @@ class MockExchange:
     def _handle_cancel_process(self, command: CancelOrderCommand) -> None:
         report = self.engine.cancel_order(command)
         self.latency_tracker.cancel_report_created(command, report)
+        if not isinstance(report, ExecutionReport):
+            self.fix_app.enqueue_report(report)
+
+    def _handle_replace_arrived(self, command: ReplaceOrderCommand) -> None:
+        self.latency_tracker.replace_arrived(command)
+
+    def _handle_replace_process(self, command: ReplaceOrderCommand) -> None:
+        report = self.engine.replace_order(command)
+        self.latency_tracker.replace_report_created(command, report)
         if not isinstance(report, ExecutionReport):
             self.fix_app.enqueue_report(report)
 

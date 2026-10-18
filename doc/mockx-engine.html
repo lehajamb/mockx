@@ -368,7 +368,12 @@
       <div class="rule-card">
         <span class="tag tag-ask">DisplayedOrderDeleted</span>
         <h4>A remainder leaves without execution</h4>
-        <p>Published for a resting cancel and for the displayed passive removed by STP. Pending cancellation and a never-rested aggressor produce no delete.</p>
+        <p>Published for a resting cancel, the displayed passive removed by STP, and a priority-losing replacement's old reference. Pending cancellation and a never-rested aggressor produce no delete.</p>
+      </div>
+      <div class="rule-card">
+        <span class="tag tag-queue">DisplayedOrderReduced</span>
+        <h4>A replacement preserves FIFO</h4>
+        <p>Maps to ITCH X with the removed shares, retaining the displayed reference and FIFO position. A no-op emits no displayed event. Repricing or increasing quantity emits D, any passive E/C, then A with a fresh reference if leaves rest.</p>
       </div>
     </div>
     <div class="source-ref">
@@ -464,37 +469,37 @@
         <tbody>
           <tr>
             <td>Order unknown to the session</td>
-            <td>CancelReject</td>
+            <td>OrderCancelReject</td>
             <td><code class="ref">UNKNOWN_ORDER</code></td>
           </tr>
           <tr>
             <td>Order belongs to a different session</td>
-            <td>CancelReject</td>
+            <td>OrderCancelReject</td>
             <td><code class="ref">SESSION_MISMATCH</code></td>
           </tr>
           <tr>
             <td>Order already CANCELLED</td>
-            <td>CancelReject</td>
+            <td>OrderCancelReject</td>
             <td><code class="ref">ALREADY_CANCELED</code></td>
           </tr>
           <tr>
             <td>Order already FILLED or REJECTED</td>
-            <td>CancelReject</td>
+            <td>OrderCancelReject</td>
             <td><code class="ref">TOO_LATE_TO_CANCEL</code></td>
           </tr>
           <tr>
             <td>Duplicate cancel ClOrdID in session</td>
-            <td>CancelReject</td>
+            <td>OrderCancelReject</td>
             <td><code class="ref">INVALID_REQUEST</code> (DUPLICATE_REQUEST)</td>
           </tr>
           <tr>
             <td>Stale run_generation</td>
-            <td>CancelReject</td>
+            <td>OrderCancelReject</td>
             <td><code class="ref">INVALID_REQUEST</code> (STALE_RUN_GENERATION)</td>
           </tr>
           <tr>
             <td>Queued cancel when the run fails after persistence loss</td>
-            <td>CancelReject; target order is unchanged</td>
+            <td>OrderCancelReject; target order is unchanged</td>
             <td><code class="ref">EXCHANGE_UNAVAILABLE</code></td>
           </tr>
           <tr>
@@ -520,9 +525,36 @@
     <div class="notes">
       <div><span class="c">// </span>Cancel resolution: <code>MatchingEngine.cancel_order()</code></div>
       <div><span class="c">// </span>All seven <code>CancellationOutcome</code> values: <code>models.py</code></div>
-      <div><span class="c">// </span>Cancel-reject creation: <code>models.py create_cancel_reject()</code></div>
+      <div><span class="c">// </span>Cancel/replace rejection creation: <code>models.py create_order_cancel_reject()</code></div>
       <div><span class="c">// </span>Version bump occurs in the successful cancel commit</div>
     </div>
+  </div>
+</section>
+
+<!-- ================= REPLACE RESOLUTION ================= -->
+<section class="section" id="replace-resolution">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-delivery">FIX 35=G</span>
+      <h2 class="h2">Native replace resolution</h2>
+      <p class="lede"><code class="ref">replace_order()</code> resolves the latest accepted client revision at engine execution time. Only live resting NEW/PARTIAL GTC limit orders qualify; the old order remains executable during request latency.</p>
+    </div>
+    <div class="panel">
+      <table class="compare-table">
+        <thead><tr><th>Amendment</th><th>Commit and priority</th></tr></thead>
+        <tbody>
+          <tr><td>Same-price total-quantity reduction</td><td>Atomically resize level aggregates and leaves; retain FIFO and displayed reference; publish ITCH X.</td></tr>
+          <tr><td>No change to price or total quantity</td><td>Advance accepted ClOrdID and acknowledge; preserve FIFO; publish no book snapshot or displayed event.</td></tr>
+          <tr><td>Quantity increase or price change</td><td>Remove old displayed order, lose FIFO, match using the existing loop and STP, and append a remainder with a fresh display reference.</td></tr>
+          <tr><td>Requested total at or below current CumQty</td><td>Clamp total to actual CumQty, remove leaves, and finish FILLED. Preserve fills/notional; create no trade and add no canceled quantity.</td></tr>
+        </tbody>
+      </table>
+      <p>OrderQty means total quantity including previous fills. Internal/public OrderID, original submission time, ownership, cumulative fills, and notional remain stable. Symbol, side, order type, TIF, FIX session, and participant cannot change. Exact tick/lot and enabled ITCH bounds apply; replacement does not draw a new random rejection.</p>
+      <p>Every accepted replacement, including a no-op, advances ClOrdID. Later F/G requests must reference that latest accepted ID; historical accepted IDs remain diagnostic entries. Rejected amendments never become active revisions, but normalized D/F/G requests share one process-lifetime session-scoped duplicate namespace.</p>
+      <p>Publish one immutable ExecutionReport with ExecType=5 and OrdStatus NEW/PARTIAL/FILLED before replacement-triggered fill reports. It carries new ClOrdID and previous accepted OrigClOrdID; later reports use the new ID. There is no persistent REPLACED state or interim Pending Replace report. Rejections use immutable OrderCancelReject with CxlRejResponseTo=2 and execution-time status; F rejects retain CxlRejResponseTo=1.</p>
+      <p>Unknown/stale references, wrong ownership, duplicates, unsupported fields, ineligible pending/terminal state, and unavailable exchange have stable reject reason/text. Validation precedes removal of liquidity. A changed book produces one final immutable snapshot; a rejection or no-op produces none. Final invariants and fail-stop handling remain mandatory.</p>
+    </div>
+    <div class="source-ref">Models: <code>ReplaceOrderCommand</code>, <code>OrderCancelReject</code>, and <code>ReplacementOutcome</code>. Engine: <code>MatchingEngine.replace_order()</code>. Accounting: <code>OrderBook.resize_order()</code>. FIX examples and exact counters: README “Native FIX cancel/replace” and “Metrics and observability”.</div>
   </div>
 </section>
 
@@ -596,16 +628,16 @@
   /* ---------- Order state machine ---------- */
   const ORDER_STATES = [
     { key: "PENDING_NEW", name: "PENDING_NEW", terminal: false,
-      desc: "Order created but not yet processed by the engine. Cancelable. Transitions to: NEW, PARTIAL, FILLED, REJECTED, CANCELLED.",
+      desc: "Order created but not yet processed by the engine. Cancelable; replacement rejects until a live GTC limit remainder rests. Transitions to: NEW, PARTIAL, FILLED, REJECTED, CANCELLED.",
       source: "models.py — OrderStatus.PENDING_NEW" },
     { key: "NEW", name: "NEW", terminal: false,
-      desc: "GTC limit order resting in the book with zero fills. Cancelable. Transitions to: PARTIAL, FILLED, CANCELLED.",
+      desc: "GTC limit order resting in the book with zero fills. Cancelable and replaceable. Price changes/increases lose FIFO; same-price reductions preserve it. Transitions to: PARTIAL, FILLED, CANCELLED.",
       source: "models.py — OrderStatus.NEW" },
     { key: "PARTIAL", name: "PARTIAL", terminal: false,
-      desc: "Some quantity filled, with positive leaves. Can be an intermediate state for any order type during matching; only a surviving GTC limit remainder rests. Transitions to: PARTIAL (more fills), FILLED, CANCELLED.",
+      desc: "Some quantity filled, with positive leaves. Can be an intermediate state for any order type during matching; only a surviving GTC limit remainder rests and is replaceable. Replacement total includes prior fills. Transitions to: PARTIAL (more fills), FILLED, CANCELLED.",
       source: "models.py — OrderStatus.PARTIAL" },
     { key: "FILLED", name: "FILLED", terminal: true,
-      desc: "All quantity filled. Terminal — no further transitions possible. Cannot be canceled.",
+      desc: "OrderQty equals actual CumQty after fills or replacement quantity clamping. Terminal; no further transitions possible. Cannot be canceled or replaced. Clamping creates no fabricated execution.",
       source: "models.py — OrderStatus.FILLED" },
     { key: "REJECTED", name: "REJECTED", terminal: true,
       desc: "Rejected by RNG during process_order, or settled while pending after persistence loss fails the run. Terminal. Contains reject_reason text.",

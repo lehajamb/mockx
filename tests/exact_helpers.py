@@ -47,6 +47,7 @@ def exact_order(**values: Any) -> Order:
     """Build an integer-domain engine order with explicit ownership."""
     order_qty_lots = values.pop("order_qty_lots")
     price_ticks = values.pop("price_ticks", None)
+    values.setdefault("displayed_order_ref", values.get("id"))
     return Order(
         order_type=values.pop(
             "order_type",

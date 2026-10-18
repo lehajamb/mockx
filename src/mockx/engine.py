@@ -23,7 +23,9 @@ from .metrics import (
 from .models import (
     CancellationOutcome,
     CancelOrderCommand,
-    CancelReject,
+    ReplaceOrderCommand,
+    ReplacementOutcome,
+    OrderCancelReject,
     CancelRejectReason,
     ClientOrderKey,
     ExecutionParams,
@@ -33,6 +35,7 @@ from .models import (
     DisplayedOrderDeleted,
     DisplayedOrderEvent,
     DisplayedOrderExecuted,
+    DisplayedOrderReduced,
     Fill,
     MarketDataSnapshot,
     NewOrderCommand,
@@ -48,7 +51,7 @@ from .models import (
     TimeInForce,
     Trade,
     TradeSnapshot,
-    create_cancel_reject,
+    create_order_cancel_reject,
     create_execution_report,
 )
 
@@ -86,6 +89,7 @@ class MatchingEngine:
         self._claimed_client_order_ids: set[ClientOrderKey] = set()
         self.next_order_id = 1
         self.next_trade_id = 1
+        self.next_displayed_order_ref = 1
         self.market_data_sequence = 0
 
         self.on_execution_report = None
@@ -99,6 +103,9 @@ class MatchingEngine:
         self.on_cancel_request = None
         self.on_cancel_reject = None
         self.on_cancel_outcome = None
+        self.on_replace_request = None
+        self.on_replace_reject = None
+        self.on_replace_outcome = None
         self.on_cpu_duration = None
         self._displayed_event_buffer: Optional[List[DisplayedOrderEvent]] = None
 
@@ -112,6 +119,7 @@ class MatchingEngine:
         self.client_order_index.clear()
         self.next_order_id = 1
         self.next_trade_id = 1
+        self.next_displayed_order_ref = 1
         self.market_data_sequence = 0
 
     def reseed_rng(self) -> None:
@@ -254,7 +262,7 @@ class MatchingEngine:
 
     def reject_cancel_unavailable(
         self, command: CancelOrderCommand, reason: str
-    ) -> CancelReject:
+    ) -> OrderCancelReject:
         """Reject a queued cancel against an immutable snapshot of its owner order."""
         if not isinstance(command, CancelOrderCommand):
             raise TypeError("reject_cancel_unavailable requires CancelOrderCommand")
@@ -361,10 +369,12 @@ class MatchingEngine:
             DisplayedOrderDeleted(
                 run_generation=passive.run_generation,
                 order_id=passive.id,
+                order_ref_num=self._displayed_reference(passive),
                 symbol=passive.symbol,
                 timestamp=self.scheduler.current_time,
             )
         )
+        passive.displayed_order_ref = None
         self._notify_observer(
             "self-trade prevention",
             self.on_self_trade_prevention,
@@ -469,6 +479,7 @@ class MatchingEngine:
                     DisplayedOrderExecuted(
                         run_generation=fill.run_generation,
                         order_id=passive.id,
+                        order_ref_num=self._displayed_reference(passive),
                         symbol=fill.symbol,
                         displayed_price_ticks=exec_price,
                         execution_price_ticks=fill.price_ticks,
@@ -477,6 +488,8 @@ class MatchingEngine:
                         timestamp=fill.timestamp,
                     )
                 )
+                if fill_result.fully_filled:
+                    passive.displayed_order_ref = None
 
                 trade = self._create_trade(
                     fill,
@@ -546,7 +559,11 @@ class MatchingEngine:
             publish_new = False
         commit_start_ns = self.monotonic_clock.now_ns()
         try:
+            if not 0 < self.next_displayed_order_ref < 2**64:
+                raise RuntimeError("Displayed order reference space exhausted")
             book.add_order(order)
+            order.displayed_order_ref = self.next_displayed_order_ref
+            self.next_displayed_order_ref += 1
         finally:
             self._record_cpu_duration(
                 BOOK_COMMIT_DURATION,
@@ -561,6 +578,7 @@ class MatchingEngine:
             DisplayedOrderAdded(
                 run_generation=order.run_generation,
                 order_id=order.id,
+                order_ref_num=self._displayed_reference(order),
                 symbol=order.symbol,
                 side=order.side,
                 price_ticks=order.price_ticks,
@@ -620,6 +638,7 @@ class MatchingEngine:
         orig_cl_ord_id: Optional[str] = None,
         text: Optional[str] = None,
         cancel_ingress_sequence: Optional[int] = None,
+        replace_ingress_sequence: Optional[int] = None,
     ) -> ExecutionReport:
         start_ns = self.monotonic_clock.now_ns()
         report = create_execution_report(
@@ -635,6 +654,7 @@ class MatchingEngine:
             orig_cl_ord_id=orig_cl_ord_id,
             text=text,
             cancel_ingress_sequence=cancel_ingress_sequence,
+            replace_ingress_sequence=replace_ingress_sequence,
         )
         self._record_cpu_duration(
             REPORT_CREATION_DURATION,
@@ -740,7 +760,7 @@ class MatchingEngine:
     def cancel_order(
         self,
         command: CancelOrderCommand,
-    ) -> ExecutionReport | CancelReject:
+    ) -> ExecutionReport | OrderCancelReject:
         """Measure and resolve one non-noop cancel command."""
         if not isinstance(command, CancelOrderCommand):
             raise TypeError("cancel_order requires CancelOrderCommand")
@@ -769,7 +789,7 @@ class MatchingEngine:
     def _cancel_order_impl(
         self,
         command: CancelOrderCommand,
-    ) -> ExecutionReport | CancelReject:
+    ) -> ExecutionReport | OrderCancelReject:
         """Resolve one cancel against authoritative execution-time state."""
         if not isinstance(command, CancelOrderCommand):
             raise TypeError("cancel_order requires CancelOrderCommand")
@@ -806,7 +826,10 @@ class MatchingEngine:
                         key=lambda item: item.id,
                     )
                     if (
-                        candidate.cl_ord_id == command.orig_cl_ord_id
+                        candidate.session_id is not None
+                        and self.client_order_index.get(ClientOrderKey(
+                            candidate.session_id, command.orig_cl_ord_id,
+                        )) == candidate.id
                         and candidate.session_id != command.session_id
                     )
                 ),
@@ -824,6 +847,14 @@ class MatchingEngine:
                 command,
                 reason=CancelRejectReason.UNKNOWN_ORDER,
                 text=f"Order not found: {command.orig_cl_ord_id}",
+                outcome=CancellationOutcome.UNKNOWN_ORDER,
+            )
+        if order.cl_ord_id != command.orig_cl_ord_id:
+            return self._cancel_reject(
+                command,
+                order=order,
+                reason=CancelRejectReason.STALE_ORDER_REFERENCE,
+                text="Stale OrigClOrdID; reference the latest accepted ClOrdID",
                 outcome=CancellationOutcome.UNKNOWN_ORDER,
             )
         if order.status == OrderStatus.CANCELLED:
@@ -895,12 +926,224 @@ class MatchingEngine:
                 DisplayedOrderDeleted(
                     run_generation=order.run_generation,
                     order_id=order.id,
+                    order_ref_num=self._displayed_reference(order),
                     symbol=order.symbol,
                     timestamp=self.scheduler.current_time,
                 ),
             )
+            order.displayed_order_ref = None
             self._send_market_data_update(order.symbol)
         return report
+
+    def replace_order(
+        self, command: ReplaceOrderCommand,
+    ) -> ExecutionReport | OrderCancelReject:
+        """Resolve one replacement against current authoritative order state."""
+        if not isinstance(command, ReplaceOrderCommand):
+            raise TypeError("replace_order requires ReplaceOrderCommand")
+        self.scheduler.ensure_running()
+        order_id = self.client_order_index.get(
+            ClientOrderKey(command.session_id, command.orig_cl_ord_id)
+        )
+        start_ns = self.monotonic_clock.now_ns()
+        try:
+            return self._replace_order_impl(command)
+        finally:
+            self._record_cpu_duration(
+                ENGINE_COMMAND_DURATION, order_id, command.session_id, start_ns,
+                context=f"replace command {command.run_generation}:{command.ingress_sequence}",
+            )
+
+    def _replace_order_impl(
+        self, command: ReplaceOrderCommand,
+    ) -> ExecutionReport | OrderCancelReject:
+        self._notify_observer("replace request", self.on_replace_request, command)
+        # Even early request rejections must snapshot the authoritative target.
+        # Only the requesting session's index is consulted before ownership
+        # validation, preserving rejection precedence without exposing a foreign
+        # order through a duplicate or generation error.
+        key = ClientOrderKey(command.session_id, command.orig_cl_ord_id)
+        order_id = self.client_order_index.get(key)
+        order = self.orders.get(order_id) if order_id is not None else None
+        if command.run_generation != self.identifier_scope.generation:
+            return self._replace_reject(
+                command, order=order, reason=CancelRejectReason.INVALID_REQUEST,
+                text="Stale replace run generation",
+                outcome=ReplacementOutcome.STALE_RUN_GENERATION,
+            )
+        request_key = ClientOrderKey(command.session_id, command.replace_cl_ord_id)
+        duplicate = command.duplicate_request or request_key in self._claimed_client_order_ids
+        self._claimed_client_order_ids.add(request_key)
+        if duplicate:
+            return self._replace_reject(
+                command, order=order, reason=CancelRejectReason.DUPLICATE_CL_ORD_ID,
+                text="Duplicate replace request ClOrdID in session",
+                outcome=ReplacementOutcome.DUPLICATE_REQUEST,
+            )
+        if order is None:
+            foreign_id = next((
+                indexed_order_id
+                for indexed_key, indexed_order_id in self.client_order_index.items()
+                if indexed_key.cl_ord_id == command.orig_cl_ord_id
+                and indexed_key.session_id != command.session_id
+            ), None)
+            foreign = self.orders.get(foreign_id) if foreign_id is not None else None
+            if foreign is not None:
+                return self._replace_reject(
+                    command, order=foreign, reason=CancelRejectReason.SESSION_MISMATCH,
+                    text="OrigClOrdID belongs to a different session",
+                    outcome=ReplacementOutcome.WRONG_OWNER,
+                )
+            return self._replace_reject(
+                command, reason=CancelRejectReason.UNKNOWN_ORDER,
+                text=f"Order not found: {command.orig_cl_ord_id}",
+                outcome=ReplacementOutcome.UNKNOWN_ORDER,
+            )
+        if order.cl_ord_id != command.orig_cl_ord_id:
+            return self._replace_reject(
+                command, order=order, reason=CancelRejectReason.STALE_ORDER_REFERENCE,
+                text="Stale OrigClOrdID; reference the latest accepted ClOrdID",
+                outcome=ReplacementOutcome.STALE_ORDER_REFERENCE,
+            )
+        if command.participant_id != order.participant_id:
+            return self._replace_reject(
+                command, order=order, reason=CancelRejectReason.PARTICIPANT_MISMATCH,
+                text="Replacement participant does not own the order",
+                outcome=ReplacementOutcome.WRONG_OWNER,
+            )
+        book = self.books[order.symbol]
+        if (order.status not in {OrderStatus.NEW, OrderStatus.PARTIAL}
+                or order.order_type != OrderType.LIMIT or order.tif != TimeInForce.GTC
+                or not book.is_resting(order.id) or order.leaves_qty_lots <= 0):
+            return self._replace_reject(
+                command, order=order, reason=CancelRejectReason.TOO_LATE_TO_REPLACE,
+                text="Order has no live replaceable GTC limit remainder",
+                outcome=ReplacementOutcome.ALREADY_TERMINAL,
+            )
+        if (command.symbol != order.symbol or command.side != order.side
+                or command.order_type != order.order_type or command.tif != order.tif):
+            return self._replace_reject(
+                command, order=order, reason=CancelRejectReason.UNSUPPORTED_CHANGE,
+                text="Replacement cannot change symbol, side, order type, or TimeInForce",
+                outcome=ReplacementOutcome.INVALID_REQUEST,
+            )
+        if (not isinstance(command.order_qty_lots, int)
+                or isinstance(command.order_qty_lots, bool) or command.order_qty_lots <= 0
+                or not isinstance(command.price_ticks, int)
+                or isinstance(command.price_ticks, bool) or command.price_ticks <= 0):
+            return self._replace_reject(
+                command, order=order, reason=CancelRejectReason.INVALID_REQUEST,
+                text="Replacement requires positive integer quantity lots and limit price ticks",
+                outcome=ReplacementOutcome.INVALID_REQUEST,
+            )
+
+        book.assert_invariants()
+        old_cl_ord_id = order.cl_ord_id
+        old_quantity = order.order_qty_lots
+        old_price = order.price_ticks
+        old_reference = self._displayed_reference(order)
+        old_leaves = order.leaves_qty_lots
+        new_quantity = max(command.order_qty_lots, order.filled_qty_lots)
+        retains_priority = command.price_ticks == old_price and new_quantity <= old_quantity
+        changed = new_quantity != old_quantity or command.price_ticks != old_price
+        displayed_events: List[DisplayedOrderEvent] = []
+        self._displayed_event_buffer = displayed_events
+        try:
+            commit_start_ns = self.monotonic_clock.now_ns()
+            try:
+                if retains_priority:
+                    book.resize_order(order, new_quantity)
+                    reduced = old_leaves - order.leaves_qty_lots
+                    if reduced:
+                        self._queue_displayed_event(DisplayedOrderReduced(
+                            run_generation=order.run_generation, order_id=order.id,
+                            order_ref_num=old_reference, symbol=order.symbol,
+                            canceled_qty_lots=reduced, timestamp=self.scheduler.current_time,
+                        ))
+                    if order.leaves_qty_lots == 0:
+                        order.displayed_order_ref = None
+                else:
+                    if not book.remove_order(order):
+                        raise RuntimeError(f"Resting order {order.id} could not be removed")
+                    self._queue_displayed_event(DisplayedOrderDeleted(
+                        run_generation=order.run_generation, order_id=order.id,
+                        order_ref_num=old_reference, symbol=order.symbol,
+                        timestamp=self.scheduler.current_time,
+                    ))
+                    order.displayed_order_ref = None
+                    order.order_qty_lots = new_quantity
+                order.price_ticks = command.price_ticks
+                order.cl_ord_id = command.replace_cl_ord_id
+                order.version += 1
+                if order.leaves_qty_lots == 0:
+                    order.transition_to(OrderStatus.FILLED)
+                self.client_order_index[request_key] = order.id
+            finally:
+                self._record_cpu_duration(
+                    BOOK_COMMIT_DURATION, order.id, order.session_id, commit_start_ns,
+                    context=f"replace commit for order {order.id}",
+                )
+            report = self._create_execution_report(
+                order, exec_type=ExecutionType.REPLACED,
+                orig_cl_ord_id=old_cl_ord_id,
+                replace_ingress_sequence=command.ingress_sequence,
+                text="Order replaced by request",
+            )
+            self._send_execution_report(report)
+            self._notify_observer(
+                "replace outcome", self.on_replace_outcome, command, ReplacementOutcome.ACCEPTED,
+            )
+            fills: List[Fill] = []
+            if not retains_priority and order.leaves_qty_lots:
+                fills = self._run_matching(order, book)
+                self._finalize_unfilled_remainder(order, book)
+            book.assert_invariants()
+            self._publish_displayed_events(displayed_events)
+            if changed:
+                self._send_market_data_update(order.symbol, fills)
+            return report
+        finally:
+            self._displayed_event_buffer = None
+
+    def reject_replace_unavailable(
+        self, command: ReplaceOrderCommand, reason: str,
+    ) -> OrderCancelReject:
+        """Settle queued replacement during lifecycle failure without matching."""
+        if not isinstance(command, ReplaceOrderCommand):
+            raise TypeError("reject_replace_unavailable requires ReplaceOrderCommand")
+        self._notify_observer("replace request", self.on_replace_request, command)
+        self._claimed_client_order_ids.add(ClientOrderKey(command.session_id, command.replace_cl_ord_id))
+        order_id = self.client_order_index.get(ClientOrderKey(command.session_id, command.orig_cl_ord_id))
+        return self._replace_reject(
+            command, order=self.orders.get(order_id) if order_id is not None else None,
+            reason=CancelRejectReason.EXCHANGE_UNAVAILABLE, text=reason,
+            outcome=ReplacementOutcome.EXCHANGE_UNAVAILABLE,
+        )
+
+    def _replace_reject(
+        self, command: ReplaceOrderCommand, *, reason: CancelRejectReason,
+        text: str, outcome: ReplacementOutcome, order: Optional[Order] = None,
+    ) -> OrderCancelReject:
+        start_ns = self.monotonic_clock.now_ns()
+        reject = create_order_cancel_reject(
+            command, reject_id=self.identifier_scope.next_cancel_reject_id(),
+            reason=reason, text=text, timestamp=self.scheduler.current_time, order=order,
+        )
+        self._record_cpu_duration(
+            REPORT_CREATION_DURATION, order.id if order else None, command.session_id,
+            start_ns, context=f"replace reject {reject.reject_id} creation",
+            report_exec_id=reject.reject_id,
+        )
+        self._notify_observer("replace reject", self.on_replace_reject, reject)
+        self._notify_observer("replace outcome", self.on_replace_outcome, command, outcome)
+        return reject
+
+    @staticmethod
+    def _displayed_reference(order: Order) -> int:
+        reference = order.displayed_order_ref
+        if reference is None or not 0 < reference < 2**64:
+            raise RuntimeError(f"Resting order {order.id} has no displayed reference")
+        return reference
 
     def _queue_displayed_event(self, event: DisplayedOrderEvent) -> None:
         if self._displayed_event_buffer is None:
@@ -931,9 +1174,9 @@ class MatchingEngine:
         text: str,
         order: Optional[Order] = None,
         outcome: CancellationOutcome,
-    ) -> CancelReject:
+    ) -> OrderCancelReject:
         start_ns = self.monotonic_clock.now_ns()
-        reject = create_cancel_reject(
+        reject = create_order_cancel_reject(
             command,
             reject_id=self.identifier_scope.next_cancel_reject_id(),
             reason=reason,

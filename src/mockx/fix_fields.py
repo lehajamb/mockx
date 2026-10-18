@@ -3,10 +3,11 @@
 from typing import Dict
 
 from .models import (
-    CancelReject,
+    OrderCancelReject,
     CancelRejectReason,
     ExecutionReport,
     ExecutionType,
+    FixCommandType,
     OrderType,
     OrderStatus,
     Side,
@@ -19,6 +20,7 @@ EXEC_TYPE_FIX_VALUES = {
     ExecutionType.TRADE: "F",
     ExecutionType.CANCELED: "4",
     ExecutionType.REJECTED: "8",
+    ExecutionType.REPLACED: "5",
 }
 
 ORD_STATUS_FIX_VALUES = {
@@ -57,6 +59,11 @@ CANCEL_REJECT_REASON_FIX_VALUES = {
     CancelRejectReason.SESSION_MISMATCH: 1,
     CancelRejectReason.INVALID_REQUEST: 99,
     CancelRejectReason.EXCHANGE_UNAVAILABLE: 99,
+    CancelRejectReason.STALE_ORDER_REFERENCE: 1,
+    CancelRejectReason.TOO_LATE_TO_REPLACE: 0,
+    CancelRejectReason.UNSUPPORTED_CHANGE: 2,
+    CancelRejectReason.PARTICIPANT_MISMATCH: 1,
+    CancelRejectReason.DUPLICATE_CL_ORD_ID: 6,
 }
 
 
@@ -112,10 +119,10 @@ def execution_report_fields(report: ExecutionReport) -> Dict[str, object]:
     return fields
 
 
-def cancel_reject_fields(reject: CancelReject) -> Dict[str, object]:
+def cancel_reject_fields(reject: OrderCancelReject) -> Dict[str, object]:
     """Return FIX-ready cancel-reject fields from one immutable snapshot."""
     fields: Dict[str, object] = {
-        "ClOrdID": reject.cancel_cl_ord_id,
+        "ClOrdID": reject.cl_ord_id,
         "OrigClOrdID": reject.orig_cl_ord_id,
         "OrdStatus": (
             ORD_STATUS_FIX_VALUES[reject.ord_status]
@@ -123,7 +130,9 @@ def cancel_reject_fields(reject: CancelReject) -> Dict[str, object]:
             else ORD_STATUS_FIX_VALUES[OrderStatus.REJECTED]
         ),
         "CxlRejReason": CANCEL_REJECT_REASON_FIX_VALUES[reject.reason],
-        "CxlRejResponseTo": "1",
+        "CxlRejResponseTo": (
+            "2" if reject.request_type == FixCommandType.REPLACE_ORDER else "1"
+        ),
         "Text": reject.text,
     }
     if reject.order_id is not None:
@@ -131,4 +140,6 @@ def cancel_reject_fields(reject: CancelReject) -> Dict[str, object]:
             reject.exchange_order_id
             or f"G{0:08d}-O{reject.order_id:08d}"
         )
+    elif reject.request_type == FixCommandType.REPLACE_ORDER:
+        fields["OrderID"] = "NONE"
     return fields

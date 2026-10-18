@@ -17,7 +17,7 @@ from src.mockx.instruments import InstrumentCatalog
 from src.mockx.itch_encoder import MAX_PRICE4, _price_to_itch
 from src.mockx.main import MockExchange
 from src.mockx.models import (
-    CancelReject,
+    OrderCancelReject,
     CancelRejectReason,
     ExecutionReport,
     FixDeliveryState,
@@ -115,9 +115,9 @@ async def test_fix_cancel_invalid_numeric_quantity_preserves_resting_order(raw):
 
         assert len(delivered) == 1
         reject = delivered[0]
-        assert isinstance(reject, CancelReject)
+        assert isinstance(reject, OrderCancelReject)
         assert reject.reason == CancelRejectReason.INVALID_REQUEST
-        assert reject.cancel_cl_ord_id == "INVALID-CANCEL"
+        assert reject.cl_ord_id == "INVALID-CANCEL"
         assert reject.orig_cl_ord_id == "KEEP-RESTING"
         assert order.status == OrderStatus.NEW
         assert order.leaves_qty_lots == 1000

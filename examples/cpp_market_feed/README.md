@@ -26,10 +26,21 @@ truncated UDP, malformed input, or a forward sequence gap invalidates
 continuity and causes a new GLIMPSE cut; the client never knowingly continues
 with a stale book.
 
-MockX currently changes the live book with `A`, `E`, `C`, and `D`. The client
+MockX currently changes the live book with `A`, `E`, `C`, `D`, and `X`. The client
 also consumes `R`, `H`, `S`, and the GLIMPSE-only `G`. Any other ITCH type is a
 hard error because skipping a future book-changing message would make the
 display incorrect.
+
+Native FIX replacement preserves the order's FIX `OrderID` while treating
+displayed references independently. Same-price quantity reductions publish
+ITCH `X` with the number of removed shares and preserve FIFO/reference.
+The client subtracts those shares and removes a zero-leaves order, rejecting
+unknown references, zero reductions, and reductions larger than current leaves.
+Price changes and quantity increases publish old-reference `D`, passive `E/C`
+for any new executions, then fresh-reference `A` if a remainder rests. Deleted
+references are never reused within a Mold session. GLIMPSE contains the current
+displayed references, so live replay and recovery preserve the same FIFO book.
+No-op and rejected replacements produce no book update.
 
 ## Build and test
 

@@ -145,7 +145,7 @@ def test_unknown_cancel_returns_immutable_routable_rejection():
     rejection = engine.cancel_order(command)
 
     assert rejection.reason == CancelRejectReason.UNKNOWN_ORDER
-    assert rejection.cancel_cl_ord_id == "CXL-UNKNOWN"
+    assert rejection.cl_ord_id == "CXL-UNKNOWN"
     assert rejection.orig_cl_ord_id == "UNKNOWN"
     assert rejection.session_id == "FIX.4.4:CLIENT->MOCKX"
     assert reports == []

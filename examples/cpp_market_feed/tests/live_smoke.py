@@ -14,7 +14,7 @@ sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from src.mockx.configuration import validate_config  # noqa: E402
 from src.mockx.main import MockExchange  # noqa: E402
-from src.mockx.models import Side  # noqa: E402
+from src.mockx.models import OrderType, ReplaceOrderCommand, Side, TimeInForce  # noqa: E402
 from tests.test_itch_integration import itch_config, submit  # noqa: E402
 
 
@@ -50,7 +50,7 @@ async def run(client: Path) -> None:
     await exchange.start_components()
     try:
         await exchange.lifecycle.start_session("cpp-live-smoke")
-        submit(exchange, "B1", Side.BUY, 3, 99, "BIDDER")
+        bid_id = submit(exchange, "B1", Side.BUY, 3, 99, "BIDDER")
 
         environment = os.environ.copy()
         environment["MOCKX_GLIMPSE_PASSWORD"] = "SECRET"
@@ -74,6 +74,28 @@ async def run(client: Path) -> None:
         )
         await wait_for_glimpse(exchange)
         submit(exchange, "S1", Side.SELL, 2, 101, "ASKER")
+        order = exchange.engine.orders[bid_id]
+        initial_reference = order.displayed_order_ref
+        for sequence, price in enumerate((99, 96), start=1):
+            exchange.engine.replace_order(
+                ReplaceOrderCommand(
+                    replace_cl_ord_id=f"B1-R{sequence}",
+                    orig_cl_ord_id=order.cl_ord_id,
+                    symbol=order.symbol,
+                    side=order.side,
+                    order_type=OrderType.LIMIT,
+                    order_qty_lots=2,
+                    price_ticks=price,
+                    tif=TimeInForce.GTC,
+                    requested_at=exchange.scheduler.current_time,
+                    session_id=order.session_id,
+                    participant_id=order.participant_id,
+                    run_generation=exchange.lifecycle.run_generation,
+                    ingress_sequence=sequence,
+                )
+            )
+        assert order.leaves_qty_lots == 2
+        assert order.displayed_order_ref != initial_reference
         await asyncio.sleep(0.1)
         await exchange.lifecycle.end_session()
 
@@ -96,6 +118,8 @@ async def run(client: Path) -> None:
         assert "TEST" in rendered
         assert "END_OF_SESSION" in rendered
         assert "next_seq=" in rendered
+        assert "96.0000" in rendered
+        assert exchange.glimpse_service.diagnostics()["completed_sessions"] == 1
     finally:
         if process is not None and process.returncode is None:
             process.terminate()

@@ -88,6 +88,10 @@ public:
         std::uint16_t locate,
         std::uint32_t executed_shares);
     void delete_order(std::uint64_t order_reference, std::uint16_t locate);
+    void cancel_order(
+        std::uint64_t order_reference,
+        std::uint16_t locate,
+        std::uint32_t canceled_shares);
 
     [[nodiscard]] std::size_t order_count() const noexcept { return orders_.size(); }
     [[nodiscard]] std::size_t instrument_count() const noexcept {
@@ -107,6 +111,10 @@ public:
         char& trading_state) const;
 
 private:
+    void reduce_order(
+        std::uint64_t order_reference,
+        std::uint16_t locate,
+        std::uint32_t reduced_shares);
     struct Level {
         std::uint64_t shares{};
         std::list<std::uint64_t> fifo;

@@ -145,7 +145,7 @@
           <span class="comp-arrow">→</span>
           <div class="comp-desc">
             Authoritative order books, price-time FIFO matching, self-trade prevention,
-            fill creation, remainder finalization, cancel resolution. All arithmetic in integer ticks/lots.
+            fill creation, remainder finalization, cancel and replace resolution. All arithmetic in integer ticks/lots.
             <span class="src">engine.py — MatchingEngine</span>
           </div>
         </div>
@@ -153,7 +153,7 @@
           <div class="comp-name" style="border-color:rgba(111,168,255,.35); background:linear-gradient(180deg, var(--queue-dim), transparent);"><b style="color:var(--queue)">FIXApplication</b></div>
           <span class="comp-arrow">→</span>
           <div class="comp-desc">
-            QuickFIX application. Parses FIX 4.4 New Order Single (35=D) and Cancel Request (35=F).
+            QuickFIX application. Parses FIX 4.4 New Order Single (35=D), Cancel Request (35=F), and Cancel/Replace Request (35=G).
             Normalizes into immutable domain commands, feeds the central ingress pipeline.
             <span class="src">gateway.py — FIXApplication</span>
           </div>
@@ -355,7 +355,7 @@
       <span class="tag tag-queue">1.4</span>
       <h2 class="h2">FIX ingress: from wire to scheduler</h2>
       <p class="lede">
-        QuickFIX callbacks for <b>New Order Single (35=D)</b> and <b>Order Cancel Request (35=F)</b>
+        QuickFIX callbacks for <b>New Order Single (35=D)</b>, <b>Order Cancel Request (35=F)</b>, and <b>Order Cancel/Replace Request (35=G)</b>
         parse immutable normalized command data only — they never touch the engine. A central
         run-scoped ingress sequencer timestamps and acknowledges each command, then drains
         envelopes in a deterministic four-key order.
@@ -370,7 +370,7 @@
             <b>QuickFIX callback</b> fires → <code class="ref">ParsedFixCommand</code> is built.
             MsgType and MsgSeqNum are read from the header; order fields include ClOrdID,
             Symbol, Side, OrderQty, OrdType, Price, TimeInForce, and OrigClOrdID as applicable.
-            <span class="src">gateway.py FIXApplication.onMessage()</span>
+            <span class="src">gateway.py FIXApplication.fromApp()</span>
           </div>
         </div>
         <div class="ingress-step">
@@ -397,7 +397,8 @@
           <div class="ingress-desc">
             <b>Sorted drain</b> → Envelopes are consumed in ascending ordering_key order.
             New orders become <code class="ref">new_order_received</code> scheduler events;
-            cancels become <code class="ref">cancel_received</code> events.
+            cancels become <code class="ref">cancel_received</code> events;
+            replacements become <code class="ref">replace_received</code> events.
             <span class="src">gateway.py — FIXApplication.drain_ingress_locked()</span>
           </div>
         </div>
@@ -475,8 +476,11 @@
       </table>
       <p style="margin-top:0.8rem; color:var(--text-dim); font-size:0.82rem;">
         Numeric engine handles remain internal to REST, FIX, and WebSocket contracts. Within one
-        generation-qualified Mold session, ITCH deliberately uses the run-local numeric order ID
-        as Order Reference Number and trade ID as Match Number. The cancel-reject domain ID is an
+        generation-qualified Mold session, ITCH allocates a separate run-local displayed
+        Order Reference Number on each placement and uses trade ID as Match Number.
+        FIX/internal OrderID stays stable through replacement; a removed displayed reference is
+        never reused. GLIMPSE captures the current references and ITCH sequence atomically.
+        The cancel-reject domain ID is an
         application identity for deduplication and observability — FIX OrderCancelReject (35=9)
         has no ExecID, so the domain ID is not serialized on the wire.
       </p>
@@ -504,12 +508,12 @@
       <div class="rule-card">
         <span class="tag tag-queue">FIX 4.4</span>
         <h4>Native order entry</h4>
-        <p>The only public order-entry interface: New Order Single (35=D) and Order Cancel Request (35=F). Execution Reports (35=8) and Order Cancel Rejects (35=9) are delivered asynchronously through the reliable application delivery queue. Market Data Request (35=V) is rejected. Book data is available through REST/WebSocket and the optional ITCH/GLIMPSE feeds.</p>
+        <p>The only public order-entry interface: New Order Single (35=D), Order Cancel Request (35=F), and Order Cancel/Replace Request (35=G). Execution Reports (35=8) and Order Cancel Rejects (35=9) are delivered asynchronously through the reliable application delivery queue. Replace accepts live GTC limit price/total-quantity amendments, acknowledges with ExecType=5, and rejects with CxlRejResponseTo=2. No interim Pending Replace report is emitted. Market Data Request (35=V) is rejected. Book data is available through REST/WebSocket and the optional ITCH/GLIMPSE feeds.</p>
       </div>
       <div class="rule-card">
         <span class="tag tag-amber">REST</span>
         <h4>Administration & inspection</h4>
-        <p><code class="ref">GET /book/{symbol}</code> for immutable snapshots. <code class="ref">POST /api/v1/session/start</code> and <code class="ref">/end</code> for simulation control. <code class="ref">POST /admin/advance-time</code> for clock advancement. <code class="ref">GET /stats</code> and <code class="ref">/metrics</code> for observability. REST exposes no order-entry route; orders and cancellations use FIX.</p>
+        <p><code class="ref">GET /book/{symbol}</code> for immutable snapshots. <code class="ref">POST /api/v1/session/start</code> and <code class="ref">/end</code> for simulation control. <code class="ref">POST /admin/advance-time</code> for clock advancement. <code class="ref">GET /stats</code> and <code class="ref">/metrics</code> for observability. REST exposes no order-entry route; orders, cancellations, and replacements use FIX.</p>
       </div>
       <div class="rule-card">
         <span class="tag tag-bid">WebSocket</span>
@@ -519,7 +523,7 @@
       <div class="rule-card">
         <span class="tag tag-bid">ITCH 5.0</span>
         <h4>Displayed-order multicast</h4>
-        <p>Optional downstream-only MoldUDP64 feed. Publishes <code class="ref">A</code>, one passive-side <code class="ref">E/C</code> per fill, and <code class="ref">D</code>, plus session/directory/trading-state messages. One internal lot is one ITCH share. No retransmission service is provided.</p>
+        <p>Optional downstream-only MoldUDP64 feed. Publishes <code class="ref">A</code>, one passive-side <code class="ref">E/C</code> per fill, <code class="ref">D</code>, and priority-preserving replacement reductions as <code class="ref">X</code>, plus session/directory/trading-state messages. Reprioritization emits old-reference D, passive E/C for any fills, and fresh-reference A for a resting remainder. One internal lot is one ITCH share. No retransmission service is provided.</p>
       </div>
       <div class="rule-card">
         <span class="tag tag-bid">GLIMPSE 5.0</span>

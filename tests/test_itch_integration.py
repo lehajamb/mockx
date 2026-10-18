@@ -114,13 +114,18 @@ def replay_displayed_book(messages):
                 del orders[order_id]
         elif message_type == b"D":
             del orders[struct.unpack(">Q", message[11:19])[0]]
+        elif message_type == b"X":
+            reference, canceled = struct.unpack(">QI", message[11:23])
+            orders[reference]["qty"] -= canceled
+            if orders[reference]["qty"] == 0:
+                del orders[reference]
     return orders, matches
 
 
 def authoritative_wire_book(exchange):
     scaled_tick = int(exchange.instruments.require("TEST").tick_size * 10_000)
     return {
-        order.id: {
+        order.displayed_order_ref: {
             "side": b"B" if order.side == Side.BUY else b"S",
             "qty": order.leaves_qty_lots,
             "price": order.price_ticks * scaled_tick,
@@ -239,10 +244,10 @@ async def test_execution_price_message_is_c_not_e_or_trade():
     await exchange.lifecycle.start_session("price-message")
     now = exchange.scheduler.current_time
     exchange.itch_feed.publish(
-        DisplayedOrderAdded(1, 77, "TEST", Side.SELL, 100, 2, now)
+        DisplayedOrderAdded(1, 77, "TEST", Side.SELL, 100, 2, now, order_ref_num=77,)
     )
     exchange.itch_feed.publish(
-        DisplayedOrderExecuted(1, 77, "TEST", 100, 99, 1, 88, now)
+        DisplayedOrderExecuted(1, 77, "TEST", 100, 99, 1, 88, now, order_ref_num=77,)
     )
     _, messages = decode_packets(packets)
     order_messages = [

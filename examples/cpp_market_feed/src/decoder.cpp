@@ -83,6 +83,17 @@ std::uint64_t MessageDecoder::apply(
             static_cast<std::uint32_t>(load_be(wire->executed_shares)));
         return 0;
     }
+    case 'X': {
+        if (context != DecodeContext::live_itch) {
+            throw ProtocolError("partial cancel is not valid in a GLIMPSE spin");
+        }
+        auto* wire = overlay<OrderCancelWire>(message.data());
+        book.cancel_order(
+            load_be(wire->order_reference),
+            static_cast<std::uint16_t>(load_be(wire->stock_locate)),
+            static_cast<std::uint32_t>(load_be(wire->canceled_shares)));
+        return 0;
+    }
     case 'D': {
         if (context != DecodeContext::live_itch) {
             throw ProtocolError("delete is not valid in a GLIMPSE spin");

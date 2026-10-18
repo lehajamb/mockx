@@ -29,6 +29,15 @@ One `ThreadedSocketInitiator` owns the two sessions described by the standard
 QuickFIX has its own allocation model. The zero-copy claim applies to the
 market-data ingress and explicit in-process SPSC handoffs.
 
+The shared feed handler also applies ITCH `X` for priority-preserving
+same-price quantity reductions caused by native FIX replacement. It retains
+the displayed reference/FIFO position and rejects invalid reductions. Price
+changes and increases arrive as old-reference `D`, any passive `E/C`, and a
+fresh-reference `A` for a resting remainder. GLIMPSE snapshots retain the
+current references for coherent recovery. The exchange's FIX `OrderID` stays
+stable through these amendments. This SOR still sends only IOC new-order
+children; it does not initiate replace requests.
+
 ## QuickFIX C++ prerequisite
 
 QuickFIX C++ is an intentional installed dependency. CMake searches an active

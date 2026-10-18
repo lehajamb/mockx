@@ -44,6 +44,7 @@ class ExecutionType(str, Enum):
     TRADE = "TRADE"
     CANCELED = "CANCELED"
     REJECTED = "REJECTED"
+    REPLACED = "REPLACED"
 
 
 class CancelRejectReason(str, Enum):
@@ -55,6 +56,11 @@ class CancelRejectReason(str, Enum):
     SESSION_MISMATCH = "SESSION_MISMATCH"
     INVALID_REQUEST = "INVALID_REQUEST"
     EXCHANGE_UNAVAILABLE = "EXCHANGE_UNAVAILABLE"
+    STALE_ORDER_REFERENCE = "STALE_ORDER_REFERENCE"
+    TOO_LATE_TO_REPLACE = "TOO_LATE_TO_REPLACE"
+    UNSUPPORTED_CHANGE = "UNSUPPORTED_CHANGE"
+    PARTICIPANT_MISMATCH = "PARTICIPANT_MISMATCH"
+    DUPLICATE_CL_ORD_ID = "DUPLICATE_CL_ORD_ID"
 
 
 class FixCommandType(str, Enum):
@@ -62,6 +68,7 @@ class FixCommandType(str, Enum):
 
     NEW_ORDER = "NEW_ORDER"
     CANCEL_ORDER = "CANCEL_ORDER"
+    REPLACE_ORDER = "REPLACE_ORDER"
 
 
 class FixDeliveryState(str, Enum):
@@ -90,6 +97,20 @@ class CancellationOutcome(str, Enum):
     WRONG_OWNER = "wrong_owner"
     DUPLICATE_REQUEST = "duplicate_request"
     STALE_RUN_GENERATION = "stale_run_generation"
+    EXCHANGE_UNAVAILABLE = "exchange_unavailable"
+
+
+class ReplacementOutcome(str, Enum):
+    """Bounded replacement outcomes used by process metrics."""
+
+    ACCEPTED = "accepted"
+    UNKNOWN_ORDER = "unknown_order"
+    ALREADY_TERMINAL = "already_terminal"
+    WRONG_OWNER = "wrong_owner"
+    DUPLICATE_REQUEST = "duplicate_request"
+    STALE_RUN_GENERATION = "stale_run_generation"
+    STALE_ORDER_REFERENCE = "stale_order_reference"
+    INVALID_REQUEST = "invalid_request"
     EXCHANGE_UNAVAILABLE = "exchange_unavailable"
 
 
@@ -176,6 +197,9 @@ ORDER_STATUSES_BY_EXECUTION_TYPE: Mapping[ExecutionType, FrozenSet[OrderStatus]]
             ),
             ExecutionType.CANCELED: frozenset({OrderStatus.CANCELLED}),
             ExecutionType.REJECTED: frozenset({OrderStatus.REJECTED}),
+            ExecutionType.REPLACED: frozenset(
+                {OrderStatus.NEW, OrderStatus.PARTIAL, OrderStatus.FILLED}
+            ),
         }
     )
 )
@@ -315,12 +339,14 @@ class ParsedFixCommand:
             or self.order_qty_lots <= 0
         ):
             raise ValueError("Order quantity lots must be positive")
-        if self.command_type == FixCommandType.NEW_ORDER:
+        if self.command_type in {FixCommandType.NEW_ORDER, FixCommandType.REPLACE_ORDER}:
             if self.tif is None:
                 raise ValueError("New orders require TimeInForce")
             if self.order_type is None:
                 raise ValueError("New orders require OrderType")
-            if self.orig_cl_ord_id is not None:
+            if self.command_type == FixCommandType.REPLACE_ORDER and not self.orig_cl_ord_id:
+                raise ValueError("Replace requests require OrigClOrdID")
+            if self.command_type == FixCommandType.NEW_ORDER and self.orig_cl_ord_id is not None:
                 raise ValueError("New orders cannot contain OrigClOrdID")
         elif self.command_type == FixCommandType.CANCEL_ORDER:
             if not self.orig_cl_ord_id:
@@ -417,11 +443,43 @@ class CancelOrderCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class CancelReject:
-    """Immutable cancel-rejection snapshot without live order/FIX objects."""
+class ReplaceOrderCommand:
+    """Immutable replacement intent resolved against execution-time state."""
+
+    replace_cl_ord_id: str
+    orig_cl_ord_id: str
+    symbol: str
+    side: Side
+    order_type: OrderType
+    order_qty_lots: int
+    price_ticks: Optional[int]
+    tif: TimeInForce
+    requested_at: datetime
+    session_id: str
+    session_alias: Optional[str] = None
+    participant_id: Optional[str] = None
+    run_generation: int = 0
+    ingress_sequence: int = 0
+    msg_seq_num: int = 0
+    duplicate_request: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.replace_cl_ord_id:
+            raise ValueError("Replace ClOrdID is required")
+        if not self.orig_cl_ord_id:
+            raise ValueError("OrigClOrdID is required")
+        if not self.symbol:
+            raise ValueError("Replace Symbol is required")
+        if not self.session_id:
+            raise ValueError("Replace session_id is required")
+
+
+@dataclass(frozen=True, slots=True)
+class OrderCancelReject:
+    """Immutable F/G rejection snapshot without live order/FIX objects."""
 
     reject_id: str
-    cancel_cl_ord_id: str
+    cl_ord_id: str
     orig_cl_ord_id: str
     order_id: Optional[int]
     ord_status: Optional[OrderStatus]
@@ -430,6 +488,7 @@ class CancelReject:
     session_id: Optional[str]
     session_alias: Optional[str]
     timestamp: datetime
+    request_type: FixCommandType
     exchange_order_id: Optional[str] = None
     run_generation: int = 0
     ingress_sequence: int = 0
@@ -437,6 +496,8 @@ class CancelReject:
     def __post_init__(self) -> None:
         if not self.reject_id:
             raise ValueError("Cancel reject ID is required")
+        if self.request_type not in {FixCommandType.CANCEL_ORDER, FixCommandType.REPLACE_ORDER}:
+            raise ValueError("Order cancel reject requires F/G request type")
 
 
 @dataclass(slots=True)
@@ -465,6 +526,7 @@ class Order:
     run_generation: int = 0
     version: int = 0
     processed: bool = False
+    displayed_order_ref: Optional[int] = None
     _liquidity_category: LiquidityCategory = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -733,12 +795,14 @@ class DisplayedOrderAdded:
     price_ticks: int
     qty_lots: int
     timestamp: datetime
+    order_ref_num: int
 
     def __post_init__(self) -> None:
         if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
             raise ValueError("Displayed add requires generation, order, and symbol")
         if self.price_ticks <= 0 or self.qty_lots <= 0:
             raise ValueError("Displayed add price and quantity must be positive")
+        _validate_displayed_reference(self.order_ref_num)
 
 
 @dataclass(frozen=True, slots=True)
@@ -753,8 +817,10 @@ class DisplayedOrderExecuted:
     executed_qty_lots: int
     match_number: int
     timestamp: datetime
+    order_ref_num: int
 
     def __post_init__(self) -> None:
+        _validate_displayed_reference(self.order_ref_num)
         if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
             raise ValueError(
                 "Displayed execution requires generation, order, and symbol"
@@ -778,16 +844,44 @@ class DisplayedOrderDeleted:
     order_id: int
     symbol: str
     timestamp: datetime
+    order_ref_num: int
 
     def __post_init__(self) -> None:
+        _validate_displayed_reference(self.order_ref_num)
         if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
             raise ValueError("Displayed delete requires generation, order, and symbol")
+
+
+def _validate_displayed_reference(order_ref_num: int) -> None:
+    if (not isinstance(order_ref_num, int) or isinstance(order_ref_num, bool)
+            or not 0 < order_ref_num < 2**64):
+        raise ValueError("Displayed order reference must be a positive uint64")
+
+
+@dataclass(frozen=True, slots=True)
+class DisplayedOrderReduced:
+    """A priority-preserving quantity reduction of displayed liquidity."""
+
+    run_generation: int
+    order_id: int
+    order_ref_num: int
+    symbol: str
+    canceled_qty_lots: int
+    timestamp: datetime
+
+    def __post_init__(self) -> None:
+        _validate_displayed_reference(self.order_ref_num)
+        if self.run_generation < 0 or self.order_id <= 0 or not self.symbol:
+            raise ValueError("Displayed reduction requires generation, order, and symbol")
+        if self.canceled_qty_lots <= 0:
+            raise ValueError("Displayed reduction requires positive quantity")
 
 
 DisplayedOrderEvent = Union[
     DisplayedOrderAdded,
     DisplayedOrderExecuted,
     DisplayedOrderDeleted,
+    DisplayedOrderReduced,
 ]
 
 
@@ -1267,6 +1361,40 @@ class OrderBook:
             del levels[level_index]
         return True
 
+    def resize_order(self, order: Order, order_qty_lots: int) -> bool:
+        """Atomically amend total quantity, retaining a surviving FIFO position.
+
+        Validate the complete membership/index/aggregate state before writing
+        either the mutable order or a cached level. Zero leaves remove all
+        queue/index entries; the engine owns the subsequent status transition.
+        """
+        if (not isinstance(order_qty_lots, int) or isinstance(order_qty_lots, bool)
+                or order_qty_lots <= 0
+                or order_qty_lots < order.filled_qty_lots + order.canceled_qty_lots):
+            raise InvalidBookMutation("Replacement total cannot be below accounted quantity")
+        location = self._order_index.get(order.id)
+        if location is None or location[1]._order_index(order) is None:
+            raise InvalidBookMutation(f"Order {order.id} is not resting in book {self.symbol}")
+        self.assert_invariants()
+        side, level = location
+        level._validate_resting_order(order)
+        levels = self.bids if side == Side.BUY else self.asks
+        level_index = self._level_identity_index(levels, level)
+        if level_index is None:
+            raise OrderBookInvariantError(f"Indexed level missing for order {order.id}")
+        queue_index = level._order_index(order)
+        new_leaves = order_qty_lots - order.filled_qty_lots - order.canceled_qty_lots
+        aggregates = level._updated_aggregates(order, new_leaves - order.leaves_qty_lots)
+        order.order_qty_lots = order_qty_lots
+        (level.level_qty_lots, level.strategy_qty_lots, level.market_qty_lots) = aggregates
+        removed = new_leaves == 0
+        if removed:
+            del level.orders[queue_index]
+            del self._order_index[order.id]
+            if not level.orders:
+                del levels[level_index]
+        return removed
+
     def update_order_qty(self, order: Order) -> None:
         """Reject the legacy repair path; callers must use ``apply_fill``."""
         raise InvalidBookMutation(
@@ -1490,6 +1618,7 @@ class ExecutionReport:
     session_alias: Optional[str] = None
     participant_id: Optional[str] = None
     cancel_ingress_sequence: Optional[int] = None
+    replace_ingress_sequence: Optional[int] = None
 
     def __post_init__(self) -> None:
         """Reject inconsistent status, execution type, and quantity snapshots."""
@@ -1514,6 +1643,8 @@ class ExecutionReport:
         if resolved_exec_type not in ORDER_STATUSES_BY_EXECUTION_TYPE:
             raise ValueError(f"Unsupported execution type: {self.exec_type}")
         object.__setattr__(self, "exec_type", resolved_exec_type)
+        if self.replace_ingress_sequence is not None and resolved_exec_type != ExecutionType.REPLACED:
+            raise ValueError("Only REPLACED acknowledgments may carry replace correlation")
 
         allowed_statuses = ORDER_STATUSES_BY_EXECUTION_TYPE[resolved_exec_type]
         if self.ord_status not in allowed_statuses:
@@ -1617,6 +1748,7 @@ def create_execution_report(
     orig_cl_ord_id: Optional[str] = None,
     text: Optional[str] = None,
     cancel_ingress_sequence: Optional[int] = None,
+    replace_ingress_sequence: Optional[int] = None,
 ) -> ExecutionReport:
     """Capture and validate every execution-report value from ``order`` now."""
     try:
@@ -1651,6 +1783,7 @@ def create_execution_report(
         session_alias=order.session_alias,
         participant_id=order.participant_id,
         cancel_ingress_sequence=cancel_ingress_sequence,
+        replace_ingress_sequence=replace_ingress_sequence,
         submitted_at=order.ts_submitted,
         timestamp=timestamp,
         order_version=order.version,
@@ -1666,19 +1799,22 @@ def create_execution_report(
     )
 
 
-def create_cancel_reject(
-    command: CancelOrderCommand,
+def create_order_cancel_reject(
+    command: Union[CancelOrderCommand, ReplaceOrderCommand],
     *,
     reject_id: str,
     reason: CancelRejectReason,
     text: str,
     timestamp: datetime,
     order: Optional[Order] = None,
-) -> CancelReject:
+) -> OrderCancelReject:
     """Capture a cancel rejection from immutable command/current scalar state."""
-    return CancelReject(
+    return OrderCancelReject(
         reject_id=reject_id,
-        cancel_cl_ord_id=command.cancel_cl_ord_id or "",
+        cl_ord_id=(command.replace_cl_ord_id if isinstance(command, ReplaceOrderCommand)
+                   else command.cancel_cl_ord_id) or "",
+        request_type=(FixCommandType.REPLACE_ORDER if isinstance(command, ReplaceOrderCommand)
+                      else FixCommandType.CANCEL_ORDER),
         orig_cl_ord_id=command.orig_cl_ord_id or "",
         order_id=order.id if order else None,
         ord_status=order.status if order else None,
@@ -1727,7 +1863,7 @@ class OutboundFixDelivery:
     run_generation: int
     destination: SessionIdentity
     message_type: FixDeliveryMessageType
-    payload: Union[ExecutionReport, CancelReject]
+    payload: Union[ExecutionReport, OrderCancelReject]
     domain_id: str
     simulated_due_timestamp: datetime
     enqueued_at: datetime
@@ -1766,8 +1902,8 @@ class OutboundFixDelivery:
                 raise TypeError("Execution-report delivery requires ExecutionReport")
             if self.domain_id != self.payload.exec_id:
                 raise ValueError("Execution-report domain ID must equal ExecID")
-        elif not isinstance(self.payload, CancelReject):
-            raise TypeError("Cancel-reject delivery requires CancelReject")
+        elif not isinstance(self.payload, OrderCancelReject):
+            raise TypeError("Cancel-reject delivery requires OrderCancelReject")
         elif self.domain_id != self.payload.reject_id:
             raise ValueError("Cancel-reject domain ID must equal reject_id")
 
@@ -1874,6 +2010,23 @@ class CancelLatencyTrace:
     sim_report_delivered_at: Optional[datetime] = None
 
 
+@dataclass(slots=True)
+class ReplaceLatencyTrace:
+    """Latency tracker-owned mutable state for one replace request."""
+
+    run_generation: int
+    ingress_sequence: int
+    session_id: str
+    replace_cl_ord_id: str
+    orig_cl_ord_id: str
+    sim_received_at: datetime
+    order_id: Optional[int] = None
+    sim_arrived_at: Optional[datetime] = None
+    sim_report_created_at: Optional[datetime] = None
+    sim_report_delivered_at: Optional[datetime] = None
+    sim_clock_offset: timedelta = timedelta(0)
+
+
 @dataclass(frozen=True, slots=True)
 class LatencyMeasurement:
     """Immutable latency sample emitted at a well-defined clock boundary."""
@@ -1937,6 +2090,21 @@ class MetricsSnapshot:
     invalid_latency_measurements: int
     metric_sink_failures: int
     buffered_metric_records: int
+    replace_requests: int = 0
+    replace_rejects: int = 0
+    replace_accepted: int = 0
+    replace_unknown_order: int = 0
+    replace_already_terminal: int = 0
+    replace_wrong_owner: int = 0
+    replace_duplicate_request: int = 0
+    replace_stale_run_generation: int = 0
+    replace_stale_order_reference: int = 0
+    replace_invalid_request: int = 0
+    replace_exchange_unavailable: int = 0
+    average_sim_replace_inbound_latency_ms: Optional[float] = None
+    average_sim_replace_engine_latency_ms: Optional[float] = None
+    average_sim_replace_outbound_latency_ms: Optional[float] = None
+    average_sim_replace_end_to_end_latency_ms: Optional[float] = None
 
     def to_dict(self, *, run_id: Optional[str] = None) -> Dict[str, object]:
         """Return the stable, JSON-safe public ``/stats`` representation."""
@@ -1952,6 +2120,8 @@ class MetricsSnapshot:
                 "partial_fill_events": self.partial_fill_events,
                 "cancel_requests": self.cancel_requests,
                 "cancel_rejects": self.cancel_rejects,
+                "replace_requests": self.replace_requests,
+                "replace_rejects": self.replace_rejects,
                 "active": self.active_orders,
                 "resting": self.resting_orders,
             },
@@ -1969,6 +2139,17 @@ class MetricsSnapshot:
                 "duplicate_request": self.cancel_duplicate_request,
                 "stale_run_generation": self.cancel_stale_run_generation,
                 "exchange_unavailable": self.cancel_exchange_unavailable,
+            },
+            "replacements": {
+                "accepted": self.replace_accepted,
+                "unknown_order": self.replace_unknown_order,
+                "already_terminal": self.replace_already_terminal,
+                "wrong_owner": self.replace_wrong_owner,
+                "duplicate_request": self.replace_duplicate_request,
+                "stale_run_generation": self.replace_stale_run_generation,
+                "stale_order_reference": self.replace_stale_order_reference,
+                "invalid_request": self.replace_invalid_request,
+                "exchange_unavailable": self.replace_exchange_unavailable,
             },
             "reports": {
                 "created": self.execution_reports,
@@ -2015,6 +2196,10 @@ class MetricsSnapshot:
                     self.average_sim_cancel_end_to_end_latency_ms
                 ),
                 "invalid_measurements": self.invalid_latency_measurements,
+                "average_sim_replace_inbound_latency_ms": self.average_sim_replace_inbound_latency_ms,
+                "average_sim_replace_engine_latency_ms": self.average_sim_replace_engine_latency_ms,
+                "average_sim_replace_outbound_latency_ms": self.average_sim_replace_outbound_latency_ms,
+                "average_sim_replace_end_to_end_latency_ms": self.average_sim_replace_end_to_end_latency_ms,
             },
             "persistence": {
                 "failures": self.metric_sink_failures,

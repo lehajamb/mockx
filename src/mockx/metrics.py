@@ -49,7 +49,7 @@ from .models import (
     CancellationOutcome,
     CancelLatencyTrace,
     CancelOrderCommand,
-    CancelReject,
+    OrderCancelReject,
     ExecutionReport,
     ExecutionType,
     FixDeliveryQueueSnapshot,
@@ -61,6 +61,9 @@ from .models import (
     NewOrderCommand,
     OrderLatencyTrace,
     OrderStatus,
+    ReplacementOutcome,
+    ReplaceLatencyTrace,
+    ReplaceOrderCommand,
     SchedulerFailure,
     SchedulerFailureStatus,
     SchedulerState,
@@ -81,6 +84,10 @@ SIM_CANCEL_INBOUND_LATENCY = "mockx_sim_cancel_inbound_latency_ms"
 SIM_CANCEL_ENGINE_LATENCY = "mockx_sim_cancel_engine_latency_ms"
 SIM_CANCEL_OUTBOUND_LATENCY = "mockx_sim_cancel_outbound_latency_ms"
 SIM_CANCEL_END_TO_END_LATENCY = "mockx_sim_cancel_end_to_end_latency_ms"
+SIM_REPLACE_INBOUND_LATENCY = "mockx_sim_replace_inbound_latency_ms"
+SIM_REPLACE_ENGINE_LATENCY = "mockx_sim_replace_engine_latency_ms"
+SIM_REPLACE_OUTBOUND_LATENCY = "mockx_sim_replace_outbound_latency_ms"
+SIM_REPLACE_END_TO_END_LATENCY = "mockx_sim_replace_end_to_end_latency_ms"
 MATCH_LOOP_DURATION = "mockx_match_loop_duration_us"
 BOOK_COMMIT_DURATION = "mockx_book_commit_duration_us"
 ENGINE_COMMAND_DURATION = "mockx_engine_command_duration_us"
@@ -97,6 +104,10 @@ LATENCY_METRICS = frozenset(
         SIM_CANCEL_ENGINE_LATENCY,
         SIM_CANCEL_OUTBOUND_LATENCY,
         SIM_CANCEL_END_TO_END_LATENCY,
+        SIM_REPLACE_INBOUND_LATENCY,
+        SIM_REPLACE_ENGINE_LATENCY,
+        SIM_REPLACE_OUTBOUND_LATENCY,
+        SIM_REPLACE_END_TO_END_LATENCY,
         MATCH_LOOP_DURATION,
         BOOK_COMMIT_DURATION,
         ENGINE_COMMAND_DURATION,
@@ -1118,6 +1129,9 @@ class MetricsCollector:
             "cancel_duplicate_request": 0,
             "cancel_stale_run_generation": 0,
             "cancel_exchange_unavailable": 0,
+            "replace_requests": 0,
+            "replace_rejects": 0,
+            **{f"replace_{outcome.value}": 0 for outcome in ReplacementOutcome},
             "execution_reports": 0,
             "report_delivery_failures": 0,
             "connected_sessions": 0,
@@ -1149,6 +1163,7 @@ class MetricsCollector:
         self._filled_order_ids: set[int] = set()
         self._seen_report_exec_ids: set[str] = set()
         self._seen_cancel_reject_ids: set[str] = set()
+        self._seen_replace_reject_ids: set[str] = set()
         self._seen_trade_ids: set[str] = set()
         self._websocket_active_clients = 0
         self._websocket_queue_depth = 0
@@ -1265,6 +1280,7 @@ class MetricsCollector:
             self._filled_order_ids.clear()
             self._seen_report_exec_ids.clear()
             self._seen_cancel_reject_ids.clear()
+            self._seen_replace_reject_ids.clear()
             self._seen_trade_ids.clear()
 
     def attach_persistence(self, persistence: BufferedMetricsWriter) -> None:
@@ -1290,6 +1306,14 @@ class MetricsCollector:
             "cancel_duplicate_request": "Duplicate cancel ClOrdIDs rejected.",
             "cancel_stale_run_generation": "Stale-generation cancels rejected.",
             "cancel_exchange_unavailable": "Cancels rejected for a failed run.",
+            "replace_requests": "Replacement commands received by the engine.",
+            "replace_rejects": "Replacement rejection snapshots created.",
+            **{
+                f"replace_{outcome.value}": (
+                    f"Replacement requests with outcome {outcome.value}."
+                )
+                for outcome in ReplacementOutcome
+            },
             "execution_reports": "Order-specific execution reports created.",
             "report_delivery_failures": "Reports not delivered to their destination.",
             "trades": "Immutable fills committed by the engine.",
@@ -1635,6 +1659,18 @@ class MetricsCollector:
             SIM_CANCEL_END_TO_END_LATENCY: (
                 "Simulated cancel report delivery minus FIX receive time."
             ),
+            SIM_REPLACE_INBOUND_LATENCY: (
+                "Simulated replacement exchange arrival minus FIX receive time."
+            ),
+            SIM_REPLACE_ENGINE_LATENCY: (
+                "Simulated replacement report creation minus exchange arrival time."
+            ),
+            SIM_REPLACE_OUTBOUND_LATENCY: (
+                "Simulated replacement report delivery minus report creation time."
+            ),
+            SIM_REPLACE_END_TO_END_LATENCY: (
+                "Simulated replacement report delivery minus FIX receive time."
+            ),
             MATCH_LOOP_DURATION: "Monotonic duration of the match loop.",
             BOOK_COMMIT_DURATION: (
                 "Monotonic duration of authoritative book mutations."
@@ -1715,6 +1751,7 @@ class MetricsCollector:
             "symbol": report.symbol,
             "side": report.side.value,
             "status": report.ord_status.value,
+            "exec_type": report.exec_type.value,
             "tif": report.tif.value,
         }
         if report.session_alias:
@@ -1722,6 +1759,7 @@ class MetricsCollector:
         fields: Dict[str, object] = {
             "order_id": report.order_id,
             "exec_id": report.exec_id,
+            "cl_ord_id": report.cl_ord_id,
             "order_qty_lots": report.order_qty_lots,
             "filled_qty_lots": report.cum_qty_lots,
             "canceled_qty_lots": report.canceled_qty_lots,
@@ -1747,6 +1785,8 @@ class MetricsCollector:
             ),
             "ts_submitted": datetime_to_ns(report.submitted_at),
         }
+        if report.orig_cl_ord_id is not None:
+            fields["orig_cl_ord_id"] = report.orig_cl_ord_id
         if report.exchange_order_id is not None:
             fields["exchange_order_id"] = report.exchange_order_id
         if report.trade_id is not None:
@@ -1775,7 +1815,9 @@ class MetricsCollector:
             if report.exec_type == ExecutionType.REJECTED:
                 self._increment_locked("orders_rejected")
             elif (
-                report.order_id > 0 and report.order_id not in self._accepted_order_ids
+                report.exec_type != ExecutionType.REPLACED
+                and report.order_id > 0
+                and report.order_id not in self._accepted_order_ids
             ):
                 self._accepted_order_ids.add(report.order_id)
                 self._increment_locked("orders_accepted")
@@ -1921,7 +1963,7 @@ class MetricsCollector:
         with self._lock:
             self._increment_locked("cancel_requests")
 
-    def record_cancel_reject(self, reject: CancelReject) -> bool:
+    def record_cancel_reject(self, reject: OrderCancelReject) -> bool:
         with self._lock:
             if reject.reject_id in self._seen_cancel_reject_ids:
                 return False
@@ -1947,9 +1989,31 @@ class MetricsCollector:
         with self._lock:
             self._increment_locked(name)
 
+    def record_replace_request(self, command: ReplaceOrderCommand) -> None:
+        with self._lock:
+            self._increment_locked("replace_requests")
+
+    def record_replace_reject(self, reject: OrderCancelReject) -> bool:
+        with self._lock:
+            if reject.reject_id in self._seen_replace_reject_ids:
+                return False
+            self._seen_replace_reject_ids.add(reject.reject_id)
+            self._increment_locked("replace_rejects")
+            return True
+
+    def record_replace_outcome(
+        self,
+        command: ReplaceOrderCommand,
+        outcome: ReplacementOutcome,
+    ) -> None:
+        """Record only declared, bounded replacement outcome labels."""
+        outcome = ReplacementOutcome(outcome)
+        with self._lock:
+            self._increment_locked(f"replace_{outcome.value}")
+
     def record_report_delivery_failure(
         self,
-        report: ExecutionReport | CancelReject,
+        report: ExecutionReport | OrderCancelReject,
     ) -> None:
         with self._lock:
             self._increment_locked("report_delivery_failures")
@@ -2572,6 +2636,8 @@ class MetricsCollector:
                 "partial_fill_events": counts["partial_fill_events"],
                 "cancel_requests": counts["cancel_requests"],
                 "cancel_rejects": counts["cancel_rejects"],
+                "replace_requests": counts["replace_requests"],
+                "replace_rejects": counts["replace_rejects"],
             },
             "trades": {
                 "count": counts["trades"],
@@ -2587,6 +2653,10 @@ class MetricsCollector:
                 "duplicate_request": counts["cancel_duplicate_request"],
                 "stale_run_generation": counts["cancel_stale_run_generation"],
                 "exchange_unavailable": counts["cancel_exchange_unavailable"],
+            },
+            "replacements": {
+                outcome.value: counts[f"replace_{outcome.value}"]
+                for outcome in ReplacementOutcome
             },
             "reports": {
                 "created": counts["execution_reports"],
@@ -2635,6 +2705,18 @@ class MetricsCollector:
                 "average_sim_cancel_end_to_end_latency_ms": average(
                     SIM_CANCEL_END_TO_END_LATENCY,
                     1.0,
+                ),
+                "average_sim_replace_inbound_latency_ms": average(
+                    SIM_REPLACE_INBOUND_LATENCY, 1.0
+                ),
+                "average_sim_replace_engine_latency_ms": average(
+                    SIM_REPLACE_ENGINE_LATENCY, 1.0
+                ),
+                "average_sim_replace_outbound_latency_ms": average(
+                    SIM_REPLACE_OUTBOUND_LATENCY, 1.0
+                ),
+                "average_sim_replace_end_to_end_latency_ms": average(
+                    SIM_REPLACE_END_TO_END_LATENCY, 1.0
                 ),
                 "invalid_measurements": counts["invalid_latency_measurements"],
             },
@@ -2690,6 +2772,12 @@ class MetricsCollector:
             cancel_duplicate_request=counts["cancel_duplicate_request"],
             cancel_stale_run_generation=counts["cancel_stale_run_generation"],
             cancel_exchange_unavailable=counts["cancel_exchange_unavailable"],
+            replace_requests=counts["replace_requests"],
+            replace_rejects=counts["replace_rejects"],
+            **{
+                f"replace_{outcome.value}": counts[f"replace_{outcome.value}"]
+                for outcome in ReplacementOutcome
+            },
             execution_reports=counts["execution_reports"],
             trades=counts["trades"],
             traded_quantity=format(traded_quantity, "f"),
@@ -2735,6 +2823,18 @@ class MetricsCollector:
             average_sim_cancel_end_to_end_latency_ms=average(
                 SIM_CANCEL_END_TO_END_LATENCY,
                 1.0,
+            ),
+            average_sim_replace_inbound_latency_ms=average(
+                SIM_REPLACE_INBOUND_LATENCY, 1.0
+            ),
+            average_sim_replace_engine_latency_ms=average(
+                SIM_REPLACE_ENGINE_LATENCY, 1.0
+            ),
+            average_sim_replace_outbound_latency_ms=average(
+                SIM_REPLACE_OUTBOUND_LATENCY, 1.0
+            ),
+            average_sim_replace_end_to_end_latency_ms=average(
+                SIM_REPLACE_END_TO_END_LATENCY, 1.0
             ),
             report_delivery_failures=counts["report_delivery_failures"],
             invalid_latency_measurements=counts["invalid_latency_measurements"],
@@ -2935,6 +3035,7 @@ class LatencyTracker:
         self.monotonic_clock = monotonic_clock or PerfCounterClock()
         self.orders: Dict[tuple[int, int], OrderLatencyTrace] = {}
         self.cancels: Dict[tuple[int, int], CancelLatencyTrace] = {}
+        self.replaces: Dict[tuple[int, int], ReplaceLatencyTrace] = {}
         self.measurements: list[LatencyMeasurement] = []
         self._delivered_exec_ids: set[str] = set()
         self._completed_order_ids: set[tuple[int, int]] = set()
@@ -2945,6 +3046,8 @@ class LatencyTracker:
         *,
         preserve_order_keys: Optional[set[tuple[int, int]]] = None,
         preserve_cancel_keys: Optional[set[tuple[int, int]]] = None,
+        preserve_replace_keys: Optional[set[tuple[int, int]]] = None,
+        previous_sim_time: Optional[datetime] = None,
     ) -> None:
         with self._lock:
             if preserve_order_keys is None:
@@ -2965,6 +3068,20 @@ class LatencyTracker:
                     for key, trace in self.cancels.items()
                     if key in preserve_cancel_keys
                 }
+            if preserve_replace_keys is None:
+                self.replaces.clear()
+            else:
+                self.replaces = {
+                    key: trace
+                    for key, trace in self.replaces.items()
+                    if key in preserve_replace_keys
+                }
+                if previous_sim_time is not None:
+                    # Keep elapsed simulated time continuous for retained
+                    # replacements while each new run starts at its own epoch.
+                    reset_offset = previous_sim_time - self.scheduler.current_time
+                    for trace in self.replaces.values():
+                        trace.sim_clock_offset += reset_offset
             self.measurements.clear()
             self._delivered_exec_ids.clear()
 
@@ -3122,7 +3239,7 @@ class LatencyTracker:
     def cancel_report_created(
         self,
         command: CancelOrderCommand,
-        report: ExecutionReport | CancelReject,
+        report: ExecutionReport | OrderCancelReject,
     ) -> None:
         key = self._cancel_key(command)
         with self._lock:
@@ -3155,7 +3272,7 @@ class LatencyTracker:
 
     def cancel_report_delivered(
         self,
-        report: ExecutionReport | CancelReject,
+        report: ExecutionReport | OrderCancelReject,
         *,
         delivered_at: Optional[datetime] = None,
     ) -> bool:
@@ -3207,6 +3324,130 @@ class LatencyTracker:
                 ),
             )
             self.cancels.pop(key, None)
+        self._publish(outbound)
+        self._publish(end_to_end)
+        return True
+
+    def replace_received(self, command: ReplaceOrderCommand) -> None:
+        """Start a trace independent of both the original order and cancels."""
+        key = (command.run_generation, command.ingress_sequence)
+        with self._lock:
+            if key in self.replaces:
+                return
+            self.replaces[key] = ReplaceLatencyTrace(
+                run_generation=command.run_generation,
+                ingress_sequence=command.ingress_sequence,
+                session_id=command.session_id,
+                replace_cl_ord_id=command.replace_cl_ord_id,
+                orig_cl_ord_id=command.orig_cl_ord_id,
+                sim_received_at=command.requested_at,
+            )
+
+    def replace_arrived(self, command: ReplaceOrderCommand) -> None:
+        key = (command.run_generation, command.ingress_sequence)
+        with self._lock:
+            trace = self.replaces.get(key)
+            if trace is None:
+                self._missing_replace_trace(command, "replace_arrived")
+                return
+            if trace.sim_arrived_at is not None:
+                return
+            trace.sim_arrived_at = self.scheduler.current_time
+            measurement = self._replace_duration_measurement(
+                trace,
+                SIM_REPLACE_INBOUND_LATENCY,
+                trace.sim_received_at,
+                trace.sim_arrived_at,
+            )
+        self._publish(measurement)
+
+    def replace_report_created(
+        self,
+        command: ReplaceOrderCommand,
+        report: ExecutionReport | OrderCancelReject,
+    ) -> None:
+        key = (command.run_generation, command.ingress_sequence)
+        with self._lock:
+            trace = self.replaces.get(key)
+            if trace is None:
+                self._missing_replace_trace(command, "replace_report_created")
+                return
+            if trace.sim_report_created_at is not None:
+                return
+            trace.order_id = report.order_id
+            trace.sim_report_created_at = report.timestamp
+            if trace.sim_arrived_at is None:
+                self._missing_replace_trace(
+                    command, "replace_report_created_without_arrival"
+                )
+                return
+            measurement = self._replace_duration_measurement(
+                trace,
+                SIM_REPLACE_ENGINE_LATENCY,
+                trace.sim_arrived_at,
+                report.timestamp,
+                report_exec_id=(
+                    report.exec_id
+                    if isinstance(report, ExecutionReport)
+                    else report.reject_id
+                ),
+            )
+        self._publish(measurement)
+
+    def replace_report_delivered(
+        self,
+        report: ExecutionReport | OrderCancelReject,
+        *,
+        delivered_at: Optional[datetime] = None,
+    ) -> bool:
+        """Finish only the replacement acknowledgment or rejection on delivery."""
+        ingress_sequence = (
+            report.replace_ingress_sequence
+            if isinstance(report, ExecutionReport)
+            else report.ingress_sequence
+        )
+        if ingress_sequence is None:
+            return False
+        key = (report.run_generation, ingress_sequence)
+        with self._lock:
+            trace = self.replaces.get(key)
+            if trace is None:
+                logger.warning(
+                    "Replacement latency trace missing",
+                    extra={
+                        "run_generation": report.run_generation,
+                        "ingress_sequence": ingress_sequence,
+                        "latency_stage": "replace_report_delivered",
+                    },
+                )
+                return False
+            if trace.sim_report_delivered_at is not None:
+                return False
+            resolved_delivered_at = delivered_at or self.scheduler.current_time
+            trace.sim_report_delivered_at = resolved_delivered_at
+            elapsed_delivered_at = resolved_delivered_at + trace.sim_clock_offset
+            report_id = (
+                report.exec_id
+                if isinstance(report, ExecutionReport)
+                else report.reject_id
+            )
+            outbound = self._replace_duration_measurement(
+                trace,
+                SIM_REPLACE_OUTBOUND_LATENCY,
+                report.timestamp,
+                elapsed_delivered_at,
+                report_exec_id=report_id,
+                timestamp=resolved_delivered_at,
+            )
+            end_to_end = self._replace_duration_measurement(
+                trace,
+                SIM_REPLACE_END_TO_END_LATENCY,
+                trace.sim_received_at,
+                elapsed_delivered_at,
+                report_exec_id=report_id,
+                timestamp=resolved_delivered_at,
+            )
+            self.replaces.pop(key, None)
         self._publish(outbound)
         self._publish(end_to_end)
         return True
@@ -3410,6 +3651,38 @@ class LatencyTracker:
             orig_cl_ord_id=trace.orig_cl_ord_id,
         )
 
+    def _replace_duration_measurement(
+        self,
+        trace: ReplaceLatencyTrace,
+        metric: str,
+        start: datetime,
+        end: datetime,
+        *,
+        report_exec_id: Optional[str] = None,
+        timestamp: Optional[datetime] = None,
+    ) -> Optional[LatencyMeasurement]:
+        milliseconds = (end - start).total_seconds() * 1_000.0
+        if not math.isfinite(milliseconds) or milliseconds < 0.0:
+            self.metrics.record_invalid_latency(
+                metric=metric,
+                order_id=trace.order_id,
+                session_id=trace.session_id,
+            )
+            return None
+        return LatencyMeasurement(
+            order_id=trace.order_id,
+            session_id=trace.session_id,
+            metric=metric,
+            value=milliseconds,
+            unit="ms",
+            timestamp=timestamp or end,
+            report_exec_id=report_exec_id,
+            run_generation=trace.run_generation,
+            ingress_sequence=trace.ingress_sequence,
+            cl_ord_id=trace.replace_cl_ord_id,
+            orig_cl_ord_id=trace.orig_cl_ord_id,
+        )
+
     def _real_measurement(
         self,
         *,
@@ -3465,6 +3738,21 @@ class LatencyTracker:
                 "run_generation": command.run_generation,
                 "ingress_sequence": command.ingress_sequence,
                 "cancel_cl_ord_id": command.cancel_cl_ord_id,
+                "latency_stage": stage,
+            },
+        )
+
+    @staticmethod
+    def _missing_replace_trace(
+        command: ReplaceOrderCommand,
+        stage: str,
+    ) -> None:
+        logger.warning(
+            "Replacement latency trace missing",
+            extra={
+                "run_generation": command.run_generation,
+                "ingress_sequence": command.ingress_sequence,
+                "replace_cl_ord_id": command.replace_cl_ord_id,
                 "latency_stage": stage,
             },
         )

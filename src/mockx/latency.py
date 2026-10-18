@@ -21,6 +21,7 @@ import logging
 
 from .models import (
     CancelOrderCommand,
+    ReplaceOrderCommand,
     ExecutionReport,
     ProcessOrderCommand,
     SchedulerEventMetadata,
@@ -386,6 +387,27 @@ class LatencyScheduler:
             command,
             total_delay,
         )
+
+    def schedule_replace_processing(
+        self,
+        command: ReplaceOrderCommand,
+        network_ms: int,
+        engine_ms: int,
+        *,
+        session_alias: Optional[str] = None,
+        inbound_ms: Optional[int] = None,
+    ) -> None:
+        """Schedule replacement arrival and processing without reserving liquidity."""
+        self.ensure_running()
+        session_delay_ms = self.session_delays.get(session_alias or "", 0)
+        arrival_delay = (
+            network_ms // 2 if inbound_ms is None else inbound_ms
+        ) + session_delay_ms
+        total_delay = arrival_delay + engine_ms
+        self._validate_delay(arrival_delay)
+        self._validate_delay(total_delay)
+        self.schedule_event("replace_arrived_at_exchange", command, arrival_delay)
+        self.schedule_event("replace_engine_process", command, total_delay)
 
     def schedule_execution_report(
         self,

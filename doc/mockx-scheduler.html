@@ -310,7 +310,7 @@
           <tr>
             <td>3</td>
             <td><code class="ref">cancel_engine_process</code></td>
-            <td>Calls <code class="ref">engine.cancel_order()</code>. Resolves against authoritative state. Creates an immutable CANCELLED report or CancelReject and admits it to the outbound FIX queue.</td>
+            <td>Calls <code class="ref">engine.cancel_order()</code>. Resolves against authoritative state. Creates an immutable CANCELLED report or OrderCancelReject and admits it to the outbound FIX queue.</td>
           </tr>
           <tr>
             <td>4</td>
@@ -333,8 +333,41 @@
     </div>
     <div class="source-ref">
       Cancel scheduling: <code>LatencyScheduler.schedule_cancel_processing()</code>.
-      Full contract: README “Deterministic FIX ingress and cancel latency”.
+      Full contract: README “Deterministic FIX ingress, cancel, and replace latency”.
     </div>
+  </div>
+</section>
+
+<!-- ================= REPLACE SCHEDULING ================= -->
+<section class="section" id="replace-scheduling">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag tag-delivery">FIX 35=G</span>
+      <h2 class="h2">Replace scheduling and independent latency</h2>
+      <p class="lede">Immutable replacement commands use the same deterministic ingress barrier, generation checks, and configured delays as cancel requests. The existing order stays executable until the engine event commits the amendment.</p>
+    </div>
+    <div class="panel">
+      <div class="cancel-stages">
+        <div class="cancel-stage rcv"><span class="stage-name">replace_received</span><span class="stage-time">T+0</span>Claim D/F/G client ID and start replacement trace</div>
+        <div class="cancel-stage arr"><span class="stage-name">replace_arrived_at_exchange</span><span class="stage-time">T+session+inbound</span>Record arrival; no book mutation</div>
+        <div class="cancel-stage eng"><span class="stage-name">replace_engine_process</span><span class="stage-time">T+session+inbound+engine</span>Resolve current state and call replace_order()</div>
+        <div class="cancel-stage out"><span class="stage-name">fix_delivery_due</span><span class="stage-time">+outbound</span>Shared reliable queue and session FIFO</div>
+      </div>
+      <p>Only live resting NEW/PARTIAL GTC limits can replace. Execution-time fills determine CumQty and the remaining quantity. Equal-time fill/cancel/replace races retain scheduler FIFO; a prior accepted replacement makes the old OrigClOrdID stale. No interim Pending Replace report is scheduled.</p>
+      <p>The engine creates an immutable ExecType=5 acknowledgment with current NEW/PARTIAL/FILLED status before any newly triggered fill reports. Rejections use OrderCancelReject with CxlRejResponseTo=2. Queued replacements settle once as EXCHANGE_UNAVAILABLE if permanent metric loss fails the run; retained reports remain deliverable after failure.</p>
+      <table class="data-table">
+        <thead><tr><th>Replacement histogram</th><th>Simulated boundary</th></tr></thead>
+        <tbody>
+          <tr><td><code class="ref">mockx_sim_replace_inbound_latency_ms</code></td><td>Arrival minus FIX receive time</td></tr>
+          <tr><td><code class="ref">mockx_sim_replace_engine_latency_ms</code></td><td>Acknowledgment/rejection creation minus arrival</td></tr>
+          <tr><td><code class="ref">mockx_sim_replace_outbound_latency_ms</code></td><td>Successful delivery minus report creation</td></tr>
+          <tr><td><code class="ref">mockx_sim_replace_end_to_end_latency_ms</code></td><td>Successful delivery minus FIX receive time</td></tr>
+        </tbody>
+      </table>
+      <p>Each has an <code class="ref">average_sim_replace_*_latency_ms</code> field in current-run and process-lifetime statistics. Replacement traces use (run_generation, ingress_sequence), preserve replacement ClOrdID and OrigClOrdID, and stay separate from new-order/cancel traces. Pending delivery traces survive reset; only a successful acknowledgment/rejection delivery completes them, once. Later fill reports retain ordinary order correlation.</p>
+      <p><code class="ref">orders.replace_requests</code> and <code class="ref">orders.replace_rejects</code> accompany the bounded <code class="ref">replacements</code> outcomes: accepted, unknown_order, already_terminal, wrong_owner, duplicate_request, stale_run_generation, stale_order_reference, invalid_request, and exchange_unavailable. Prometheus exports <code class="ref">mockx_replace_requests_total</code>, <code class="ref">mockx_replace_rejects_total</code>, and <code class="ref">mockx_replace_&lt;outcome&gt;_total</code>.</p>
+    </div>
+    <div class="source-ref">Scheduling: <code>LatencyScheduler.schedule_replace_processing()</code>. Correlation: <code>LatencyTracker</code> and <code>ReplaceLatencyTrace</code>. Wire and helper examples: README “Native FIX cancel/replace”.</div>
   </div>
 </section>
 
@@ -605,10 +638,10 @@
           <tr><th>Table</th><th>Content</th><th>Representative columns</th></tr>
         </thead>
         <tbody>
-          <tr><td><code class="ref">orders</code></td><td>Execution-report snapshots</td><td>symbol, side, status, tif, order_id, exec_id, price, quantity</td></tr>
+          <tr><td><code class="ref">orders</code></td><td>Execution-report snapshots</td><td>symbol, side, status, exec_type, tif, order_id, exec_id, cl_ord_id, orig_cl_ord_id, price, quantity</td></tr>
           <tr><td><code class="ref">trades</code></td><td>Completed fills</td><td>symbol, price, quantity, buyer_order_id, seller_order_id, exchange_trade_id</td></tr>
           <tr><td><code class="ref">self_trade_prevention</code></td><td>Prevented cross events</td><td>symbol, aggressor_order_id, passive_order_id, prevented_qty_lots, prevented_quantity</td></tr>
-          <tr><td><code class="ref">latency</code></td><td>Typed simulated or CPU samples</td><td>type, order_id, duration_ms, duration_us, report_exec_id</td></tr>
+          <tr><td><code class="ref">latency</code></td><td>Typed simulated or CPU samples</td><td>type, order_id, duration_ms, duration_us, report_exec_id, run_generation, ingress_sequence, cl_ord_id, orig_cl_ord_id</td></tr>
           <tr><td><code class="ref">fix_messages</code></td><td>FIX message counts by direction</td><td>exchange, msg_type, direction, count</td></tr>
           <tr><td><code class="ref">book_snapshot</code></td><td>Complete book state per update</td><td>symbol, sequence, has_bid, has_ask, bids_json, asks_json, spread</td></tr>
           <tr><td><code class="ref">fix_connections</code></td><td>Helper-only schema; no production writer calls</td><td>exchange, count</td></tr>
@@ -623,6 +656,11 @@
         <b>Flush:</b> One coalesced worker. Session end performs explicit drain.
         Shutdown seals acceptance and performs timeout-bounded final drain.
       </p>
+      <p>The fixed orders schema adds <code class="ref">exec_type SYMBOL</code>, <code class="ref">cl_ord_id VARCHAR</code>, and <code class="ref">orig_cl_ord_id VARCHAR</code>. Existing databases require explicit additive migration before startup; MockX verifies columns and does not automatically alter an existing table. With the exchange stopped, add each absent column:</p>
+      <pre><code>ALTER TABLE orders ADD COLUMN exec_type SYMBOL;
+ALTER TABLE orders ADD COLUMN cl_ord_id VARCHAR;
+ALTER TABLE orders ADD COLUMN orig_cl_ord_id VARCHAR;</code></pre>
+      <p>Historical rows remain null in added columns. Replacement records retain existing nanosecond timestamps, event sequences, and deduplication keys.</p>
     </div>
     <div class="callout-grid">
       <div class="callout">

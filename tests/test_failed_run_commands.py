@@ -13,7 +13,7 @@ from src.mockx.lifecycle import LifecycleIngressRejected
 from src.mockx.metrics import BufferedMetricsWriter, InMemoryMetricsSink
 from src.mockx.models import (
     CancelOrderCommand,
-    CancelReject,
+    OrderCancelReject,
     ExecutionReport,
     ExecutionType,
     FixDeliveryDueCommand,
@@ -120,7 +120,7 @@ async def test_fail_pending_commands_settles_each_staged_order_and_cancel_once()
         assert len(delivered) == 2
         assert isinstance(delivered[0], ExecutionReport)
         assert delivered[0].exec_type == ExecutionType.REJECTED
-        assert isinstance(delivered[1], CancelReject)
+        assert isinstance(delivered[1], OrderCancelReject)
         assert delivered[1].reason.value == "EXCHANGE_UNAVAILABLE"
         assert next(iter(exchange.engine.orders.values())).status == OrderStatus.REJECTED
     finally:
@@ -150,7 +150,7 @@ async def test_loss_during_detached_ingress_batch_rejects_every_request_once():
         assert [r.cl_ord_id for r in delivered if isinstance(r, ExecutionReport)] == [
             "before-loss", "at-loss"
         ]
-        assert [r.cancel_cl_ord_id for r in delivered if isinstance(r, CancelReject)] == [
+        assert [r.cl_ord_id for r in delivered if isinstance(r, OrderCancelReject)] == [
             "after-loss"
         ]
         assert all(
@@ -178,7 +178,7 @@ async def test_fail_pending_commands_rejects_enqueued_but_unscheduled_ingress():
         assert exchange.engine.orders == {}
         assert len(delivered) == 2
         assert delivered[0].cl_ord_id == "unsubmitted"
-        assert delivered[1].cancel_cl_ord_id == "cancel"
+        assert delivered[1].cl_ord_id == "cancel"
         assert exchange.fix_app._pending_ingress == []
         assert exchange.fix_app._ingress_receipts == {}
     finally:
