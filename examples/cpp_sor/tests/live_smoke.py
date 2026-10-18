@@ -322,6 +322,13 @@ async def run(client: Path) -> None:
                 await process.wait()
             await venue_a.stop_components()
             await venue_b.stop_components()
+            # Native factories hold their log files until the acceptors are
+            # destroyed. Release them before TemporaryDirectory cleans up on
+            # Windows; stopping transport threads alone leaves these handles.
+            for venue in (venue_a, venue_b):
+                venue.fix_gateway.fix_acceptor = None
+                venue.fix_gateway.fix_store_factory = None
+                venue.fix_gateway.fix_log_factory = None
 
 
 def main() -> int:
