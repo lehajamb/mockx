@@ -16,6 +16,7 @@ market-data tests.
 - Atomic order-book quantity accounting and invariant checks.
 - Exact integer tick/lot arithmetic in every authoritative matching path.
 - Limit and market orders with GTC and IOC lifecycle rules.
+- Native FIX replacement of live GTC limit orders with deterministic priority rules.
 - Mandatory participant ownership and unconditional self-cross prevention.
 - Stable-FIX-session-scoped `ClOrdID` identity and execution-report routing.
 - Atomic simulation lifecycle transitions and generation-aware public IDs.
@@ -39,14 +40,15 @@ set.
 
 | Direction | Supported messages |
 |---|---|
-| Incoming | New Order Single (`35=D`), Order Cancel Request (`35=F`) |
+| Incoming | New Order Single (`35=D`), Order Cancel Request (`35=F`), Order Cancel/Replace Request (`35=G`) |
 | Special incoming | Market Data Request (`35=V`) is rejected because market data is served by REST/WebSocket |
 | Outgoing | Execution Report (`35=8`), Order Cancel Reject (`35=9`), Market Data Request Reject (`35=Y`), session Reject (`35=3`), Business Message Reject (`35=j`) |
 
-Supported orders are limit and market orders with GTC or IOC. Replace
-(`OrderCancelReplaceRequest`) is unsupported.
+Supported new orders are limit and market orders with GTC or IOC. Native
+`OrderCancelReplaceRequest (35=G)` changes the price and total quantity of a
+live, resting GTC limit order.
 
-Orders and cancellations are submitted only through FIX. REST provides
+Orders, cancellations, and replacements are submitted only through FIX. REST provides
 administration, book inspection, observability, and the browser UI; it has no
 order-entry route.
 
@@ -74,8 +76,8 @@ rejected as `OFF_LOT_QUANTITY`, `Price (44)` of `61234.505` as
 - A wholly unfilled GTC limit receives `NEW` and rests.
 - Each fill creates passive then aggressor trade reports at the same simulated
   timestamp; scheduler FIFO sequence preserves that order.
-- Every syntactically valid New Order Single (`D`) and Order Cancel Request
-  (`F`) claims its `ClOrdID` in one namespace scoped to the stable QuickFIX
+- Every normalized New Order Single (`D`), Order Cancel Request (`F`), and
+  Order Cancel/Replace Request (`G`) claims its `ClOrdID` in one namespace scoped to the stable QuickFIX
   `SessionID`. Its history survives transport replacement, logout/relogon, and
   simulation reset; it is cleared only by process restart. A distinct
   `SessionID` has an independent scope.
@@ -86,6 +88,74 @@ rejected as `OFF_LOT_QUANTITY`, `Price (44)` of `61234.505` as
   rejected orders return `TOO_LATE_TO_CANCEL`; canceled orders return
   `ALREADY_CANCELED`; unknown and foreign-session `OrigClOrdID` values remain
   distinct rejects.
+
+### Native FIX cancel/replace
+
+Send `35=G` with a new `ClOrdID (11)`, latest accepted `OrigClOrdID (41)`,
+`Symbol (55)`, `Side (54)`, `OrdType (40)`, total `OrderQty (38)`, and limit
+`Price (44)`. Omitted `TimeInForce (59)` defaults to GTC. Exact tick/lot
+validation and enabled ITCH price/share bounds also apply. Symbol, side,
+order type, TIF, owning FIX session, and participant cannot change.
+
+Eligibility and quantities are checked when `replace_engine_process`
+executes. Only resting `NEW`/`PARTIAL` GTC limit orders qualify; pending-new
+and terminal orders reject. The old order remains executable during inbound
+and engine latency, so intervening fills affect the replacement's `CumQty`.
+
+| Requested amendment | Result |
+|---|---|
+| Same price, smaller total quantity | Preserve FIFO and displayed reference; reduce leaves atomically |
+| Same price and total quantity | Preserve FIFO; acknowledge the new client ID without a book update |
+| Higher total quantity or any price change | Remove old liquidity, lose FIFO, match immediately using existing price-time/STP rules, then rest any remainder at the back |
+| Total quantity at or below execution-time `CumQty` | Set `OrderQty=CumQty`, remove remaining liquidity, and finish `FILLED` |
+
+`OrderQty` includes all prior fills; it is not the new leaves quantity.
+Quantity clamping preserves actual fills and filled notional, creates no
+trade, and adds no canceled quantity. Replacement never draws another
+simulated new-order rejection.
+
+A successful amendment preserves internal/public `OrderID`, original
+submission time, ownership, cumulative fills, and filled notional. It advances
+the active `ClOrdID`, including for a no-op. Later cancel and replace requests
+must reference this latest accepted ID. Earlier accepted IDs remain available
+for diagnostics but reject as `STALE_ORDER_REFERENCE`; rejected replacements
+never become accepted revisions. A normalized rejected request still consumes
+its own new ID in the process-lifetime D/F/G duplicate namespace.
+
+The final acknowledgment is one immutable Execution Report (`35=8`,
+`ExecType (150)=5`) with new `ClOrdID`, previous accepted `OrigClOrdID`, and
+`OrdStatus (39)=0/1/2` for `NEW`/`PARTIAL`/`FILLED`. It precedes any
+replacement-triggered fill reports, which use the new accepted client ID.
+MockX emits no interim Pending Replace report or persistent `REPLACED` status.
+Rejected amendments return immutable `OrderCancelReject (35=9)` snapshots
+with `CxlRejResponseTo (434)=2`; ordinary cancel rejects retain `434=1`.
+Stable reason/text distinguish unknown or stale references, ownership,
+duplicates, unsupported changes, unavailable exchange, and ineligible state.
+Existing session/header rejection handling also applies.
+
+Example application fields below use `|` for SOH. QuickFIX supplies the
+standard session header, body length, and checksum. Starting with resting BUY
+`N-1` for `0.010` BTC-USDT at `100.00`, with no fills:
+
+```text
+35=G|11=R-1|41=N-1|55=BTC-USDT|54=1|40=2|38=0.006|44=100.00|59=1|60=20261018-12:00:00.000|
+35=8|37=G00000001-O00000001|17=G00000001-E00000002|11=R-1|41=N-1|150=5|39=0|55=BTC-USDT|54=1|40=2|59=1|38=0.006|44=100.00|151=0.006|14=0.000|6=0.00|
+35=G|11=R-2|41=N-1|55=BTC-USDT|54=1|40=2|38=0.005|44=100.00|59=1|60=20261018-12:00:00.001|
+35=9|37=G00000001-O00000001|11=R-2|41=N-1|39=0|434=2|102=1|58=Stale OrigClOrdID; reference the latest accepted ClOrdID|
+```
+
+The Python examples expose the same operation through the existing connected
+QuickFIX session handle:
+
+```python
+from examples.fix_support import send_replace
+
+send_replace(
+    session_id,
+    cl_ord_id="R-1", orig_cl_ord_id="N-1", symbol="BTC-USDT",
+    side="1", quantity="0.006", price="100.00",
+)
+```
 
 ### Participant ownership and self-cross prevention
 
@@ -128,15 +198,19 @@ cancel-reject domain ID is an application identity used for deduplication and
 observability; FIX `OrderCancelReject (35=9)` has no `ExecID`, so the ID is not
 serialized on the wire. Delivery IDs are also application-internal.
 
+The bundled FIX44 dictionary declares MockX's optional `TradeID (1003)`
+extension as a string so strict clients accept the generation-qualified
+trade identity already sent on fill reports.
+
 Measured CPU boundaries use a monotonic clock and microseconds: match loop,
 book commit, complete engine command, immutable report creation, and outbound
-FIX construction. Configured inbound, engine, outbound, end-to-end, and cancel
+FIX construction. Configured inbound, engine, outbound, end-to-end, cancel, and replace
 stage delays use simulated time and milliseconds. The clock domains never
 share one ambiguous metric.
 
-### Deterministic FIX ingress and cancel latency
+### Deterministic FIX ingress, cancel, and replace latency
 
-QuickFIX callbacks for `D` and `F` parse immutable normalized command data
+QuickFIX callbacks for `D`, `F`, and `G` parse immutable normalized command data
 only. They never mutate the engine. A run-scoped central ingress sequencer
 timestamps and acknowledges each command, then drains acknowledged envelopes
 in this ascending order:
@@ -150,7 +224,7 @@ run-local ingress sequence
 
 The ingress sequence is the final tie-break, never the sole FIFO source, and
 resets to zero on every successful simulation start. Sorted envelopes become
-`new_order_received` or `cancel_received` scheduler events. Scheduler FIFO
+`new_order_received`, `cancel_received`, or `replace_received` scheduler events. Scheduler FIFO
 then preserves causal ordering among later equal-time stages.
 
 Cancel requests use four explicit scheduled stages:
@@ -175,6 +249,13 @@ priority. Consequently, an already-queued match can fill an order before a
 later cancel; the cancel then returns `TOO_LATE_TO_CANCEL`. Conversely, a
 cancel wins only when configured timing and the explicit ingress/scheduler
 ordering place its engine event first.
+
+Replacement uses `replace_received`, `replace_arrived_at_exchange`,
+`replace_engine_process`, and the shared `fix_delivery_due`, with the same
+requester session delay and configured inbound/engine/outbound delays.
+The replacement trace is independent of both the order and cancel traces.
+Equal-time fill/cancel/replace races follow ingress ordering and scheduler
+FIFO; only the final engine event validates the target and commits an amendment.
 
 ### Reliable FIX application delivery
 
@@ -265,12 +346,21 @@ those events to:
 | A GTC limit remainder first rests | Add Order, no MPID (`A`) |
 | A fill consumes a displayed passive order | Order Executed (`E`), or Executed With Price (`C`) when execution price differs |
 | A displayed remainder is explicitly canceled or removed by STP | Order Delete (`D`) |
+| A replacement reduces leaves while preserving FIFO | Order Cancel (`X`), containing the removed shares |
+| A replacement loses FIFO | Old-reference `D`, passive `E/C` for any new fills, and fresh-reference `A` if a remainder rests |
 
 One fill produces exactly one passive-side `E` or `C`, and its Match Number is
 the engine `Fill.trade_id`. Client execution reports and the engine `Trade`
 observer remain separate and never cause extra ITCH messages. Market and IOC
 remainders never rest, and a partially filled GTC aggressor receives `A` only
-for the quantity that actually rests. This version does not publish `F`, `X`,
+for the quantity that actually rests. Displayed Order Reference Numbers are
+separate run-local identities from stable FIX/internal order IDs. Every new
+placement allocates a fresh reference; a deleted reference is never reused
+within its Mold session. GLIMPSE captures current references and the ITCH
+next-message sequence under the same atomic recovery boundary. A no-op or
+rejected replacement publishes no book snapshot; a changed book publishes one
+final immutable REST/WebSocket snapshot without changing its payload schema.
+This version does not publish `F`,
 `U`, `P`, `Q`, or `B` messages.
 
 One internal lot is exactly one ITCH share. The configured instrument
@@ -636,7 +726,7 @@ or its OpenAPI schema. Unknown symbols requested through `/book/{symbol}` or
 }
 ```
 
-`/stats` separates orders, trades, cancellations, reports, sessions, book
+`/stats` separates orders, trades, cancellations, replacements, reports, sessions, book
 gauges, FIX delivery, ITCH/GLIMPSE delivery, latency, persistence, and scheduler state. The
 process-lifetime `fix_delivery` object exposes enqueued records, queue depth,
 counts by delivery state, sessions with backlog, cumulative attempts,
@@ -644,6 +734,9 @@ failures, deliveries, permanent failures, abandonments, and oldest pending
 age. The `cancellations` object
 contains `accepted`, `unknown_order`, `already_terminal`, `wrong_owner`,
 `duplicate_request`, `stale_run_generation`, and `exchange_unavailable`.
+The `replacements` object contains `accepted`, `unknown_order`,
+`already_terminal`, `wrong_owner`, `duplicate_request`, `stale_run_generation`,
+`stale_order_reference`, `invalid_request`, and `exchange_unavailable`.
 Scheduler diagnostics contain `state`,
 `pending_events`, the current-generation `failure_count`, the configured
 `max_events_per_advance`, and an optional `dead_letter`. The dead letter
@@ -819,7 +912,8 @@ loses that snapshot still consumes a generation and retains an endable failed
 run. The process-lifetime FIX delivery queue and its
 per-session sequence are not reset. Latency traces referenced by its
 non-delivered records are preserved with `(run_generation, order_id)` or
-`(run_generation, cancel_ingress_sequence)` keys; unrelated traces are reset.
+`(run_generation, cancel_ingress_sequence)` or
+`(run_generation, replace_ingress_sequence)` keys; unrelated traces are reset.
 A failure before destructive reset work restores `STOPPED`; a failure after it
 begins returns `503 SESSION_START_FAILED`, enters `FAILED`, and requires
 process restart. Permanent metric admission loss is a separate, recoverable
@@ -909,7 +1003,7 @@ time and returns:
 ## 10. Metrics and observability
 
 `GET /stats` labels its scopes explicitly. The flat `orders`, `trades`,
-`cancellations`, `reports`, `book`, and `latency` objects have
+`cancellations`, `replacements`, `reports`, `book`, and `latency` objects have
 `scope="current_run"` at the response root and reset after a successful end.
 `run_active` distinguishes an active run from the cleared stopped state.
 `process_lifetime` contains cumulative business counters and duration
@@ -958,6 +1052,29 @@ include the run generation, ingress sequence, cancel `ClOrdID`,
 `OrigClOrdID`, stable session identity, and resolved internal order ID when
 available. Failed or disconnected terminal delivery retains its latency trace;
 successful retry records delivery latency once and then removes the trace.
+
+Replacement latency is also separate. `/stats.latency` exposes
+`average_sim_replace_inbound_latency_ms`,
+`average_sim_replace_engine_latency_ms`,
+`average_sim_replace_outbound_latency_ms`, and
+`average_sim_replace_end_to_end_latency_ms`; corresponding Prometheus
+histograms are `mockx_sim_replace_inbound_latency_ms`,
+`mockx_sim_replace_engine_latency_ms`, `mockx_sim_replace_outbound_latency_ms`,
+and `mockx_sim_replace_end_to_end_latency_ms`. Samples retain run generation,
+ingress sequence, session, replacement `ClOrdID`, `OrigClOrdID`, and resolved
+order ID. Undelivered acknowledgment/rejection traces survive resets and
+complete once after successful delivery; subsequent fill reports use ordinary
+order delivery measurements. Across clock resets, retained replacement traces
+sum elapsed simulated segments. Their persisted sample timestamp remains the
+actual delivery time in the current run; report snapshots remain unchanged.
+
+`orders.replace_requests` and `orders.replace_rejects` count replacement
+requests and rejects in both current-run and process-lifetime statistics.
+Prometheus exposes `mockx_replace_requests_total`,
+`mockx_replace_rejects_total`, and `mockx_replace_<outcome>_total` for each
+fixed `replacements` outcome above. Amendments do not increment submitted or
+accepted order counts, canceled quantity, or trade volume. Quantity clamping
+can increment filled-order count once, without creating an execution.
 
 Scheduler observers update queue depth on every enqueue, dequeue, clear,
 reset, and stop transition. `/stats.scheduler` exposes pending count, state,
@@ -1055,8 +1172,8 @@ Ordinary metric producers isolate admission failures from exchange execution.
 If a buffer rejects a record, a queued record is evicted, or record construction
 or admission fails, the current command finishes all fills, reports and market
 data updates before the lifecycle enters `RUN_FAILED`. No subsequent queued
-order or cancel may trade, including another event at the same timestamp.
-Unprocessed new orders receive terminal rejections; queued cancels receive
+order, cancel, or replacement may trade, including another event at the same timestamp.
+Unprocessed new orders receive terminal rejections; queued cancels and replacements receive
 `EXCHANGE_UNAVAILABLE` (`CxlRejReason=99`) without changing their target orders.
 New FIX ingress is rejected with `METRICS_INCOMPLETE`.
 
@@ -1179,6 +1296,22 @@ are `VARCHAR`; ticks, lots, counters, and sequences are `LONG`; flags are
 `BOOLEAN`; and latency values are `DOUBLE`. The bundled server disables ILP
 table and column auto-creation, so an unexpected producer field fails visibly
 instead of changing the schema.
+
+The `orders` schema records `exec_type SYMBOL`, `cl_ord_id VARCHAR`, and
+`orig_cl_ord_id VARCHAR` for immutable accepted revision/report history.
+For an existing database created before native Replace, stop the exchange
+and apply these explicit additive migrations in the QuestDB Web Console:
+
+```sql
+ALTER TABLE orders ADD COLUMN exec_type SYMBOL;
+ALTER TABLE orders ADD COLUMN cl_ord_id VARCHAR;
+ALTER TABLE orders ADD COLUMN orig_cl_ord_id VARCHAR;
+```
+
+Apply each statement only if its column is absent. Existing historical rows
+remain null in the added columns. Startup verifies the fixed schema and does
+not automatically alter existing tables; nanosecond timestamps, event sequence
+allocation, and deduplication keys are unchanged.
 
 Ordinary production callers populate six streams: `orders`, `trades`,
 `self_trade_prevention`, `latency`, `fix_messages`, and `book_snapshot`.
@@ -1562,7 +1695,8 @@ python -m pytest -q tests/test_readme_examples.py tests/test_live_demo.py
   loses it. QuickFIX still owns FIX sequence numbers, message stores, resend
   requests, and protocol-level duplicate behavior. This is not
   production-grade FIX recovery or end-to-end exactly-once delivery.
-- No replace workflow, stop orders, or new order types beyond limit/market.
+- Replacement is limited to live GTC limit price/total-quantity amendments;
+  there are no stop orders, pending-new replacements, or changes of order type/TIF.
 - FIX market-data requests are rejected; use REST/WebSocket, the optional
   ITCH/MoldUDP64 feed, or its GLIMPSE/SoupBinTCP recovery service.
 - No Prometheus server, Grafana, dashboard assets, OpenTelemetry, or cloud

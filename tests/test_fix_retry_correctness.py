@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest
 
 from src.mockx.models import (
-    CancelReject,
+    OrderCancelReject,
     ExecutionReport,
     FixDeliveryState,
     SessionIdentity,
@@ -63,7 +63,7 @@ async def test_reconnect_invalidates_old_deadline_and_obeys_cycle_limit(kind, fa
         record = queue.snapshot_records()[0]
         assert isinstance(
             record.payload,
-            ExecutionReport if kind == "execution_report" else CancelReject,
+            ExecutionReport if kind == "execution_report" else OrderCancelReject,
         )
         old_event = _delivery_event(exchange)
         assert old_event.timestamp == start + timedelta(milliseconds=1000)

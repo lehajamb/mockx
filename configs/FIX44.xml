@@ -133,6 +133,7 @@
    <field name='OrigCrossID' required='N' />
    <field name='CrossType' required='N' />
    <field name='ExecID' required='Y' />
+   <field name='TradeID' required='N' />
    <field name='ExecRefID' required='N' />
    <field name='ExecType' required='Y' />
    <field name='OrdStatus' required='Y' />
@@ -6596,5 +6597,6 @@
   <field number='954' name='Nested3PartySubIDType' type='INT' />
   <field number='955' name='LegContractSettlMonth' type='MONTHYEAR' />
   <field number='956' name='LegInterestAccrualDate' type='LOCALMKTDATE' />
+  <field number='1003' name='TradeID' type='STRING' />
  </fields>
 </fix>

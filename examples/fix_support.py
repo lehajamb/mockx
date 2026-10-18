@@ -320,3 +320,29 @@ def send_cancel(
     message.setField(fix.StringField(38, quantity))
     message.setField(_transact_time())
     _send(message, session_id)
+
+
+def send_replace(
+    session_id,
+    *,
+    cl_ord_id: str,
+    orig_cl_ord_id: str,
+    symbol: str,
+    side: str,
+    quantity: str,
+    price: str,
+) -> None:
+    """Amend a live GTC limit using total quantity and the latest accepted ID."""
+    require_quickfix()
+    message = fix.Message()
+    message.getHeader().setField(fix.MsgType(fix.MsgType_OrderCancelReplaceRequest))
+    message.setField(fix.ClOrdID(cl_ord_id))
+    message.setField(fix.OrigClOrdID(orig_cl_ord_id))
+    message.setField(fix.Symbol(symbol))
+    message.setField(fix.Side(side))
+    message.setField(fix.StringField(38, quantity))
+    message.setField(fix.OrdType(fix.OrdType_LIMIT))
+    message.setField(fix.StringField(44, price))
+    message.setField(fix.TimeInForce(fix.TimeInForce_GOOD_TILL_CANCEL))
+    message.setField(_transact_time())
+    _send(message, session_id)

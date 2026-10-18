@@ -69,7 +69,10 @@ def _schema(
 QUESTDB_SCHEMAS: tuple[QuestDBTableSchema, ...] = (
     _schema(
         "orders",
-        symbols=("exchange", "symbol", "side", "status", "tif", "session_alias"),
+        symbols=(
+            "exchange", "symbol", "side", "status", "exec_type", "tif",
+            "session_alias",
+        ),
         longs=(
             "order_id",
             "order_qty_lots",
@@ -85,6 +88,8 @@ QUESTDB_SCHEMAS: tuple[QuestDBTableSchema, ...] = (
         ),
         varchars=(
             "exec_id",
+            "cl_ord_id",
+            "orig_cl_ord_id",
             "quantity",
             "filled_quantity",
             "canceled_quantity",

@@ -11,7 +11,7 @@ from httpx import ASGITransport, AsyncClient
 
 from src.mockx.delivery import FixDeliverySerializationError
 from src.mockx.models import (
-    CancelReject,
+    OrderCancelReject,
     ExecutionReport,
     ExecutionType,
     FixDeliveryState,
@@ -258,7 +258,7 @@ async def test_cancel_reject_due_disconnected_preserves_reject_identity():
         await exchange.fix_app.wait_for_ingress()
         await exchange.lifecycle.advance_to(start)
         record = exchange.fix_app.delivery_queue.snapshot_records()[0]
-        assert isinstance(record.payload, CancelReject)
+        assert isinstance(record.payload, OrderCancelReject)
         assert record.domain_id == record.payload.reject_id
 
         assert exchange.fix_app.unregister_session(session_id)

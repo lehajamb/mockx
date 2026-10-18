@@ -10,8 +10,9 @@ import threading
 from typing import Callable, Deque, Dict, Iterable, Optional
 
 from .models import (
-    CancelReject,
+    OrderCancelReject,
     ExecutionReport,
+    FixCommandType,
     FixDeliveryDueCommand,
     FixDeliveryMessageType,
     FixDeliveryQueueSnapshot,
@@ -87,14 +88,14 @@ class OutboundFixDeliveryQueue:
         *,
         delivery_id: str,
         destination: SessionIdentity,
-        payload: ExecutionReport | CancelReject,
+        payload: ExecutionReport | OrderCancelReject,
         simulated_due_timestamp: datetime,
     ) -> tuple[Optional[OutboundFixDelivery], bool]:
         """Insert one logical payload, deduplicated by its domain identity."""
         if isinstance(payload, ExecutionReport):
             message_type = FixDeliveryMessageType.EXECUTION_REPORT
             domain_id = payload.exec_id
-        elif isinstance(payload, CancelReject):
+        elif isinstance(payload, OrderCancelReject):
             message_type = FixDeliveryMessageType.ORDER_CANCEL_REJECT
             domain_id = payload.reject_id
         else:
@@ -466,9 +467,32 @@ class OutboundFixDeliveryQueue:
                 ingress_sequence = (
                     payload.cancel_ingress_sequence
                     if isinstance(payload, ExecutionReport)
-                    else payload.ingress_sequence
+                    else (
+                        payload.ingress_sequence
+                        if payload.request_type == FixCommandType.CANCEL_ORDER
+                        else None
+                    )
                 )
                 if ingress_sequence is not None:
+                    keys.add((payload.run_generation, ingress_sequence))
+            return keys
+
+    def pending_replace_keys(self) -> set[tuple[int, int]]:
+        """Retain replacement traces until their immutable acknowledgment delivers."""
+        with self._lock:
+            keys: set[tuple[int, int]] = set()
+            for record in self._nonterminal_records_locked():
+                payload = record.payload
+                ingress_sequence = (
+                    payload.replace_ingress_sequence
+                    if isinstance(payload, ExecutionReport)
+                    else (
+                        payload.ingress_sequence
+                        if payload.request_type == FixCommandType.REPLACE_ORDER
+                        else None
+                    )
+                )
+                if ingress_sequence is not None and ingress_sequence >= 0:
                     keys.add((payload.run_generation, ingress_sequence))
             return keys
 

@@ -134,6 +134,8 @@ class OrdersStats(BaseModel):
     partial_fill_events: int
     cancel_requests: int
     cancel_rejects: int
+    replace_requests: int
+    replace_rejects: int
     active: int
     resting: int
 
@@ -152,6 +154,18 @@ class CancellationStats(BaseModel):
     wrong_owner: int
     duplicate_request: int
     stale_run_generation: int
+    exchange_unavailable: int
+
+
+class ReplacementStats(BaseModel):
+    accepted: int
+    unknown_order: int
+    already_terminal: int
+    wrong_owner: int
+    duplicate_request: int
+    stale_run_generation: int
+    stale_order_reference: int
+    invalid_request: int
     exchange_unavailable: int
 
 
@@ -225,6 +239,18 @@ class LatencyStats(BaseModel):
     )
     average_sim_cancel_end_to_end_latency_ms: Optional[float] = Field(
         description="Mean simulated cancel receive-to-delivery latency"
+    )
+    average_sim_replace_inbound_latency_ms: Optional[float] = Field(
+        description="Mean simulated replacement receive-to-arrival latency"
+    )
+    average_sim_replace_engine_latency_ms: Optional[float] = Field(
+        description="Mean simulated replacement arrival-to-report latency"
+    )
+    average_sim_replace_outbound_latency_ms: Optional[float] = Field(
+        description="Mean simulated replacement report-delivery latency"
+    )
+    average_sim_replace_end_to_end_latency_ms: Optional[float] = Field(
+        description="Mean simulated replacement receive-to-delivery latency"
     )
     invalid_measurements: int
 
@@ -373,6 +399,7 @@ class RunStatsResponse(BaseModel):
     orders: OrdersStats
     trades: TradesStats
     cancellations: CancellationStats
+    replacements: ReplacementStats
     reports: ReportsStats
     book: BookStats
     latency: LatencyStats
@@ -390,6 +417,7 @@ class StatsResponse(BaseModel):
     orders: OrdersStats
     trades: TradesStats
     cancellations: CancellationStats
+    replacements: ReplacementStats
     reports: ReportsStats
     sessions: SessionsStats
     fix_delivery: FixDeliveryStats

@@ -24,6 +24,7 @@ from .models import (
     DisplayedOrderDeleted,
     DisplayedOrderEvent,
     DisplayedOrderExecuted,
+    DisplayedOrderReduced,
     ITCHHeartbeatCommand,
 )
 from .moldudp64_transport import (
@@ -254,7 +255,7 @@ class ITCHFeedPublisher:
             if isinstance(event, DisplayedOrderAdded):
                 message = self.encoder.add_order_no_mpid(
                     event.symbol,
-                    event.order_id,
+                    event.order_ref_num,
                     event.side,
                     event.qty_lots,
                     event.price_ticks,
@@ -265,7 +266,7 @@ class ITCHFeedPublisher:
                 if event.displayed_price_ticks == event.execution_price_ticks:
                     message = self.encoder.order_executed(
                         event.symbol,
-                        event.order_id,
+                        event.order_ref_num,
                         event.executed_qty_lots,
                         event.match_number,
                         event.timestamp,
@@ -274,7 +275,7 @@ class ITCHFeedPublisher:
                 else:
                     message = self.encoder.order_executed_with_price(
                         event.symbol,
-                        event.order_id,
+                        event.order_ref_num,
                         event.executed_qty_lots,
                         event.match_number,
                         event.execution_price_ticks,
@@ -285,7 +286,15 @@ class ITCHFeedPublisher:
             elif isinstance(event, DisplayedOrderDeleted):
                 message = self.encoder.order_delete(
                     event.symbol,
-                    event.order_id,
+                    event.order_ref_num,
+                    event.timestamp,
+                    tracking_number=tracking,
+                )
+            elif isinstance(event, DisplayedOrderReduced):
+                message = self.encoder.order_cancel(
+                    event.symbol,
+                    event.order_ref_num,
+                    event.canceled_qty_lots,
                     event.timestamp,
                     tracking_number=tracking,
                 )

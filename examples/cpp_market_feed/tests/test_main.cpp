@@ -375,7 +375,7 @@ void test_stitching_and_framing() {
             truncated, [](std::uint64_t, std::span<std::byte>) {});
     });
 
-    std::vector<std::byte> unsupported(1, std::byte{'X'});
+    std::vector<std::byte> unsupported(1, std::byte{'U'});
     auto unsupported_packet = mold_packet("MX00000001", 6, {unsupported});
     check_throws<UnsupportedMessage>([&] {
         (void)parse_mold_packet(
@@ -402,6 +402,59 @@ void test_cli() {
     CHECK(command.config.symbols.contains("TEST"));
 }
 
+void test_partial_cancel_preserves_identity_and_validates_before_mutation() {
+    OrderBook book;
+    MessageDecoder decoder;
+    auto instrument = directory(1, "TEST");
+    (void)decoder.apply(instrument, book, DecodeContext::live_itch);
+    auto first = add_order(1, "TEST", 42, 'B', 10, 1'000'000);
+    auto second = add_order(1, "TEST", 43, 'B', 5, 1'000'000);
+    (void)decoder.apply(first, book, DecodeContext::live_itch);
+    (void)decoder.apply(second, book, DecodeContext::live_itch);
+    std::vector<std::byte> reduction(23);
+    reduction[0] = std::byte{'X'};
+    set_be(reduction, 1, 2, 1);
+    set_be(reduction, 11, 8, 42);
+    set_be(reduction, 19, 4, 3);
+    (void)decoder.apply(reduction, book, DecodeContext::live_itch);
+    CHECK(book.leaves(42) == 7);
+    CHECK(book.leaves(43) == 5);
+    CHECK(book.display(1, {})[0].bids[0].order_count == 2);
+    CHECK(book.display(1, {})[0].bids[0].shares == 12);
+    check_throws<ProtocolError>([&] {
+        (void)decoder.apply(reduction, book, DecodeContext::glimpse);
+    });
+    set_be(reduction, 19, 4, 8);
+    check_throws<ProtocolError>([&] {
+        (void)decoder.apply(reduction, book, DecodeContext::live_itch);
+    });
+    CHECK(book.leaves(42) == 7);
+    set_be(reduction, 19, 4, 0);
+    check_throws<ProtocolError>([&] {
+        (void)decoder.apply(reduction, book, DecodeContext::live_itch);
+    });
+    set_be(reduction, 19, 4, 1);
+    set_be(reduction, 1, 2, 2);
+    check_throws<ProtocolError>([&] {
+        (void)decoder.apply(reduction, book, DecodeContext::live_itch);
+    });
+    set_be(reduction, 1, 2, 1);
+    set_be(reduction, 11, 8, 99);
+    check_throws<ProtocolError>([&] {
+        (void)decoder.apply(reduction, book, DecodeContext::live_itch);
+    });
+    set_be(reduction, 11, 8, 42);
+    set_be(reduction, 19, 4, 7);
+    (void)decoder.apply(reduction, book, DecodeContext::live_itch);
+    CHECK(!book.contains(42));
+    CHECK(book.leaves(43) == 5);
+    CHECK(book.display(1, {})[0].bids[0].order_count == 1);
+    reduction.pop_back();
+    check_throws<ProtocolError>([&] {
+        (void)decoder.apply(reduction, book, DecodeContext::live_itch);
+    });
+}
+
 } // namespace
 
 int main() {
@@ -412,6 +465,7 @@ int main() {
         {"book and decoder", test_book_and_decoder},
         {"snapshot stitching", test_stitching_and_framing},
         {"command line", test_cli},
+        {"partial cancel", test_partial_cancel_preserves_identity_and_validates_before_mutation},
     };
     std::size_t failures = 0;
     for (const auto& [name, test] : tests) {

@@ -11,7 +11,7 @@ from src.mockx.gateway import fix
 from src.mockx.configuration import validate_config
 from src.mockx.main import MockExchange
 from src.mockx.models import (
-    CancelReject,
+    OrderCancelReject,
     CancelRejectReason,
     ExecutionReport,
     ExecutionType,
@@ -331,7 +331,7 @@ async def test_duplicate_cancel_cl_ord_id_precedes_terminal_state():
         await exchange.lifecycle.advance_to(exchange.scheduler.current_time)
 
         rejects = [
-            report for report in delivered if isinstance(report, CancelReject)
+            report for report in delivered if isinstance(report, OrderCancelReject)
         ]
         assert len(rejects) == 1
         assert rejects[0].reason == CancelRejectReason.INVALID_REQUEST
@@ -389,8 +389,8 @@ async def test_already_queued_fill_legitimately_beats_later_cancel():
         reject = next(
             report
             for report in delivered
-            if isinstance(report, CancelReject)
-            and report.cancel_cl_ord_id == "C-TOO-LATE"
+            if isinstance(report, OrderCancelReject)
+            and report.cl_ord_id == "C-TOO-LATE"
         )
         assert reject.reason == CancelRejectReason.TOO_LATE_TO_CANCEL
     finally:
@@ -418,7 +418,7 @@ async def test_cancel_reject_uses_all_four_cancel_latency_series():
         )
 
         assert len(delivered) == 1
-        assert isinstance(delivered[0], CancelReject)
+        assert isinstance(delivered[0], OrderCancelReject)
         snapshot = exchange.metrics.snapshot()
         assert (
             snapshot.average_sim_cancel_inbound_latency_ms,

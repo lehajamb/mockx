@@ -119,35 +119,49 @@ void OrderBook::execute_order(
     std::uint64_t order_reference,
     std::uint16_t locate,
     std::uint32_t executed_shares) {
-    if (executed_shares == 0) {
-        throw ProtocolError("executed shares must be positive");
+    reduce_order(order_reference, locate, executed_shares);
+}
+
+void OrderBook::cancel_order(
+    std::uint64_t order_reference,
+    std::uint16_t locate,
+    std::uint32_t canceled_shares) {
+    reduce_order(order_reference, locate, canceled_shares);
+}
+
+void OrderBook::reduce_order(
+    std::uint64_t order_reference,
+    std::uint16_t locate,
+    std::uint32_t reduced_shares) {
+    if (reduced_shares == 0) {
+        throw ProtocolError("quantity reduction must be positive");
     }
     auto found = orders_.find(order_reference);
     if (found == orders_.end()) {
-        throw ProtocolError("execution references an unknown order");
+        throw ProtocolError("quantity reduction references an unknown order");
     }
     auto& order = found->second;
     if (order.locate != locate) {
-        throw ProtocolError("execution stock locate disagrees with order");
+        throw ProtocolError("quantity reduction stock locate disagrees with order");
     }
-    if (executed_shares > order.shares) {
-        throw ProtocolError("execution quantity exceeds order leaves");
+    if (reduced_shares > order.shares) {
+        throw ProtocolError("quantity reduction exceeds order leaves");
     }
     auto& instrument = require_instrument(order.locate);
     if (order.side == Side::buy) {
         auto level = instrument.bids.find(order.price);
-        if (level == instrument.bids.end() || level->second.shares < executed_shares) {
+        if (level == instrument.bids.end() || level->second.shares < reduced_shares) {
             throw ProtocolError("bid level aggregate is inconsistent");
         }
-        level->second.shares -= executed_shares;
+        level->second.shares -= reduced_shares;
     } else {
         auto level = instrument.asks.find(order.price);
-        if (level == instrument.asks.end() || level->second.shares < executed_shares) {
+        if (level == instrument.asks.end() || level->second.shares < reduced_shares) {
             throw ProtocolError("ask level aggregate is inconsistent");
         }
-        level->second.shares -= executed_shares;
+        level->second.shares -= reduced_shares;
     }
-    order.shares -= executed_shares;
+    order.shares -= reduced_shares;
     if (order.shares == 0) {
         erase_order(found);
     }

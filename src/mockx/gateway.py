@@ -24,9 +24,10 @@ from .lifecycle import (
     LifecycleState,
 )
 from .models import (
-    CancelReject,
+    OrderCancelReject,
     CancelRejectReason,
     CancelOrderCommand,
+    ClientOrderKey,
     ExecutionReport,
     ExecutionType,
     FixDeliveryDueCommand,
@@ -34,6 +35,8 @@ from .models import (
     FixIngressEnvelope,
     IngressBarrier,
     NewOrderCommand,
+    ReplaceOrderCommand,
+    ReplacementOutcome,
     OrderType,
     OrderStatus,
     ParsedFixCommand,
@@ -41,7 +44,7 @@ from .models import (
     SessionIdentity,
     Side,
     TimeInForce,
-    create_cancel_reject,
+    create_order_cancel_reject,
 )
 from .fix_fields import cancel_reject_fields, execution_report_fields
 from .metrics import (
@@ -63,7 +66,18 @@ logger = logging.getLogger(__name__)
 _FIX_APPLICATION_BASE = fix.Application if fix is not None else object
 
 
-RoutableReport = Union[ExecutionReport, CancelReject]
+RoutableReport = Union[ExecutionReport, OrderCancelReject]
+
+_COMMAND_MSG_TYPES = {
+    FixCommandType.NEW_ORDER: "D",
+    FixCommandType.CANCEL_ORDER: "F",
+    FixCommandType.REPLACE_ORDER: "G",
+}
+_COMMAND_RECEIVE_EVENTS = {
+    FixCommandType.NEW_ORDER: "new_order_received",
+    FixCommandType.CANCEL_ORDER: "cancel_received",
+    FixCommandType.REPLACE_ORDER: "replace_received",
+}
 
 
 def configured_fix_session_ids(config_path: str) -> set[str]:
@@ -207,7 +221,7 @@ class SessionRegistry:
             )
 
     def claim_cl_ord_id(self, session_id: str, cl_ord_id: str) -> bool:
-        """Atomically claim one D/F ClOrdID in the process-lifetime namespace."""
+        """Atomically claim one D/F/G ClOrdID in the process-lifetime namespace."""
         with self._lock:
             accepted = self._accepted_cl_ord_ids.setdefault(session_id, set())
             if cl_ord_id in accepted:
@@ -427,6 +441,10 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 self.handle_order_cancel_request(
                     message, sessionID, token, ref_seq_num
                 )
+            elif msg_type == "G":
+                self.handle_order_cancel_replace_request(
+                    message, sessionID, token, ref_seq_num
+                )
             elif msg_type == fix.MsgType_MarketDataRequest:
                 self.handle_market_data_request(
                     message, sessionID, token, ref_seq_num
@@ -550,11 +568,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             self._send_lifecycle_reject(
                 transport_session,
                 "LIFECYCLE_FAILED",
-                ref_msg_type=(
-                    fix.MsgType_NewOrderSingle
-                    if parsed.command_type == FixCommandType.NEW_ORDER
-                    else fix.MsgType_OrderCancelRequest
-                ),
+                ref_msg_type=_COMMAND_MSG_TYPES[parsed.command_type],
                 ref_seq_num=parsed.msg_seq_num,
             )
             raise LifecycleIngressRejected("LIFECYCLE_FAILED")
@@ -601,11 +615,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     self._send_lifecycle_reject(
                         transport_session,
                         exc.code,
-                        ref_msg_type=(
-                            fix.MsgType_NewOrderSingle
-                            if parsed.command_type == FixCommandType.NEW_ORDER
-                            else fix.MsgType_OrderCancelRequest
-                        ),
+                        ref_msg_type=_COMMAND_MSG_TYPES[parsed.command_type],
                         ref_seq_num=parsed.msg_seq_num,
                     )
                 except Exception as rejection_error:
@@ -721,11 +731,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             if self.lifecycle is not None and self.lifecycle.check_persistence_failure():
                 self._reject_failed_ingress_batch(ready[index:])
                 break
-            msg_type = (
-                fix.MsgType_NewOrderSingle
-                if envelope.command_type == FixCommandType.NEW_ORDER
-                else fix.MsgType_OrderCancelRequest
-            )
+            msg_type = _COMMAND_MSG_TYPES[envelope.command_type]
             self.metrics.record_fix_message(
                 msg_type,
                 "received",
@@ -735,11 +741,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                 self._reject_failed_ingress_batch(ready[index:])
                 break
             self.engine.scheduler.schedule_event(
-                (
-                    "new_order_received"
-                    if envelope.command_type == FixCommandType.NEW_ORDER
-                    else "cancel_received"
-                ),
+                _COMMAND_RECEIVE_EVENTS[envelope.command_type],
                 envelope,
                 0,
             )
@@ -756,9 +758,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         """Settle ingress detached by the current drain before the run failed."""
         for envelope in envelopes:
             self.reject_failed_command(
-                "new_order_received"
-                if envelope.command_type == FixCommandType.NEW_ORDER
-                else "cancel_received",
+                _COMMAND_RECEIVE_EVENTS[envelope.command_type],
                 envelope,
                 "METRICS_INCOMPLETE: Metrics were lost; this simulation must be rerun.",
             )
@@ -777,6 +777,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         events = self.engine.scheduler.extract_events({
             "new_order_received", "cancel_received", "order_arrived",
             "order_process", "cancel_arrived_at_exchange", "cancel_engine_process",
+            "replace_received", "replace_arrived_at_exchange", "replace_engine_process",
         })
         for event in events:
             self.reject_failed_command(event.event_type, event.data, reason)
@@ -785,9 +786,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             self._pending_ingress.clear()
         for envelope in pending:
             self.reject_failed_command(
-                "new_order_received"
-                if envelope.command_type == FixCommandType.NEW_ORDER
-                else "cancel_received",
+                _COMMAND_RECEIVE_EVENTS[envelope.command_type],
                 envelope,
                 reason,
             )
@@ -805,7 +804,11 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             if not isinstance(data, CancelOrderCommand):
                 raise TypeError("cancel_engine_process requires CancelOrderCommand")
             self._reject_failed_cancel(data, reason)
-        elif event_type in {"new_order_received", "cancel_received"}:
+        elif event_type == "replace_engine_process":
+            if not isinstance(data, ReplaceOrderCommand):
+                raise TypeError("replace_engine_process requires ReplaceOrderCommand")
+            self._reject_failed_replace(data, reason)
+        elif event_type in set(_COMMAND_RECEIVE_EVENTS.values()):
             if not isinstance(data, FixIngressEnvelope):
                 raise TypeError("receive event requires FixIngressEnvelope")
             if data.run_generation != self.identifier_scope.generation:
@@ -822,10 +825,14 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     code="METRICS_INCOMPLETE",
                     text=reason.removeprefix("METRICS_INCOMPLETE: "),
                 )
-            else:
+            elif data.command_type == FixCommandType.CANCEL_ORDER:
                 command = self._cancel_command(data, duplicate=False)
                 self.latency_tracker.cancel_received(command)
                 self._reject_failed_cancel(command, reason)
+            elif data.command_type == FixCommandType.REPLACE_ORDER:
+                command = self._replace_command(data, duplicate=False)
+                self.latency_tracker.replace_received(command)
+                self._reject_failed_replace(command, reason)
         # Arrival events have a paired processing event; rejecting both would
         # emit duplicate terminal reports.
 
@@ -833,6 +840,11 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         report = self.engine.reject_cancel_unavailable(command, reason)
         self.enqueue_report(report)
         self.latency_tracker.cancel_report_created(command, report)
+
+    def _reject_failed_replace(self, command: ReplaceOrderCommand, reason: str) -> None:
+        report = self.engine.reject_replace_unavailable(command, reason)
+        self.enqueue_report(report)
+        self.latency_tracker.replace_report_created(command, report)
 
     async def wait_for_ingress(
         self,
@@ -1373,7 +1385,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     ),
                     run_generation=self.identifier_scope.generation,
                 )
-                rejection = create_cancel_reject(
+                rejection = create_order_cancel_reject(
                     invalid_command,
                     reject_id=self.identifier_scope.next_cancel_reject_id(),
                     reason=CancelRejectReason.INVALID_REQUEST,
@@ -1425,6 +1437,199 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             symbol=envelope.symbol,
             side=envelope.side,
             order_qty_lots=envelope.order_qty_lots,
+            requested_at=envelope.simulated_receive_timestamp,
+            session_id=envelope.session.session_id,
+            session_alias=envelope.session.alias,
+            participant_id=envelope.session.participant_id,
+            run_generation=envelope.run_generation,
+            ingress_sequence=envelope.ingress_sequence,
+            msg_seq_num=envelope.msg_seq_num,
+            duplicate_request=duplicate,
+        )
+
+    def handle_order_cancel_replace_request(
+        self,
+        message,
+        sessionID,
+        token: Optional[IngressToken] = None,
+        ref_seq_num: Optional[int] = None,
+    ) -> None:
+        """Normalize G through the same exact numeric boundary as new orders."""
+        token = token or IngressToken(
+            LifecycleState.ACTIVE, self.identifier_scope.generation
+        )
+        resolved_ref_seq_num = ref_seq_num or self._resolve_ref_seq_num(message, sessionID)
+        try:
+            msg_seq_num = self._get_msg_seq_num(message)
+        except Exception as exc:
+            error_text = str(exc)
+            self._schedule_lifecycle_action(
+                sessionID, "G", token,
+                lambda: self.send_reject(
+                    sessionID, error_text, ref_msg_type="G",
+                    ref_seq_num=resolved_ref_seq_num, ref_tag_id=34,
+                    session_reject_reason=1,
+                ),
+                ref_seq_num=resolved_ref_seq_num,
+            )
+            return
+
+        # A domain rejection must contain usable request and original IDs.
+        try:
+            cl_ord_id = self.order_normalizer._cl_ord_id(
+                self._get_field(message, fix.ClOrdID())
+            )
+            orig_cl_ord_id = self.order_normalizer._cl_ord_id(
+                self._get_field(message, fix.OrigClOrdID())
+            )
+        except Exception as exc:
+            error_text = f"INVALID_FIX_MESSAGE: {exc}"
+            self._schedule_lifecycle_action(
+                sessionID, "G", token,
+                lambda: self.send_business_reject(
+                    sessionID, error_text, ref_msg_type="G",
+                    ref_seq_num=msg_seq_num, business_reject_reason=5,
+                ),
+                ref_seq_num=msg_seq_num,
+            )
+            return
+
+        identity = self._session_identity(sessionID)
+        symbol = "UNKNOWN"
+        raw_side = Side.BUY
+        try:
+            symbol = self._get_field(message, fix.Symbol()).strip().upper()
+            side_value = self._get_field(message, fix.Side())
+            raw_side = {fix.Side_BUY: Side.BUY, fix.Side_SELL: Side.SELL}.get(
+                side_value, side_value
+            )
+            order_type_value = self._get_field(message, fix.OrdType())
+            raw_order_type = {
+                fix.OrdType_LIMIT: OrderType.LIMIT,
+                fix.OrdType_MARKET: OrderType.MARKET,
+            }.get(order_type_value, order_type_value)
+            raw_tif = None
+            if message.isSetField(59):
+                value = self._get_field(message, fix.TimeInForce())
+                raw_tif = {
+                    fix.TimeInForce_GOOD_TILL_CANCEL: TimeInForce.GTC,
+                    fix.TimeInForce_IMMEDIATE_OR_CANCEL: TimeInForce.IOC,
+                }.get(value, value)
+            normalized = self.order_normalizer.normalize(
+                RawOrderInput(
+                    session_id=identity.session_id,
+                    participant_id=identity.participant_id,
+                    cl_ord_id=cl_ord_id,
+                    symbol=symbol,
+                    side=raw_side,
+                    order_type=raw_order_type,
+                    quantity=self._get_field(message, fix.StringField(38)),
+                    price=(
+                        self._get_field(message, fix.StringField(44))
+                        if message.isSetField(44) else None
+                    ),
+                    time_in_force=raw_tif,
+                    session_alias=identity.alias,
+                ),
+                submitted_at=self.engine.scheduler.current_time,
+            )
+            self._submit_ingress(
+                ParsedFixCommand(
+                    command_type=FixCommandType.REPLACE_ORDER,
+                    session=identity,
+                    msg_seq_num=msg_seq_num,
+                    cl_ord_id=normalized.cl_ord_id,
+                    orig_cl_ord_id=orig_cl_ord_id,
+                    symbol=normalized.symbol,
+                    side=normalized.side,
+                    order_type=normalized.order_type,
+                    order_qty_lots=normalized.order_qty_lots,
+                    price_ticks=normalized.price_ticks,
+                    tif=normalized.tif,
+                ),
+                token, sessionID,
+            )
+        except Exception as exc:
+            error_text = (
+                f"{exc.code.value}: {exc.message}"
+                if isinstance(exc, OrderValidationError)
+                else f"INVALID_FIX_MESSAGE: {exc}"
+            )
+            invalid_command = ReplaceOrderCommand(
+                replace_cl_ord_id=cl_ord_id,
+                orig_cl_ord_id=orig_cl_ord_id,
+                symbol=symbol or "UNKNOWN",
+                side=raw_side if isinstance(raw_side, Side) else Side.BUY,
+                order_type=OrderType.LIMIT,
+                order_qty_lots=0,
+                price_ticks=None,
+                tif=TimeInForce.GTC,
+                requested_at=self.engine.scheduler.current_time,
+                session_id=identity.session_id,
+                session_alias=identity.alias,
+                participant_id=identity.participant_id,
+                run_generation=token.generation,
+                ingress_sequence=-1,
+                msg_seq_num=msg_seq_num,
+            )
+
+            def reject_parse_error() -> None:
+                order_id = self.engine.client_order_index.get(
+                    ClientOrderKey(identity.session_id, orig_cl_ord_id)
+                )
+                order = self.engine.orders.get(order_id)
+                rejection = create_order_cancel_reject(
+                    invalid_command,
+                    reject_id=self.identifier_scope.next_cancel_reject_id(),
+                    reason=CancelRejectReason.INVALID_REQUEST,
+                    text=error_text,
+                    timestamp=self.engine.scheduler.current_time,
+                    order=order,
+                )
+                self.enqueue_report(rejection)
+                self.metrics.record_replace_request(invalid_command)
+                self.metrics.record_replace_reject(rejection)
+                self.metrics.record_replace_outcome(
+                    invalid_command, ReplacementOutcome.INVALID_REQUEST
+                )
+
+            self._schedule_lifecycle_action(
+                sessionID, "G", token, reject_parse_error,
+                ref_seq_num=msg_seq_num,
+            )
+
+    def process_replace_envelope(self, envelope: FixIngressEnvelope) -> None:
+        """Claim the G request ID and schedule its independent latency stages."""
+        if envelope.command_type != FixCommandType.REPLACE_ORDER:
+            raise TypeError("Expected a REPLACE_ORDER ingress envelope")
+        if envelope.run_generation != self.identifier_scope.generation:
+            return
+        duplicate = not self.session_registry.claim_cl_ord_id(
+            envelope.session.session_id, envelope.cl_ord_id
+        )
+        command = self._replace_command(envelope, duplicate=duplicate)
+        self.latency_tracker.replace_received(command)
+        self.engine.scheduler.schedule_replace_processing(
+            command,
+            self.engine.exec_params.network_latency_ms,
+            self.engine.exec_params.engine_latency_ms,
+            session_alias=command.session_alias,
+            inbound_ms=self.engine.exec_params.inbound_network_latency_ms,
+        )
+
+    @staticmethod
+    def _replace_command(
+        envelope: FixIngressEnvelope, *, duplicate: bool
+    ) -> ReplaceOrderCommand:
+        return ReplaceOrderCommand(
+            replace_cl_ord_id=envelope.cl_ord_id,
+            orig_cl_ord_id=envelope.orig_cl_ord_id or "",
+            symbol=envelope.symbol,
+            side=envelope.side,
+            order_type=envelope.order_type,
+            order_qty_lots=envelope.order_qty_lots,
+            price_ticks=envelope.price_ticks,
+            tif=envelope.tif,
             requested_at=envelope.simulated_receive_timestamp,
             session_id=envelope.session.session_id,
             session_alias=envelope.session.alias,
@@ -1557,7 +1762,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
 
     def _send_quickfix_cancel_reject(
         self,
-        cancel_reject: CancelReject,
+        cancel_reject: OrderCancelReject,
     ):
         """Serialize one immutable OrderCancelReject."""
         serialize_start_ns = self.monotonic_clock.now_ns()
@@ -1911,13 +2116,29 @@ class FIXApplication(_FIX_APPLICATION_BASE):
 
     def _complete_delivery(self, report: RoutableReport) -> None:
         try:
-            if isinstance(report, CancelReject):
-                self.latency_tracker.cancel_report_delivered(
+            if isinstance(report, OrderCancelReject):
+                if (
+                    report.request_type == FixCommandType.REPLACE_ORDER
+                    and report.ingress_sequence < 0
+                ):
+                    # Invalid transport input never entered the staged pipeline.
+                    return
+                complete = (
+                    self.latency_tracker.replace_report_delivered
+                    if report.request_type == FixCommandType.REPLACE_ORDER
+                    else self.latency_tracker.cancel_report_delivered
+                )
+                complete(
                     report,
                     delivered_at=self.engine.scheduler.current_time,
                 )
                 return
-            if report.cancel_ingress_sequence is None:
+            if report.replace_ingress_sequence is not None:
+                self.latency_tracker.replace_report_delivered(
+                    report,
+                    delivered_at=self.engine.scheduler.current_time,
+                )
+            elif report.cancel_ingress_sequence is None:
                 self.latency_tracker.report_delivered(
                     report,
                     self.engine.scheduler.current_time,

@@ -1,5 +1,35 @@
 # MockX Documentation Changelog
 
+## 2026-10-18 - Native FIX cancel/replace
+
+- Add FIX 4.4 OrderCancelReplaceRequest (`35=G`) for live resting NEW/PARTIAL
+  GTC limit orders, changing price and total quantity with existing exact
+  tick/lot and enabled ITCH bounds. Eligibility is checked at engine execution.
+- Preserve order identity, original submission time, ownership and fills.
+  Advance accepted ClOrdID even for no-ops; subsequent F/G requests must
+  reference that latest revision. Normalized D/F/G IDs share the existing
+  process-lifetime session namespace.
+- Retain FIFO for same-price reductions/no-ops; lose priority and rematch for
+  quantity increases or price changes. Clamp requested total at/below CumQty
+  to actual CumQty and finish FILLED without creating trades or canceled quantity.
+- Acknowledge once with ExecType=5 before new fills; reject through immutable
+  OrderCancelReject with CxlRejResponseTo=2. No Pending Replace reports.
+- Document replacement ingress/arrival/engine stages, reliable retry/reset
+  delivery, bounded outcome counters and four separate latency measurements.
+  Retained replacement traces account for elapsed simulated segments across
+  resets while persisting samples at current-run delivery time.
+- Separate stable FIX OrderID from per-placement displayed references. Publish
+  ITCH X reductions and D/E/C/A reprioritization with fresh references; retain
+  atomic GLIMPSE recovery and add X support to shared C++ feed/SOR consumers.
+- Add persisted orders exec_type/cl_ord_id/orig_cl_ord_id and document explicit
+  additive QuestDB migrations; startup does not alter existing tables.
+- Include wire and `examples.fix_support.send_replace` examples. Update the
+  current interactive guides without changing their matching animations or
+  the explicitly historical combined guide.
+- Correct the bundled FIX44 dictionary's missing optional TradeID (1003)
+  string declaration, and restore SOR build/live-smoke validation with the
+  venue-count include and explicit native factory cleanup on Windows.
+
 ## 2026-10-10 - Align current documentation with main
 
 - Verify the README and current guides against `main@0df049c`; application
