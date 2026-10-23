@@ -5,7 +5,9 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+import hashlib
 import ipaddress
+import json
 import os
 from pathlib import Path
 import re
@@ -788,6 +790,36 @@ class ExchangeConfig(StrictConfigModel):
                     f"ITCH tick_size for {symbol} is not representable as Price(4)"
                 )
         return self
+
+
+def execution_config_fingerprint(config: ExchangeConfig) -> str:
+    """Identify execution settings independently of deployment paths and ports.
+
+    The versioned canonical JSON includes instrument grids/display precision,
+    latency, execution randomness, scheduler settings and FIX participant
+    ownership. It excludes persistence credentials and transport diagnostics.
+    Decimal formatting is exact and independent of the active Decimal context.
+    """
+    payload = config.model_dump(mode="python", include={
+        "instruments", "latency", "execution", "scheduler",
+    })
+    payload["schema_version"] = 1
+    payload["fix"] = {
+        "enabled": config.fix.enabled,
+        "session_participants": dict(config.fix.session_participants),
+    }
+
+    def exact_decimal(value: object) -> str:
+        if not isinstance(value, Decimal):
+            raise TypeError(f"Unsupported fingerprint value: {type(value).__name__}")
+        text = format(value, "f")
+        return text.rstrip("0").rstrip(".") if "." in text else text
+
+    canonical = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        allow_nan=False, default=exact_decimal,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 _ENV_OVERRIDES: Mapping[str, tuple[str, str]] = {

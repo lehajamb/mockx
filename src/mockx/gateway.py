@@ -6,7 +6,7 @@ except ModuleNotFoundError:  # Pure report mapping and non-FIX tests remain impo
     fix = None
 import asyncio
 from concurrent.futures import Future
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from pathlib import Path
 from typing import Callable, Dict, Mapping, Optional, Union
@@ -52,7 +52,7 @@ from .metrics import (
     LatencyTracker,
     SERIALIZATION_DURATION,
 )
-from .engine import MatchingEngine
+from .engine import DuplicateClientOrderID, InitialBookState, MatchingEngine
 from .latency import MonotonicClock, PerfCounterClock, monotonic_duration_ns
 from .validation import (
     OrderNormalizer,
@@ -228,6 +228,19 @@ class SessionRegistry:
                 return False
             accepted.add(cl_ord_id)
             return True
+
+    def validate_cl_ord_ids(self, keys: tuple[ClientOrderKey, ...]) -> None:
+        with self._lock:
+            for key in keys:
+                if key.cl_ord_id in self._accepted_cl_ord_ids.get(key.session_id, set()):
+                    raise DuplicateClientOrderID(f"Duplicate ClOrdID in session: {key.cl_ord_id}")
+
+    def claim_cl_ord_ids(self, keys: tuple[ClientOrderKey, ...]) -> None:
+        """Claim the entire validated initialization batch, or claim nothing."""
+        with self._lock:
+            self.validate_cl_ord_ids(keys)
+            for key in keys:
+                self._accepted_cl_ord_ids.setdefault(key.session_id, set()).add(key.cl_ord_id)
 
     @property
     def connected_count(self) -> int:
@@ -2230,6 +2243,41 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             return self._get_msg_seq_num(message)
         except Exception:
             return self._session_ref_seq_num(sessionID)
+
+    def normalize_initial_snapshot(
+        self, snapshot: tuple[Mapping[str, str], ...], *, submitted_at: datetime,
+    ) -> tuple[NewOrderCommand, ...]:
+        """Use configured ownership and the ordinary exact numeric boundary."""
+        commands = []
+        for row in snapshot:
+            session_id = row["session_id"]
+            participant = self.session_participants.get(session_id)
+            target = session_id.partition("->")[2]
+            if participant is None or not target:
+                raise OrderValidationError(
+                    OrderValidationCode.INVALID_SESSION_ID, "session_id",
+                    f"Snapshot owner is not a configured FIX session: {session_id}",
+                )
+            # QuickFIX's stable ID may include target sub/location IDs or a qualifier.
+            alias = target.split("/", 1)[0].split(":", 1)[0]
+            commands.append(self.order_normalizer.normalize(
+                RawOrderInput(
+                    session_id=session_id, participant_id=participant,
+                    session_alias=alias, cl_ord_id=row["cl_ord_id"],
+                    symbol=row["symbol"], side=row["side"],
+                    order_type=OrderType.LIMIT, time_in_force=TimeInForce.GTC,
+                    quantity=row["quantity"], price=row["price"],
+                ),
+                submitted_at=submitted_at,
+            ))
+        keys = tuple(ClientOrderKey(command.session_id, command.cl_ord_id) for command in commands)
+        self.session_registry.validate_cl_ord_ids(keys)
+        return tuple(commands)
+
+    def claim_initial_snapshot(self, initial: InitialBookState) -> None:
+        """Reserve both namespaces before the synchronous destructive reset."""
+        self.engine.validate_initial_book_claims(initial)
+        self.session_registry.claim_cl_ord_ids(tuple(initial.client_order_index))
 
     def _session_identity(self, sessionID) -> SessionIdentity:
         """Convert a live QuickFIX SessionID to a domain-safe identity."""

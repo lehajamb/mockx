@@ -11,9 +11,12 @@ import inspect
 import logging
 from typing import Any, Awaitable, Callable, Optional, TypeVar
 
+from .engine import DuplicateClientOrderID, InitialBookState, SeededOrder
 from .glimpse_encoder import GlimpseOrderSnapshot, GlimpseSnapshot
 from .identifiers import RunIdentifierScope
-from .models import SchedulerState
+from .latency import UNIX_EPOCH
+from .models import OrderBookInvariantError, SchedulerState
+from .validation import OrderValidationError
 
 
 logger = logging.getLogger(__name__)
@@ -40,6 +43,7 @@ class SessionStartResult:
     run_id: str
     run_generation: int
     starting_time: datetime
+    seeded_orders: tuple[SeededOrder, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -347,7 +351,9 @@ class ExchangeLifecycle:
             self.run_id = None
             self._publish(LifecycleState.FAILED)
 
-    async def start_session(self, run_id: str) -> SessionStartResult:
+    async def start_session(
+        self, run_id: str, snapshot: tuple[dict[str, str], ...] = (),
+    ) -> SessionStartResult:
         async with self._serialized():
             self.raise_if_transition_or_failed()
             if self.state == LifecycleState.RUN_FAILED:
@@ -370,9 +376,23 @@ class ExchangeLifecycle:
                         "The next run generation cannot form an ITCH session",
                     ) from exc
 
+            try:
+                commands = self.fix_app.normalize_initial_snapshot(
+                    snapshot, submitted_at=UNIX_EPOCH,
+                )
+                initial = self.engine.prepare_initial_book(
+                    commands, RunIdentifierScope(self.run_generation + 1),
+                )
+            except DuplicateClientOrderID as exc:
+                raise LifecycleError(409, "DUPLICATE_CL_ORD_ID", str(exc)) from exc
+            except OrderValidationError as exc:
+                raise LifecycleError(422, exc.code.value, exc.message) from exc
+            except OrderBookInvariantError as exc:
+                raise LifecycleError(422, "INVALID_SNAPSHOT", str(exc)) from exc
+
             self._publish(LifecycleState.STARTING)
             task = asyncio.create_task(
-                self._start_session(run_id), name=f"session-start:{run_id}"
+                self._start_session(run_id, initial), name=f"session-start:{run_id}"
             )
             try:
                 return await self._complete_transition(
@@ -385,7 +405,9 @@ class ExchangeLifecycle:
                     self._publish(LifecycleState.STOPPED)
                 raise
 
-    async def _start_session(self, run_id: str) -> SessionStartResult:
+    async def _start_session(
+        self, run_id: str, initial: InitialBookState,
+    ) -> SessionStartResult:
         """Finish an accepted start; the caller owns the lifecycle lock."""
         try:
             flush_result = await self.metrics.flush()
@@ -413,6 +435,12 @@ class ExchangeLifecycle:
             ) from exc
 
         try:
+            self.fix_app.claim_initial_snapshot(initial)
+        except DuplicateClientOrderID as exc:
+            self._publish(LifecycleState.STOPPED)
+            raise LifecycleError(409, "DUPLICATE_CL_ORD_ID", str(exc)) from exc
+
+        try:
             if self.glimpse_service is not None:
                 self.glimpse_service.revoke_all()
             previous_sim_time = self.scheduler.current_time
@@ -435,15 +463,24 @@ class ExchangeLifecycle:
             self.engine.reseed_rng()
 
             generation = self.run_generation + 1
-            identifiers = RunIdentifierScope(generation)
+            identifiers = initial.identifiers
             self.engine.install_identifier_scope(identifiers)
             self.fix_app.reset_run_state(identifiers)
+            self.engine.install_initial_book(initial)
+            for order in initial.orders.values():
+                self.latency_tracker.snapshot_order_initialized(
+                    order.id, order.session_id, generation,
+                )
             self.metrics.start_run(run_id)
             self.run_id = run_id
             self.run_generation = generation
             self.run_failure = None
             self.fix_app.reschedule_deliveries_after_reset()
+            seeded_symbols = {order.symbol for order in initial.orders.values()}
             for symbol in self.engine.books:
+                if symbol in seeded_symbols:
+                    # The committed feed publication below also records this snapshot.
+                    continue
                 snapshot = self.engine.get_market_data_snapshot(symbol)
                 if snapshot is None:
                     raise RuntimeError(
@@ -460,6 +497,7 @@ class ExchangeLifecycle:
                     generation,
                     self.scheduler.current_time,
                 )
+            self.engine.publish_initial_book(initial)
             if self.glimpse_service is not None:
                 await self.glimpse_service.start()
                 self.glimpse_service.begin_run(generation)
@@ -482,6 +520,7 @@ class ExchangeLifecycle:
                 run_id=run_id,
                 run_generation=generation,
                 starting_time=self.scheduler.current_time,
+                seeded_orders=initial.seeded_orders,
             )
         except asyncio.CancelledError:
             self._fail_start_after_reset()

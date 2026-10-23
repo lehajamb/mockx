@@ -3039,6 +3039,7 @@ class LatencyTracker:
         self.measurements: list[LatencyMeasurement] = []
         self._delivered_exec_ids: set[str] = set()
         self._completed_order_ids: set[tuple[int, int]] = set()
+        self._snapshot_order_keys: set[tuple[int, int]] = set()
         self._lock = threading.RLock()
 
     def reset(
@@ -3053,6 +3054,7 @@ class LatencyTracker:
             if preserve_order_keys is None:
                 self.orders.clear()
                 self._completed_order_ids.clear()
+                self._snapshot_order_keys.clear()
             else:
                 self.orders = {
                     key: trace
@@ -3060,6 +3062,7 @@ class LatencyTracker:
                     if key in preserve_order_keys
                 }
                 self._completed_order_ids.intersection_update(preserve_order_keys)
+                self._snapshot_order_keys.intersection_update(preserve_order_keys)
             if preserve_cancel_keys is None:
                 self.cancels.clear()
             else:
@@ -3084,6 +3087,20 @@ class LatencyTracker:
                         trace.sim_clock_offset += reset_offset
             self.measurements.clear()
             self._delivered_exec_ids.clear()
+
+    def snapshot_order_initialized(
+        self, order_id: int, session_id: str, run_generation: int,
+    ) -> None:
+        """Track later report delivery without inventing an order-entry path."""
+        key = (run_generation, order_id)
+        with self._lock:
+            if key in self.orders or key in self._completed_order_ids:
+                raise ValueError("Snapshot order already has a latency identity")
+            self.orders[key] = OrderLatencyTrace(
+                run_generation=run_generation, order_id=order_id,
+                session_id=session_id, sim_submitted_at=self.scheduler.current_time,
+            )
+            self._snapshot_order_keys.add(key)
 
     def order_submitted(
         self,
@@ -3147,6 +3164,8 @@ class LatencyTracker:
 
     def report_created(self, report: ExecutionReport) -> None:
         with self._lock:
+            if (report.run_generation, report.order_id) in self._snapshot_order_keys:
+                return
             trace = self.orders.get((report.run_generation, report.order_id))
             if trace is None:
                 self._missing_trace(report.order_id, "report_created")
@@ -3188,13 +3207,15 @@ class LatencyTracker:
                 delivered_at,
                 report_exec_id=report.exec_id,
             )
-            end_to_end = self._duration_measurement(
-                trace,
-                SIM_END_TO_END_LATENCY,
-                trace.sim_submitted_at,
-                delivered_at,
-                report_exec_id=report.exec_id,
-            )
+            end_to_end = None
+            if (report.run_generation, report.order_id) not in self._snapshot_order_keys:
+                end_to_end = self._duration_measurement(
+                    trace,
+                    SIM_END_TO_END_LATENCY,
+                    trace.sim_submitted_at,
+                    delivered_at,
+                    report_exec_id=report.exec_id,
+                )
         self._publish(outbound)
         self._publish(end_to_end)
         return True
@@ -3575,6 +3596,7 @@ class LatencyTracker:
         """Remove a trace after terminal measurements have been emitted."""
         with self._lock:
             self.orders.pop((run_generation, order_id), None)
+            self._snapshot_order_keys.discard((run_generation, order_id))
 
     def _find_order_trace_locked(
         self,

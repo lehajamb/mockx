@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from random import Random
 from typing import Callable, Dict, List, Optional
 
@@ -60,6 +61,26 @@ logger = logging.getLogger(__name__)
 
 class DuplicateClientOrderID(ValueError):
     """A process-lifetime duplicate within one session namespace."""
+
+
+@dataclass(frozen=True, slots=True)
+class SeededOrder:
+    symbol: str
+    session_id: str
+    cl_ord_id: str
+    order_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class InitialBookState:
+    """Validated run-local state, prepared without mutating the live engine."""
+
+    identifiers: RunIdentifierScope
+    books: Dict[str, OrderBook]
+    orders: Dict[int, Order]
+    client_order_index: Dict[ClientOrderKey, int]
+    displayed_events: tuple[DisplayedOrderAdded, ...]
+    seeded_orders: tuple[SeededOrder, ...]
 
 
 class MatchingEngine:
@@ -124,6 +145,85 @@ class MatchingEngine:
 
     def reseed_rng(self) -> None:
         self.rng.seed(self.random_seed)
+
+    def prepare_initial_book(
+        self,
+        commands: tuple[NewOrderCommand, ...],
+        identifiers: RunIdentifierScope,
+    ) -> InitialBookState:
+        """Build a fresh resting book in input FIFO order without matching."""
+        books = {symbol: OrderBook(symbol=symbol) for symbol in self.instruments.symbols}
+        orders: Dict[int, Order] = {}
+        index: Dict[ClientOrderKey, int] = {}
+        events: list[DisplayedOrderAdded] = []
+        seeded: list[SeededOrder] = []
+        for order_id, command in enumerate(commands, start=1):
+            if command.order_type != OrderType.LIMIT or command.tif != TimeInForce.GTC:
+                raise ValueError("Initial book orders must be GTC limits")
+            if command.session_id is None:
+                raise ValueError("Initial book orders require a configured FIX session")
+            key = ClientOrderKey(command.session_id, command.cl_ord_id)
+            if key in index or key in self._claimed_client_order_ids:
+                raise DuplicateClientOrderID(f"Duplicate ClOrdID in session: {command.cl_ord_id}")
+            order = Order(
+                id=order_id,
+                exchange_order_id=identifiers.next_order_id(),
+                run_generation=identifiers.generation,
+                cl_ord_id=command.cl_ord_id,
+                symbol=command.symbol,
+                side=command.side,
+                order_type=command.order_type,
+                order_qty_lots=command.order_qty_lots,
+                price_ticks=command.price_ticks,
+                instrument=self.instruments.require(command.symbol),
+                tif=command.tif,
+                ts_submitted=command.submitted_at,
+                participant_id=command.participant_id,
+                session_id=command.session_id,
+                session_alias=command.session_alias,
+                status=OrderStatus.NEW,
+                processed=True,
+                displayed_order_ref=order_id,
+            )
+            books[order.symbol].add_order(order)
+            orders[order_id] = order
+            index[key] = order_id
+            events.append(DisplayedOrderAdded(
+                run_generation=order.run_generation, order_id=order.id,
+                order_ref_num=order_id, symbol=order.symbol, side=order.side,
+                price_ticks=order.price_ticks, qty_lots=order.leaves_qty_lots,
+                timestamp=order.ts_submitted,
+            ))
+            seeded.append(SeededOrder(
+                order.symbol, command.session_id, order.cl_ord_id, order.exchange_order_id,
+            ))
+        for book in books.values():
+            book.assert_invariants()
+        return InitialBookState(identifiers, books, orders, index, tuple(events), tuple(seeded))
+
+    def validate_initial_book_claims(self, initial: InitialBookState) -> None:
+        if self._claimed_client_order_ids.intersection(initial.client_order_index):
+            raise DuplicateClientOrderID("Snapshot contains an already claimed ClOrdID")
+
+    def install_initial_book(self, initial: InitialBookState) -> None:
+        """Commit prepared state only inside a fresh serialized run transition."""
+        if self.orders or any(book.bids or book.asks for book in self.books.values()):
+            raise RuntimeError("Initial book installation requires an empty engine")
+        if self.identifier_scope is not initial.identifiers:
+            raise RuntimeError("Initial book identifier scope does not match the run")
+        self.validate_initial_book_claims(initial)
+        self.books = initial.books
+        self.orders = initial.orders
+        self.client_order_index = initial.client_order_index
+        self._claimed_client_order_ids.update(initial.client_order_index)
+        self.next_order_id = len(initial.orders) + 1
+        self.next_displayed_order_ref = len(initial.orders) + 1
+
+    def publish_initial_book(self, initial: InitialBookState) -> None:
+        """Publish bootstrap liquidity after the run's feed has started."""
+        self._publish_displayed_events(list(initial.displayed_events))
+        for symbol in dict.fromkeys(order.symbol for order in initial.orders.values()):
+            self._send_market_data_update(symbol)
 
     def install_identifier_scope(
         self,

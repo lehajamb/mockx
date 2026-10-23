@@ -31,7 +31,7 @@ from pydantic import (
 )
 from starlette.responses import Response
 
-from .configuration import ExchangeConfig
+from .configuration import ExchangeConfig, execution_config_fingerprint
 from .engine import MatchingEngine
 from .gateway import FIXApplication
 from .latency import SchedulerFailedError
@@ -431,6 +431,26 @@ class StatsResponse(BaseModel):
     process_lifetime: Dict[str, object]
 
 
+class InitialOrderBody(BaseModel):
+    """One existing resting order owned by a configured FIX session."""
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    symbol: str
+    side: Literal["BUY", "SELL"]
+    quantity: str
+    price: str
+    session_id: str
+    cl_ord_id: str
+
+
+class SeededOrderResponse(BaseModel):
+    symbol: str
+    session_id: str
+    cl_ord_id: str
+    order_id: str
+
+
 class SessionBody(BaseModel):
     """Start one explicitly named simulation session."""
 
@@ -441,6 +461,7 @@ class SessionBody(BaseModel):
         max_length=128,
         validation_alias=AliasChoices("run_id", "session_id"),
     )
+    snapshot: list[InitialOrderBody] = Field(default_factory=list)
 
 
 class SessionStartResponse(BaseModel):
@@ -448,6 +469,8 @@ class SessionStartResponse(BaseModel):
     session_id: str
     run_generation: int
     starting_time: datetime
+    execution_config_fingerprint: str
+    seeded_orders: list[SeededOrderResponse] = Field(default_factory=list)
 
 
 class SessionEndResponse(BaseModel):
@@ -1223,6 +1246,7 @@ class ExchangeAPI:
             "/api/v1/session/start",
             response_model=SessionStartResponse,
             responses={
+                422: {"model": ErrorResponse},
                 409: {"model": ErrorResponse},
                 503: {"model": ErrorResponse},
             },
@@ -1234,7 +1258,9 @@ class ExchangeAPI:
             assert self.lifecycle is not None
             try:
                 self.lifecycle.raise_if_transition_or_failed()
-                result = await self.lifecycle.start_session(session.run_id)
+                result = await self.lifecycle.start_session(
+                    session.run_id, tuple(row.model_dump() for row in session.snapshot),
+                )
             except LifecycleError as exc:
                 self._raise_lifecycle_error(exc)
             return SessionStartResponse(
@@ -1242,6 +1268,11 @@ class ExchangeAPI:
                 session_id=result.run_id,
                 run_generation=result.run_generation,
                 starting_time=result.starting_time,
+                execution_config_fingerprint=execution_config_fingerprint(self.config),
+                seeded_orders=[SeededOrderResponse(
+                    symbol=order.symbol, session_id=order.session_id,
+                    cl_ord_id=order.cl_ord_id, order_id=order.order_id,
+                ) for order in result.seeded_orders],
             )
 
         @self.app.post(

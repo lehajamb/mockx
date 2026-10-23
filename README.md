@@ -2,7 +2,7 @@
 
 MockX is a deterministic, FIX-speaking mock exchange for strategy tests and
 simulation. It provides a price-time-priority order book, an externally
-controlled simulated clock, FIX as its only public order-entry interface,
+controlled simulated clock, FIX as its public live order-entry interface,
 typed REST administration, immutable WebSocket market data, process metrics,
 and optional buffered QuestDB persistence. An experimental downstream Nasdaq
 ITCH 5.0 feed can be published over MoldUDP64 multicast, with an optional
@@ -20,6 +20,9 @@ market-data tests.
 - Mandatory participant ownership and unconditional self-cross prevention.
 - Stable-FIX-session-scoped `ClOrdID` identity and execution-report routing.
 - Atomic simulation lifecycle transitions and generation-aware public IDs.
+- Optional initial resting snapshots owned by configured FIX sessions.
+- External local CoinAPI L3 CSV replay through ordinary FIX, with optional
+  midpoint-control market orders in the same replay application.
 - One execution report per order side and per fill.
 - Frozen market-data snapshots containing only scalar values.
 - A global per-exchange market-data sequence.
@@ -48,9 +51,10 @@ Supported new orders are limit and market orders with GTC or IOC. Native
 `OrderCancelReplaceRequest (35=G)` changes the price and total quantity of a
 live, resting GTC limit order.
 
-Orders, cancellations, and replacements are submitted only through FIX. REST provides
-administration, book inspection, observability, and the browser UI; it has no
-order-entry route.
+Live orders, cancellations, and replacements are submitted only through FIX.
+REST provides administration, book inspection, observability, and the browser
+UI. Session start can initialize existing resting liquidity through an optional
+snapshot; it cannot submit live orders or overwrite an active book.
 
 All FIX order values pass through one strict normalization boundary.
 Quantity must be positive, finite, and exactly divisible by the instrument lot
@@ -713,8 +717,9 @@ Book response:
 }
 ```
 
-Order entry is available only through FIX; it is not exposed by the REST API
-or its OpenAPI schema. Unknown symbols requested through `/book/{symbol}` or
+Live order entry is available only through FIX. The administrative session
+start endpoint can initialize a resting snapshot as described below. Unknown
+symbols requested through `/book/{symbol}` or
 `/ui/{symbol}` return HTTP 404:
 
 ```json
@@ -860,9 +865,73 @@ isolated network. CORS defaults to no allowed cross-origin callers.
 
 | Method | Route | Behavior |
 |---|---|---|
-| POST | `/api/v1/session/start` | Flush previous metrics, reset run-local engine/scheduler/sequence/latency state, preserve and reschedule the FIX delivery backlog, start named simulation session |
+| POST | `/api/v1/session/start` | Flush previous metrics, reset run-local state, optionally seed owned resting orders, preserve/reschedule the FIX delivery backlog, start named simulation session |
 | POST | `/api/v1/session/end` | Flush metrics, return final stats, end active simulation session |
 | POST | `/admin/advance-time` | Inclusively process events through an absolute UTC target or positive delta |
+
+### Initial resting snapshot
+
+`POST /api/v1/session/start` accepts optional `snapshot` entries alongside
+`run_id`. Omitting the field or supplying `[]` starts with empty books. This is
+initialization during a fresh run transition; an active session still returns
+`409 SESSION_ALREADY_ACTIVE`.
+
+```json
+{
+  "run_id": "seeded-replay",
+  "snapshot": [
+    {
+      "symbol": "BTC-USD",
+      "side": "BUY",
+      "quantity": "1.000",
+      "price": "99.00",
+      "session_id": "FIX.4.4:MOCKX_COINAPI->replay_buy",
+      "cl_ord_id": "SEED-UNIQUE-BID-1"
+    },
+    {
+      "symbol": "BTC-USD",
+      "side": "SELL",
+      "quantity": "1.000",
+      "price": "101.00",
+      "session_id": "FIX.4.4:MOCKX_COINAPI->replay_sell",
+      "cl_ord_id": "SEED-UNIQUE-ASK-1"
+    }
+  ]
+}
+```
+
+| Snapshot field | Contract |
+|---|---|
+| `symbol` | Configured MockX instrument |
+| `side` | `BUY` or `SELL` |
+| `quantity`, `price` | Positive decimal strings, exactly representable in configured lots/ticks |
+| `session_id` | Acceptor-oriented stable FIX session ID in `fix.session_participants` |
+| `cl_ord_id` | Valid, unused client ID in that session's process-lifetime namespace |
+
+The owner participant and session alias come from configuration. Entries become
+processed `NEW` GTC limit orders with zero cumulative fills. Input order defines
+FIFO within a price level; no historical priority is inferred. Duplicate IDs,
+unknown owners, invalid numeric values and crossed/locked snapshots fail
+validation before run state is reset. Duplicate client IDs return HTTP 409;
+invalid order data or snapshot invariants return HTTP 422.
+
+The start response adds `seeded_orders`, whose entries contain `symbol`,
+`session_id`, `cl_ord_id`, and the assigned public `order_id`. The response is
+the seed acknowledgment: import emits no FIX New reports, trades, or synthetic
+new-order latency samples. Seeded orders are published through the existing
+book/feed paths and can subsequently be canceled or replaced by their owning
+FIX sessions using normal `F/G` messages. Seeding does not bypass later
+ownership, priority, or self-trade-prevention checks. Configuration still uses
+`instruments`, `fix.session_participants`, and `admin_api.enabled`; there is no
+CoinAPI-specific matching or snapshot configuration section.
+
+The start response also includes `execution_config_fingerprint`, a lowercase
+SHA-256 digest of the canonical instruments, latency, execution, scheduler,
+FIX-enabled setting and FIX participant mappings. Clients can compare this
+with their local execution configuration before replaying events. Deployment
+ports, file paths and persistence settings are excluded from the fingerprint.
+
+### Lifecycle transitions
 
 The exchange-wide lifecycle is:
 
@@ -905,9 +974,11 @@ not a successful HTTP response and does not introduce a new API error code.
 Starting while active returns `409 SESSION_ALREADY_ACTIVE`. A successful start
 flushes inactive metrics, closes WebSockets, resets scheduler/engine and
 run-local statistics, reseeds the RNG from `execution.random_seed`, allocates
-`previous_allocated_generation + 1`, installs fresh run identifier counters,
-and admits initial book snapshots before feed initialization and publication
-of `ACTIVE`. Allocation precedes initial snapshot admission: a start that
+`previous_allocated_generation + 1`, installs fresh run identifier counters
+and the validated initial book, then initializes the feeds and publishes
+`ACTIVE`. Empty-symbol snapshots are admitted before feed initialization;
+seeded-symbol snapshots and displayed-order events are published after ITCH
+starts. Allocation precedes initial snapshot admission: a start that
 loses that snapshot still consumes a generation and retains an endable failed
 run. The process-lifetime FIX delivery queue and its
 per-session sequence are not reset. Latency traces referenced by its
@@ -1339,7 +1410,7 @@ ORDER BY metric_event_sequence;
 ```
 
 Every committed book update is persisted as one immutable `book_snapshot`,
-and run start emits an initial empty snapshot for every symbol after run
+and run start emits each symbol's initial seeded or empty snapshot after run
 identity begins. Each record contains `sequence`, `has_bid`, `has_ask`,
 explicit canonical `best_bid`/`best_ask` strings, `spread_valid`, canonical
 spread/mid strings, bid/ask depth, and canonical JSON arrays containing every
@@ -1579,6 +1650,32 @@ environment variable names are not recognized; no compatibility aliases are
 maintained.
 
 ## 13. Examples
+
+### Local CoinAPI L3 historical replay
+
+[`examples/coinapi_replay`](examples/coinapi_replay/README.md) reads a local
+L3 `.csv`/`.csv.gz`, initializes one MockX book, and sends historical increments
+through ordinary FIX `D/F/G`. The same application can run an independent
+midpoint controller through a separate FIX participant while a strategy uses
+the existing exchange interfaces. No CoinAPI account or network download is
+needed. The bundled CSV is synthetic.
+
+From the repository root, preflight the sample without connecting:
+
+```bash
+python -m examples.coinapi_replay --input examples/coinapi_replay/sample_l3.csv --symbol BTC-USD --prepare-only
+```
+
+Start the exchange with `examples/coinapi_exchange.yml` and
+`examples/coinapi_acceptor.cfg`, then run the same replay command without
+`--prepare-only` for the default exact baseline. The example README covers both
+FIX and administrative snapshot seeding, interactive pacing, controller
+budgets, configuration and output evidence. Exact replay is a checked property
+of a supported file/configuration/interval with no strategy orders; it does not
+claim that every L3 capture reveals the original FIFO or aggressor commands.
+The runner requires exclusive lifecycle/clock control. It retains run history
+and computes a full source-state digest per event, so large captures need
+memory and preparation-cost assessment before sustained load testing.
 
 ### C++20 two-venue smart order router
 

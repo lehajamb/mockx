@@ -94,6 +94,12 @@ class FixReport:
     last_price: Optional[str]
     last_qty: Optional[str]
     text: Optional[str]
+    order_id: Optional[str] = None
+    exec_id: Optional[str] = None
+    cum_qty: Optional[str] = None
+    quantity: Optional[str] = None
+    trade_id: Optional[str] = None
+    received_ns: Optional[int] = None
 
 
 def require_quickfix() -> None:
@@ -220,9 +226,15 @@ class MultiSessionFIXApplication(ApplicationBase):
                 leaves_qty=_optional_field_value(
                     message, fix.StringField(151)
                 ),
-                last_price=_optional_field_value(message, fix.LastPx()),
-                last_qty=_optional_field_value(message, fix.LastQty()),
+                last_price=_optional_field_value(message, fix.StringField(31)),
+                last_qty=_optional_field_value(message, fix.StringField(32)),
                 text=_optional_field_value(message, fix.Text()),
+                order_id=_optional_field_value(message, fix.OrderID()),
+                exec_id=_optional_field_value(message, fix.ExecID()),
+                cum_qty=_optional_field_value(message, fix.StringField(14)),
+                quantity=_optional_field_value(message, fix.StringField(38)),
+                trade_id=_optional_field_value(message, fix.StringField(1003)),
+                received_ns=time.monotonic_ns(),
             )
         if value == fix.MsgType_OrderCancelReject:
             ord_status = _field_value(message, fix.OrdStatus())
@@ -237,6 +249,8 @@ class MultiSessionFIXApplication(ApplicationBase):
                 last_price=None,
                 last_qty=None,
                 text=_optional_field_value(message, fix.Text()),
+                order_id=_optional_field_value(message, fix.OrderID()),
+                received_ns=time.monotonic_ns(),
             )
         return None
 
