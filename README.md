@@ -1,5 +1,8 @@
 # MockX
 
+[Read the interactive documentation](https://lehajamb.github.io/mockx/)
+for the system architecture, matching engine, and scheduler.
+
 MockX is a deterministic, FIX-speaking mock exchange for strategy tests and
 simulation. It provides a price-time-priority order book, an externally
 controlled simulated clock, FIX as its only public order-entry interface,
@@ -1754,3 +1757,18 @@ python -m compileall -q src tests examples
 python -m pytest -q
 docker compose config
 ```
+
+## 16. Publishing documentation
+
+The [documentation site](https://lehajamb.github.io/mockx/) serves the static
+HTML, CSS, JavaScript, and changelog in `doc/`; no build step is required.
+The `Deploy documentation to Pages` workflow publishes changes to `doc/` or
+`.github/workflows/pages.yml` when they reach `main`. To republish manually,
+open that workflow in the repository's **Actions** tab and select **Run workflow**
+with branch `main`. Deployments from other branches are skipped.
+
+For initial setup, a repository admin or maintainer must select **GitHub Actions**
+under **Settings → Pages → Build and deployment → Source**. The workflow uses
+the `github-pages` environment and the built-in `GITHUB_TOKEN`; no personal
+access token or custom domain is required. Only the contents of `doc/` are
+uploaded. Monitor the workflow run and its deployment URL to verify publication.
