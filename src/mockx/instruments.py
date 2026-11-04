@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from functools import lru_cache
 from types import MappingProxyType
 from typing import Mapping
 
@@ -48,6 +49,12 @@ def parse_decimal(value: object, *, field_name: str) -> Decimal:
             f"{field_name} must be finite",
         )
     return parsed
+
+
+@lru_cache(maxsize=16_384, typed=True)
+def _format_integer_units(increment: Decimal, units: int, precision: int) -> str:
+    """One bounded exact cache shared by price and quantity wire formatting."""
+    return format_decimal_ratio(decimal_product(increment, units), 1, precision)
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,12 +153,22 @@ class Instrument:
         return format_decimal_ratio(value, 1, precision)
 
     def format_price(self, price_ticks: int) -> str:
+        if (type(price_ticks) is int and self.tick_size.is_finite()
+                and not self.tick_size.is_signed()):
+            return _format_integer_units(
+                self.tick_size, price_ticks, self.price_display_precision,
+            )
         return self._format(
             self.price_decimal(price_ticks),
             self.price_display_precision,
         )
 
     def format_quantity(self, quantity_lots: int) -> str:
+        if (type(quantity_lots) is int and self.lot_size.is_finite()
+                and not self.lot_size.is_signed()):
+            return _format_integer_units(
+                self.lot_size, quantity_lots, self.quantity_display_precision,
+            )
         return self._format(
             self.quantity_decimal(quantity_lots),
             self.quantity_display_precision,

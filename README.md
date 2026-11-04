@@ -220,13 +220,13 @@ in this ascending order:
 
 ```text
 simulated receive timestamp
-complete QuickFIX SessionID.toString()
-FIX MsgSeqNum
 run-local ingress sequence
 ```
 
-The ingress sequence is the final tie-break, never the sole FIFO source, and
-resets to zero on every successful simulation start. Sorted envelopes become
+Equal-time commands follow gateway acceptance order across sessions; session
+names do not confer matching priority. QuickFIX retains its per-session message
+ordering. The ingress sequence resets to zero on every successful simulation
+start. Sorted envelopes become
 `new_order_received`, `cancel_received`, or `replace_received` scheduler events. Scheduler FIFO
 then preserves causal ordering among later equal-time stages.
 
@@ -524,11 +524,14 @@ scheduler receive events. Administrative and realtime advancement also
 capture, await, and flush pending ingress before running the scheduler. There
 is intentionally no public HTTP ingress-barrier endpoint.
 
-The optional `realtime` mode advances simulated time while the lifecycle
-is `ACTIVE` or `RUN_FAILED`, by
-`scheduler.interval_ms` after each non-busy asyncio interval. Event ordering
-remains deterministic at a given simulated timestamp, but the relationship to
-machine scheduling is necessarily nondeterministic. Manual advancement returns
+The optional `realtime` mode derives simulated elapsed time from a monotonic
+clock while the lifecycle is `ACTIVE` or `RUN_FAILED`. `scheduler.rate` defaults
+to `1.0` and accepts `(0, 1]`; `0.25` runs simulated time at one quarter of wall
+speed. `interval_ms` controls wake frequency, not elapsed time. Catch-up steps
+are capped at 100 simulated milliseconds and yield between steps. The anchor
+resets for each generation. `/stats.scheduler.realtime_lag_ms` exposes backlog.
+Event ordering remains deterministic at a given simulated timestamp; live
+socket arrival timing depends on machine scheduling. Manual advancement returns
 `409 CLOCK_MODE_CONFLICT` in realtime mode.
 
 Market-data timestamps, fills, reports, and scheduler targets are always
@@ -832,6 +835,16 @@ heartbeat is pending; it is coalesced or dropped under congestion and cannot
 overtake the initial snapshot. Snapshots may displace heartbeats, while fatal
 error and close control traffic retains priority.
 
+`websocket.snapshot_interval_ms` optionally coalesces trade-free snapshots
+before formatting, keeping only the latest immutable book per symbol. Its
+default is `0` (publish every update); the CoinAPI example uses `50` ms.
+Snapshots containing trades bypass this timer and publish immediately because
+their fills belong to that command. The existing outbound queue can still
+conflate frames; use FIX reports and ITCH for authoritative execution evidence.
+FIX, ITCH, and metrics keep their normal cadence. Session end and reset flush
+pending snapshots through the existing generation fence. This publishes the
+final book and prevents older runs from reaching new subscriptions.
+
 Broadcasting only performs bounded in-memory enqueues. A blocked socket
 therefore cannot delay another symbol or client, REST work, scheduler
 progression, or market-data publication. Each network send uses
@@ -866,6 +879,24 @@ isolated network. CORS defaults to no allowed cross-origin callers.
 | POST | `/api/v1/session/start` | Flush previous metrics, reset run-local engine/scheduler/sequence/latency state, preserve and reschedule the FIX delivery backlog, start named simulation session |
 | POST | `/api/v1/session/end` | Flush metrics, return final stats, end active simulation session |
 | POST | `/admin/advance-time` | Inclusively process events through an absolute UTC target or positive delta |
+
+Session start optionally accepts `initial_orders`, an array of resting GTC
+limit orders containing `symbol`, `side` (`BUY`/`SELL`), exact string `price`
+and `quantity`, configured server-side FIX `session_id`, and `cl_ord_id`.
+The complete batch, ownership, identifiers, and uncrossed resulting book are
+validated before reset. It installs one native initial book and reserves FIX
+identities so later FIX cancel/replace requests work normally. These seed
+orders do not fabricate NEW acknowledgments or historical inbound latency.
+They contribute to active/resting gauges, but not submitted/accepted request
+counters; later fills and cancellations count normally in both run and lifetime
+statistics without creating a new acceptance for the seed.
+The response includes `seed_orders` with each `symbol`, `session_id`,
+`cl_ord_id`, and public `order_id`. Native ITCH and GLIMPSE expose the same seed.
+All subsequent order entry uses FIX.
+
+Session end optionally accepts `{"expected_run_generation": 1}`. A mismatch
+returns `409 RUN_GENERATION_MISMATCH` before changing the session. Owned replay
+clients use this guard to avoid ending a replacement run.
 
 The exchange-wide lifecycle is:
 
@@ -1034,8 +1065,8 @@ mockx_sim_cancel_outbound_latency_ms
 mockx_sim_cancel_end_to_end_latency_ms
 ```
 
-Measured CPU durations are separate microsecond histograms and `/stats`
-averages:
+Measured elapsed processing durations are separate microsecond histograms and `/stats`
+averages (monotonic time, including descheduling and GIL waits):
 
 ```text
 mockx_match_loop_duration_us
@@ -1419,10 +1450,12 @@ fix:
     "FIX.4.4:MOCKX1->CLIENT1": "participant-1"
 scheduler:
   mode: external
+  rate: 1.0
   interval_ms: 10
   max_advance_ms: 86400000
   max_events_per_advance: 100000
 websocket:
+  snapshot_interval_ms: 0
   heartbeat_interval_seconds: 10
   outbound_queue_capacity: 8
   send_timeout_seconds: 5
@@ -1466,8 +1499,8 @@ Validated ranges are:
 | ports/booleans | Ports 1-65535; booleans must be actual YAML booleans |
 | latency | Every main, directional, engine, and session delay is an integer 0-2,147,483,647 ms |
 | execution | Finite `reject_prob` 0-1; signed 64-bit integer seed; unknown/obsolete fields forbidden |
-| scheduler | `external` or `realtime`; interval 1-60,000 ms; advance 1-86,400,000 ms; event limit 1-1,000,000 |
-| WebSocket | All timing values finite and in (0, 86,400] seconds; heartbeat/market staleness exceed heartbeat; queue 1-100,000 |
+| scheduler | `external` or `realtime`; rate finite in (0, 1]; interval 1-60,000 ms; advance 1-86,400,000 ms; event limit 1-1,000,000 |
+| WebSocket | Snapshot interval integer 0-60,000 ms; other timing values finite and in (0, 86,400] seconds; heartbeat/market staleness exceed heartbeat; queue 1-100,000 |
 | FIX delivery | Retry 1-2,147,483,647 ms; attempts 1-10,000; retained delivered payloads 1-1,000,000; enabled sessions require exact participant mappings |
 | ITCH/MoldUDP64 | ITCH disabled by default; enabling requires MoldUDP64, ASCII symbols up to 8 bytes, Price(4)-compatible ticks, and an IPv4 multicast destination; prefix 1-2 ASCII bytes, heartbeat 100-60,000 ms, payload 512-65,507 bytes, TTL 0-255 |
 | GLIMPSE/SoupBinTCP | GLIMPSE disabled by default; enabling requires ITCH/MoldUDP64 and SoupBinTCP; host plus port 1-65,535; case-insensitive ASCII username/password widths 1-6/1-10; session prefix 1-2 ASCII alphanumeric bytes; positive bounded timeouts, connections, replay sessions, TTL, and aggregate bytes |
@@ -1582,6 +1615,25 @@ environment variable names are not recognized; no compatibility aliases are
 maintained.
 
 ## 13. Examples
+
+### CoinAPI L3 replay through real FIX
+
+The [CoinAPI replay example](examples/coinapi_replay/README.md) streams one local
+Coinbase L3 capture into an owned exchange at 1× or slower inspection speed.
+It bulk-seeds the initial book, sends incremental orders over real FIX sockets,
+and uses the existing viewer, WebSocket feed, and native ITCH/GLIMPSE services.
+A bounded midpoint controller is enabled by default; `--no-controller` exposes
+uncontrolled divergence. Client and strategy fills remain authoritative.
+
+```powershell
+python -m examples.coinapi_replay --input C:/captures/coinbase.csv.gz --date 2026-07-10
+```
+
+Open the printed viewer URL. The run directory contains generated FIX settings
+for a separate `strategy_bot` client, effective configuration, logs, and
+`result.json`. Use `--duration 60` for a short run or `--speed 0.25` for slower
+inspection. Accelerated external backtesting and multiple replay venues are
+outside this example's scope.
 
 ### C++20 two-venue smart order router
 

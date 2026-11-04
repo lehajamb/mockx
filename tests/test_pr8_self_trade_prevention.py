@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.mockx.metrics import MetricsCollector
+from src.mockx.metrics import BufferedMetricsWriter, InMemoryMetricsSink, MetricsCollector
 from src.mockx.models import (
     ExecutionParams,
     ExecutionType,
@@ -309,6 +309,7 @@ def test_prevention_metrics_and_persistence_are_exact_and_bounded_label():
         "Exact",
         instruments=instruments,
         prometheus_enabled=True,
+        persistence=BufferedMetricsWriter(InMemoryMetricsSink()),
     )
     records = []
     metrics._create_record = lambda table, symbols, values, timestamp: (

@@ -111,7 +111,8 @@ def test_invariant_checker_detects_duplicate_order_ids():
     duplicate_id = make_order(1, qty=3)
     book.add_order(first)
     level = book.bids[0]
-    level.orders.append(duplicate_id)
+    # Bypass the keyed queue's normal duplicate guard to exercise the audit.
+    level.orders._items[-1] = duplicate_id
     level.level_qty_lots += 3
     level.market_qty_lots += 3
 
