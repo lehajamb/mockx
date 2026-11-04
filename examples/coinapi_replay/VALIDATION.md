@@ -57,9 +57,27 @@ An earlier one-minute run passed dispatch at 11.5 ms p99 but failed scheduler
 lag at 219.5 ms p99. There is no claim that six consecutive windows passed.
 The qualification helper retains the original limits and stops on failure.
 
-A full-capture run at real 1x speed with controller and strategy enabled is
-pending. Its outcome and memory measurements will be added here. No accelerated
-run substitutes for that check.
+## Sustained controller-on attempt
+
+The full-capture attempt on runtime commit `c733c66` failed after 837.44 seconds
+of runner elapsed time and 125,660 source events. The one-second scheduler-lag
+limit stopped playback at **1,038.083 ms**. Dispatch p99/max were
+14.5/44.364 ms; HTTP-sampled scheduler p99 was 468.5 ms (835 samples).
+The capture did not complete, so final feed equality and healthy final drain
+were not certified. Native recovery had observed exactly the planned gap and
+no upstream gaps before failure. Cleanup ended the owned session and the
+exchange process exited with code zero, with no cleanup error.
+
+| Process memory (MiB) | Initial | Last sample | Sampled peak |
+|---|---:|---:|---:|
+| Exchange working set | 123.64 | 266.71 | 266.71 |
+| Exchange private committed | 580.64 | 725.96 | 725.96 |
+| Runner working set | 97.54 | 123.31 | 123.31 |
+| Runner private committed | 77.15 | 105.08 | 105.08 |
+
+All 836 memory samples succeeded. These are partial-run measurements, not
+full-hour memory qualification. The original one-minute and sustained gates
+remain unmet; no accelerated run or relaxed limit substitutes for them.
 
 ## Reproduce
 

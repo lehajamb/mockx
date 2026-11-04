@@ -47,7 +47,8 @@ Useful options:
 | `--native-client PATH` | Qualify the existing C++ native-feed client, including one deliberately lost packet and GLIMPSE recovery |
 
 `--speed` accepts only `(0, 1]`. Default request timeout is 15 wall seconds,
-pending request limit 4,096, and maximum pacing or scheduler lag one second.
+pending request limit 4,096, and maximum pacing lag one wall second. The
+scheduler lag limit is one simulated second (four wall seconds at speed 0.25).
 Exceeding a limit fails the run visibly; the driver does not silently skip data,
 pause simulated time, or switch to a different execution path.
 
@@ -162,10 +163,10 @@ FIX reports and native ITCH for execution and event completeness. The default
 exchange interval remains zero.
 
 Memory is bounded for replay input buffering, dependency queues, callback
-reports, diagnostics and formatting caches. Exchange order IDs, terminal order
-history and run identities remain run-scoped and grow with activity; this is
-not a constant-memory claim for an unlimited run. Audit and QuickFIX file logs
-also grow on disk.
+reports, diagnostics and formatting caches. Exchange order IDs and terminal
+order history grow within a run. FIX client-order-ID claims survive simulation
+resets until process restart. This is not a constant-memory claim for an
+unlimited run or process. Audit and QuickFIX file logs also grow on disk.
 
 Memory samples cover the active seeded run: the initial sample follows seeding,
 and the final sample precedes session end. OS peak working set covers each

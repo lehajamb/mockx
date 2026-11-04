@@ -1065,8 +1065,8 @@ mockx_sim_cancel_outbound_latency_ms
 mockx_sim_cancel_end_to_end_latency_ms
 ```
 
-Measured CPU durations are separate microsecond histograms and `/stats`
-averages:
+Measured elapsed processing durations are separate microsecond histograms and `/stats`
+averages (monotonic time, including descheduling and GIL waits):
 
 ```text
 mockx_match_loop_duration_us
