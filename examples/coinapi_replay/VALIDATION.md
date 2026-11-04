@@ -31,7 +31,7 @@ The capture and generated FIX logs are not distributed with this repository.
 
 ## One-minute measurements
 
-The latest completed controller-off measurement processed all 11,003 events,
+A completed controller-off measurement processed all 11,003 events,
 with a real FIX strategy client, full-book WebSocket observer, native recovery,
 and the browser viewer joined during playback. It used the native FIX template
 serializer. Seed-counter and cleanup review fixes followed this measurement.
@@ -79,6 +79,12 @@ All 836 memory samples succeeded. These are partial-run measurements, not
 full-hour memory qualification. The original one-minute and sustained gates
 remain unmet; no accelerated run or relaxed limit substitutes for them.
 
+Diagnostic GC observations found full-collection pauses on retained history,
+but neither disabling automatic collection nor deferring the oldest generation
+passed live qualification. A normal-GC comparison completed with dispatch p99
+17.0 ms and sampled scheduler p99 39.5 ms, also above the target. These results
+do not identify a single cause; default GC and thread-switch policies remain
+unchanged. No experimental runtime settings were included in the implementation.
 ## Reproduce
 
 Use the commands and input requirements in [README.md](README.md). Run
