@@ -26,7 +26,7 @@
 
 ## Compatibility and consumers
 
-- MockX has no external or production clients. The only client code that consumes MockX is contained in the repository test suite.
+- MockX has no production clients. Its development consumers include the repository test suite and the sibling SorX project. Review SorX's FIX and native market-data contracts when changing shared behavior; document coordinated changes without adding legacy compatibility shims.
 - When making intentional changes, do not preserve legacy code solely for compatibility. Remove obsolete paths, adapters, aliases, and deprecated behavior rather than maintaining them in parallel.
 - Backward compatibility is not required unless a task explicitly asks for it. Update the tests, examples, README, and configuration together when a contract intentionally changes.
 - Prefer a clean, internally consistent design over compatibility shims or transitional APIs.

@@ -5,11 +5,13 @@ try:
 except ModuleNotFoundError:  # Pure report mapping and non-FIX tests remain importable.
     fix = None
 import asyncio
+from collections import deque
 from concurrent.futures import Future
 from datetime import timedelta
+from functools import lru_cache
 import logging
 from pathlib import Path
-from typing import Callable, Dict, Mapping, Optional, Union
+from typing import Awaitable, Callable, Dict, Mapping, Optional, Union
 import threading
 
 from .identifiers import RunIdentifierScope
@@ -78,6 +80,25 @@ _COMMAND_RECEIVE_EVENTS = {
     FixCommandType.CANCEL_ORDER: "cancel_received",
     FixCommandType.REPLACE_ORDER: "replace_received",
 }
+_INGRESS_ENQUEUE_BATCH_SIZE = 64
+
+
+def _make_execution_report_template(
+    symbol: str, side: str, exec_type: str, status: str, order_type: str,
+    tif: str, cum_zero: Optional[str], avg_zero: Optional[str],
+    leaves_zero: Optional[str],
+):
+    """Build private constant fields; only native copies leave the serializer."""
+    message = fix.Message()
+    message.getHeader().setField(35, fix.MsgType_ExecutionReport)
+    for tag, value in (
+        (55, symbol), (54, side), (150, exec_type), (39, status),
+        (40, order_type), (59, tif), (14, cum_zero), (6, avg_zero),
+        (151, leaves_zero),
+    ):
+        if value is not None:
+            message.setField(tag, value)
+    return message
 
 
 def configured_fix_session_ids(config_path: str) -> set[str]:
@@ -229,6 +250,23 @@ class SessionRegistry:
             accepted.add(cl_ord_id)
             return True
 
+    def validate_cl_ord_ids(self, identities: tuple[tuple[str, str], ...]) -> None:
+        """Validate a complete bootstrap without consuming any client identity."""
+        with self._lock:
+            seen: set[tuple[str, str]] = set()
+            for session_id, cl_ord_id in identities:
+                key = (session_id, cl_ord_id)
+                if key in seen or cl_ord_id in self._accepted_cl_ord_ids.get(session_id, ()):
+                    raise ValueError(f"ClOrdID already used for {session_id}: {cl_ord_id}")
+                seen.add(key)
+
+    def claim_cl_ord_ids(self, identities: tuple[tuple[str, str], ...]) -> None:
+        """Atomically claim all bootstrap identities or leave every claim unchanged."""
+        with self._lock:
+            self.validate_cl_ord_ids(identities)
+            for session_id, cl_ord_id in identities:
+                self._accepted_cl_ord_ids.setdefault(session_id, set()).add(cl_ord_id)
+
     @property
     def connected_count(self) -> int:
         with self._lock:
@@ -287,6 +325,9 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         self._draining_sessions: set[str] = set()
         self._draining_sessions_lock = threading.Lock()
         self._metric_suppression = threading.local()
+        self._execution_report_template = lru_cache(maxsize=128)(
+            _make_execution_report_template
+        )
         self.identifier_scope = engine.identifier_scope
         self.loop = None
         self._ingress_lock = threading.RLock()
@@ -295,6 +336,9 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             tuple[int, int], Future[Optional[FixIngressEnvelope]]
         ] = {}
         self._pending_ingress: list[FixIngressEnvelope] = []
+        self._ingress_submissions: deque[Callable[[], Awaitable[None]]] = deque()
+        self._ingress_wake_pending = False
+        self._ingress_drain_task: Optional[asyncio.Task[None]] = None
         self._pending_lifecycle_actions: set[Future[None]] = set()
 
     def reset_run_state(self, identifiers: RunIdentifierScope) -> None:
@@ -370,12 +414,12 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         
     def toAdmin(self, message, sessionID):
         """Called for outgoing admin messages."""
-        msg_type = message.getHeader().getField(fix.MsgType())
+        msg_type = message.getHeader().getField(35)
         logger.debug(f"Admin message to {sessionID}: {msg_type}")
         
     def fromAdmin(self, message, sessionID):
         """Called for incoming admin messages."""
-        msg_type = message.getHeader().getField(fix.MsgType())
+        msg_type = message.getHeader().getField(35)
         logger.debug(f"Admin message from {sessionID}: {msg_type}")
         if self.lifecycle is None or self.lifecycle.state == LifecycleState.ACTIVE:
             self.metrics.record_fix_message(
@@ -386,7 +430,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         
     def toApp(self, message, sessionID):
         """Called for outgoing application messages."""
-        msg_type = message.getHeader().getField(fix.MsgType())
+        msg_type = message.getHeader().getField(35)
         logger.debug(f"App message to {sessionID}: {msg_type}")
         if (
             not getattr(
@@ -407,9 +451,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         
     def fromApp(self, message, sessionID):
         """Called for incoming application messages."""
-        msg_type_field = fix.MsgType()
-        message.getHeader().getField(msg_type_field)
-        msg_type = msg_type_field.getValue()
+        msg_type = message.getHeader().getField(35)
         ref_seq_num = self._resolve_ref_seq_num(message, sessionID)
         
         logger.debug(f"App message from {sessionID}: {msg_type}")
@@ -573,12 +615,6 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             )
             raise LifecycleIngressRejected("LIFECYCLE_FAILED")
 
-        with self._ingress_lock:
-            sequence = self._next_ingress_sequence
-            self._next_ingress_sequence += 1
-            receipt: Future[Optional[FixIngressEnvelope]] = Future()
-            self._ingress_receipts[(token.generation, sequence)] = receipt
-
         async def _enqueue() -> None:
             def _commit() -> FixIngressEnvelope:
                 envelope = FixIngressEnvelope(
@@ -643,8 +679,39 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     },
                 )
 
-        loop.call_soon_threadsafe(lambda: loop.create_task(_enqueue()))
+        with self._ingress_lock:
+            # Reserve and queue together: native callback threads cannot invert
+            # acceptance order between taking a sequence and handing it off.
+            sequence = self._next_ingress_sequence
+            self._next_ingress_sequence += 1
+            receipt: Future[Optional[FixIngressEnvelope]] = Future()
+            self._ingress_receipts[(token.generation, sequence)] = receipt
+            self._ingress_submissions.append(_enqueue)
+            if not self._ingress_wake_pending:
+                self._ingress_wake_pending = True
+                loop.call_soon_threadsafe(self._start_ingress_drain)
         return sequence
+
+    def _start_ingress_drain(self) -> None:
+        """One native-thread wake owns the queue until it becomes empty."""
+        self._ingress_drain_task = self.loop.create_task(
+            self._drain_ingress_submissions()
+        )
+
+    async def _drain_ingress_submissions(self) -> None:
+        """Enqueue FIFO bursts while yielding to timers and lifecycle changes."""
+        while True:
+            for _ in range(_INGRESS_ENQUEUE_BATCH_SIZE):
+                with self._ingress_lock:
+                    if not self._ingress_submissions:
+                        self._ingress_wake_pending = False
+                        self._ingress_drain_task = None
+                        return
+                    enqueue = self._ingress_submissions.popleft()
+                # Each submission keeps its own generation token, receipt,
+                # lifecycle lock check, and rejection; reset never drops it.
+                await enqueue()
+            await asyncio.sleep(0)
 
     def ingress_high_water_mark(
         self,
@@ -701,7 +768,8 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         """Convert acknowledged envelopes to sorted scheduler receive events.
 
         The caller must hold the lifecycle lock.  Ordering is explicitly
-        ``(receive timestamp, stable SessionID, MsgSeqNum, ingress sequence)``.
+        ``(receive timestamp, ingress acceptance sequence)``. Session names
+        and protocol-local message numbers do not grant cross-client priority.
         """
         with self._ingress_lock:
             ready = sorted(
@@ -948,11 +1016,11 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             return
         try:
             identity = self._session_identity(sessionID)
-            cl_ord_id = self._get_field(message, fix.ClOrdID())
-            symbol = self._get_field(message, fix.Symbol())
-            side_value = self._get_field(message, fix.Side())
-            order_qty = self._get_field(message, fix.StringField(38))
-            ord_type = self._get_field(message, fix.OrdType())
+            cl_ord_id = self._get_field(message, 11)
+            symbol = self._get_field(message, 55)
+            side_value = self._get_char_field(message, fix.Side())
+            order_qty = self._get_field(message, 38)
+            ord_type = self._get_char_field(message, fix.OrdType())
             if side_value == fix.Side_BUY:
                 raw_side = Side.BUY
             elif side_value == fix.Side_SELL:
@@ -963,17 +1031,17 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             raw_price = None
             if ord_type == fix.OrdType_LIMIT:
                 raw_order_type = OrderType.LIMIT
-                raw_price = self._get_field(message, fix.StringField(44))
+                raw_price = self._get_field(message, 44)
             elif ord_type == fix.OrdType_MARKET:
                 raw_order_type = OrderType.MARKET
-                if message.isSetField(fix.Price()):
-                    raw_price = self._get_field(message, fix.StringField(44))
+                if message.isSetField(44):
+                    raw_price = self._get_field(message, 44)
             else:
                 raw_order_type = ord_type
 
             raw_tif = None
-            if message.isSetField(fix.TimeInForce()):
-                tif_value = self._get_field(message, fix.TimeInForce())
+            if message.isSetField(59):
+                tif_value = self._get_char_field(message, fix.TimeInForce())
                 if tif_value == fix.TimeInForce_IMMEDIATE_OR_CANCEL:
                     raw_tif = TimeInForce.IOC
                 elif tif_value == fix.TimeInForce_GOOD_TILL_CANCEL:
@@ -1305,11 +1373,11 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             )
             return
         try:
-            cl_ord_id = self._get_field(message, fix.ClOrdID())
-            orig_cl_ord_id = self._get_field(message, fix.OrigClOrdID())
-            symbol = self._get_field(message, fix.Symbol()).strip().upper()
-            side_value = self._get_field(message, fix.Side())
-            raw_qty = self._get_field(message, fix.StringField(38))
+            cl_ord_id = self._get_field(message, 11)
+            orig_cl_ord_id = self._get_field(message, 41)
+            symbol = self._get_field(message, 55).strip().upper()
+            side_value = self._get_char_field(message, fix.Side())
+            raw_qty = self._get_field(message, 38)
             identity = self._session_identity(sessionID)
             self.order_normalizer._cl_ord_id(cl_ord_id)
             self.order_normalizer._cl_ord_id(orig_cl_ord_id)
@@ -1477,10 +1545,10 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         # A domain rejection must contain usable request and original IDs.
         try:
             cl_ord_id = self.order_normalizer._cl_ord_id(
-                self._get_field(message, fix.ClOrdID())
+                self._get_field(message, 11)
             )
             orig_cl_ord_id = self.order_normalizer._cl_ord_id(
-                self._get_field(message, fix.OrigClOrdID())
+                self._get_field(message, 41)
             )
         except Exception as exc:
             error_text = f"INVALID_FIX_MESSAGE: {exc}"
@@ -1498,19 +1566,19 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         symbol = "UNKNOWN"
         raw_side = Side.BUY
         try:
-            symbol = self._get_field(message, fix.Symbol()).strip().upper()
-            side_value = self._get_field(message, fix.Side())
+            symbol = self._get_field(message, 55).strip().upper()
+            side_value = self._get_char_field(message, fix.Side())
             raw_side = {fix.Side_BUY: Side.BUY, fix.Side_SELL: Side.SELL}.get(
                 side_value, side_value
             )
-            order_type_value = self._get_field(message, fix.OrdType())
+            order_type_value = self._get_char_field(message, fix.OrdType())
             raw_order_type = {
                 fix.OrdType_LIMIT: OrderType.LIMIT,
                 fix.OrdType_MARKET: OrderType.MARKET,
             }.get(order_type_value, order_type_value)
             raw_tif = None
             if message.isSetField(59):
-                value = self._get_field(message, fix.TimeInForce())
+                value = self._get_char_field(message, fix.TimeInForce())
                 raw_tif = {
                     fix.TimeInForce_GOOD_TILL_CANCEL: TimeInForce.GTC,
                     fix.TimeInForce_IMMEDIATE_OR_CANCEL: TimeInForce.IOC,
@@ -1523,9 +1591,9 @@ class FIXApplication(_FIX_APPLICATION_BASE):
                     symbol=symbol,
                     side=raw_side,
                     order_type=raw_order_type,
-                    quantity=self._get_field(message, fix.StringField(38)),
+                    quantity=self._get_field(message, 38),
                     price=(
-                        self._get_field(message, fix.StringField(44))
+                        self._get_field(message, 44)
                         if message.isSetField(44) else None
                     ),
                     time_in_force=raw_tif,
@@ -1649,7 +1717,7 @@ class FIXApplication(_FIX_APPLICATION_BASE):
     ):
         """Handle MarketDataRequest (35=V) message."""
         # For now, send a simple reject as market data is handled via REST/WebSocket
-        req_id = self._get_field(message, fix.MDReqID())
+        req_id = self._get_field(message, 262)
         self._schedule_lifecycle_action(
             sessionID,
             fix.MsgType_MarketDataRequest,
@@ -1695,39 +1763,45 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         """Serialize one immutable execution report."""
         serialize_start_ns = self.monotonic_clock.now_ns()
         fields = execution_report_fields(report)
-        msg = fix.Message()
-        msg.getHeader().setField(fix.MsgType(fix.MsgType_ExecutionReport))
+        no_fills = report.cum_qty_lots == 0
+        no_leaves = report.leaves_qty_lots == 0
+        # Prices, sizes, identifiers, text, and fill values never enter the
+        # bounded cache. Zero formats include the instrument's precision.
+        template = self._execution_report_template(
+            str(fields["Symbol"]), str(fields["Side"]), str(fields["ExecType"]),
+            str(fields["OrdStatus"]), str(fields["OrdType"]), str(fields["TimeInForce"]),
+            str(fields["CumQty"]) if no_fills else None,
+            str(fields["AvgPx"]) if no_fills else None,
+            str(fields["LeavesQty"]) if no_leaves else None,
+        )
+        msg = fix.Message(template)
 
         # Required fields
-        msg.setField(fix.ClOrdID(str(fields["ClOrdID"])))
-        msg.setField(fix.ExecType(str(fields["ExecType"])))
-        msg.setField(fix.OrdStatus(str(fields["OrdStatus"])))
-        msg.setField(fix.ExecID(str(fields["ExecID"])))
-        msg.setField(fix.OrderID(str(fields["OrderID"])))
-        msg.setField(fix.Symbol(str(fields["Symbol"])))
-        msg.setField(fix.Side(str(fields["Side"])))
-        msg.setField(fix.StringField(151, str(fields["LeavesQty"])))
-        msg.setField(fix.StringField(14, str(fields["CumQty"])))
-        msg.setField(fix.StringField(6, str(fields["AvgPx"])))
-        msg.setField(fix.StringField(38, str(fields["OrderQty"])))
-        msg.setField(fix.OrdType(str(fields["OrdType"])))
-        msg.setField(fix.TimeInForce(str(fields["TimeInForce"])))
+        msg.setField(11, str(fields["ClOrdID"]))
+        msg.setField(17, str(fields["ExecID"]))
+        msg.setField(37, str(fields["OrderID"]))
+        if not no_leaves:
+            msg.setField(151, str(fields["LeavesQty"]))
+        if not no_fills:
+            msg.setField(14, str(fields["CumQty"]))
+            msg.setField(6, str(fields["AvgPx"]))
+        msg.setField(38, str(fields["OrderQty"]))
 
         # Optional fields
         if "OrigClOrdID" in fields:
-            msg.setField(fix.OrigClOrdID(str(fields["OrigClOrdID"])))
+            msg.setField(41, str(fields["OrigClOrdID"]))
         if "Price" in fields:
-            msg.setField(fix.StringField(44, str(fields["Price"])))
+            msg.setField(44, str(fields["Price"]))
         if "LastPx" in fields:
-            msg.setField(fix.StringField(31, str(fields["LastPx"])))
+            msg.setField(31, str(fields["LastPx"]))
         if "LastQty" in fields:
-            msg.setField(fix.StringField(32, str(fields["LastQty"])))
+            msg.setField(32, str(fields["LastQty"]))
         if "TradeID" in fields:
-            msg.setField(fix.StringField(1003, str(fields["TradeID"])))
+            msg.setField(1003, str(fields["TradeID"]))
         if "Text" in fields:
-            msg.setField(fix.Text(str(fields["Text"])))
+            msg.setField(58, str(fields["Text"]))
         if "OrdRejReason" in fields:
-            msg.setField(fix.OrdRejReason(int(fields["OrdRejReason"])))
+            msg.setField(103, str(int(fields["OrdRejReason"])))
 
         serialize_end_ns = self.monotonic_clock.now_ns()
         try:
@@ -1768,24 +1842,24 @@ class FIXApplication(_FIX_APPLICATION_BASE):
         serialize_start_ns = self.monotonic_clock.now_ns()
         fields = cancel_reject_fields(cancel_reject)
         reject = fix.Message()
-        reject.getHeader().setField(fix.MsgType(fix.MsgType_OrderCancelReject))
+        reject.getHeader().setField(35, fix.MsgType_OrderCancelReject)
 
         # Required fields
-        reject.setField(fix.ClOrdID(str(fields["ClOrdID"])))
-        reject.setField(fix.OrigClOrdID(str(fields["OrigClOrdID"])))
-        reject.setField(fix.OrdStatus(str(fields["OrdStatus"])))
+        reject.setField(11, str(fields["ClOrdID"]))
+        reject.setField(41, str(fields["OrigClOrdID"]))
+        reject.setField(39, str(fields["OrdStatus"]))
         reject.setField(
-            fix.CxlRejResponseTo(str(fields["CxlRejResponseTo"]))
+            434, str(fields["CxlRejResponseTo"])
         )
 
         # The OrderID is conditionally required. If the cancel request is rejected and the order exists,
         # it should be included.
         if "OrderID" in fields:
-            reject.setField(fix.OrderID(str(fields["OrderID"])))
+            reject.setField(37, str(fields["OrderID"]))
 
         # Optional fields
-        reject.setField(fix.CxlRejReason(int(fields["CxlRejReason"])))
-        reject.setField(fix.Text(str(fields["Text"])))
+        reject.setField(102, str(int(fields["CxlRejReason"])))
+        reject.setField(58, str(fields["Text"]))
 
         serialize_end_ns = self.monotonic_clock.now_ns()
         try:
@@ -2178,7 +2252,12 @@ class FIXApplication(_FIX_APPLICATION_BASE):
             self.delivery_queue.snapshot()
         )
             
-    def _get_field(self, message, field):
+    @staticmethod
+    def _get_field(message, tag: int) -> str:
+        """Read exact string fields without allocating a SWIG field wrapper."""
+        return message.getField(tag)
+
+    def _get_char_field(self, message, field):
         """
         Get field value from FIX message.
         

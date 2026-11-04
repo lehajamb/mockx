@@ -296,6 +296,7 @@ class FixConfig(StrictConfigModel):
 
 class SchedulerConfig(StrictConfigModel):
     mode: str = "external"
+    rate: float = Field(default=1.0, gt=0, le=1, allow_inf_nan=False)
     interval_ms: StrictInt = Field(default=10, ge=1, le=60_000)
     max_advance_ms: StrictInt = Field(
         default=86_400_000,
@@ -307,6 +308,13 @@ class SchedulerConfig(StrictConfigModel):
         ge=1,
         le=1_000_000,
     )
+
+    @field_validator("rate", mode="before")
+    @classmethod
+    def numeric_rate(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("rate must be a number greater than zero and at most one")
+        return value
 
     @field_validator("mode")
     @classmethod
@@ -495,6 +503,7 @@ class MoldUDP64TransportConfig(StrictConfigModel):
 
 
 class WebSocketConfig(StrictConfigModel):
+    snapshot_interval_ms: StrictInt = Field(default=0, ge=0, le=60_000)
     heartbeat_interval_seconds: float = Field(
         default=10.0,
         gt=0,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from concurrent.futures import Future
-from datetime import timedelta
 import logging
 import os
 import threading
@@ -67,6 +66,10 @@ class MockExchange:
         self._callbacks_registered = False
         self._broadcast_lock = threading.Lock()
         self._pending_broadcasts: set[asyncio.Future | Future] = set()
+        self._latest_snapshots: dict[str, MarketDataSnapshot] = {}
+        self._snapshot_flush_token: object | None = None
+        self._snapshot_flush_future: asyncio.Future | Future | None = None
+        self._snapshot_flush_wake = asyncio.Event()
 
         self.fix_enabled = self.config.fix.enabled
         self.scheduler_mode = self.config.scheduler.mode
@@ -177,6 +180,7 @@ class MockExchange:
             self.latency_tracker,
             self.fix_app,
             self.itch_feed,
+            realtime_rate=self.config.scheduler.rate,
         )
         self.glimpse_service: Optional[GlimpseService] = None
         if self.config.glimpse.enabled:
@@ -389,6 +393,16 @@ class MockExchange:
             if self._shutdown_complete:
                 return
 
+            with self._broadcast_lock:
+                delayed = self._snapshot_flush_future
+                self._latest_snapshots.clear()
+            if delayed is not None and not delayed.done():
+                delayed.cancel()
+                await asyncio.gather(
+                    delayed if isinstance(delayed, asyncio.Future)
+                    else asyncio.wrap_future(delayed), return_exceptions=True,
+                )
+
             state = self.app.state
             if self.lifecycle.state == LifecycleState.ACTIVE:
                 self.lifecycle._publish(LifecycleState.ENDING)
@@ -558,10 +572,14 @@ class MockExchange:
 
     def _has_pending_broadcasts(self) -> bool:
         with self._broadcast_lock:
-            return any(not future.done() for future in self._pending_broadcasts)
+            return bool(self._latest_snapshots) or any(
+                not future.done() for future in self._pending_broadcasts
+            )
 
     async def _drain_broadcasts(self) -> None:
         with self._broadcast_lock:
+            if self._snapshot_flush_future is not None:
+                self._snapshot_flush_wake.set()
             pending = tuple(
                 future for future in self._pending_broadcasts if not future.done()
             )
@@ -576,6 +594,60 @@ class MockExchange:
                 ),
                 return_exceptions=True,
             )
+
+    async def _flush_snapshots(self, token: object) -> None:
+        """One timed publisher for bounded latest trade-free depth per symbol."""
+        try:
+            while True:
+                try:
+                    await asyncio.wait_for(
+                        self._snapshot_flush_wake.wait(),
+                        self.config.websocket.snapshot_interval_ms / 1000,
+                    )
+                except asyncio.TimeoutError:
+                    pass
+                self._snapshot_flush_wake.clear()
+                with self._broadcast_lock:
+                    snapshots = tuple(self._latest_snapshots.values())
+                    self._latest_snapshots.clear()
+                for snapshot in snapshots:
+                    await self.api.broadcast_market_data(snapshot)
+                with self._broadcast_lock:
+                    if not self._latest_snapshots:
+                        if self._snapshot_flush_token is token:
+                            self._snapshot_flush_token = None
+                            self._snapshot_flush_future = None
+                        return
+        finally:
+            with self._broadcast_lock:
+                if self._snapshot_flush_token is token:
+                    self._snapshot_flush_token = None
+                    self._snapshot_flush_future = None
+                    self._latest_snapshots.clear()
+
+    def _queue_snapshot(
+        self, snapshot: MarketDataSnapshot, loop: asyncio.AbstractEventLoop,
+        running_loop: asyncio.AbstractEventLoop | None,
+    ) -> None:
+        future = None
+        with self._broadcast_lock:
+            previous = self._latest_snapshots.get(snapshot.symbol)
+            if previous is not None and (
+                previous.run_generation, previous.sequence
+            ) >= (snapshot.run_generation, snapshot.sequence):
+                return
+            self._latest_snapshots[snapshot.symbol] = snapshot
+            if self._snapshot_flush_token is None:
+                token = object()
+                self._snapshot_flush_token = token
+                if running_loop is loop:
+                    future = loop.create_task(self._flush_snapshots(token))
+                else:
+                    future = asyncio.run_coroutine_threadsafe(self._flush_snapshots(token), loop)
+                self._snapshot_flush_future = future
+                self._pending_broadcasts.add(future)
+        if future is not None:
+            self._track_broadcast(future)
 
     def _on_market_data_update(
         self,
@@ -592,6 +664,19 @@ class MockExchange:
             running_loop = asyncio.get_running_loop()
         except RuntimeError:
             running_loop = None
+
+        if self.config.websocket.snapshot_interval_ms and loop.is_running():
+            if not snapshot.trades:
+                self._queue_snapshot(snapshot, loop, running_loop)
+                return
+            # Fills belong to this command only. Publish every trade-bearing
+            # snapshot immediately, superseding older pending trade-free depth.
+            with self._broadcast_lock:
+                previous = self._latest_snapshots.get(snapshot.symbol)
+                if previous is not None and (
+                    previous.run_generation, previous.sequence
+                ) <= (snapshot.run_generation, snapshot.sequence):
+                    self._latest_snapshots.pop(snapshot.symbol)
 
         if running_loop is loop:
             task = loop.create_task(self.api.broadcast_market_data(snapshot))
@@ -616,10 +701,11 @@ class MockExchange:
             if self.scheduler.state == SchedulerState.STOPPED:
                 return
             try:
-                await asyncio.sleep(interval_ms / 1000)
-                await self.lifecycle.advance_realtime_by(
-                    timedelta(milliseconds=interval_ms)
+                await asyncio.sleep(
+                    0 if self.lifecycle.realtime_lag_ms >= interval_ms * self.config.scheduler.rate
+                    else interval_ms / 1000
                 )
+                await self.lifecycle.advance_realtime_clock()
             except asyncio.CancelledError:
                 raise
             except SchedulerFailedError:
