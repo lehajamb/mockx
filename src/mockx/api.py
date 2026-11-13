@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 import logging
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
@@ -34,6 +35,7 @@ from starlette.responses import Response
 from .configuration import ExchangeConfig
 from .engine import MatchingEngine
 from .gateway import FIXApplication
+from .instruments import Instrument
 from .latency import SchedulerFailedError
 from .lifecycle import (
     ExchangeLifecycle,
@@ -41,7 +43,7 @@ from .lifecycle import (
     LifecycleState,
 )
 from .metrics import MetricsCollector
-from .models import MarketDataSnapshot, SchedulerState
+from .models import MarketDataSnapshot, PriceLevelSnapshot, SchedulerState
 from .numeric import format_decimal_ratio
 from .websocket_delivery import WebSocketConnection, WebSocketRegistry
 
@@ -80,6 +82,8 @@ class SymbolsResponse(BaseModel):
 
 
 class PriceLevelResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     price: str = Field(description="Canonical decimal price")
     qty: str = Field(description="Canonical decimal remaining quantity")
     strategy_qty: str = Field(
@@ -334,6 +338,10 @@ class SchedulerFailureResponse(BaseModel):
 
 class SchedulerStats(BaseModel):
     scope: Literal["current_run"] = "current_run"
+    current_time: datetime
+    mode: Literal["external", "realtime"]
+    rate: float
+    realtime_lag_ms: float
     state: Literal["RUNNING", "FAILED", "STOPPED"]
     pending_events: int
     failure_count: int
@@ -431,6 +439,18 @@ class StatsResponse(BaseModel):
     process_lifetime: Dict[str, object]
 
 
+class InitialOrderBody(BaseModel):
+    """Resting LIMIT/GTC liquidity installed at the start of a simulation."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    symbol: str
+    side: Literal["BUY", "SELL"]
+    price: str
+    quantity: str
+    session_id: str
+    cl_ord_id: str
+
+
 class SessionBody(BaseModel):
     """Start one explicitly named simulation session."""
 
@@ -441,6 +461,14 @@ class SessionBody(BaseModel):
         max_length=128,
         validation_alias=AliasChoices("run_id", "session_id"),
     )
+    initial_orders: list[InitialOrderBody] = Field(default_factory=list)
+
+
+class SeedOrderResponse(BaseModel):
+    symbol: str
+    session_id: str
+    cl_ord_id: str
+    order_id: str
 
 
 class SessionStartResponse(BaseModel):
@@ -448,6 +476,12 @@ class SessionStartResponse(BaseModel):
     session_id: str
     run_generation: int
     starting_time: datetime
+    seed_orders: list[SeedOrderResponse] = Field(default_factory=list)
+
+
+class SessionEndBody(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    expected_run_generation: Optional[int] = Field(default=None, ge=1)
 
 
 class SessionEndResponse(BaseModel):
@@ -522,32 +556,33 @@ def _api_error(status_code: int, code: str, message: str) -> HTTPException:
     )
 
 
+@lru_cache(maxsize=16_384)
+def _formatted_level(
+    instrument: Instrument, level: PriceLevelSnapshot,
+) -> PriceLevelResponse:
+    """Reuse validated immutable levels without repeating formatting or validation."""
+    return PriceLevelResponse(
+        price=instrument.format_price(level.price_ticks),
+        qty=instrument.format_quantity(level.level_qty_lots),
+        strategy_qty=instrument.format_quantity(level.strategy_qty_lots),
+        market_qty=instrument.format_quantity(level.market_qty_lots),
+        order_count=level.order_count,
+    )
+
+
+def _level_payload(instrument: Instrument, level: PriceLevelSnapshot) -> dict[str, Any]:
+    # Keep exported dictionaries independently mutable; only frozen models are shared.
+    return _formatted_level(instrument, level).model_dump(mode="json")
+
+
 def _book_payload(snapshot: MarketDataSnapshot) -> dict[str, Any]:
     instrument = snapshot.instrument
     return {
         "symbol": snapshot.symbol,
         "sequence": snapshot.sequence,
         "timestamp": snapshot.timestamp,
-        "bids": [
-            {
-                "price": instrument.format_price(level.price_ticks),
-                "qty": instrument.format_quantity(level.level_qty_lots),
-                "strategy_qty": instrument.format_quantity(level.strategy_qty_lots),
-                "market_qty": instrument.format_quantity(level.market_qty_lots),
-                "order_count": level.order_count,
-            }
-            for level in snapshot.bids
-        ],
-        "asks": [
-            {
-                "price": instrument.format_price(level.price_ticks),
-                "qty": instrument.format_quantity(level.level_qty_lots),
-                "strategy_qty": instrument.format_quantity(level.strategy_qty_lots),
-                "market_qty": instrument.format_quantity(level.market_qty_lots),
-                "order_count": level.order_count,
-            }
-            for level in snapshot.asks
-        ],
+        "bids": [_level_payload(instrument, level) for level in snapshot.bids],
+        "asks": [_level_payload(instrument, level) for level in snapshot.asks],
     }
 
 
@@ -557,7 +592,11 @@ def market_data_message(
     """Build the testable public WebSocket envelope from one snapshot."""
     return MarketDataMessage(
         type="market_data",
-        **_book_payload(snapshot),
+        symbol=snapshot.symbol,
+        sequence=snapshot.sequence,
+        timestamp=snapshot.timestamp,
+        bids=[_formatted_level(snapshot.instrument, level) for level in snapshot.bids],
+        asks=[_formatted_level(snapshot.instrument, level) for level in snapshot.asks],
         trades=[
             {
                 "trade_id": trade.trade_id,
@@ -834,6 +873,14 @@ class ExchangeAPI:
     def _scheduler_stats_payload(self) -> Dict[str, object]:
         payload = self.scheduler.diagnostics()
         payload["scope"] = "current_run"
+        payload["current_time"] = self.scheduler.current_time
+        payload["mode"] = self.config.scheduler.mode
+        payload["rate"] = self.config.scheduler.rate
+        payload["realtime_lag_ms"] = (
+            self.lifecycle.realtime_lag_ms
+            if self.lifecycle is not None and self.config.scheduler.mode == "realtime"
+            else 0.0
+        )
         payload.update(self.metrics.current_run_scheduler_snapshot())
         return payload
 
@@ -1234,7 +1281,10 @@ class ExchangeAPI:
             assert self.lifecycle is not None
             try:
                 self.lifecycle.raise_if_transition_or_failed()
-                result = await self.lifecycle.start_session(session.run_id)
+                result = await self.lifecycle.start_session(
+                    session.run_id,
+                    initial_orders=tuple(order.model_dump() for order in session.initial_orders),
+                )
             except LifecycleError as exc:
                 self._raise_lifecycle_error(exc)
             return SessionStartResponse(
@@ -1242,19 +1292,26 @@ class ExchangeAPI:
                 session_id=result.run_id,
                 run_generation=result.run_generation,
                 starting_time=result.starting_time,
+                seed_orders=[SeedOrderResponse(
+                    symbol=order.symbol, session_id=order.session_id,
+                    cl_ord_id=order.cl_ord_id, order_id=order.order_id,
+                ) for order in result.seed_orders],
             )
 
         @self.app.post(
             "/api/v1/session/end",
             response_model=SessionEndResponse,
-            responses={503: {"model": ErrorResponse | SessionFailedResponse}},
+            responses={409: {"model": ErrorResponse},
+                       503: {"model": ErrorResponse | SessionFailedResponse}},
         )
-        async def end_session() -> SessionEndResponse:
+        async def end_session(body: Optional[SessionEndBody] = None) -> SessionEndResponse:
             self._require_admin()
             assert self.lifecycle is not None
             try:
                 self.lifecycle.raise_if_transition_or_failed()
-                result = await self.lifecycle.end_session()
+                result = await self.lifecycle.end_session(
+                    expected_run_generation=(body.expected_run_generation if body else None),
+                )
             except LifecycleError as exc:
                 self._raise_lifecycle_error(exc)
             if result.final_stats is not None and result.final_stats.run_failure is not None:
@@ -1365,6 +1422,8 @@ class ExchangeAPI:
         """Deliver one immutable payload once to each current subscriber."""
 
         async def _broadcast() -> None:
+            if not await self.registry.connection_count(snapshot.symbol):
+                return
             message = market_data_message(snapshot).model_dump(mode="json")
             await self.registry.enqueue_market_data(
                 snapshot.symbol,
@@ -1398,6 +1457,7 @@ def create_app(
             metrics,
             fix_app.latency_tracker,
             fix_app,
+            realtime_rate=config.scheduler.rate,
         )
         fix_app.lifecycle = lifecycle
     api = ExchangeAPI(

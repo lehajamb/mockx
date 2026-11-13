@@ -276,7 +276,7 @@ async def test_nonzero_cancel_stages_apply_all_configured_latency():
 
 
 @pytest.mark.asyncio
-async def test_msg_seq_num_beats_callback_arrival_for_same_session():
+async def test_callback_acceptance_order_is_preserved_within_a_session():
     exchange = _exchange()
     sessions, _ = await _start(exchange)
     session = sessions["CLIENT"]
@@ -289,13 +289,13 @@ async def test_msg_seq_num_beats_callback_arrival_for_same_session():
         assert [
             exchange.engine.orders[order_id].cl_ord_id
             for order_id in sorted(exchange.engine.orders)
-        ] == ["FIRST", "SECOND"]
+        ] == ["SECOND", "FIRST"]
     finally:
         await _stop(exchange)
 
 
 @pytest.mark.asyncio
-async def test_session_identity_beats_callback_arrival_at_equal_time():
+async def test_callback_acceptance_order_is_preserved_across_sessions():
     exchange = _exchange()
     sessions, _ = await _start(exchange, "CLIENT-A", "CLIENT-B")
     try:
@@ -313,7 +313,7 @@ async def test_session_identity_beats_callback_arrival_at_equal_time():
         assert [
             exchange.engine.orders[order_id].cl_ord_id
             for order_id in sorted(exchange.engine.orders)
-        ] == ["A", "B"]
+        ] == ["B", "A"]
     finally:
         await _stop(exchange)
 

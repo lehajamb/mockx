@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
+from unittest.mock import AsyncMock
 
 from httpx import ASGITransport, AsyncClient
 import pytest
@@ -94,6 +95,8 @@ async def test_loss_during_ack_preserves_fix_and_final_book_broadcast(monkeypatc
         broadcasts.append((symbol, message, sequence))
 
     monkeypatch.setattr(exchange.api.registry, "enqueue_market_data", broadcast)
+    # The intercepted delivery represents one subscribed WebSocket.
+    monkeypatch.setattr(exchange.api.registry, "connection_count", AsyncMock(return_value=1))
     try:
         await _submit(exchange, sessions["CLIENT"], _new_order("ACK", 1))
         _saturate_on_report(exchange, monkeypatch)
@@ -160,6 +163,7 @@ async def test_loss_in_first_fill_completes_command_then_rejects_same_time_reque
         broadcasts.append((symbol, message, sequence))
 
     monkeypatch.setattr(exchange.api.registry, "enqueue_market_data", capture)
+    monkeypatch.setattr(exchange.api.registry, "connection_count", AsyncMock(return_value=1))
     try:
         await _submit(
             exchange, sessions["CLIENT2"],
@@ -684,6 +688,7 @@ async def test_immediate_failed_run_end_delivers_final_websocket_snapshot(monkey
         broadcasts.append((symbol, message, sequence))
 
     monkeypatch.setattr(exchange.api.registry, "enqueue_market_data", capture)
+    monkeypatch.setattr(exchange.api.registry, "connection_count", AsyncMock(return_value=1))
     try:
         await _submit(exchange, sessions["CLIENT"], _new_order("FINAL-BOOK", 1))
         _saturate_on_report(exchange, monkeypatch)

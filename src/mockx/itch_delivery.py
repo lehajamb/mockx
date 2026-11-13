@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
 import logging
@@ -83,6 +84,7 @@ class ITCHFeedPublisher:
         self._packets_sent = 0
         self._heartbeats_sent = 0
         self._failures = 0
+        self._initial_messages: Optional[list[bytes]] = None
 
     @staticmethod
     def session_name(prefix: str, generation: int) -> str:
@@ -243,6 +245,23 @@ class ITCHFeedPublisher:
             self._degrade(exc)
             return False
 
+    @contextmanager
+    def batch_initial_book(self):
+        """Packetize native seed messages together before exposing its GLIMPSE cut."""
+        if self._initial_messages is not None:
+            raise RuntimeError("Initial ITCH publication batch is already active")
+        messages: list[bytes] = []
+        self._initial_messages = messages
+        try:
+            yield
+        finally:
+            self._initial_messages = None
+        if messages and self.state == ITCHFeedState.READY and self.transport is not None:
+            try:
+                self._record_send(self.transport.send_messages(messages))
+            except Exception as exc:
+                self._degrade(exc)
+
     def publish(self, event: DisplayedOrderEvent) -> None:
         if (
             self.state != ITCHFeedState.READY
@@ -302,7 +321,10 @@ class ITCHFeedPublisher:
                 raise TypeError(
                     f"Unsupported displayed-order event: {type(event).__name__}"
                 )
-            self._record_send(self.transport.send_messages([message]))
+            if self._initial_messages is not None:
+                self._initial_messages.append(message)
+            else:
+                self._record_send(self.transport.send_messages([message]))
         except Exception as exc:
             self._degrade(exc)
 

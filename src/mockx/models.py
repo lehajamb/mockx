@@ -1,6 +1,8 @@
 """Core data models for the mock exchange."""
 
-from collections import deque
+from bisect import bisect_left
+from collections import OrderedDict
+from itertools import islice
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -381,11 +383,9 @@ class FixIngressEnvelope:
     run_generation: int
 
     @property
-    def ordering_key(self) -> Tuple[datetime, str, int, int]:
+    def ordering_key(self) -> Tuple[datetime, int]:
         return (
             self.simulated_receive_timestamp,
-            self.session.session_id,
-            self.msg_seq_num,
             self.ingress_sequence,
         )
 
@@ -950,22 +950,67 @@ class BookFillResult:
     level_removed: bool
 
 
+class OrderQueue:
+    """FIFO values with direct identity lookup and constant-time removal."""
+
+    def __init__(self, orders=()) -> None:
+        self._items: OrderedDict[int, Order] = OrderedDict()
+        for order in orders:
+            self.append(order)
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+    def __iter__(self):
+        return iter(self._items.values())
+
+    def __getitem__(self, index: int) -> Order:
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError(index)
+        return next(islice(self._items.values(), index, None))
+
+    def contains(self, order: Order) -> bool:
+        return self._items.get(order.id) is order
+
+    def append(self, order: Order) -> None:
+        if order.id in self._items:
+            raise InvalidBookMutation(f"Duplicate order id {order.id} in level")
+        self._items[order.id] = order
+
+    def remove(self, order: Order) -> None:
+        if not self.contains(order):
+            raise InvalidBookMutation(f"Order {order.id} is not in FIFO queue")
+        del self._items[order.id]
+
+
 @dataclass
 class BookLevel:
     """Single FIFO tick level with exact incrementally maintained lots."""
 
     price_ticks: int
     level_qty_lots: int = 0
-    orders: deque[Order] = field(default_factory=deque)
+    orders: OrderQueue = field(default_factory=OrderQueue)
     strategy_qty_lots: int = 0
     market_qty_lots: int = 0
     side: Optional[Side] = None
+    _snapshot_key: Optional[tuple[int, ...]] = field(default=None, init=False, repr=False)
+    _snapshot: Optional["PriceLevelSnapshot"] = field(default=None, init=False, repr=False)
 
-    def _order_index(self, order: Order) -> Optional[int]:
-        for index, queued_order in enumerate(self.orders):
-            if queued_order is order:
-                return index
-        return None
+    def __post_init__(self) -> None:
+        if not isinstance(self.orders, OrderQueue):
+            self.orders = OrderQueue(self.orders)
+
+    def snapshot(self) -> "PriceLevelSnapshot":
+        """Reuse immutable projections until quantities or membership change."""
+        key = (self.price_ticks, self.level_qty_lots, self.strategy_qty_lots,
+               self.market_qty_lots, len(self.orders))
+        if self._snapshot_key != key:
+            self._snapshot = PriceLevelSnapshot(*key)
+            self._snapshot_key = key
+        assert self._snapshot is not None
+        return self._snapshot
 
     def _validate_cached_aggregates(self) -> None:
         if (
@@ -1016,6 +1061,8 @@ class BookLevel:
             )
         if order.order_type != OrderType.LIMIT or order.price_ticks is None:
             raise InvalidBookMutation(f"Resting order {order.id} must be a limit order")
+        if order.tif != TimeInForce.GTC:
+            raise InvalidBookMutation(f"IOC order {order.id} cannot rest")
         if order.price_ticks != self.price_ticks:
             raise InvalidBookMutation(
                 f"Order {order.id} price ticks do not match level"
@@ -1028,7 +1075,7 @@ class BookLevel:
 
     def add_order(self, order: Order) -> None:
         leaves = self._validate_resting_order(order)
-        if self._order_index(order) is not None:
+        if self.orders.contains(order):
             raise InvalidBookMutation(
                 f"Duplicate order id {order.id} at level {self.price_ticks}"
             )
@@ -1048,8 +1095,7 @@ class BookLevel:
         fill_qty_lots: int,
         fill_price_ticks: Optional[int] = None,
     ) -> Tuple[int, bool]:
-        queue_index = self._order_index(order)
-        if queue_index is None:
+        if not self.orders.contains(order):
             raise InvalidBookMutation(
                 f"Order {order.id} is not resting at level {self.price_ticks}"
             )
@@ -1075,13 +1121,12 @@ class BookLevel:
             self.market_qty_lots,
         ) = aggregates
         if fully_filled:
-            del self.orders[queue_index]
+            self.orders.remove(order)
         return applied, fully_filled
 
     def decrement_order(self, order: Order, quantity_lots: int) -> bool:
         """Apply an STP decrement while retaining a positive survivor."""
-        queue_index = self._order_index(order)
-        if queue_index is None:
+        if not self.orders.contains(order):
             raise InvalidBookMutation(
                 f"Order {order.id} is not resting at level {self.price_ticks}"
             )
@@ -1097,16 +1142,15 @@ class BookLevel:
         ) = aggregates
         removed = order.leaves_qty_lots == 0
         if removed:
-            del self.orders[queue_index]
+            self.orders.remove(order)
         return removed
 
     def remove_order(self, order: Order) -> bool:
-        queue_index = self._order_index(order)
-        if queue_index is None:
+        if not self.orders.contains(order):
             return False
         leaves = self._validate_resting_order(order)
         aggregates = self._updated_aggregates(order, -leaves)
-        del self.orders[queue_index]
+        self.orders.remove(order)
         (
             self.level_qty_lots,
             self.strategy_qty_lots,
@@ -1131,6 +1175,8 @@ class BookLevel:
             seen_ids.add(order.id)
             if order.status not in {OrderStatus.NEW, OrderStatus.PARTIAL}:
                 raise OrderBookInvariantError(f"Non-live order {order.id} retained")
+            if order.tif != TimeInForce.GTC or order.order_type != OrderType.LIMIT:
+                raise OrderBookInvariantError(f"Non-resting order type retained: {order.id}")
             if order.price_ticks != self.price_ticks:
                 raise OrderBookInvariantError(f"Wrong-price order {order.id} retained")
             if side is not None and order.side != side:
@@ -1152,6 +1198,37 @@ class BookLevel:
             raise OrderBookInvariantError(
                 f"Level aggregate mismatch at {side} {self.price_ticks}"
             )
+        if any(key != order.id for key, order in self.orders._items.items()):
+            raise OrderBookInvariantError("FIFO order lookup identity mismatch")
+
+
+def _validate_snapshot_level_order(levels, side: Side) -> None:
+    prices = tuple(level.price_ticks for level in levels)
+    if prices != tuple(sorted(prices, reverse=side == Side.BUY)):
+        name = "bids" if side == Side.BUY else "asks"
+        raise ValueError(f"Snapshot {name} must be sorted best to worst")
+
+
+class _SortedBidLevels(tuple):
+    """Immutable certified side; ordinary construction validates all input."""
+
+    __slots__ = ()
+
+    def __new__(cls, levels=()):
+        values = tuple(levels)
+        _validate_snapshot_level_order(values, Side.BUY)
+        return tuple.__new__(cls, values)
+
+
+class _SortedAskLevels(tuple):
+    """Immutable certified side; ordinary construction validates all input."""
+
+    __slots__ = ()
+
+    def __new__(cls, levels=()):
+        values = tuple(levels)
+        _validate_snapshot_level_order(values, Side.SELL)
+        return tuple.__new__(cls, values)
 
 
 @dataclass
@@ -1159,13 +1236,95 @@ class OrderBook:
     """Limit order book with authoritative mutation and lookup indexes."""
 
     symbol: str
-    bids: deque[BookLevel] = field(default_factory=deque)
-    asks: deque[BookLevel] = field(default_factory=deque)
+    bids: list[BookLevel] = field(default_factory=list)
+    asks: list[BookLevel] = field(default_factory=list)
     _order_index: Dict[int, Tuple[Side, BookLevel]] = field(
         default_factory=dict,
         init=False,
         repr=False,
     )
+    _level_index: Dict[Tuple[Side, int], BookLevel] = field(
+        default_factory=dict, init=False, repr=False,
+    )
+    _dirty_orders: Dict[int, Order] = field(default_factory=dict, init=False, repr=False)
+    _projections: Dict[Side, list["PriceLevelSnapshot"]] = field(
+        default_factory=lambda: {Side.BUY: [], Side.SELL: []}, init=False, repr=False,
+    )
+    _side_snapshots: Dict[Side, Optional[Tuple["PriceLevelSnapshot", ...]]] = field(
+        default_factory=lambda: {Side.BUY: None, Side.SELL: None}, init=False, repr=False,
+    )
+
+    @property
+    def resting_order_count(self) -> int:
+        return len(self._order_index)
+
+    def snapshot_levels(self, side: Side) -> Tuple["PriceLevelSnapshot", ...]:
+        snapshot = self._side_snapshots[side]
+        if snapshot is None:
+            # Every mutation validates the touched level and its neighbors.
+            # Copy the already certified side in C, without walking every price
+            # again. The ordinary constructors still fully validate callers.
+            snapshot_type = _SortedBidLevels if side == Side.BUY else _SortedAskLevels
+            snapshot = tuple.__new__(snapshot_type, self._projections[side])
+            self._side_snapshots[side] = snapshot
+        return snapshot
+
+    def _validate_projection_neighbors(
+        self, side: Side, position: int, price: int, *, added: bool = False,
+    ) -> None:
+        projections = self._projections[side]
+        if (position < 0 or position > len(projections)
+                or (not added and (position == len(projections)
+                                   or projections[position].price_ticks != price))):
+            raise OrderBookInvariantError(f"Immutable level projection location mismatch for {side}")
+        right = position if added else position + 1
+        direction = -1 if side == Side.BUY else 1
+        if ((position > 0 and direction * projections[position - 1].price_ticks >= direction * price)
+                or (right < len(projections)
+                    and direction * projections[right].price_ticks <= direction * price)):
+            raise OrderBookInvariantError(f"Immutable level projection neighbors are not sorted for {side}")
+
+    def _project_level(self, side: Side, level: BookLevel, *, added: bool = False) -> None:
+        levels = self.bids if side == Side.BUY else self.asks
+        position = self._level_position(levels, side, level.price_ticks)
+        self._validate_projection_neighbors(side, position, level.price_ticks, added=added)
+        projection = level.snapshot()
+        if added:
+            self._projections[side].insert(position, projection)
+        else:
+            self._projections[side][position] = projection
+        self._side_snapshots[side] = None
+
+    @staticmethod
+    def _level_position(levels: list[BookLevel], side: Side, price: int) -> int:
+        if side == Side.BUY:
+            return bisect_left(levels, -price, key=lambda level: -level.price_ticks)
+        return bisect_left(levels, price, key=lambda level: level.price_ticks)
+
+    def _validate_location(self, order: Order, side: Side, level: BookLevel) -> None:
+        if (side != order.side or self._level_index.get((side, level.price_ticks)) is not level
+                or not level.orders.contains(order)):
+            raise OrderBookInvariantError(f"Order index location mismatch for order {order.id}")
+        levels = self.bids if side == Side.BUY else self.asks
+        position = self._level_position(levels, side, level.price_ticks)
+        if position >= len(levels) or levels[position] is not level:
+            raise OrderBookInvariantError(f"Indexed level missing for order {order.id}")
+        if len(self._projections[side]) != len(levels):
+            raise OrderBookInvariantError(f"Projection level count mismatch for {side}")
+        self._validate_projection_neighbors(side, position, level.price_ticks)
+
+    def _remove_empty_level(self, side: Side, level: BookLevel) -> bool:
+        if level.orders:
+            return False
+        levels = self.bids if side == Side.BUY else self.asks
+        position = self._level_position(levels, side, level.price_ticks)
+        if position >= len(levels) or levels[position] is not level:
+            raise OrderBookInvariantError(f"Indexed level missing at {side} {level.price_ticks}")
+        del levels[position]
+        del self._level_index[(side, level.price_ticks)]
+        del self._projections[side][position]
+        self._side_snapshots[side] = None
+        return True
 
     def add_order(self, order: Order) -> None:
         """Insert an eligible order at the correct FIFO price level."""
@@ -1190,20 +1349,16 @@ class OrderBook:
             )
 
         levels = self.bids if order.side == Side.BUY else self.asks
-        reverse = order.side == Side.BUY
-        insertion_index = len(levels)
-        existing_level = None
-        for index, level in enumerate(levels):
-            if level.price_ticks == order.price_ticks:
-                insertion_index = index
-                existing_level = level
-                break
-            if (reverse and level.price_ticks < order.price_ticks) or (
-                not reverse and level.price_ticks > order.price_ticks
-            ):
-                insertion_index = index
-                break
-
+        existing_level = self._level_index.get((order.side, order.price_ticks))
+        insertion_index = self._level_position(levels, order.side, order.price_ticks)
+        if len(self._projections[order.side]) != len(levels):
+            raise OrderBookInvariantError(f"Projection level count mismatch for {order.side}")
+        if existing_level is not None and (
+                insertion_index == len(levels) or levels[insertion_index] is not existing_level):
+            raise OrderBookInvariantError(f"Indexed level missing at {order.side} {order.price_ticks}")
+        self._validate_projection_neighbors(
+            order.side, insertion_index, order.price_ticks, added=existing_level is None,
+        )
         level = existing_level or BookLevel(
             price_ticks=order.price_ticks,
             side=order.side,
@@ -1211,7 +1366,10 @@ class OrderBook:
         level.add_order(order)
         if existing_level is None:
             levels.insert(insertion_index, level)
+            self._level_index[(order.side, order.price_ticks)] = level
+        self._project_level(order.side, level, added=existing_level is None)
         self._order_index[order.id] = (order.side, level)
+        self._dirty_orders[order.id] = order
 
     def add_bid(self, order: Order) -> None:
         if order.side != Side.BUY:
@@ -1227,16 +1385,6 @@ class OrderBook:
             )
         self.add_order(order)
 
-    @staticmethod
-    def _level_identity_index(
-        levels: deque[BookLevel],
-        target: BookLevel,
-    ) -> Optional[int]:
-        for index, level in enumerate(levels):
-            if level is target:
-                return index
-        return None
-
     def validate_fill(
         self,
         order: Order,
@@ -1245,22 +1393,12 @@ class OrderBook:
     ) -> None:
         """Validate a resting fill without changing any book state."""
         location = self._order_index.get(order.id)
-        if location is None or location[1]._order_index(order) is None:
+        if location is None or not location[1].orders.contains(order):
             raise InvalidBookMutation(
                 f"Order {order.id} is not resting in book {self.symbol}"
             )
         side, level = location
-        if side != order.side:
-            raise OrderBookInvariantError(
-                f"Order index side mismatch for order {order.id}: "
-                f"indexed={side.value}, order={order.side.value}"
-            )
-        levels = self.bids if side == Side.BUY else self.asks
-        if self._level_identity_index(levels, level) is None:
-            raise OrderBookInvariantError(
-                f"Indexed level missing for order {order.id}: "
-                f"side={side.value}, price_ticks={level.price_ticks}"
-            )
+        self._validate_location(order, side, level)
         resolved_price = (
             order.price_ticks if fill_price_ticks is None else fill_price_ticks
         )
@@ -1287,13 +1425,6 @@ class OrderBook:
         """Atomically fill one resting order and clean up its level/index."""
         self.validate_fill(order, fill_qty_lots, fill_price_ticks)
         side, level = self._order_index[order.id]
-        levels = self.bids if side == Side.BUY else self.asks
-        level_index = self._level_identity_index(levels, level)
-        if level_index is None:
-            raise OrderBookInvariantError(
-                f"Indexed level vanished for order {order.id}: "
-                f"side={side.value}, price_ticks={level.price_ticks}"
-            )
 
         applied_lots, fully_filled = level.apply_fill(
             order,
@@ -1303,9 +1434,10 @@ class OrderBook:
         level_removed = False
         if fully_filled:
             del self._order_index[order.id]
-            if not level.orders:
-                del levels[level_index]
-                level_removed = True
+            level_removed = self._remove_empty_level(side, level)
+        if not level_removed:
+            self._project_level(side, level)
+        self._dirty_orders[order.id] = order
 
         return BookFillResult(
             order_id=order.id,
@@ -1323,15 +1455,13 @@ class OrderBook:
                 f"Order {order.id} is not resting in book {self.symbol}"
             )
         side, level = location
-        levels = self.bids if side == Side.BUY else self.asks
-        level_index = self._level_identity_index(levels, level)
-        if level_index is None:
-            raise OrderBookInvariantError(f"Indexed level missing for order {order.id}")
+        self._validate_location(order, side, level)
         removed = level.decrement_order(order, quantity_lots)
         if removed:
             del self._order_index[order.id]
-            if not level.orders:
-                del levels[level_index]
+        if not self._remove_empty_level(side, level):
+            self._project_level(side, level)
+        self._dirty_orders[order.id] = order
         return removed
 
     def remove_order(self, order: Order) -> bool:
@@ -1340,25 +1470,15 @@ class OrderBook:
         if location is None:
             return False
         side, level = location
-        if level._order_index(order) is None:
-            raise OrderBookInvariantError(
-                f"Order index points to a queue without order {order.id}: "
-                f"side={side.value}, price_ticks={level.price_ticks}"
-            )
-        levels = self.bids if side == Side.BUY else self.asks
-        level_index = self._level_identity_index(levels, level)
-        if level_index is None:
-            raise OrderBookInvariantError(
-                f"Indexed level missing while removing order {order.id}: "
-                f"side={side.value}, price_ticks={level.price_ticks}"
-            )
+        self._validate_location(order, side, level)
 
         removed = level.remove_order(order)
         if not removed:
             return False
         del self._order_index[order.id]
-        if not level.orders:
-            del levels[level_index]
+        if not self._remove_empty_level(side, level):
+            self._project_level(side, level)
+        self._dirty_orders[order.id] = order
         return True
 
     def resize_order(self, order: Order, order_qty_lots: int) -> bool:
@@ -1373,26 +1493,22 @@ class OrderBook:
                 or order_qty_lots < order.filled_qty_lots + order.canceled_qty_lots):
             raise InvalidBookMutation("Replacement total cannot be below accounted quantity")
         location = self._order_index.get(order.id)
-        if location is None or location[1]._order_index(order) is None:
+        if location is None or not location[1].orders.contains(order):
             raise InvalidBookMutation(f"Order {order.id} is not resting in book {self.symbol}")
-        self.assert_invariants()
         side, level = location
+        self._validate_location(order, side, level)
         level._validate_resting_order(order)
-        levels = self.bids if side == Side.BUY else self.asks
-        level_index = self._level_identity_index(levels, level)
-        if level_index is None:
-            raise OrderBookInvariantError(f"Indexed level missing for order {order.id}")
-        queue_index = level._order_index(order)
         new_leaves = order_qty_lots - order.filled_qty_lots - order.canceled_qty_lots
         aggregates = level._updated_aggregates(order, new_leaves - order.leaves_qty_lots)
         order.order_qty_lots = order_qty_lots
         (level.level_qty_lots, level.strategy_qty_lots, level.market_qty_lots) = aggregates
         removed = new_leaves == 0
         if removed:
-            del level.orders[queue_index]
+            level.orders.remove(order)
             del self._order_index[order.id]
-            if not level.orders:
-                del levels[level_index]
+        if not self._remove_empty_level(side, level):
+            self._project_level(side, level)
+        self._dirty_orders[order.id] = order
         return removed
 
     def update_order_qty(self, order: Order) -> None:
@@ -1410,6 +1526,27 @@ class OrderBook:
 
     def is_resting(self, order_id: int) -> bool:
         return order_id in self._order_index
+
+    def assert_local_invariants(self) -> None:
+        """Check a command's changed membership and boundaries, without a full scan.
+
+        Mutations validate the previous order state and atomically apply the exact
+        leaves delta to the level and category totals. Untouched levels cannot be
+        changed by those operations. The exhaustive independent audit remains in
+        ``assert_invariants`` for initialization and regression/property checks.
+        """
+        if self.bids and self.asks and self.bids[0].price_ticks >= self.asks[0].price_ticks:
+            raise OrderBookInvariantError(f"Crossed or locked book in {self.symbol}")
+        for order in self._dirty_orders.values():
+            location = self._order_index.get(order.id)
+            if location is not None:
+                side, level = location
+                self._validate_location(order, side, level)
+                level._validate_resting_order(order)
+                level._validate_cached_aggregates()
+            elif order.status not in TERMINAL_ORDER_STATUSES or order.leaves_qty_lots:
+                raise OrderBookInvariantError(f"Removed order {order.id} is not terminal")
+        self._dirty_orders.clear()
 
     def assert_invariants(self) -> None:
         """Validate every level, FIFO membership, and lookup entry."""
@@ -1490,13 +1627,30 @@ class OrderBook:
             if (
                 indexed_side != side
                 or indexed_level is not level
-                or level._order_index(order) is None
+                or not level.orders.contains(order)
             ):
                 raise OrderBookInvariantError(
                     f"Order index location mismatch for order {order_id}: "
                     f"indexed_side={indexed_side.value}, "
                     f"queued_side={side.value}, queued_price={price}"
                 )
+        expected_levels = {(side, level.price_ticks): level
+                           for side, levels in ((Side.BUY, self.bids), (Side.SELL, self.asks))
+                           for level in levels}
+        if (len(expected_levels) != len(self.bids) + len(self.asks)
+                or self._level_index.keys() != expected_levels.keys()
+                or any(self._level_index[key] is not level
+                       for key, level in expected_levels.items())):
+            raise OrderBookInvariantError(f"Price level lookup mismatch in {self.symbol}")
+        for side, levels in ((Side.BUY, self.bids), (Side.SELL, self.asks)):
+            expected = tuple(PriceLevelSnapshot(
+                level.price_ticks, level.level_qty_lots, level.strategy_qty_lots,
+                level.market_qty_lots, len(level.orders),
+            ) for level in levels)
+            if (tuple(self._projections[side]) != expected
+                    or (self._side_snapshots[side] is not None
+                        and self._side_snapshots[side] != expected)):
+                raise OrderBookInvariantError(f"Immutable level projection mismatch in {self.symbol}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -1574,12 +1728,10 @@ class MarketDataSnapshot:
             raise ValueError("Market-data snapshot timestamp must be UTC")
         if self.instrument.symbol != self.symbol:
             raise ValueError("Snapshot instrument must match its symbol")
-        bid_prices = tuple(level.price_ticks for level in self.bids)
-        ask_prices = tuple(level.price_ticks for level in self.asks)
-        if bid_prices != tuple(sorted(bid_prices, reverse=True)):
-            raise ValueError("Snapshot bids must be sorted best to worst")
-        if ask_prices != tuple(sorted(ask_prices)):
-            raise ValueError("Snapshot asks must be sorted best to worst")
+        if type(self.bids) is not _SortedBidLevels:
+            _validate_snapshot_level_order(self.bids, Side.BUY)
+        if type(self.asks) is not _SortedAskLevels:
+            _validate_snapshot_level_order(self.asks, Side.SELL)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1986,7 +2138,7 @@ class OrderLatencyTrace:
     run_generation: int
     order_id: int
     session_id: Optional[str]
-    sim_submitted_at: datetime
+    sim_submitted_at: Optional[datetime]
     sim_received_at: Optional[datetime] = None
     sim_processed_at: Optional[datetime] = None
     sim_report_created_at: Optional[datetime] = None

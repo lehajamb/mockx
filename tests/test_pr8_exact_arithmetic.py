@@ -11,7 +11,7 @@ from src.mockx.engine import MatchingEngine
 from src.mockx.fix_fields import execution_report_fields
 from src.mockx.instruments import InstrumentCatalog
 from src.mockx.latency import LatencyScheduler
-from src.mockx.metrics import MetricsCollector
+from src.mockx.metrics import BufferedMetricsWriter, InMemoryMetricsSink, MetricsCollector
 from src.mockx.models import (
     CancelOrderCommand,
     ExecutionParams,
@@ -317,6 +317,7 @@ def test_fix_rest_websocket_and_questdb_values_are_canonical_strings():
         "Exact",
         instruments=instruments,
         prometheus_enabled=False,
+        persistence=BufferedMetricsWriter(InMemoryMetricsSink()),
     )
     records = []
     metrics._create_record = lambda table, symbols, values, timestamp: (
