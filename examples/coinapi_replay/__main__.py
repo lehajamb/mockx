@@ -364,9 +364,9 @@ async def _launch(args, timer_status):
             except (OSError, ValueError):
                 pass
             try:
-                await asyncio.to_thread(process.wait, 5)
+                await asyncio.to_thread(process.wait, 60)
             except subprocess.TimeoutExpired:
-                cleanup_errors.append("Exchange did not stop within five seconds")
+                cleanup_errors.append("Exchange did not stop within sixty seconds")
                 process.terminate()
                 await asyncio.to_thread(process.wait)
         if process is not None:

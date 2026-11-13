@@ -52,6 +52,11 @@ scheduler lag limit is one simulated second (four wall seconds at speed 0.25).
 Exceeding a limit fails the run visibly; the driver does not silently skip data,
 pause simulated time, or switch to a different execution path.
 
+After playback and session cleanup, the launcher allows its exchange process
+60 wall seconds to shut down. This allowance is independent of `--timeout`
+and `--max-lag-seconds`. If the process does not exit, the launcher terminates
+it and records a cleanup failure, even if all historical events were replayed.
+
 On Windows, the launcher and its exchange request 1 ms timer resolution for the
 run and release it on exit. This avoids coarse sleeps in the paced event loops.
 The request follows [Windows timer semantics](https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod);

@@ -55,9 +55,17 @@ async def test_child_exit_after_http_ready_does_not_pass_readiness(monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("audit_close_error", [False, True])
-async def test_launch_records_complete_startup_and_unique_child_identity(
-    tmp_path, monkeypatch, audit_close_error
+@pytest.mark.parametrize(
+    "audit_close_error,shutdown_delay_seconds",
+    [
+        pytest.param(False, 0, id="normal_shutdown"),
+        pytest.param(True, 0, id="audit_close_error"),
+        pytest.param(False, 10, id="slow_shutdown"),
+        pytest.param(False, None, id="stuck_shutdown"),
+    ],
+)
+async def test_launch_records_startup_and_cleans_up_owned_child(
+    tmp_path, monkeypatch, audit_close_error, shutdown_delay_seconds
 ):
     source = tmp_path / "input.csv"
     source.write_text("placeholder input")
@@ -107,14 +115,29 @@ async def test_launch_records_complete_startup_and_unique_child_identity(
         def __init__(self, command, **kwargs):
             self.command, self.stdin, self.returncode = command, BytesIO(), None
             self.pid = 12345
+            self.wait_timeouts = []
+            self.termination_count = 0
             processes.append(self)
 
         def poll(self):
             return self.returncode
 
         def wait(self, timeout=None):
+            self.wait_timeouts.append(timeout)
+            assert self.stdin.getvalue() == b"stop\n"
+            if self.termination_count:
+                self.returncode = 1
+                return 1
+            if shutdown_delay_seconds is None or timeout < shutdown_delay_seconds:
+                clock.now += timeout
+                raise launcher.subprocess.TimeoutExpired(self.command, timeout)
+            # Model elapsed shutdown time without sleeping or launching a child.
+            clock.now += shutdown_delay_seconds
             self.returncode = 0
             return 0
+
+        def terminate(self):
+            self.termination_count += 1
 
     monkeypatch.setattr(launcher.subprocess, "Popen", Process)
 
@@ -155,18 +178,30 @@ async def test_launch_records_complete_startup_and_unique_child_identity(
             return self.result
 
     monkeypatch.setattr(launcher, "ReplayRunner", Runner)
-    assert await launcher.launch(args) == (1 if audit_close_error else 0)
+    shutdown_timed_out = shutdown_delay_seconds is None
+    expected_failure = audit_close_error or shutdown_timed_out
+    assert await launcher.launch(args) == (1 if expected_failure else 0)
     result = json.loads((output / "result.json").read_text())
     assert result["command_to_first_book_seconds"] == 9.0
     assert result["child_ready_seconds"] == 7.0
     assert probes[0][2] == args.native_client
-    assert processes[0].returncode == 0
+    assert result["status"] == ("failed" if expected_failure else "completed")
+    assert processes[0].returncode == (1 if shutdown_timed_out else 0)
+    assert result["exchange_exit_code"] == processes[0].returncode
+    assert processes[0].termination_count == (1 if shutdown_timed_out else 0)
+    assert processes[0].wait_timeouts == ([60, None] if shutdown_timed_out else [60])
+    assert processes[0].stdin.closed
     assert timer_calls == ["enter", "exit"]
     assert result["resolution_request_ms"] == 1
     assert result["resolution_request_status"] == "accepted"
     if audit_close_error:
-        assert result["status"] == "failed"
         assert "audit disk full" in result["cleanup_error"]
+    elif shutdown_timed_out:
+        assert "Exchange did not stop within sixty seconds" in result["cleanup_error"]
+        assert result["command_elapsed_seconds"] == 80.0
+    else:
+        assert "cleanup_error" not in result
+        assert result["command_elapsed_seconds"] == 20.0 + shutdown_delay_seconds
 
 
 @pytest.mark.asyncio
