@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from random import Random
 from typing import Callable, Dict, List, Optional
 
@@ -62,6 +63,24 @@ class DuplicateClientOrderID(ValueError):
     """A process-lifetime duplicate within one session namespace."""
 
 
+@dataclass(frozen=True, slots=True)
+class SeededOrder:
+    symbol: str
+    session_id: str
+    cl_ord_id: str
+    order_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class InitialBookState:
+    identifiers: RunIdentifierScope
+    books: Dict[str, OrderBook]
+    orders: Dict[int, Order]
+    client_order_index: Dict[ClientOrderKey, int]
+    displayed_events: tuple[DisplayedOrderAdded, ...]
+    seeded_orders: tuple[SeededOrder, ...]
+
+
 class MatchingEngine:
     """Price-time-priority engine whose authoritative arithmetic is integral."""
 
@@ -85,6 +104,7 @@ class MatchingEngine:
             symbol: OrderBook(symbol=symbol) for symbol in self.instruments.symbols
         }
         self.orders: Dict[int, Order] = {}
+        self._active_order_ids: set[int] = set()
         self.client_order_index: Dict[ClientOrderKey, int] = {}
         self._claimed_client_order_ids: set[ClientOrderKey] = set()
         self.next_order_id = 1
@@ -116,6 +136,7 @@ class MatchingEngine:
             symbol: OrderBook(symbol=symbol) for symbol in self.instruments.symbols
         }
         self.orders.clear()
+        self._active_order_ids.clear()
         self.client_order_index.clear()
         self.next_order_id = 1
         self.next_trade_id = 1
@@ -124,6 +145,75 @@ class MatchingEngine:
 
     def reseed_rng(self) -> None:
         self.rng.seed(self.random_seed)
+
+    def prepare_initial_book(
+        self, commands: tuple[NewOrderCommand, ...], identifiers: RunIdentifierScope,
+    ) -> InitialBookState:
+        """Validate a fresh resting snapshot without touching live exchange state."""
+        books = {symbol: OrderBook(symbol) for symbol in self.instruments.symbols}
+        orders: Dict[int, Order] = {}
+        index: Dict[ClientOrderKey, int] = {}
+        displayed: list[DisplayedOrderAdded] = []
+        seeded: list[SeededOrder] = []
+        for order_id, command in enumerate(commands, start=1):
+            if command.order_type != OrderType.LIMIT or command.tif != TimeInForce.GTC:
+                raise ValueError("Initial book orders must be GTC limits")
+            if not command.session_id:
+                raise ValueError("Initial book orders require a configured FIX session")
+            key = ClientOrderKey(command.session_id, command.cl_ord_id)
+            if key in index or key in self._claimed_client_order_ids:
+                raise DuplicateClientOrderID(f"Duplicate ClOrdID in session: {command.cl_ord_id}")
+            order = Order(
+                id=order_id, exchange_order_id=identifiers.next_order_id(),
+                run_generation=identifiers.generation, cl_ord_id=command.cl_ord_id,
+                symbol=command.symbol, side=command.side, order_type=command.order_type,
+                order_qty_lots=command.order_qty_lots, price_ticks=command.price_ticks,
+                instrument=self.instruments.require(command.symbol), tif=command.tif,
+                ts_submitted=command.submitted_at, session_id=command.session_id,
+                session_alias=command.session_alias, participant_id=command.participant_id,
+                status=OrderStatus.NEW, processed=True, displayed_order_ref=order_id,
+            )
+            books[order.symbol].add_order(order)
+            orders[order_id] = order
+            index[key] = order_id
+            displayed.append(DisplayedOrderAdded(
+                run_generation=order.run_generation, order_id=order.id,
+                order_ref_num=order_id, symbol=order.symbol, side=order.side,
+                price_ticks=order.price_ticks, qty_lots=order.leaves_qty_lots,
+                timestamp=order.ts_submitted,
+            ))
+            seeded.append(SeededOrder(order.symbol, command.session_id,
+                                      command.cl_ord_id, order.exchange_order_id))
+        for book in books.values():
+            book.assert_invariants()
+            book.assert_local_invariants()
+        return InitialBookState(identifiers, books, orders, index,
+                                tuple(displayed), tuple(seeded))
+
+    def validate_initial_book_claims(self, initial: InitialBookState) -> None:
+        if self._claimed_client_order_ids.intersection(initial.client_order_index):
+            raise DuplicateClientOrderID("Snapshot contains an already claimed ClOrdID")
+
+    def install_initial_book(self, initial: InitialBookState) -> None:
+        """Install validated state only during a fresh serialized run transition."""
+        if self.orders or any(book.bids or book.asks for book in self.books.values()):
+            raise RuntimeError("Initial book installation requires an empty engine")
+        if self.identifier_scope is not initial.identifiers:
+            raise RuntimeError("Initial book identifier scope does not match the run")
+        self.validate_initial_book_claims(initial)
+        self.books = initial.books
+        self.orders = initial.orders
+        self.client_order_index = initial.client_order_index
+        self._claimed_client_order_ids.update(initial.client_order_index)
+        self._active_order_ids = set(initial.orders)
+        self.next_order_id = len(initial.orders) + 1
+        self.next_displayed_order_ref = len(initial.orders) + 1
+
+    def publish_initial_book(self, initial: InitialBookState) -> None:
+        """Publish initial liquidity after feed startup, without fictitious fills."""
+        self._publish_displayed_events(initial.displayed_events)
+        for symbol in dict.fromkeys(order.symbol for order in initial.orders.values()):
+            self._send_market_data_update(symbol)
 
     def install_identifier_scope(
         self,
@@ -170,6 +260,7 @@ class MatchingEngine:
         )
         self.next_order_id += 1
         self.orders[order.id] = order
+        self._active_order_ids.add(order.id)
         if client_key is not None:
             self.client_order_index[client_key] = order.id
             self._claimed_client_order_ids.add(client_key)
@@ -231,7 +322,7 @@ class MatchingEngine:
             book = self.books[order.symbol]
             fills = self._run_matching(order, book)
             self._finalize_unfilled_remainder(order, book)
-            book.assert_invariants()
+            book.assert_local_invariants()
             self._publish_displayed_events(displayed_events)
             self._send_market_data_update(order.symbol, fills)
         finally:
@@ -656,6 +747,8 @@ class MatchingEngine:
             cancel_ingress_sequence=cancel_ingress_sequence,
             replace_ingress_sequence=replace_ingress_sequence,
         )
+        if order.status in TERMINAL_ORDER_STATUSES:
+            self._active_order_ids.discard(order.id)
         self._record_cpu_duration(
             REPORT_CREATION_DURATION,
             order.id,
@@ -678,18 +771,7 @@ class MatchingEngine:
         book: OrderBook,
         side: Side,
     ) -> tuple[PriceLevelSnapshot, ...]:
-        levels = book.bids if side == Side.BUY else book.asks
-        return tuple(
-            PriceLevelSnapshot(
-                price_ticks=level.price_ticks,
-                level_qty_lots=level.level_qty_lots,
-                strategy_qty_lots=level.strategy_qty_lots,
-                market_qty_lots=level.market_qty_lots,
-                order_count=len(level.orders),
-            )
-            for level in levels
-            if level.level_qty_lots > 0 and level.orders
-        )
+        return book.snapshot_levels(side)
 
     def _create_market_data_snapshot(
         self,
@@ -892,10 +974,10 @@ class MatchingEngine:
             if resting:
                 if not book.remove_order(order):
                     raise RuntimeError(f"Resting order {order.id} could not be removed")
-                book.assert_invariants()
             order.version += 1
             order.cancel_remaining()
             order.transition_to(OrderStatus.CANCELLED)
+            book.assert_local_invariants()
         finally:
             self._record_cpu_duration(
                 BOOK_COMMIT_DURATION,
@@ -1037,7 +1119,7 @@ class MatchingEngine:
                 outcome=ReplacementOutcome.INVALID_REQUEST,
             )
 
-        book.assert_invariants()
+        book.assert_local_invariants()
         old_cl_ord_id = order.cl_ord_id
         old_quantity = order.order_qty_lots
         old_price = order.price_ticks
@@ -1097,7 +1179,7 @@ class MatchingEngine:
             if not retains_priority and order.leaves_qty_lots:
                 fills = self._run_matching(order, book)
                 self._finalize_unfilled_remainder(order, book)
-            book.assert_invariants()
+            book.assert_local_invariants()
             self._publish_displayed_events(displayed_events)
             if changed:
                 self._send_market_data_update(order.symbol, fills)
@@ -1202,17 +1284,10 @@ class MatchingEngine:
         return reject
 
     def active_order_count(self) -> int:
-        return sum(
-            order.status not in TERMINAL_ORDER_STATUSES
-            for order in self.orders.values()
-        )
+        return len(self._active_order_ids)
 
     def resting_order_count(self) -> int:
-        return sum(
-            len(level.orders)
-            for book in self.books.values()
-            for level in (*book.bids, *book.asks)
-        )
+        return sum(book.resting_order_count for book in self.books.values())
 
     def order_book_level_count(self) -> int:
         return sum(len(book.bids) + len(book.asks) for book in self.books.values())

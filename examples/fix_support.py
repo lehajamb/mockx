@@ -94,6 +94,12 @@ class FixReport:
     last_price: Optional[str]
     last_qty: Optional[str]
     text: Optional[str]
+    order_id: Optional[str] = None
+    exec_id: Optional[str] = None
+    cum_qty: Optional[str] = None
+    quantity: Optional[str] = None
+    trade_id: Optional[str] = None
+    received_ns: Optional[int] = None
 
 
 def require_quickfix() -> None:
@@ -112,10 +118,10 @@ def _field_value(message, field) -> str:
     return str(field.getValue())
 
 
-def _optional_field_value(message, field) -> Optional[str]:
-    if not message.isSetField(field.getField()):
+def _optional_field_value(message, tag: int) -> Optional[str]:
+    if not message.isSetField(tag):
         return None
-    return _field_value(message, field)
+    return message.getField(tag)
 
 
 class MultiSessionFIXApplication(ApplicationBase):
@@ -202,41 +208,47 @@ class MultiSessionFIXApplication(ApplicationBase):
             listener(report)
 
     def _parse_report(self, message, sessionID) -> Optional[FixReport]:
-        msg_type = fix.MsgType()
-        message.getHeader().getField(msg_type)
-        value = msg_type.getValue()
+        value = message.getHeader().getField(35)
         if value == fix.MsgType_ExecutionReport:
-            cl_ord_id = _field_value(message, fix.ClOrdID())
+            cl_ord_id = message.getField(11)
             ord_status = _field_value(message, fix.OrdStatus())
             return FixReport(
                 message_type="ExecutionReport",
                 sender_comp_id=sender_comp_id(sessionID),
                 cl_ord_id=cl_ord_id,
                 orig_cl_ord_id=_optional_field_value(
-                    message, fix.OrigClOrdID()
+                    message, 41
                 ),
                 status=STATUS_NAMES.get(ord_status, ord_status),
                 exec_type=_field_value(message, fix.ExecType()),
                 leaves_qty=_optional_field_value(
-                    message, fix.StringField(151)
+                    message, 151
                 ),
-                last_price=_optional_field_value(message, fix.LastPx()),
-                last_qty=_optional_field_value(message, fix.LastQty()),
-                text=_optional_field_value(message, fix.Text()),
+                last_price=_optional_field_value(message, 31),
+                last_qty=_optional_field_value(message, 32),
+                text=_optional_field_value(message, 58),
+                order_id=_optional_field_value(message, 37),
+                exec_id=_optional_field_value(message, 17),
+                cum_qty=_optional_field_value(message, 14),
+                quantity=_optional_field_value(message, 38),
+                trade_id=_optional_field_value(message, 1003),
+                received_ns=time.monotonic_ns(),
             )
         if value == fix.MsgType_OrderCancelReject:
             ord_status = _field_value(message, fix.OrdStatus())
             return FixReport(
                 message_type="OrderCancelReject",
                 sender_comp_id=sender_comp_id(sessionID),
-                cl_ord_id=_field_value(message, fix.ClOrdID()),
-                orig_cl_ord_id=_field_value(message, fix.OrigClOrdID()),
+                cl_ord_id=message.getField(11),
+                orig_cl_ord_id=message.getField(41),
                 status=STATUS_NAMES.get(ord_status, ord_status),
                 exec_type=None,
                 leaves_qty=None,
                 last_price=None,
                 last_qty=None,
-                text=_optional_field_value(message, fix.Text()),
+                text=_optional_field_value(message, 58),
+                order_id=_optional_field_value(message, 37),
+                received_ns=time.monotonic_ns(),
             )
         return None
 
@@ -262,13 +274,13 @@ def send_limit_order(
 ) -> None:
     require_quickfix()
     message = fix.Message()
-    message.getHeader().setField(fix.MsgType(fix.MsgType_NewOrderSingle))
-    message.setField(fix.ClOrdID(cl_ord_id))
-    message.setField(fix.Symbol(symbol))
+    message.getHeader().setField(35, fix.MsgType_NewOrderSingle)
+    message.setField(11, cl_ord_id)
+    message.setField(55, symbol)
     message.setField(fix.Side(side))
-    message.setField(fix.StringField(38, quantity))
-    message.setField(fix.OrdType(fix.OrdType_LIMIT))
-    message.setField(fix.StringField(44, price))
+    message.setField(38, quantity)
+    message.setField(40, fix.OrdType_LIMIT)
+    message.setField(44, price)
     message.setField(
         fix.TimeInForce(tif or fix.TimeInForce_GOOD_TILL_CANCEL)
     )
@@ -286,12 +298,12 @@ def send_market_order(
 ) -> None:
     require_quickfix()
     message = fix.Message()
-    message.getHeader().setField(fix.MsgType(fix.MsgType_NewOrderSingle))
-    message.setField(fix.ClOrdID(cl_ord_id))
-    message.setField(fix.Symbol(symbol))
+    message.getHeader().setField(35, fix.MsgType_NewOrderSingle)
+    message.setField(11, cl_ord_id)
+    message.setField(55, symbol)
     message.setField(fix.Side(side))
-    message.setField(fix.StringField(38, quantity))
-    message.setField(fix.OrdType(fix.OrdType_MARKET))
+    message.setField(38, quantity)
+    message.setField(40, fix.OrdType_MARKET)
     message.setField(
         fix.TimeInForce(fix.TimeInForce_IMMEDIATE_OR_CANCEL)
     )
@@ -310,14 +322,12 @@ def send_cancel(
 ) -> None:
     require_quickfix()
     message = fix.Message()
-    message.getHeader().setField(
-        fix.MsgType(fix.MsgType_OrderCancelRequest)
-    )
-    message.setField(fix.ClOrdID(cl_ord_id))
-    message.setField(fix.OrigClOrdID(orig_cl_ord_id))
-    message.setField(fix.Symbol(symbol))
+    message.getHeader().setField(35, fix.MsgType_OrderCancelRequest)
+    message.setField(11, cl_ord_id)
+    message.setField(41, orig_cl_ord_id)
+    message.setField(55, symbol)
     message.setField(fix.Side(side))
-    message.setField(fix.StringField(38, quantity))
+    message.setField(38, quantity)
     message.setField(_transact_time())
     _send(message, session_id)
 
@@ -335,14 +345,14 @@ def send_replace(
     """Amend a live GTC limit using total quantity and the latest accepted ID."""
     require_quickfix()
     message = fix.Message()
-    message.getHeader().setField(fix.MsgType(fix.MsgType_OrderCancelReplaceRequest))
-    message.setField(fix.ClOrdID(cl_ord_id))
-    message.setField(fix.OrigClOrdID(orig_cl_ord_id))
-    message.setField(fix.Symbol(symbol))
+    message.getHeader().setField(35, fix.MsgType_OrderCancelReplaceRequest)
+    message.setField(11, cl_ord_id)
+    message.setField(41, orig_cl_ord_id)
+    message.setField(55, symbol)
     message.setField(fix.Side(side))
-    message.setField(fix.StringField(38, quantity))
-    message.setField(fix.OrdType(fix.OrdType_LIMIT))
-    message.setField(fix.StringField(44, price))
+    message.setField(38, quantity)
+    message.setField(40, fix.OrdType_LIMIT)
+    message.setField(44, price)
     message.setField(fix.TimeInForce(fix.TimeInForce_GOOD_TILL_CANCEL))
     message.setField(_transact_time())
     _send(message, session_id)

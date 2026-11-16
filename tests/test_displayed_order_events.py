@@ -261,7 +261,7 @@ def test_events_are_not_published_when_final_book_invariant_fails(monkeypatch):
     def fail_invariant(_book):
         raise RuntimeError("forced invariant failure")
 
-    monkeypatch.setattr(book_type, "assert_invariants", fail_invariant)
+    monkeypatch.setattr(book_type, "assert_local_invariants", fail_invariant)
     with pytest.raises(RuntimeError, match="forced invariant failure"):
         submit(
             engine,

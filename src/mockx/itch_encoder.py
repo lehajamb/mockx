@@ -12,6 +12,7 @@ from __future__ import annotations
 import struct
 from datetime import datetime, timezone
 from decimal import Decimal
+from functools import lru_cache
 
 from .instruments import InstrumentCatalog
 from .numeric import decimal_product, is_integral_decimal
@@ -76,6 +77,21 @@ def _pad_ascii(value: str, length: int) -> bytes:
     return encoded.ljust(length, b" ")
 
 
+@lru_cache(maxsize=256, typed=True)
+def _price4_multiplier(tick_size: Decimal) -> int | None:
+    """Validate a tick once, without expanding an out-of-range exponent."""
+    scaled_tick = decimal_product(tick_size, 10_000)
+    if not is_integral_decimal(scaled_tick):
+        raise ValueError(
+            f"tick size {tick_size} is not exactly representable as ITCH Price(4)"
+        )
+    # Such a multiplier can only yield a valid wire price for zero ticks.
+    # Avoid allocating a huge integer for e.g. Decimal("1e1000000000").
+    if not -MAX_PRICE4 <= scaled_tick <= MAX_PRICE4:
+        return None
+    return int(scaled_tick)
+
+
 def _price_to_itch(price_ticks: int, tick_size: Decimal) -> int:
     """Convert MockX price_ticks to ITCH Price(4) integer.
 
@@ -86,15 +102,19 @@ def _price_to_itch(price_ticks: int, tick_size: Decimal) -> int:
     """
     if not isinstance(price_ticks, int) or isinstance(price_ticks, bool):
         raise ValueError("price_ticks must be an integer")
-    scaled_tick = decimal_product(tick_size, 10_000)
-    if not is_integral_decimal(scaled_tick):
-        raise ValueError(
-            f"tick size {tick_size} is not exactly representable as ITCH Price(4)"
-        )
-    value = decimal_product(scaled_tick, price_ticks)
+    if type(tick_size) is Decimal and tick_size.is_finite():
+        multiplier = _price4_multiplier(tick_size)
+    else:
+        # Preserve the original numeric errors for non-finite or unexpected
+        # inputs, including values that cannot safely serve as cache keys.
+        multiplier = _price4_multiplier.__wrapped__(tick_size)
+    value = (
+        price_ticks * multiplier
+        if multiplier is not None else (0 if price_ticks == 0 else MAX_PRICE4 + 1)
+    )
     if not 0 <= value <= MAX_PRICE4:
         raise ValueError("ITCH Price(4) exceeds the maximum 200000.0000")
-    return int(value)
+    return value
 
 
 def _shares_from_lots(qty_lots: int) -> int:

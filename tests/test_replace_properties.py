@@ -85,6 +85,12 @@ def test_generated_revisions_preserve_invariants_and_displayed_book(commands):
         cursor = len(events)
         book = engine.books["TEST"]
         book.assert_invariants()
+        assert engine.active_order_count() == sum(
+            order.status not in TERMINAL_ORDER_STATUSES for order in engine.orders.values()
+        )
+        assert engine.resting_order_count() == sum(
+            len(level.orders) for level in (*book.bids, *book.asks)
+        )
         assert displayed == {
             order.displayed_order_ref: [order.side, order.price_ticks, order.leaves_qty_lots]
             for order in engine.orders.values() if book.is_resting(order.id)

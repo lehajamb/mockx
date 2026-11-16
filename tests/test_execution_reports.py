@@ -12,7 +12,7 @@ import pytest
 from src.mockx.engine import MatchingEngine
 from src.mockx.fix_fields import execution_report_fields
 from src.mockx.latency import LatencyScheduler
-from src.mockx.metrics import MetricsCollector
+from src.mockx.metrics import BufferedMetricsWriter, InMemoryMetricsSink, MetricsCollector
 from src.mockx.models import (
     ExecutionParams,
     ExecutionType,
@@ -262,7 +262,9 @@ def test_metrics_record_report_snapshot_not_live_order():
     report = new_report(order)
     fill_order(order)
 
-    collector = exact_metrics("TEST-EXCHANGE")
+    collector = exact_metrics(
+        "TEST-EXCHANGE", persistence=BufferedMetricsWriter(InMemoryMetricsSink())
+    )
     captured = {}
 
     def capture_record(table, symbols, columns, timestamp_ns):

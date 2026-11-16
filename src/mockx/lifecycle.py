@@ -5,15 +5,19 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import inspect
 import logging
-from typing import Any, Awaitable, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Mapping, Optional, TypeVar
 
 from .glimpse_encoder import GlimpseOrderSnapshot, GlimpseSnapshot
 from .identifiers import RunIdentifierScope
-from .models import SchedulerState
+from .models import OrderBookInvariantError, OrderType, SchedulerState, TimeInForce
+from .validation import RawOrderInput
+
+if TYPE_CHECKING:
+    from .engine import InitialBookState, SeededOrder
 
 
 logger = logging.getLogger(__name__)
@@ -40,6 +44,7 @@ class SessionStartResult:
     run_id: str
     run_generation: int
     starting_time: datetime
+    seed_orders: tuple[SeededOrder, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +89,9 @@ class ExchangeLifecycle:
         latency_tracker: Any,
         fix_app: Any,
         itch_feed: Any = None,
+        *,
+        realtime_rate: float = 1.0,
+        realtime_chunk_ms: int = 100,
     ) -> None:
         self.engine = engine
         self.scheduler = engine.scheduler
@@ -91,6 +99,11 @@ class ExchangeLifecycle:
         self.latency_tracker = latency_tracker
         self.fix_app = fix_app
         self.itch_feed = itch_feed
+        self.realtime_rate = realtime_rate
+        self.realtime_chunk_ms = min(realtime_chunk_ms, 100)
+        self.realtime_clock = fix_app.monotonic_clock
+        self._realtime_anchor_ns: Optional[int] = None
+        self._realtime_anchor_time = self.scheduler.current_time
         self.lock = asyncio.Lock()
         self.state = LifecycleState.STOPPED
         self.run_id: Optional[str] = None
@@ -227,6 +240,9 @@ class ExchangeLifecycle:
         self.glimpse_service = service
 
     def _publish(self, state: LifecycleState) -> None:
+        if state == LifecycleState.ACTIVE and self.state != LifecycleState.ACTIVE:
+            self._realtime_anchor_ns = self.realtime_clock.now_ns()
+            self._realtime_anchor_time = self.scheduler.current_time
         self.state = state
         self._published_token = IngressToken(state, self.run_generation)
 
@@ -347,8 +363,40 @@ class ExchangeLifecycle:
             self.run_id = None
             self._publish(LifecycleState.FAILED)
 
-    async def start_session(self, run_id: str) -> SessionStartResult:
-        async with self._serialized():
+    def _prepare_initial_book(self, rows: tuple[Mapping[str, object], ...]) -> InitialBookState:
+        """Validate all seed values and identities without touching live run state."""
+        identifiers = RunIdentifierScope(self.run_generation + 1)
+        commands = []
+        try:
+            for row in rows:
+                session_id = row["session_id"]
+                participant = self.fix_app.session_participants.get(session_id)
+                if participant is None:
+                    raise ValueError(f"Unconfigured FIX session: {session_id}")
+                command = self.fix_app.order_normalizer.normalize(
+                    RawOrderInput(
+                        session_id=session_id, participant_id=participant,
+                        cl_ord_id=row["cl_ord_id"], symbol=row["symbol"],
+                        side=row["side"], order_type=OrderType.LIMIT,
+                        quantity=row["quantity"], price=row["price"],
+                        time_in_force=TimeInForce.GTC,
+                        session_alias=str(session_id).split("->", 1)[-1],
+                    ),
+                    submitted_at=datetime(1970, 1, 1, tzinfo=timezone.utc),
+                )
+                commands.append(command)
+            claims = tuple((command.session_id, command.cl_ord_id) for command in commands)
+            self.fix_app.session_registry.validate_cl_ord_ids(claims)
+            initial = self.engine.prepare_initial_book(tuple(commands), identifiers)
+            self.engine.validate_initial_book_claims(initial)
+            return initial
+        except (ValueError, KeyError, TypeError, OrderBookInvariantError) as exc:
+            raise LifecycleError(422, "INVALID_INITIAL_BOOK", str(exc)) from exc
+
+    async def start_session(
+        self, run_id: str, *, initial_orders: tuple[Mapping[str, object], ...] = (),
+    ) -> SessionStartResult:
+        async with self._serialized(drain_broadcasts=True):
             self.raise_if_transition_or_failed()
             if self.state == LifecycleState.RUN_FAILED:
                 raise LifecycleError(
@@ -370,9 +418,10 @@ class ExchangeLifecycle:
                         "The next run generation cannot form an ITCH session",
                     ) from exc
 
+            initial = self._prepare_initial_book(initial_orders) if initial_orders else None
             self._publish(LifecycleState.STARTING)
             task = asyncio.create_task(
-                self._start_session(run_id), name=f"session-start:{run_id}"
+                self._start_session(run_id, initial), name=f"session-start:{run_id}"
             )
             try:
                 return await self._complete_transition(
@@ -385,7 +434,9 @@ class ExchangeLifecycle:
                     self._publish(LifecycleState.STOPPED)
                 raise
 
-    async def _start_session(self, run_id: str) -> SessionStartResult:
+    async def _start_session(
+        self, run_id: str, initial: Optional[InitialBookState] = None,
+    ) -> SessionStartResult:
         """Finish an accepted start; the caller owns the lifecycle lock."""
         try:
             flush_result = await self.metrics.flush()
@@ -398,6 +449,15 @@ class ExchangeLifecycle:
                 )
             if self._close_websockets is not None:
                 await self._close_websockets()
+            if initial is not None:
+                try:
+                    self.engine.validate_initial_book_claims(initial)
+                    self.fix_app.session_registry.claim_cl_ord_ids(tuple(
+                        (order.session_id, order.cl_ord_id) for order in initial.seeded_orders
+                    ))
+                except ValueError as exc:
+                    self._publish(LifecycleState.STOPPED)
+                    raise LifecycleError(422, "INVALID_INITIAL_BOOK", str(exc)) from exc
         except asyncio.CancelledError:
             self._publish(LifecycleState.STOPPED)
             raise
@@ -435,9 +495,14 @@ class ExchangeLifecycle:
             self.engine.reseed_rng()
 
             generation = self.run_generation + 1
-            identifiers = RunIdentifierScope(generation)
+            identifiers = initial.identifiers if initial is not None else RunIdentifierScope(generation)
             self.engine.install_identifier_scope(identifiers)
             self.fix_app.reset_run_state(identifiers)
+            if initial is not None:
+                self.engine.install_initial_book(initial)
+                self.latency_tracker.register_seeded_orders(initial.orders.values())
+                self.metrics.register_seeded_orders(initial.orders.values())
+                self.metrics.refresh_engine_gauges()
             self.metrics.start_run(run_id)
             self.run_id = run_id
             self.run_generation = generation
@@ -460,6 +525,12 @@ class ExchangeLifecycle:
                     generation,
                     self.scheduler.current_time,
                 )
+            if initial is not None:
+                if self.itch_feed is not None:
+                    with self.itch_feed.batch_initial_book():
+                        self.engine.publish_initial_book(initial)
+                else:
+                    self.engine.publish_initial_book(initial)
             if self.glimpse_service is not None:
                 await self.glimpse_service.start()
                 self.glimpse_service.begin_run(generation)
@@ -482,6 +553,7 @@ class ExchangeLifecycle:
                 run_id=run_id,
                 run_generation=generation,
                 starting_time=self.scheduler.current_time,
+                seed_orders=initial.seeded_orders if initial is not None else (),
             )
         except asyncio.CancelledError:
             self._fail_start_after_reset()
@@ -497,9 +569,16 @@ class ExchangeLifecycle:
                 "Simulation session start failed; service restart required",
             ) from exc
 
-    async def end_session(self) -> SessionEndResult:
+    async def end_session(
+        self, *, expected_run_generation: Optional[int] = None,
+    ) -> SessionEndResult:
         async with self._serialized(drain_broadcasts=True):
             self.raise_if_transition_or_failed()
+            if expected_run_generation is not None and expected_run_generation != self.run_generation:
+                raise LifecycleError(
+                    409, "RUN_GENERATION_MISMATCH",
+                    "The simulation run changed; cleanup was not applied",
+                )
             self.check_persistence_failure()
             if self.state == LifecycleState.STOPPED:
                 return SessionEndResult(None, None, None)
@@ -697,41 +776,36 @@ class ExchangeLifecycle:
             self.check_persistence_failure()
             return result
 
-    async def advance_realtime(self, target_time: datetime) -> int:
-        observed = self.token
-        if observed.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}:
-            return 0
-        barrier = await self.fix_app.await_ingress_enqueued(
-            generation=observed.generation,
+    def _realtime_target(self) -> datetime:
+        if self._realtime_anchor_ns is None:
+            return self.scheduler.current_time
+        elapsed_ns = max(0, self.realtime_clock.now_ns() - self._realtime_anchor_ns)
+        return self._realtime_anchor_time + timedelta(
+            microseconds=int(elapsed_ns * self.realtime_rate / 1_000),
         )
-        async with self._serialized():
-            if self.token != observed:
-                return 0
-            self.fix_app.drain_ingress_locked(
-                barrier.run_generation,
-                barrier.through_sequence,
-            )
-            result = await self.scheduler.run_until(target_time)
-            self.check_persistence_failure()
-            return result
 
-    async def advance_realtime_by(self, delta: timedelta) -> int:
-        """Compute and commit one realtime tick under the lifecycle lock."""
+    @property
+    def realtime_lag_ms(self) -> float:
+        if self.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}:
+            return 0.0
+        return max(0.0, (self._realtime_target() - self.scheduler.current_time).total_seconds() * 1_000)
+
+    async def advance_realtime_clock(self) -> int:
+        """Catch up to elapsed wall time in one bounded, serialized clock step."""
         observed = self.token
         if observed.state not in {LifecycleState.ACTIVE, LifecycleState.RUN_FAILED}:
             return 0
-        barrier = await self.fix_app.await_ingress_enqueued(
-            generation=observed.generation,
-        )
+        barrier = await self.fix_app.await_ingress_enqueued(generation=observed.generation)
         async with self._serialized():
             if self.token != observed:
                 return 0
-            self.fix_app.drain_ingress_locked(
-                barrier.run_generation,
-                barrier.through_sequence,
-            )
-            target_time = self.scheduler.current_time + delta
-            result = await self.scheduler.run_until(target_time)
+            self.fix_app.drain_ingress_locked(barrier.run_generation, barrier.through_sequence)
+            current = self.scheduler.current_time
+            target = max(current, min(
+                self._realtime_target(),
+                current + timedelta(milliseconds=self.realtime_chunk_ms),
+            ))
+            result = await self.scheduler.run_until(target)
             self.check_persistence_failure()
             return result
 

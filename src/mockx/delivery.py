@@ -61,9 +61,13 @@ class OutboundFixDeliveryQueue:
         self._wall_clock = wall_clock or (lambda: datetime.now(timezone.utc))
         self._lock = threading.RLock()
         self._records: Dict[str, OutboundFixDelivery] = {}
+        self._state_counts = {state: 0 for state in FixDeliveryState}
+        # Permanent failures continue to block the session FIFO and count as
+        # backlog. Delivered payload retention must not affect pending work.
+        self._pending_enqueued: Dict[str, datetime] = {}
+        self._sessions_with_backlog = 0
         self._scheduled_due: Dict[str, FixDeliveryDueCommand] = {}
         self._next_schedule_version = 1
-        self._record_order: list[str] = []
         self._domain_index: Dict[str, str] = {}
         self._session_queues: Dict[str, Deque[str]] = defaultdict(deque)
         self._next_session_sequence: Dict[str, int] = defaultdict(int)
@@ -143,9 +147,11 @@ class OutboundFixDeliveryQueue:
                 simulated_due_timestamp=simulated_due_timestamp,
                 enqueued_at=self.wall_time,
             )
-            self._records[delivery_id] = record
-            self._record_order.append(delivery_id)
+            self._store_record_locked(record)
+            self._pending_enqueued[delivery_id] = record.enqueued_at
             self._domain_index[domain_id] = delivery_id
+            if not self._session_queues[session_id]:
+                self._sessions_with_backlog += 1
             self._session_queues[session_id].append(delivery_id)
             self._enqueued += 1
             self._arm_due_locked(delivery_id, simulated_due_timestamp)
@@ -166,10 +172,19 @@ class OutboundFixDeliveryQueue:
 
     def snapshot_records(self) -> tuple[OutboundFixDelivery, ...]:
         with self._lock:
-            return tuple(
-                self._records[delivery_id]
-                for delivery_id in self._record_order
-            )
+            # Dict replacement preserves original insertion order; pruning is
+            # constant-time and cannot change the remaining report order.
+            return tuple(self._records.values())
+
+    def _store_record_locked(self, record: OutboundFixDelivery) -> None:
+        """Commit an immutable state replacement and its retained-state count."""
+        previous = self._records.get(record.delivery_id)
+        if previous is None:
+            self._state_counts[record.state] += 1
+        elif previous.state != record.state:
+            self._state_counts[previous.state] -= 1
+            self._state_counts[record.state] += 1
+        self._records[record.delivery_id] = record
 
     def _arm_due_locked(
         self, delivery_id: str, due_timestamp: datetime,
@@ -226,7 +241,7 @@ class OutboundFixDeliveryQueue:
                 state=FixDeliveryState.DUE,
                 next_retry_timestamp=None,
             )
-            self._records[command.delivery_id] = record
+            self._store_record_locked(record)
             return record
 
     def head_ready(self, session_id: str) -> Optional[OutboundFixDelivery]:
@@ -253,7 +268,7 @@ class OutboundFixDeliveryQueue:
                 last_failure_reason=reason,
                 next_retry_timestamp=None,
             )
-            self._records[delivery_id] = record
+            self._store_record_locked(record)
             return record
 
     def start_attempt(
@@ -278,7 +293,7 @@ class OutboundFixDeliveryQueue:
                 last_attempt_simulated_at=simulated_timestamp,
                 last_failure_reason=None,
             )
-            self._records[delivery_id] = record
+            self._store_record_locked(record)
             return record
 
     def record_transport_failure(
@@ -303,7 +318,7 @@ class OutboundFixDeliveryQueue:
                 last_failure_reason=reason,
                 next_retry_timestamp=next_retry,
             )
-            self._records[delivery_id] = record
+            self._store_record_locked(record)
             if next_retry is None:
                 self._scheduled_due.pop(delivery_id, None)
             else:
@@ -330,7 +345,7 @@ class OutboundFixDeliveryQueue:
                 last_failure_reason=reason,
                 next_retry_timestamp=None,
             )
-            self._records[delivery_id] = record
+            self._store_record_locked(record)
             return record
 
     def record_delivered(
@@ -354,9 +369,12 @@ class OutboundFixDeliveryQueue:
                 last_failure_reason=None,
                 next_retry_timestamp=None,
             )
-            self._records[delivery_id] = record
+            self._store_record_locked(record)
+            self._pending_enqueued.pop(delivery_id)
             self._scheduled_due.pop(delivery_id, None)
             queue.popleft()
+            if not queue:
+                self._sessions_with_backlog -= 1
             self._delivered += 1
             self._delivered_record_ids.append(delivery_id)
             self._prune_delivered_locked()
@@ -379,12 +397,9 @@ class OutboundFixDeliveryQueue:
                 )
             )
             self._records.pop(delivery_id, None)
+            self._state_counts[FixDeliveryState.DELIVERED] -= 1
             self._scheduled_due.pop(delivery_id, None)
             self._domain_index.pop(record.domain_id, None)
-            try:
-                self._record_order.remove(delivery_id)
-            except ValueError:
-                pass
 
     def start_reconnect_cycle(
         self,
@@ -406,7 +421,7 @@ class OutboundFixDeliveryQueue:
                 cycle_attempt_count=0,
                 next_retry_timestamp=None,
             )
-            self._records[record.delivery_id] = record
+            self._store_record_locked(record)
             self._scheduled_due.pop(record.delivery_id, None)
             return record
 
@@ -418,7 +433,7 @@ class OutboundFixDeliveryQueue:
         scheduled: list[tuple[FixDeliveryDueCommand, int]] = []
         with self._lock:
             self._scheduled_due.clear()
-            for delivery_id in self._record_order:
+            for delivery_id in self._pending_enqueued:
                 record = self._records[delivery_id]
                 if record.state in {
                     FixDeliveryState.DELIVERED,
@@ -443,7 +458,7 @@ class OutboundFixDeliveryQueue:
                         cycle_attempt_count=0,
                         next_retry_timestamp=None,
                     )
-                    self._records[delivery_id] = record
+                    self._store_record_locked(record)
                 command = self._arm_due_locked(delivery_id, due_timestamp)
                 scheduled.append((command, delay_ms))
         return tuple(scheduled)
@@ -503,44 +518,31 @@ class OutboundFixDeliveryQueue:
     ) -> FixDeliveryQueueSnapshot:
         current = now or self.wall_time
         with self._lock:
-            records = tuple(self._records.values())
-            states = {
-                state: sum(record.state == state for record in records)
-                for state in FixDeliveryState
-            }
-            nonterminal = tuple(
-                record
-                for record in records
-                if record.state != FixDeliveryState.DELIVERED
-            )
             oldest = (
                 max(
                     0.0,
                     (
                         current
-                        - min(record.enqueued_at for record in nonterminal)
+                        - min(self._pending_enqueued.values())
                     ).total_seconds(),
                 )
-                if nonterminal
+                if self._pending_enqueued
                 else None
-            )
-            sessions_with_backlog = sum(
-                bool(queue) for queue in self._session_queues.values()
             )
             return FixDeliveryQueueSnapshot(
                 enqueued=self._enqueued,
-                queue_depth=len(nonterminal),
-                pending=states[FixDeliveryState.PENDING],
-                due=states[FixDeliveryState.DUE],
-                retry_pending=states[FixDeliveryState.RETRY_PENDING],
+                queue_depth=len(self._pending_enqueued),
+                pending=self._state_counts[FixDeliveryState.PENDING],
+                due=self._state_counts[FixDeliveryState.DUE],
+                retry_pending=self._state_counts[FixDeliveryState.RETRY_PENDING],
                 delivered=self._delivered,
                 permanently_failed=self._permanently_failed,
                 abandoned=0,
-                sessions_with_backlog=sessions_with_backlog,
+                sessions_with_backlog=self._sessions_with_backlog,
                 attempts=self._attempts,
                 retries=self._retries,
                 failures=self._failures,
-                retained_delivered_records=states[
+                retained_delivered_records=self._state_counts[
                     FixDeliveryState.DELIVERED
                 ],
                 oldest_pending_age_seconds=oldest,
@@ -550,9 +552,8 @@ class OutboundFixDeliveryQueue:
         self,
     ) -> Iterable[OutboundFixDelivery]:
         return (
-            record
-            for record in self._records.values()
-            if record.state != FixDeliveryState.DELIVERED
+            self._records[delivery_id]
+            for delivery_id in self._pending_enqueued
         )
 
     def _require_due_head_locked(

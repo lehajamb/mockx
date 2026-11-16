@@ -18,6 +18,7 @@ from typing import (
     Callable,
     Deque,
     Dict,
+    Iterable,
     Mapping,
     Optional,
     Protocol,
@@ -59,6 +60,7 @@ from .models import (
     MarketDataSnapshot,
     MetricsSnapshot,
     NewOrderCommand,
+    Order,
     OrderLatencyTrace,
     OrderStatus,
     ReplacementOutcome,
@@ -1206,6 +1208,8 @@ class MetricsCollector:
         self._prom_gauges: Dict[str, Any] = {}
         self._prom_histograms: Dict[str, Any] = {}
         self._prom_delivery_state_gauge = None
+        self._prom_delivery_gauges: tuple[Any, ...] = ()
+        self._last_delivery_gauge_values: Optional[tuple[int | float, ...]] = None
         self._prom_persistence_state_gauge = None
         self._prom_persistence_outcomes = None
         self._prom_self_trade_preventions = None
@@ -1405,6 +1409,15 @@ class MetricsCollector:
             "Process-lifetime FIX delivery records by state.",
             ("state",),
             registry=self.registry,
+        )
+        self._prom_delivery_gauges = (
+            self._prom_gauges["fix_delivery_queue_depth"],
+            self._prom_gauges["fix_delivery_oldest_pending_age_seconds"],
+            *(self._prom_delivery_state_gauge.labels(state=state.value) for state in (
+                FixDeliveryState.PENDING, FixDeliveryState.DUE,
+                FixDeliveryState.RETRY_PENDING, FixDeliveryState.DELIVERED,
+                FixDeliveryState.PERMANENTLY_FAILED,
+            )),
         )
         for name, metric_name, help_text in (
             (
@@ -1726,6 +1739,11 @@ class MetricsCollector:
                 buckets=buckets,
             )
 
+    def register_seeded_orders(self, orders: Iterable[Order]) -> None:
+        """Treat initial resting liquidity as preexisting, without request counters."""
+        with self._lock:
+            self._accepted_order_ids.update(order.id for order in orders)
+
     def record_order_submitted(
         self,
         order_id: int,
@@ -1745,6 +1763,8 @@ class MetricsCollector:
         fresh = self.record_execution_report(report)
         if not fresh:
             return False
+        if self.persistence is None:
+            return True
 
         tags: Dict[str, object] = {
             "exchange": self.exchange_name,
@@ -1878,6 +1898,9 @@ class MetricsCollector:
                 float(instrument.format_notional(trade.notional_tick_lots)),
             )
 
+        if self.persistence is None:
+            self.refresh_engine_gauges()
+            return True
         tags: Dict[str, object] = {
             "exchange": self.exchange_name,
             "symbol": trade.symbol,
@@ -1940,6 +1963,8 @@ class MetricsCollector:
                 self._prom_self_trade_prevented_quantity.labels(
                     symbol=event.symbol
                 ).inc(float(instrument.quantity_decimal(event.prevented_qty_lots)))
+        if self.persistence is None:
+            return
         self._admit_record(
             "self_trade_prevention",
             {
@@ -2065,22 +2090,21 @@ class MetricsCollector:
         self,
         snapshot: FixDeliveryQueueSnapshot,
     ) -> None:
-        depth = self._prom_gauges.get("fix_delivery_queue_depth")
-        if depth is not None:
-            depth.set(snapshot.queue_depth)
-        age = self._prom_gauges.get("fix_delivery_oldest_pending_age_seconds")
-        if age is not None:
-            age.set(snapshot.oldest_pending_age_seconds or 0.0)
-        if self._prom_delivery_state_gauge is not None:
-            state_counts = {
-                FixDeliveryState.PENDING: snapshot.pending,
-                FixDeliveryState.DUE: snapshot.due,
-                FixDeliveryState.RETRY_PENDING: snapshot.retry_pending,
-                FixDeliveryState.DELIVERED: snapshot.delivered,
-                FixDeliveryState.PERMANENTLY_FAILED: (snapshot.permanently_failed),
-            }
-            for state, count in state_counts.items():
-                self._prom_delivery_state_gauge.labels(state=state.value).set(count)
+        if not self._prom_delivery_gauges:
+            return
+        values = (
+            snapshot.queue_depth, snapshot.oldest_pending_age_seconds or 0.0,
+            snapshot.pending, snapshot.due, snapshot.retry_pending,
+            snapshot.delivered, snapshot.permanently_failed,
+        )
+        with self._lock:
+            previous = self._last_delivery_gauge_values
+            if previous == values:
+                return
+            for index, (gauge, value) in enumerate(zip(self._prom_delivery_gauges, values)):
+                if previous is None or previous[index] != value:
+                    gauge.set(value)
+            self._last_delivery_gauge_values = values
 
     def record_invalid_latency(
         self,
@@ -2127,6 +2151,8 @@ class MetricsCollector:
             histogram = self._prom_histograms.get(measurement.metric)
             if histogram is not None:
                 histogram.observe(measurement.value)
+        if self.persistence is None:
+            return True
         fields: Dict[str, object] = {
             f"duration_{expected_unit}": measurement.value,
         }
@@ -2421,6 +2447,9 @@ class MetricsCollector:
         update: MarketDataSnapshot,
     ) -> None:
         """Persist one complete immutable book snapshot, including emptiness."""
+        if self.persistence is None:
+            self.refresh_engine_gauges()
+            return
         timestamp_ns = datetime_to_ns(update.timestamp)
         instrument = update.instrument
         has_bid = bool(update.bids)
@@ -3036,7 +3065,9 @@ class LatencyTracker:
         self.orders: Dict[tuple[int, int], OrderLatencyTrace] = {}
         self.cancels: Dict[tuple[int, int], CancelLatencyTrace] = {}
         self.replaces: Dict[tuple[int, int], ReplaceLatencyTrace] = {}
-        self.measurements: list[LatencyMeasurement] = []
+        # Aggregates/histograms and the configured sink retain the complete run;
+        # this diagnostic view must not grow with every replay event.
+        self.measurements: Deque[LatencyMeasurement] = deque(maxlen=10_000)
         self._delivered_exec_ids: set[str] = set()
         self._completed_order_ids: set[tuple[int, int]] = set()
         self._lock = threading.RLock()
@@ -3103,6 +3134,16 @@ class LatencyTracker:
                 sim_submitted_at=sim_submitted_at or self.scheduler.current_time,
             )
 
+    def register_seeded_orders(self, orders: Iterable[Order]) -> None:
+        """Track report delivery without inventing a historical submission time."""
+        with self._lock:
+            for order in orders:
+                key = (order.run_generation, order.id)
+                self.orders[key] = OrderLatencyTrace(
+                    run_generation=order.run_generation, order_id=order.id,
+                    session_id=order.session_id, sim_submitted_at=None,
+                )
+
     def order_arrived(
         self,
         order_id: int,
@@ -3114,6 +3155,8 @@ class LatencyTracker:
                 self._missing_trace(order_id, "order_arrived")
                 return
             if trace.sim_received_at is not None:
+                return
+            if trace.sim_submitted_at is None:
                 return
             trace.sim_received_at = self.scheduler.current_time
             measurement = self._duration_measurement(
@@ -3150,6 +3193,8 @@ class LatencyTracker:
             trace = self.orders.get((report.run_generation, report.order_id))
             if trace is None:
                 self._missing_trace(report.order_id, "report_created")
+                return
+            if trace.sim_submitted_at is None:
                 return
             if trace.sim_report_created_at is not None:
                 return
@@ -3194,7 +3239,7 @@ class LatencyTracker:
                 trace.sim_submitted_at,
                 delivered_at,
                 report_exec_id=report.exec_id,
-            )
+            ) if trace.sim_submitted_at is not None else None
         self._publish(outbound)
         self._publish(end_to_end)
         return True

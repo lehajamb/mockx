@@ -714,6 +714,15 @@ async def test_transition_time_websocket_registration_and_realtime_tick_are_gate
     monkeypatch,
 ):
     exchange = make_exchange()
+
+    class Clock:
+        value = 0
+
+        def now_ns(self):
+            return self.value
+
+    clock = Clock()
+    exchange.lifecycle.realtime_clock = clock
     entered = asyncio.Event()
     release = asyncio.Event()
     original_flush = exchange.metrics.flush
@@ -737,9 +746,8 @@ async def test_transition_time_websocket_registration_and_realtime_tick_are_gate
 
     with pytest.raises(LifecycleError) as websocket_error:
         await exchange.lifecycle.websocket_snapshot(register)
-    realtime_events = await exchange.lifecycle.advance_realtime_by(
-        timedelta(milliseconds=10)
-    )
+    clock.value += 10_000_000
+    realtime_events = await exchange.lifecycle.advance_realtime_clock()
 
     assert getattr(websocket_error.value, "code", None) == (
         "LIFECYCLE_TRANSITION_IN_PROGRESS"
@@ -750,3 +758,6 @@ async def test_transition_time_websocket_registration_and_realtime_tick_are_gate
 
     release.set()
     await starting
+    clock.value += 10_000_000
+    await exchange.lifecycle.advance_realtime_clock()
+    assert exchange.scheduler.current_time == initial_time + timedelta(milliseconds=10)

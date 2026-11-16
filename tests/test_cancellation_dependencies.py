@@ -2,6 +2,7 @@
 
 import asyncio
 from concurrent.futures import Future
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -135,6 +136,8 @@ async def test_cancel_end_before_acceptance_preserves_final_broadcast(from_threa
         await original_drain()
 
     monkeypatch.setattr(exchange.api.registry, "enqueue_market_data", broadcast)
+    # The intercepted delivery represents one subscribed WebSocket.
+    monkeypatch.setattr(exchange.api.registry, "connection_count", AsyncMock(return_value=1))
     monkeypatch.setattr(exchange.lifecycle, "_drain_broadcasts", observed_drain)
     try:
         snapshot = exchange.engine.get_market_data_snapshot("TEST")
