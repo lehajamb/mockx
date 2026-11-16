@@ -1,0 +1,3 @@
+[mcp_servers.trail]
+command = "trail"
+args = ["mcp"]
