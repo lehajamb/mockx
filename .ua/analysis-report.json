@@ -1,0 +1,231 @@
+{
+  "project": {
+    "name": "mockx",
+    "languages": [
+      "cmake",
+      "config",
+      "cpp",
+      "css",
+      "dockerfile",
+      "html",
+      "javascript",
+      "json",
+      "markdown",
+      "python",
+      "shell",
+      "toml",
+      "txt",
+      "unknown",
+      "xml",
+      "yaml"
+    ],
+    "frameworks": [
+      "Docker",
+      "Docker Compose",
+      "FastAPI",
+      "GitHub Actions",
+      "Hypothesis",
+      "Pydantic",
+      "pytest",
+      "Uvicorn"
+    ],
+    "description": "MockX is a deterministic FIX-speaking mock exchange for strategy testing and simulation, combining an exact price-time order book and controlled clock with REST administration, immutable WebSocket market data, optional QuestDB persistence, and experimental ITCH/GLIMPSE feeds. Note: this project has over 100 source files; consider scoping analysis to a subdirectory for faster results.",
+    "analyzedAt": "2026-11-16T02:09:31.192Z",
+    "gitCommitHash": "e45c06f1bb6d8bddade3b89ed462f036354a8a19"
+  },
+  "stats": {
+    "files": 251,
+    "totalFiles": 251,
+    "fileCategories": {
+      "config": 25,
+      "code": 182,
+      "infra": 5,
+      "docs": 30,
+      "markup": 7,
+      "script": 2
+    },
+    "nodes": 2291,
+    "nodeTypes": {
+      "file": 191,
+      "function": 1666,
+      "class": 373,
+      "service": 5,
+      "pipeline": 1,
+      "document": 30,
+      "config": 25
+    },
+    "edges": 7621,
+    "edgeTypes": {
+      "contains": 2584,
+      "exports": 1552,
+      "imports": 510,
+      "calls": 2394,
+      "tested_by": 297,
+      "inherits": 16,
+      "configures": 29,
+      "deploys": 8,
+      "depends_on": 87,
+      "documents": 139,
+      "related": 5
+    },
+    "layers": [
+      {
+        "name": "Matching and deterministic time",
+        "nodes": 7
+      },
+      {
+        "name": "FIX ingress and exchange lifecycle",
+        "nodes": 7
+      },
+      {
+        "name": "Administration and market data",
+        "nodes": 9
+      },
+      {
+        "name": "Metrics and persistence",
+        "nodes": 2
+      },
+      {
+        "name": "Trading clients and replay",
+        "nodes": 47
+      },
+      {
+        "name": "Tests and qualification",
+        "nodes": 106
+      },
+      {
+        "name": "Configuration and deployment",
+        "nodes": 40
+      },
+      {
+        "name": "Documentation and architecture guides",
+        "nodes": 34
+      }
+    ],
+    "tourSteps": 15,
+    "lessons": {
+      "total": 251,
+      "detailed": 30,
+      "overviewOnly": 221
+    }
+  },
+  "validation": {
+    "issues": [],
+    "reviewIssues": [],
+    "importsVerified": 510,
+    "sourceRangesVerified": true,
+    "lessonRangesVerified": true
+  },
+  "tests": {
+    "status": "passed",
+    "summary": "1032 passed, 1 skipped",
+    "fullSuite": {
+      "command": "python -m pytest -q",
+      "passed": 1032,
+      "skipped": 1,
+      "failed": 0,
+      "durationSeconds": 125.25
+    },
+    "targeted": {
+      "command": "python -m pytest -q tests/test_api_lifecycle.py",
+      "passed": 4,
+      "failed": 0,
+      "durationSeconds": 6.3
+    },
+    "environment": "mockx Conda environment; outside Windows sandbox to allow asyncio loopback socketpair"
+  },
+  "assemblyReview": {
+    "fixedSectionOk": true,
+    "nodesRecovered": 0,
+    "edgesRestored": 6,
+    "crossBatchEdgesAdded": 0,
+    "typesRemapped": 0,
+    "complexityRemapped": 0,
+    "summariesImproved": 1,
+    "restoredEdges": [
+      {
+        "source": "file:src/mockx/models.py",
+        "target": "file:examples/cpp_market_feed/tests/live_smoke.py",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      },
+      {
+        "source": "file:src/mockx/configuration.py",
+        "target": "file:examples/cpp_market_feed/tests/live_smoke.py",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      },
+      {
+        "source": "file:src/mockx/configuration.py",
+        "target": "file:examples/cpp_sor/tests/live_smoke.py",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      },
+      {
+        "source": "file:src/mockx/models.py",
+        "target": "file:examples/cpp_sor/tests/live_smoke.py",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      },
+      {
+        "source": "file:src/mockx/main.py",
+        "target": "file:examples/cpp_market_feed/tests/live_smoke.py",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      },
+      {
+        "source": "file:src/mockx/main.py",
+        "target": "file:examples/cpp_sor/tests/live_smoke.py",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      }
+    ],
+    "validation": {
+      "scanFiles": 251,
+      "coveredFiles": 251,
+      "importsExpected": 510,
+      "importsPresent": 510,
+      "missingFiles": 0,
+      "missingImports": 0,
+      "danglingEdges": 0,
+      "invalidNodes": 0,
+      "totalNodes": 2291,
+      "totalEdges": 7621
+    },
+    "notes": [
+      "All 38 test-to-production coverage edges were correctly flipped to production-to-test. No node-ID, node-type or complexity remapping was necessary.",
+      "Of the 25 dropped tested_by edges, 12 targeted fixture helper files and 7 targeted a throughput benchmark; these remain omitted because import dependencies are already represented and they are not standalone regression tests.",
+      "Restored 6 tested_by edges to examples/cpp_market_feed/tests/live_smoke.py and examples/cpp_sor/tests/live_smoke.py. Both files are genuine native integration tests already tagged test, and each imports configuration.py, main.py and models.py in the authoritative importMap. The deterministic linker missed their unconventional filenames.",
+      "Corrected the test_config helper summary to describe configuration construction rather than imply it is an assertion test; deterministic extraction identifies its call to validate_config.",
+      "All 251 scan files and all 510 authoritative import relationships are present. No dangling endpoints, malformed required node fields or missing analyzed files remain.",
+      "Known limitations: binary coverage artifact retained as a file node; optional protected tooling source inspection relied on bundled structure; native network source required source-backed supplementary symbols because bundled extraction returned no definitions."
+    ]
+  },
+  "notes": [
+    "Batcher split a 40-file community at the 35-file limit; modularity may decrease.",
+    "Neighbor context for models.py capped at 50 cross-batch entries; 18 entries omitted from context only, all resolved imports retained.",
+    "Scanner included repository tooling files and .coverage; coverage is represented as a binary artifact, not source.",
+    "Conda activation failed with Windows DLL relocation; merge succeeded with system Python 3.14. The mockx environment Python 3.13.14 was verified directly for subsequent Python steps.",
+    "Supplemental direct inspection of .trail/hook.cjs was blocked by Trail tooling; bundled structural extraction still represented the file.",
+    "Sandboxed pytest stalled in Windows asyncio socketpair setup. Outside the sandbox, all four API lifecycle tests and the full suite passed (1032 passed, 1 skipped).",
+    "The version-pinned viewer launched successfully on localhost port 5174; browser verification displayed all eight architectural layers.",
+    "Dashboard freshness reports one uncommitted working-tree file: the new Trail learning about native smoke-test coverage. It was created after scanning; no application source changed.",
+    "Viewer emitted an upstream Node DEP0190 deprecation warning during browser launch; the dashboard remained operational."
+  ],
+  "isolatedNodes": [
+    "Node 'config:.claude/settings.json' has no edges (orphan)",
+    "Node 'file:.coverage' has no edges (orphan)",
+    "Node 'config:.grok/config.toml' has no edges (orphan)",
+    "Node 'document:.grok/skills/trail/SKILL.md' has no edges (orphan)",
+    "Node 'document:.trail/README.md' has no edges (orphan)",
+    "Node 'config:.ua/config.json' has no edges (orphan)",
+    "Node 'file:examples/cpp_sor/runtime/.gitkeep' has no edges (orphan)",
+    "Node 'file:tests/__init__.py' has no edges (orphan)"
+  ]
+}
