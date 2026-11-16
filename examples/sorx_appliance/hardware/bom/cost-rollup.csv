@@ -1,0 +1,11 @@
+Line,Per unit @10,Per unit @100,Per unit @1k,Basis
+Carrier BOM without SoM,157.28,124.83,100.34,sum of sorx-bom.csv minus M1
+SoM (Toradex 0063),332.75,300.00,280.00,mouser.com listing 145-0063; volume prices are placeholders pending a Toradex quote
+"PCB, 4-layer 172 x 118 mm, 1.6 mm, ENIG, impedance controlled (SORX-CARRIER-A)",38.00,14.00,8.00,estimate; quote with hw/fab/
+"Assembly, double-sided SMT + through-hole connectors (-)",45.00,18.00,9.00,estimate
+"Fan 40 x 40 x 10 mm, 5 V, 4-pin PWM (NF-A4x10 5V PWM)",15.00,13.00,11.00,estimate; any 5 V 4-pin PWM 40 mm fan >= 8 m3/h
+"Heatsink 40 x 28 x 10 mm class with thermal tape, on the SoC (select at build)",3.50,2.50,1.80,estimate; Toradex Verdin heatsink needs the optional standoffs
+Coin cell CR2032 (CR2032),0.45,0.35,0.28,estimate
+"Enclosure base + lid + LED window, printed (PETG/ABS) (mech/*.stl)",28.00,20.00,14.00,estimate; injection moulding would replace this at volume
+"Hardware: 4x M3x40 screw, 8x M3 heat-set insert (-)",1.20,0.90,0.60,estimate
+TOTAL per unit,621.18,493.58,425.02,"excludes NRE, test fixture, freight, tariffs"

@@ -1,0 +1,1761 @@
+{
+  "schema_version": 1,
+  "baseline_date": "2026-11-16",
+  "release_status": "NOT READY FOR FABRICATION",
+  "repository_base_commit": "ef5715c3763b98b1f522a865df3beaac2625ffcd",
+  "description": "Unmodified supplied archives and handoff; extracted hardware is an editable working copy. Original handoff is historical evidence, not current release approval.",
+  "exclusion_policy": [
+    "Python __pycache__ directories and .pyc/.pyo bytecode",
+    "KiCad personal .kicad_prl state"
+  ],
+  "sources": [
+    {
+      "original_name": "sorx-hw-2026-11-16-final.zip",
+      "baseline_path": "baseline/sorx-hw-2026-11-16-final.zip",
+      "size_bytes": 15882893,
+      "sha256": "2f51a36928e87cb51dcb15f3fa5f04b5b789473a67bb6b2b4529f671bc91addd",
+      "archive_root": "sorx-hw/",
+      "destination_root": "hardware",
+      "entries": [
+        {
+          "archive_path": "sorx-hw/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/README.md",
+          "size_bytes": 1471,
+          "crc32": "65660219",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "80031bb8a08971d1ae3fd10492ec65f73f7c46a0cc3a4c07af4c0f330094dac6",
+          "imported_path": "hardware/README.md"
+        },
+        {
+          "archive_path": "sorx-hw/HANDOFF.md",
+          "size_bytes": 9721,
+          "crc32": "b3f9d36d",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "22080286fb8cff81b69f45ff5c1a0ac5bd1362c34ff65d57bc93402c6bf76b46",
+          "imported_path": "hardware/HANDOFF.md"
+        },
+        {
+          "archive_path": "sorx-hw/hw/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx.pretty/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx.pretty/SODIMM-260_DDR4_TE_2309409-2.kicad_mod",
+          "size_bytes": 27692,
+          "crc32": "361db5df",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "080ef23e3b481677a5d6899e488b2f936a349c887db001638b385d78e340280e",
+          "imported_path": "hardware/hw/sorx.pretty/SODIMM-260_DDR4_TE_2309409-2.kicad_mod"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx.net",
+          "size_bytes": 548346,
+          "crc32": "887f4134",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "cef69a2d39f394b231bcf928ddfa060e7d78e5fa4cf2091865d6044505e7346b",
+          "imported_path": "hardware/hw/sorx.net"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx_usb_console.kicad_sch",
+          "size_bytes": 203302,
+          "crc32": "7aebd19d",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "28516c2c00c8b8817e2081d81b893eaec914f4f4072c9eba143547b8f79d80b3",
+          "imported_path": "hardware/hw/sorx_usb_console.kicad_sch"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/sorx-copper-F_Cu.pdf",
+          "size_bytes": 991606,
+          "crc32": "0563f9c8",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "b1f97c5141cc85bbed2393e72db2d3e5b8fd1d8b8be3e7b17ea67627a502dab4",
+          "imported_path": "hardware/hw/fab/sorx-copper-F_Cu.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/sorx-copper-In2_Cu.pdf",
+          "size_bytes": 778259,
+          "crc32": "42322bf3",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "67da13e8662fbc007457414f69f0ed2842f524b9d20cd8fe90a9c177de8417b3",
+          "imported_path": "hardware/hw/fab/sorx-copper-In2_Cu.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/assembly/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/assembly/sorx-assembly-top.pdf",
+          "size_bytes": 808208,
+          "crc32": "e5d28659",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "d8d541e7c423f62c0a8bc6637dd66049b53f753e0184ab5ea23a85010ae96337",
+          "imported_path": "hardware/hw/fab/assembly/sorx-assembly-top.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/assembly/sorx-pos-front.csv",
+          "size_bytes": 19646,
+          "crc32": "0d35e863",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "80e845614085926a40c5d6d992170570e183b3cc29a1595d2a7e9a466bd3788d",
+          "imported_path": "hardware/hw/fab/assembly/sorx-pos-front.csv"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/assembly/sorx-assembly-bottom.pdf",
+          "size_bytes": 699536,
+          "crc32": "bfa83f8a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "cb6da53a43607285890977d77cf3abbde0b092bce26580002a44d485a804da61",
+          "imported_path": "hardware/hw/fab/assembly/sorx-assembly-bottom.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/assembly/sorx-pos-back.csv",
+          "size_bytes": 3039,
+          "crc32": "4ea82f51",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "5d0cc50906c6ca7669144e28f0a0c81ae02f44a7fc73894123ef3d3ba9b3611f",
+          "imported_path": "hardware/hw/fab/assembly/sorx-pos-back.csv"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-Edge_Cuts.gm1",
+          "size_bytes": 642,
+          "crc32": "bfdb5fb1",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "4760102c7b750ce9c900d5a7b92bdca1b3df14c5aa0016022438ed32c7483451",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-Edge_Cuts.gm1"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-F_Paste.gtp",
+          "size_bytes": 40306,
+          "crc32": "5bf29a47",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "890bdbafae06a2b33ac4d2471cbc2bd97e98d3df5326a9343af0c0c74be2d78c",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-F_Paste.gtp"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-job.gbrjob",
+          "size_bytes": 3871,
+          "crc32": "10549dd3",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "c73d52d79de358874d71101e9832d54b291b8af0549ce77ee67a11da9559c01d",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-job.gbrjob"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-F_Mask.gts",
+          "size_bytes": 44211,
+          "crc32": "5285a7ab",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "367e82e444ca1181fcfdc74fc83783b2a5880e7e87627f60ae2d418a7872a33e",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-F_Mask.gts"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-In2_Cu.g3",
+          "size_bytes": 581506,
+          "crc32": "e889d2b1",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "1221d2f3e7df40d21f373d65d362cb2b728e52e0ce898e55c5a52da5e90d3361",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-In2_Cu.g3"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-B_Silkscreen.gbo",
+          "size_bytes": 16664,
+          "crc32": "89e1ca43",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "a45531e170d3f1163cb9f49a3c16c8b6c4bf1bd1d05dc0677d7615c45a76308e",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-B_Silkscreen.gbo"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-B_Cu.gbl",
+          "size_bytes": 665621,
+          "crc32": "7976787a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "5af69ac8cae5e4cfd71caeb4fbfe0f0640d8d12e0c15a7c3dd8e6b6e5d4e0e22",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-B_Cu.gbl"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-B_Mask.gbs",
+          "size_bytes": 10796,
+          "crc32": "1eabc5f1",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "5da000795461f6137775acb01e570f857b8f73c2342957718e33c44349cdfd32",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-B_Mask.gbs"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-In1_Cu.g2",
+          "size_bytes": 587565,
+          "crc32": "4fa9479b",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "5576c2c1d7336449b771367b2b109f741930b8cf93b4874d2cbe5f14cb98d635",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-In1_Cu.g2"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-F_Silkscreen.gto",
+          "size_bytes": 155344,
+          "crc32": "23391c36",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "5ccc72c27687ae5fe971e2c53e457d2d2170b8636ad8a54a0f2ee0c5c14a6b45",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-F_Silkscreen.gto"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-B_Paste.gbp",
+          "size_bytes": 7221,
+          "crc32": "99cd79e3",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "c11893cb5506f18bb2410477c6c30d2dc42610127deae923049ef04b1ab8e178",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-B_Paste.gbp"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/gerbers/sorx-F_Cu.gtl",
+          "size_bytes": 1216489,
+          "crc32": "03b7234e",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "37188a653aea80807a7041c311bc509ce8040081e37b3f9013badc14e21adeb2",
+          "imported_path": "hardware/hw/fab/gerbers/sorx-F_Cu.gtl"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/drill/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/drill/sorx-NPTH-drl_map.pdf",
+          "size_bytes": 17833,
+          "crc32": "b56b5d61",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "05b99008e6126624773639e54b23409016ff04b6087dad444c0bc2f476aee1d1",
+          "imported_path": "hardware/hw/fab/drill/sorx-NPTH-drl_map.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/drill/sorx-PTH.drl",
+          "size_bytes": 19235,
+          "crc32": "0216bade",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "4943e24251ea9098fc763f39870b976bf0653e728bbfa0cb25786d143bd421cc",
+          "imported_path": "hardware/hw/fab/drill/sorx-PTH.drl"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/drill/sorx-PTH-drl_map.pdf",
+          "size_bytes": 51455,
+          "crc32": "5585f13a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "7a06c65322a8abbab7396e96e1acf86a0468e9cafc3f2b53c036d9e26328cb25",
+          "imported_path": "hardware/hw/fab/drill/sorx-PTH-drl_map.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/drill/sorx-NPTH.drl",
+          "size_bytes": 1003,
+          "crc32": "09743a59",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "6aef16ccb55dcb2a2f6b10b4c539b856bf99067e55d49c0435b17f3f272c9506",
+          "imported_path": "hardware/hw/fab/drill/sorx-NPTH.drl"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/sorx-copper-In1_Cu.pdf",
+          "size_bytes": 774815,
+          "crc32": "f6205608",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "7b7ef53064894611668b8ddb022eada5115e505a71c69ea7095721767947b3f8",
+          "imported_path": "hardware/hw/fab/sorx-copper-In1_Cu.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fab/sorx-copper-B_Cu.pdf",
+          "size_bytes": 818652,
+          "crc32": "128a14bd",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "19a617e111101057135fdae0d91467be1acfb491f99750eb1a7c8eaa4bc41aca",
+          "imported_path": "hardware/hw/fab/sorx-copper-B_Cu.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx.kicad_pro",
+          "size_bytes": 6562,
+          "crc32": "4a616d79",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "4b9e3356b595433c882e99fbfcf1af555c015656ce172c379e00e8a23e68fc41",
+          "imported_path": "hardware/hw/sorx.kicad_pro"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx-fab-revA.zip",
+          "size_bytes": 2668350,
+          "crc32": "1ef32d51",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "c2193a7eec90f02cf0756ee1be002ecf2504aade44a0dd1977118210f2cf52fc",
+          "imported_path": "hardware/hw/sorx-fab-revA.zip"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx_power.kicad_sch",
+          "size_bytes": 233012,
+          "crc32": "6bd0833c",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "71c738198f4406680f616242fd054163a05bd97f21131e404e54d76eae11a347",
+          "imported_path": "hardware/hw/sorx_power.kicad_sch"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx.kicad_pcb",
+          "size_bytes": 5435351,
+          "crc32": "6f5cbf7f",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "4b0b5f18692eecd80ba4ca10c9bc060dbb6584ba1aa6668b223d5afe200c771a",
+          "imported_path": "hardware/hw/sorx.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx_eth_mgmt.kicad_sch",
+          "size_bytes": 184738,
+          "crc32": "aa7bba58",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "7102f74dca29e484c9b57d0ae986f50e99b4e5b367d806909427925a697bf3eb",
+          "imported_path": "hardware/hw/sorx_eth_mgmt.kicad_sch"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx_mgmt_io.kicad_sch",
+          "size_bytes": 176226,
+          "crc32": "40a5504f",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "2be4569b0ce919f48cb576b525e34ad3939a81e6e705f23cd8be823bb96b84ee",
+          "imported_path": "hardware/hw/sorx_mgmt_io.kicad_sch"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx_eth_md.kicad_sch",
+          "size_bytes": 114142,
+          "crc32": "4e2d31d5",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "f55982c029b18ab69063c12cf7580dc8a69d5b972af210a66d206e9b7e63e71f",
+          "imported_path": "hardware/hw/sorx_eth_md.kicad_sch"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx.kicad_sym",
+          "size_bytes": 64559,
+          "crc32": "d8c37369",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "1f60abf6cbbb012bca97adb844745fd6377102b78b0ba0d1503ee70ea9edf0f9",
+          "imported_path": "hardware/hw/sorx.kicad_sym"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/drc_tmp.rpt",
+          "size_bytes": 136874,
+          "crc32": "f3129c9d",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "765b74e870638054618b37ae626b90834e3ad7d445a17cd239a3f9da12ab0459",
+          "imported_path": "hardware/hw/build/drc_tmp.rpt"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_g.kicad_pro",
+          "size_bytes": 11396,
+          "crc32": "5c4a5505",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "b3d71613171ffd15f9cfdd490d9a1644754ceb8a7e5d38601ec7269af8b86273",
+          "imported_path": "hardware/hw/build/sorx_g.kicad_pro"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_w.kicad_pro",
+          "size_bytes": 6564,
+          "crc32": "4585a44c",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "b4016f5d991f4c7fb3fe67abc2af37db8762efbc1a3d622bd899e1d5ceed5a9f",
+          "imported_path": "hardware/hw/build/sorx_w.kicad_pro"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_routed_B.kicad_pcb",
+          "size_bytes": 1735586,
+          "crc32": "69ced810",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "0ea885ef20cf088d1f80b65beb355b5676545c31f8e9dd8ba3e6b1cb9d1c4307",
+          "imported_path": "hardware/hw/build/sorx_routed_B.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/p1.ses",
+          "size_bytes": 42015,
+          "crc32": "e070a334",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "a5ce4db9ba932739a706d3b0affc2aeca2c2f0c245c7a347d0dcab486c01f6aa",
+          "imported_path": "hardware/hw/build/p1.ses"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/p2.ses",
+          "size_bytes": 201208,
+          "crc32": "4ded58df",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "2e1cd5c218032725ed9e5c3f60ed83bcb49e8cb6fc7331382aa4db4cd7326988",
+          "imported_path": "hardware/hw/build/p2.ses"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_g.kicad_prl",
+          "size_bytes": 1169,
+          "crc32": "3f73d4d7",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "KiCad personal UI state",
+          "sha256": "79c043893776f0ecc93d18d293843f57d1ad3f339549f86edc1cddc851c09795"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_rp.kicad_pcb.state.json",
+          "size_bytes": 59,
+          "crc32": "477d354f",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "d8db6b7e7af5f3d23ee9dbcd809460bf8fe136d57f0b7f303d1c3f6f2971dddc",
+          "imported_path": "hardware/hw/build/sorx_rp.kicad_pcb.state.json"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/p2a.ses",
+          "size_bytes": 107881,
+          "crc32": "5a4904f1",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "363ec42ffeaea02f82e6ee6f2f96bd3da343c204bb9517ab1b3c4e1889dbec9a",
+          "imported_path": "hardware/hw/build/p2a.ses"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/p2b.dsn",
+          "size_bytes": 209505,
+          "crc32": "6b9f4f69",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "2164637b3d21716aa7b0fcc67e475270e931b4f789a2d4b539dcce271608ebc0",
+          "imported_path": "hardware/hw/build/p2b.dsn"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_p1.kicad_pro",
+          "size_bytes": 6565,
+          "crc32": "2427f7e1",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "668279d630e719fdb4ee174e1d231bf98ba6b0058e9beccd69ba93a3bf96bb85",
+          "imported_path": "hardware/hw/build/sorx_p1.kicad_pro"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_placed.kicad_pro",
+          "size_bytes": 6569,
+          "crc32": "e981525b",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "d633e43601a54b1b89828756d8abfe0143eb5eecfd0f5f86331b5f7a5d34cc66",
+          "imported_path": "hardware/hw/build/sorx_placed.kicad_pro"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/mech_parts.json",
+          "size_bytes": 53599,
+          "crc32": "2a302020",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "aa3b13e6fda599ee31452550d55ff744a63826bf4ccd59034f19a4919e9ccf11",
+          "imported_path": "hardware/hw/build/mech_parts.json"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_g2.kicad_pcb",
+          "size_bytes": 5428130,
+          "crc32": "0d44112e",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "28716bdb61bcb138dcbcabe8e60db221dea26a78a6fd2ea00b499dbe73e30771",
+          "imported_path": "hardware/hw/build/sorx_g2.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_placed.kicad_pcb",
+          "size_bytes": 1264729,
+          "crc32": "0869df88",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "45b1b5ae25245887275c3db61def6ca56aa3403d738d0ac8a26e170ab3b67a02",
+          "imported_path": "hardware/hw/build/sorx_placed.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_routed_v1.kicad_pcb",
+          "size_bytes": 1671256,
+          "crc32": "bc1d444f",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "89fa7f948ff449144881ce320f9acd820d31b75ed8eb8549e2ad71706e50b26f",
+          "imported_path": "hardware/hw/build/sorx_routed_v1.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_routed_B.kicad_pro",
+          "size_bytes": 11403,
+          "crc32": "0c97930a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "a6ad60168ce284abf603bb51d6e95360e4e157b1332b26f7d732dd40f4bc9847",
+          "imported_path": "hardware/hw/build/sorx_routed_B.kicad_pro"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/test.dsn",
+          "size_bytes": 181988,
+          "crc32": "98e0353a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "a5d56e04d04b0e7ca5953b094c184e10513d30c4880b1b9be7198c9d3494eb2f",
+          "imported_path": "hardware/hw/build/test.dsn"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_g2.kicad_prl",
+          "size_bytes": 1170,
+          "crc32": "569274e8",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "KiCad personal UI state",
+          "sha256": "56a3b83663536fe89183f7938f24933e59a46afb0bf78450a5032509f6a9ddbc"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_g.kicad_pcb",
+          "size_bytes": 5367520,
+          "crc32": "a5013bec",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "212dcb51d4b3ab156744c67935c0f2d2be77847b85138e068b0c48d974d40b17",
+          "imported_path": "hardware/hw/build/sorx_g.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/power_widths.json",
+          "size_bytes": 2109,
+          "crc32": "691879c5",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "f0c73e97d09170e5ce76e6bc21f8b3173d9a7b37308dfdf9ce6bd1ded80553c0",
+          "imported_path": "hardware/hw/build/power_widths.json"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/p1.dsn",
+          "size_bytes": 170732,
+          "crc32": "fa82977f",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "dce6339d3b34c102a813dcb62d43f36de543e1da40dd46bf4dd39e7803b0030a",
+          "imported_path": "hardware/hw/build/p1.dsn"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_routed.kicad_pcb",
+          "size_bytes": 1706737,
+          "crc32": "54e7cc48",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "86795633aff5a6ddcbb7141bb56aa7dc5b4f37b8efe18af66d8bf17317e6ccd9",
+          "imported_path": "hardware/hw/build/sorx_routed.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_rp.kicad_prl",
+          "size_bytes": 1170,
+          "crc32": "2a1d515d",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "KiCad personal UI state",
+          "sha256": "486e42b94da666c6ab228ee83989c0aa9d1564fe224d02f0c26c4352c53f5ca4"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_p1_v1.kicad_pcb",
+          "size_bytes": 1318474,
+          "crc32": "6ad639ca",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "5d1064227bd21451f890676f7b059c506d625572b1c65eeda0ba3fb899a56e5d",
+          "imported_path": "hardware/hw/build/sorx_p1_v1.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/logs/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/logs/freerouting.log",
+          "size_bytes": 1346,
+          "crc32": "a663de7b",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "1d98ce897aaae5c3dcef24cedd0e3eff71db9274faae13aba47234ed7baf7672",
+          "imported_path": "hardware/hw/build/logs/freerouting.log"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/p2a.dsn",
+          "size_bytes": 211648,
+          "crc32": "b2fc361e",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "6563aac5721f3029ed176acfc44ebaddba6a05e5659401459abfc814a951ef74",
+          "imported_path": "hardware/hw/build/p2a.dsn"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_routed.kicad_pro",
+          "size_bytes": 11401,
+          "crc32": "eee48e59",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "ca1cdb3c1881de2b80f0cef16e5973815a5c6585720c43441104ffcc5dfca3e9",
+          "imported_path": "hardware/hw/build/sorx_routed.kicad_pro"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/placement.json",
+          "size_bytes": 24667,
+          "crc32": "998acc02",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "0184debfba44e559a6f82d5dbe0c6d2bb03c7c78941ff601a7d4e0e31fa89615",
+          "imported_path": "hardware/hw/build/placement.json"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/p2.dsn",
+          "size_bytes": 209670,
+          "crc32": "62a6e9ac",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "b3e09961c717450c80e593bc2eb97dc13353ec89b1a2b74577d202ec732d304e",
+          "imported_path": "hardware/hw/build/p2.dsn"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_routed_B.kicad_prl",
+          "size_bytes": 1176,
+          "crc32": "e90590e9",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "KiCad personal UI state",
+          "sha256": "64933d1705d96d890c1ad1e84df64988ec4f477883d2847670f25f32a7970324"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_g2.kicad_pro",
+          "size_bytes": 6565,
+          "crc32": "922bc73f",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "131059b0f8ff12737b213fc3f1cffba0dd13a840bcbfa0388a54df2ae87fceaa",
+          "imported_path": "hardware/hw/build/sorx_g2.kicad_pro"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_rp.kicad_pro",
+          "size_bytes": 6565,
+          "crc32": "9e64e5db",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "500418af1ef7d7aa668a2a0eba22b56ba336a83cb0fbd6e5176292b98b94c4c1",
+          "imported_path": "hardware/hw/build/sorx_rp.kicad_pro"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_routed_A.kicad_pcb",
+          "size_bytes": 1705978,
+          "crc32": "d7fba4d9",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "0079d593961b0179c325c259a88397105e3449667eecc976603ead5fab1abd74",
+          "imported_path": "hardware/hw/build/sorx_routed_A.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_rp.kicad_pcb",
+          "size_bytes": 1747514,
+          "crc32": "3d2275e8",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "dbb683c9a50237b173d4e7cc854efa0250c571515a5431ef892514e12b301c9c",
+          "imported_path": "hardware/hw/build/sorx_rp.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_p1.kicad_pcb",
+          "size_bytes": 1316237,
+          "crc32": "df9381ba",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "0ad13beaae549fc8af4409e2beec4045cea4f81d5cb9db3088a47497abaf5c91",
+          "imported_path": "hardware/hw/build/sorx_p1.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_placed.kicad_prl",
+          "size_bytes": 1174,
+          "crc32": "f50a9b23",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "KiCad personal UI state",
+          "sha256": "1b028166a913d94dc7a8d16e5d734e04cf27c1b19899dd42d3d11e91eb59dadd"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_routed.kicad_prl",
+          "size_bytes": 1174,
+          "crc32": "ccecb758",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "KiCad personal UI state",
+          "sha256": "481fa509df94f6a8bec485e4a89c80508df97a6c919605b7240782df9bd67f5a"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/px.dsn",
+          "size_bytes": 206653,
+          "crc32": "13961006",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "f348db358a60e056035c04c843afbf9d5ba0e25d2f0550fff9b9061dc1fbad0d",
+          "imported_path": "hardware/hw/build/px.dsn"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/p2b.ses",
+          "size_bytes": 211919,
+          "crc32": "f020cab9",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "72aa1ef14e8d84162db6dc92c129911b1a53f75bd7c1a9ecae9d0756a33d9fbe",
+          "imported_path": "hardware/hw/build/p2b.ses"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/p2x.dsn",
+          "size_bytes": 211649,
+          "crc32": "52df1edf",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "16af856e4205be4849eb6549277d8fd562e494152a3a2122f24172b533acd32c",
+          "imported_path": "hardware/hw/build/p2x.dsn"
+        },
+        {
+          "archive_path": "sorx-hw/hw/build/sorx_w.kicad_pcb",
+          "size_bytes": 1746878,
+          "crc32": "8a407122",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "d4a1c0eb857b70c4b191762fcb0c4540ae8041519ee18162d6f166c3984e0a9d",
+          "imported_path": "hardware/hw/build/sorx_w.kicad_pcb"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx.kicad_sch",
+          "size_bytes": 5211,
+          "crc32": "5c61ac4a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "a32b3be1956c37f1d295442066c0a4ed8359887822fc29656475566db2347e54",
+          "imported_path": "hardware/hw/sorx.kicad_sch"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx_eth_oe.kicad_sch",
+          "size_bytes": 212003,
+          "crc32": "624caf03",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "0f18fcbe521ff92e1283ca802ead4aefc9a09aaecb912a2045950b225568bcd2",
+          "imported_path": "hardware/hw/sorx_eth_oe.kicad_sch"
+        },
+        {
+          "archive_path": "sorx-hw/hw/fp-lib-table",
+          "size_bytes": 127,
+          "crc32": "12d392fa",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3384d8fef59897ce012dc589adaa92eda27e87eeb7a2f2c4c786f035ccd5f8dd",
+          "imported_path": "hardware/hw/fp-lib-table"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx_som.kicad_sch",
+          "size_bytes": 217214,
+          "crc32": "5b9847b3",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "ee20d0e94671a1c0b64e9f5ac1ba3813e8cbbfc90ee00be39143137e70733397",
+          "imported_path": "hardware/hw/sorx_som.kicad_sch"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sorx-schematic.pdf",
+          "size_bytes": 2515538,
+          "crc32": "3d3a00f9",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "37d4c6b93f2c8be883ded117d45845c4ba9e37b820e6e65c4c1ecea855efca76",
+          "imported_path": "hardware/hw/sorx-schematic.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/hw/sym-lib-table",
+          "size_bytes": 128,
+          "crc32": "bf1ba0c4",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "a22982d744354b9af122db0690c2be2333fb9a33d56b25d7ffbe88f0577ffd19",
+          "imported_path": "hardware/hw/sym-lib-table"
+        },
+        {
+          "archive_path": "sorx-hw/tools/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/tools/gen_bom.py",
+          "size_bytes": 8546,
+          "crc32": "82e91ab5",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3a6307c2f95f8f946a82b67992c7fb1fb4df561c0326c97d038625a1408dccac",
+          "imported_path": "hardware/tools/gen_bom.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/proj.py",
+          "size_bytes": 3409,
+          "crc32": "770a5f47",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "0c3acd9fea26e9b36a5e05e9589e9c02dc7ba6d98fb44f0daed06cea5012ea26",
+          "imported_path": "hardware/tools/proj.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/netmap.json",
+          "size_bytes": 23262,
+          "crc32": "f34ecfef",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "c78e36f1960062023740610c4ed224814c9ab94b0b201d0e0f69566d47825dac",
+          "imported_path": "hardware/tools/netmap.json"
+        },
+        {
+          "archive_path": "sorx-hw/tools/sx.py",
+          "size_bytes": 1667,
+          "crc32": "bf0f2f6c",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "e5d1649d4418064c5a482e346e19507c1b033fb9b1d6b35b8abf45bf0b9ac640",
+          "imported_path": "hardware/tools/sx.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/verify.py",
+          "size_bytes": 11238,
+          "crc32": "0f3db3ef",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "c1f34bceb9f89eda18da6314e32d34212aa77aaf5b64eb1a1d3921b52a89b96d",
+          "imported_path": "hardware/tools/verify.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/impedance.py",
+          "size_bytes": 935,
+          "crc32": "3e2c3d29",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "fc79a02ff9da8968f852e82d3db4588282ccfc5908c1e80539fede23858bae94",
+          "imported_path": "hardware/tools/impedance.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/render.py",
+          "size_bytes": 1232,
+          "crc32": "39e0c72b",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "f687bfcbe5d55e3af5bc1df2cc406905f96f0077292bd64bea31c89bd0f0d869",
+          "imported_path": "hardware/tools/render.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/gen_drawing.py",
+          "size_bytes": 3483,
+          "crc32": "2e8c93b7",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "60e3a60ab23f996f0e4958c5cb376bbe740b6fa91c838106a666609b09fa7141",
+          "imported_path": "hardware/tools/gen_drawing.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/design.py",
+          "size_bytes": 41016,
+          "crc32": "2b6291a8",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "f07e49cf6fdb1abc639eb99c1af0f77b1cd3140e5f40da539cb1d7d104124120",
+          "imported_path": "hardware/tools/design.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/check_netlist.py",
+          "size_bytes": 1615,
+          "crc32": "b5ce030f",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "15602f78d045268a7f130e3a7589ad6c35fedc75f3d46e8762554c0eb2d15de8",
+          "imported_path": "hardware/tools/check_netlist.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/export.py",
+          "size_bytes": 2339,
+          "crc32": "a55daa0c",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "a1db41132bf68c0095538edc5850bb08a2b678dc7ad28bc71e7392009eb4ea26",
+          "imported_path": "hardware/tools/export.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/route.py",
+          "size_bytes": 8589,
+          "crc32": "6e48db0f",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "b71a56af48958fdd3865e101638fc4363a860fbd77e47e3833b34c1de8cd72a7",
+          "imported_path": "hardware/tools/route.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/patch_route.py",
+          "size_bytes": 22167,
+          "crc32": "7a65f13e",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "6b4ac627207206cf9ed7ffe86cb2f5adb89525ec2233eb3cec3d533feefd1b6b",
+          "imported_path": "hardware/tools/patch_route.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/gen_pcb.py",
+          "size_bytes": 12244,
+          "crc32": "00f86a76",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "bbdc9ee7b1ecb2f99838b9313baaded12ad3ad49aca6c340cb502798d2f9a062",
+          "imported_path": "hardware/tools/gen_pcb.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/gen_block_diagram.py",
+          "size_bytes": 8471,
+          "crc32": "433d5315",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "c3072c8b1f62199db231c3837783711eb344f086f7d55cb9ac9d8a49189ceb47",
+          "imported_path": "hardware/tools/gen_block_diagram.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/gen_sch.py",
+          "size_bytes": 14485,
+          "crc32": "c26b647c",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "9cad680759b23fde52226ab3ec750ad3d19d26f393095596f44db0bae9de2e48",
+          "imported_path": "hardware/tools/gen_sch.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/logs/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/tools/logs/freerouting.log",
+          "size_bytes": 3271,
+          "crc32": "67dd580c",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "6b51b8936a9e9f96d8e1bac912a402cdd54c40ab69a78c57027ecc227ea4c09d",
+          "imported_path": "hardware/tools/logs/freerouting.log"
+        },
+        {
+          "archive_path": "sorx-hw/tools/kilib.py",
+          "size_bytes": 2253,
+          "crc32": "6f7c7467",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "24d69e02c9f6606bcb62496ab34eb29dc5bbc61ac56a90892928bac2343671ca",
+          "imported_path": "hardware/tools/kilib.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/pairs.py",
+          "size_bytes": 1191,
+          "crc32": "1abe9e8b",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3452c2c29d509226b07c47ec79d045a3ce7fb0d046dd14e42e2717a0a10bf8db",
+          "imported_path": "hardware/tools/pairs.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/finish.py",
+          "size_bytes": 14469,
+          "crc32": "a0bf32d2",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "974b64b11fe7d3e550657437f785d040b8b0cff410e84c555302e147e985a019",
+          "imported_path": "hardware/tools/finish.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/mech_export.py",
+          "size_bytes": 1062,
+          "crc32": "203f8184",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "dbe625ec299d4f135fd4782c6feb556e2610e44167f091ade165cc9a19ce3f81",
+          "imported_path": "hardware/tools/mech_export.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/proj.cpython-313.pyc",
+          "size_bytes": 4186,
+          "crc32": "e2046bc7",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "e5ec49e3e9918eab142a990160a53b9b30b44ca10879da5c861b80c538270cfb"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/symdump.cpython-313.pyc",
+          "size_bytes": 4357,
+          "crc32": "613572bc",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "7bc3813113fea9162ba8568f453b43a742438a9b430587495a80875ab7850e44"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/pairs.cpython-313.pyc",
+          "size_bytes": 2590,
+          "crc32": "d330cd34",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "6dac5598377e3c32d0ccd80257fa0727326935a8f52db5337789bfd79047aba1"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/verdin.cpython-313.pyc",
+          "size_bytes": 4410,
+          "crc32": "ad32358c",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "b66cae5e56c766df68f875b86ac53680d26428c7cb33b37dde405d103d9f8c94"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/gen_sch.cpython-313.pyc",
+          "size_bytes": 28248,
+          "crc32": "b7d7c936",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "a8c6cfd7c0ec4f84b074875a1ceaa1e7a9138cb1f1d81489d45d9f2a6b5cead2"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/sexpr.cpython-313.pyc",
+          "size_bytes": 3736,
+          "crc32": "0016d087",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "30760080037ffc4470b51360052ea6067e4894184f02cbb985fc93708ab5e68c"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/design.cpython-313.pyc",
+          "size_bytes": 54228,
+          "crc32": "524b32e5",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "df33640e4c32c816a1b735abcfc7c5492e8d89c36b19f55b5701afe29d243146"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/sx.cpython-313.pyc",
+          "size_bytes": 4423,
+          "crc32": "c3b0f517",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "009a370d2d103209d10bc98ffcaaa68650e7ce2c69ae1736bc7835a65bf18048"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/route.cpython-313.pyc",
+          "size_bytes": 19030,
+          "crc32": "80cb4a9d",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "7886c13910d7a61d3baaa6c834a734d0ba48523b93720526ab8900fad53a16c5"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/kilib.cpython-313.pyc",
+          "size_bytes": 5027,
+          "crc32": "c8f16f8b",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "be219513839f7b5796e833c2c509bff1b6f9fe23500e28c57feee78df19468d8"
+        },
+        {
+          "archive_path": "sorx-hw/tools/__pycache__/patch_route.cpython-313.pyc",
+          "size_bytes": 44744,
+          "crc32": "ae9d7625",
+          "directory": false,
+          "disposition": "excluded",
+          "reason": "Python bytecode/cache",
+          "sha256": "b3a3b3ab39cb5aa0d80dfb97089a0606847fe70fd60e66205b01bec63c683391"
+        },
+        {
+          "archive_path": "sorx-hw/tools/fpinfo.py",
+          "size_bytes": 684,
+          "crc32": "f094b7a6",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "8351d1d01a6916922452782ae8188c941a8ff21f003cbaa33b81cc07b41d5515",
+          "imported_path": "hardware/tools/fpinfo.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/gen_mech.py",
+          "size_bytes": 18252,
+          "crc32": "ce047b47",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "0a71c8f095b070861a065170ec0cc7e7f811d782d88c60b1a34414dae75a447c",
+          "imported_path": "hardware/tools/gen_mech.py"
+        },
+        {
+          "archive_path": "sorx-hw/tools/power_budget.py",
+          "size_bytes": 3584,
+          "crc32": "b007aa0b",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "0ff0dd7a986733372efaddbb001022b65b149ed6fbd2c18ad0c10b933be62814",
+          "imported_path": "hardware/tools/power_budget.py"
+        },
+        {
+          "archive_path": "sorx-hw/mech/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/mech/enclosure-base.stl",
+          "size_bytes": 319284,
+          "crc32": "d5021a0a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "4c7603bbdd92cce667534a4fb884c1e38f0bd2e66ae4f0b1b4fd516eb39e5207",
+          "imported_path": "hardware/mech/enclosure-base.stl"
+        },
+        {
+          "archive_path": "sorx-hw/mech/sorx-board.step",
+          "size_bytes": 1821726,
+          "crc32": "7b278ae7",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "382746bf7a37a460213150839ab75de3f3ad6c1bfb1aa07387be817f6f9bb783",
+          "imported_path": "hardware/mech/sorx-board.step"
+        },
+        {
+          "archive_path": "sorx-hw/mech/board-outline-dimensioned.png",
+          "size_bytes": 59728,
+          "crc32": "555d7388",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "f8b19a70ac02929ae2b1efa69c1bfe94075e654abd66bc6610639845a4739a50",
+          "imported_path": "hardware/mech/board-outline-dimensioned.png"
+        },
+        {
+          "archive_path": "sorx-hw/mech/fit-iso.png",
+          "size_bytes": 99498,
+          "crc32": "aaec94b0",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "c83203d6cc428089157348e8abb6b4e8ae1c3e8c7381d30f71d8d45bc700ed86",
+          "imported_path": "hardware/mech/fit-iso.png"
+        },
+        {
+          "archive_path": "sorx-hw/mech/board-outline.dxf",
+          "size_bytes": 1275,
+          "crc32": "717396ab",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "63f1efbea880139b1c919a8e4da27726e320bbf7b59a8d01e2e7af4d253f1df4",
+          "imported_path": "hardware/mech/board-outline.dxf"
+        },
+        {
+          "archive_path": "sorx-hw/mech/sorx-assembly.step",
+          "size_bytes": 7177613,
+          "crc32": "4a2f3df9",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "1b6c9d018b843901dd3c77a027cd94ef8ecc1939b142fcfc30fa3dd254e4de77",
+          "imported_path": "hardware/mech/sorx-assembly.step"
+        },
+        {
+          "archive_path": "sorx-hw/mech/rack-ear-short.3mf",
+          "size_bytes": 13609,
+          "crc32": "33f4c5c3",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "ccf5e04b631294cda0cfc79d0e9ed8664f726c96778a425b308a00411a3b0d5e",
+          "imported_path": "hardware/mech/rack-ear-short.3mf"
+        },
+        {
+          "archive_path": "sorx-hw/mech/enclosure-lid.3mf",
+          "size_bytes": 53462,
+          "crc32": "a62d5dec",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "eda112c794fe42b51fa980bc05883f4fae2435e0e2a8687fab566b6db8ccecfa",
+          "imported_path": "hardware/mech/enclosure-lid.3mf"
+        },
+        {
+          "archive_path": "sorx-hw/mech/fit-check.json",
+          "size_bytes": 3710,
+          "crc32": "614ab627",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "80db7e85e6af59e60891113c62a1d63724d221cea4bd94bd6b29d54701e25e1f",
+          "imported_path": "hardware/mech/fit-check.json"
+        },
+        {
+          "archive_path": "sorx-hw/mech/led-window.stl",
+          "size_bytes": 1484,
+          "crc32": "a41a05c9",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "6b7ee56e1b6753f9c565645217f0204eb6d51a76cdfe01ec76472ad79fce41c9",
+          "imported_path": "hardware/mech/led-window.stl"
+        },
+        {
+          "archive_path": "sorx-hw/mech/rack-ear-long.3mf",
+          "size_bytes": 13816,
+          "crc32": "e7cf32ab",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "670ce0b6687ae22e231bab68c4f1097dfcd1bcd7a6b0194d90a98065cc65ba8f",
+          "imported_path": "hardware/mech/rack-ear-long.3mf"
+        },
+        {
+          "archive_path": "sorx-hw/mech/fit-check.png",
+          "size_bytes": 112520,
+          "crc32": "f76e0817",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "bfd5123be7a3cba20ec6cfb5d5e2b6a347b19aadfcb83d931bb911cba03831f7",
+          "imported_path": "hardware/mech/fit-check.png"
+        },
+        {
+          "archive_path": "sorx-hw/mech/rack-ear-long.step",
+          "size_bytes": 82730,
+          "crc32": "4e8e6966",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "aa362e0ed0ff055dd753d6837fd2d1a6713684c4a4e921c436aa146fa7cfa25c",
+          "imported_path": "hardware/mech/rack-ear-long.step"
+        },
+        {
+          "archive_path": "sorx-hw/mech/enclosure-lid.step",
+          "size_bytes": 345883,
+          "crc32": "c62fca66",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "21f2388ad165cc2bfa46171af8e50bf9c416ed84a6230398b4c2fa26eed28d36",
+          "imported_path": "hardware/mech/enclosure-lid.step"
+        },
+        {
+          "archive_path": "sorx-hw/mech/rack-ear-long.stl",
+          "size_bytes": 54684,
+          "crc32": "52dc76e7",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "4451a91ecde1e6b3316d655c7b1c209383246fbbd8c3711f6c8ee8b243c83032",
+          "imported_path": "hardware/mech/rack-ear-long.stl"
+        },
+        {
+          "archive_path": "sorx-hw/mech/enclosure-base.step",
+          "size_bytes": 618072,
+          "crc32": "e57332c1",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "5c9a1ef86e2f44d81d3f32783563ff37eb4303710f2bcb3d88606ae74a7abd01",
+          "imported_path": "hardware/mech/enclosure-base.step"
+        },
+        {
+          "archive_path": "sorx-hw/mech/fit-iso.svg",
+          "size_bytes": 91998,
+          "crc32": "eb233e99",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "1c7d8db6f7492210529fb047e23a31d0aff0dc43618a7169630d45e31fee2ab8",
+          "imported_path": "hardware/mech/fit-iso.svg"
+        },
+        {
+          "archive_path": "sorx-hw/mech/enclosure-lid.stl",
+          "size_bytes": 179484,
+          "crc32": "3d101d78",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "53a3e403d793ed6a31bcf6c8bc5434cde1625faba21e5da53003fac39ca05271",
+          "imported_path": "hardware/mech/enclosure-lid.stl"
+        },
+        {
+          "archive_path": "sorx-hw/mech/fit-check.pdf",
+          "size_bytes": 35645,
+          "crc32": "b46df3df",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3154bcf541c87b831d33dcc8f84a2748cfb18f1ff32c4967d5e7819caaabd38f",
+          "imported_path": "hardware/mech/fit-check.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/mech/board-outline-dimensioned.pdf",
+          "size_bytes": 24452,
+          "crc32": "729fd415",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3c093878370403770888b73e86d06ae6b2771b7aa8339a73ac9c2ebe209a9b17",
+          "imported_path": "hardware/mech/board-outline-dimensioned.pdf"
+        },
+        {
+          "archive_path": "sorx-hw/mech/enclosure-base.3mf",
+          "size_bytes": 93579,
+          "crc32": "4a551a6a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "25b3e187268f2b8ef8b5addc62b4823cf29b7f71c10564ee6743eeefa8435e47",
+          "imported_path": "hardware/mech/enclosure-base.3mf"
+        },
+        {
+          "archive_path": "sorx-hw/mech/led-window.3mf",
+          "size_bytes": 1462,
+          "crc32": "f4e60647",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "9c21858e646b3c6fdfa9301cdc559bfed8ef1d6b9b575051f9cdaaa39c4b5575",
+          "imported_path": "hardware/mech/led-window.3mf"
+        },
+        {
+          "archive_path": "sorx-hw/mech/rack-ear-short.stl",
+          "size_bytes": 53484,
+          "crc32": "a1e84345",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "23df7acd29d971ebd8c7f33600ab3be4a2718f8957d8c44b80b3a970f0a5055b",
+          "imported_path": "hardware/mech/rack-ear-short.stl"
+        },
+        {
+          "archive_path": "sorx-hw/mech/rack-ear-short.step",
+          "size_bytes": 61744,
+          "crc32": "713193c5",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "ca03a9bffab2567b01b36003768718c792b5933e3b7df731d283561947789f78",
+          "imported_path": "hardware/mech/rack-ear-short.step"
+        },
+        {
+          "archive_path": "sorx-hw/bom/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/bom/cost-rollup.csv",
+          "size_bytes": 1109,
+          "crc32": "8810e7ae",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "bd48a362a0e74f56ae1bb53d61ffb20c75e5823b7f1c637bc6ee213eab8c4cd1",
+          "imported_path": "hardware/bom/cost-rollup.csv"
+        },
+        {
+          "archive_path": "sorx-hw/bom/sorx-bom.csv",
+          "size_bytes": 26817,
+          "crc32": "67655600",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "4593ddae31d842ddbcd3f016ae0e951744fd5f522799ec053fd20807bea54b71",
+          "imported_path": "hardware/bom/sorx-bom.csv"
+        },
+        {
+          "archive_path": "sorx-hw/bom/stock_notes.json",
+          "size_bytes": 2154,
+          "crc32": "1b207e80",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "1564cb01c6910ea80e99f742b43747c69ffdcecfd5f42a5ec9aef898d7471832",
+          "imported_path": "hardware/bom/stock_notes.json"
+        },
+        {
+          "archive_path": "sorx-hw/bom/stock-check.csv",
+          "size_bytes": 2834,
+          "crc32": "c9ac5449",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "e3a9c4c047c1519c24786084bdcdd0985cedf26aa1ff24159ab2e59694222ced",
+          "imported_path": "hardware/bom/stock-check.csv"
+        },
+        {
+          "archive_path": "sorx-hw/docs/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/docs/som-comparison.md",
+          "size_bytes": 8889,
+          "crc32": "4c4c8110",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "a656358eb6326cb828e3a3dbceecb35899ddb75a785cec35096593aa78fd8bc1",
+          "imported_path": "hardware/docs/som-comparison.md"
+        },
+        {
+          "archive_path": "sorx-hw/docs/power-budget.md",
+          "size_bytes": 4826,
+          "crc32": "3bdd357a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "a6c4a70f7d0f67e54fd835062188333aa0f7bd05975a569960a281b83b9aaaf7",
+          "imported_path": "hardware/docs/power-budget.md"
+        },
+        {
+          "archive_path": "sorx-hw/docs/requirements.md",
+          "size_bytes": 3366,
+          "crc32": "faf601ba",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "d0f33018eb08d08ac33a3cd3dd92c4103f0f5788cd1cd6a5e6d73f71e1bd71d6",
+          "imported_path": "hardware/docs/requirements.md"
+        },
+        {
+          "archive_path": "sorx-hw/docs/block-diagram.md",
+          "size_bytes": 3668,
+          "crc32": "f5da2fe6",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "1f4c1f3b666ac07a37e508ef5cb8c998a9d122392062511182e94b2fb76b94a7",
+          "imported_path": "hardware/docs/block-diagram.md"
+        },
+        {
+          "archive_path": "sorx-hw/docs/verification-report.md",
+          "size_bytes": 8130,
+          "crc32": "39b6af97",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "238d55071bbf8704e4a3db78674057f36c81e0efdde89775a396a1ccb6391ea3",
+          "imported_path": "hardware/docs/verification-report.md"
+        },
+        {
+          "archive_path": "sorx-hw/docs/bring-up-checklist.md",
+          "size_bytes": 4284,
+          "crc32": "ca73c007",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3be932edecb2cb2778f169fcaf51017bc3534deeb75c2dabfb561bc9cc562489",
+          "imported_path": "hardware/docs/bring-up-checklist.md"
+        },
+        {
+          "archive_path": "sorx-hw/docs/manufacturing-test-plan.md",
+          "size_bytes": 3539,
+          "crc32": "fef99ded",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "8f54ac81c83b3645fe971326484a604e999255a64a82c100c83943792a127d60",
+          "imported_path": "hardware/docs/manufacturing-test-plan.md"
+        },
+        {
+          "archive_path": "sorx-hw/docs/design-review-notes.md",
+          "size_bytes": 5581,
+          "crc32": "73ae5486",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "2a8e9c32f74221d6b28241e73540024070f7227db00b5169c0bae5690a2bdc1f",
+          "imported_path": "hardware/docs/design-review-notes.md"
+        },
+        {
+          "archive_path": "sorx-hw/docs/block-diagram.svg",
+          "size_bytes": 21444,
+          "crc32": "1d971929",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "5eb6fe60ab27dd218ebaafe46c92f1d5a4d51295ce3d293af5ed104f513dcf26",
+          "imported_path": "hardware/docs/block-diagram.svg"
+        },
+        {
+          "archive_path": "sorx-hw/docs/reports/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-hw/docs/reports/open-connections.txt",
+          "size_bytes": 946,
+          "crc32": "9e0edeb6",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "1059d398481c9b614363f42db919ceed9baa76f1d22be634237969ebf6726352",
+          "imported_path": "hardware/docs/reports/open-connections.txt"
+        },
+        {
+          "archive_path": "sorx-hw/docs/reports/drc-report.txt",
+          "size_bytes": 58333,
+          "crc32": "b1b89727",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "9abb140cd426c74e129e031896224a6381534b669dc9b84d1e8d6bd636fe9097",
+          "imported_path": "hardware/docs/reports/drc-report.txt"
+        },
+        {
+          "archive_path": "sorx-hw/docs/reports/erc-report.txt",
+          "size_bytes": 269,
+          "crc32": "8e7813fe",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "915bbfc662f25c4d58966f297d7a45b391a03e4e0dfc7970ab4a5330cc2dc580",
+          "imported_path": "hardware/docs/reports/erc-report.txt"
+        },
+        {
+          "archive_path": "sorx-hw/docs/stackup-and-fab-notes.md",
+          "size_bytes": 3162,
+          "crc32": "01024a7d",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "8be2ea471c4721b70b00c0e9819de415f2d92f5bf47142d4cb03a72a514dc27b",
+          "imported_path": "hardware/docs/stackup-and-fab-notes.md"
+        },
+        {
+          "archive_path": "sorx-hw/docs/thermal-estimate.md",
+          "size_bytes": 2927,
+          "crc32": "d42f13fa",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3ca94f33f419099be77c8c3aa03cfc094e5c0178644507f23ffd2c3f0ba0673f",
+          "imported_path": "hardware/docs/thermal-estimate.md"
+        }
+      ]
+    },
+    {
+      "original_name": "sorx-images-2026-11-16.zip",
+      "baseline_path": "baseline/sorx-images-2026-11-16.zip",
+      "size_bytes": 3352184,
+      "sha256": "f65e40468c7a624d50dc095eb3539ee23ce90bc9c74dbba6fdd5b0179f9ab5ef",
+      "archive_root": "sorx-images/",
+      "destination_root": "reference_images",
+      "entries": [
+        {
+          "archive_path": "sorx-images/",
+          "size_bytes": 0,
+          "crc32": "00000000",
+          "directory": true,
+          "disposition": "directory"
+        },
+        {
+          "archive_path": "sorx-images/sorx-copper-F_Cu.pdf",
+          "size_bytes": 991606,
+          "crc32": "0563f9c8",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "b1f97c5141cc85bbed2393e72db2d3e5b8fd1d8b8be3e7b17ea67627a502dab4",
+          "imported_path": "reference_images/sorx-copper-F_Cu.pdf"
+        },
+        {
+          "archive_path": "sorx-images/sorx-copper-In2_Cu.pdf",
+          "size_bytes": 778259,
+          "crc32": "42322bf3",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "67da13e8662fbc007457414f69f0ed2842f524b9d20cd8fe90a9c177de8417b3",
+          "imported_path": "reference_images/sorx-copper-In2_Cu.pdf"
+        },
+        {
+          "archive_path": "sorx-images/board-outline-dimensioned.png",
+          "size_bytes": 59728,
+          "crc32": "555d7388",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "f8b19a70ac02929ae2b1efa69c1bfe94075e654abd66bc6610639845a4739a50",
+          "imported_path": "reference_images/board-outline-dimensioned.png"
+        },
+        {
+          "archive_path": "sorx-images/fit-iso.png",
+          "size_bytes": 99498,
+          "crc32": "aaec94b0",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "c83203d6cc428089157348e8abb6b4e8ae1c3e8c7381d30f71d8d45bc700ed86",
+          "imported_path": "reference_images/fit-iso.png"
+        },
+        {
+          "archive_path": "sorx-images/u13b-as-attached-in-chat.webp",
+          "size_bytes": 126802,
+          "crc32": "cc9feba0",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "8611a803a9a4016160d8dadd5cdf0a6730e3c198577af00dce930e3c1d0b978a",
+          "imported_path": "reference_images/u13b-as-attached-in-chat.webp"
+        },
+        {
+          "archive_path": "sorx-images/all-first-routing-full-board.png",
+          "size_bytes": 335412,
+          "crc32": "fb9122c6",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "2c97a5409fe7dcecd16a2dfdcefb4bc83e8045215c0b7a498a6be9bf601cf910",
+          "imported_path": "reference_images/all-first-routing-full-board.png"
+        },
+        {
+          "archive_path": "sorx-images/sorx-copper-In1_Cu.pdf",
+          "size_bytes": 774815,
+          "crc32": "f6205608",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "7b7ef53064894611668b8ddb022eada5115e505a71c69ea7095721767947b3f8",
+          "imported_path": "reference_images/sorx-copper-In1_Cu.pdf"
+        },
+        {
+          "archive_path": "sorx-images/u13-first-routing-mgmt-phy.png",
+          "size_bytes": 184039,
+          "crc32": "9ed51514",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "e19459dcb1c99641b6f36f5769832d4fbadcd7d38360e78878426328fbe301e3",
+          "imported_path": "reference_images/u13-first-routing-mgmt-phy.png"
+        },
+        {
+          "archive_path": "sorx-images/fit-check.png",
+          "size_bytes": 112520,
+          "crc32": "f76e0817",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "bfd5123be7a3cba20ec6cfb5d5e2b6a347b19aadfcb83d931bb911cba03831f7",
+          "imported_path": "reference_images/fit-check.png"
+        },
+        {
+          "archive_path": "sorx-images/README.txt",
+          "size_bytes": 396,
+          "crc32": "ee3cc991",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "f5505dbd0d74a48266ba385c3a338e38cd1d44715adf37e6e5d3d2fcf2bb8ec7",
+          "imported_path": "reference_images/README.txt"
+        },
+        {
+          "archive_path": "sorx-images/final-board-full.png",
+          "size_bytes": 620785,
+          "crc32": "7d9a2247",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3ff924c84a17a8d1b65d84911cd06255c534250a59afb1a0db7fd93e3b8dc03e",
+          "imported_path": "reference_images/final-board-full.png"
+        },
+        {
+          "archive_path": "sorx-images/fit-check.pdf",
+          "size_bytes": 35645,
+          "crc32": "b46df3df",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3154bcf541c87b831d33dcc8f84a2748cfb18f1ff32c4967d5e7819caaabd38f",
+          "imported_path": "reference_images/fit-check.pdf"
+        },
+        {
+          "archive_path": "sorx-images/final-board-mgmt-phy-crop.png",
+          "size_bytes": 246459,
+          "crc32": "75e1f8cf",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "8bcab5dea079589dbd227cb8062d434228113e6e4da8bd67aac7db000091e3b1",
+          "imported_path": "reference_images/final-board-mgmt-phy-crop.png"
+        },
+        {
+          "archive_path": "sorx-images/board-outline-dimensioned.pdf",
+          "size_bytes": 24452,
+          "crc32": "729fd415",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "3c093878370403770888b73e86d06ae6b2771b7aa8339a73ac9c2ebe209a9b17",
+          "imported_path": "reference_images/board-outline-dimensioned.pdf"
+        },
+        {
+          "archive_path": "sorx-images/sorx-copper-B_Cu.pdf",
+          "size_bytes": 818652,
+          "crc32": "128a14bd",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "19a617e111101057135fdae0d91467be1acfb491f99750eb1a7c8eaa4bc41aca",
+          "imported_path": "reference_images/sorx-copper-B_Cu.pdf"
+        },
+        {
+          "archive_path": "sorx-images/u13b-variant-B-mgmt-phy.png",
+          "size_bytes": 188853,
+          "crc32": "6fcd6e8a",
+          "directory": false,
+          "disposition": "imported",
+          "sha256": "eceffb2244a4282a3562ef792e9a69098657c8d48799159eac3f27a4bb445ab7",
+          "imported_path": "reference_images/u13b-variant-B-mgmt-phy.png"
+        }
+      ]
+    },
+    {
+      "original_name": "HANDOFF (1).md",
+      "baseline_path": "baseline/HANDOFF (1).md",
+      "size_bytes": 9721,
+      "sha256": "22080286fb8cff81b69f45ff5c1a0ac5bd1362c34ff65d57bc93402c6bf76b46"
+    }
+  ]
+}

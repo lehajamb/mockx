@@ -1,0 +1,4 @@
+# Preserve original attachment and extracted-file bytes for baseline comparison.
+baseline/** -text
+hardware/** -text
+reference_images/** -text
