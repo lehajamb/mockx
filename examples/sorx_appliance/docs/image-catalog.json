@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "description": "Immutable supplied reference images. Stage labels come from the supplied README; duplicates were independently compared byte-for-byte to the submitted hardware bundle. Images are not validation evidence of physical hardware.",
+  "images": [
+    {
+      "path": "reference_images/sorx-copper-F_Cu.pdf",
+      "sha256": "b1f97c5141cc85bbed2393e72db2d3e5b8fd1d8b8be3e7b17ea67627a502dab4",
+      "stage": "submitted-final-board-incomplete",
+      "duplicates_in_hardware": [
+        "hardware/hw/fab/sorx-copper-F_Cu.pdf"
+      ]
+    },
+    {
+      "path": "reference_images/sorx-copper-In2_Cu.pdf",
+      "sha256": "67da13e8662fbc007457414f69f0ed2842f524b9d20cd8fe90a9c177de8417b3",
+      "stage": "submitted-final-board-incomplete",
+      "duplicates_in_hardware": [
+        "hardware/hw/fab/sorx-copper-In2_Cu.pdf"
+      ]
+    },
+    {
+      "path": "reference_images/board-outline-dimensioned.png",
+      "sha256": "f8b19a70ac02929ae2b1efa69c1bfe94075e654abd66bc6610639845a4739a50",
+      "stage": "submitted-mechanical-output",
+      "duplicates_in_hardware": [
+        "hardware/mech/board-outline-dimensioned.png"
+      ]
+    },
+    {
+      "path": "reference_images/fit-iso.png",
+      "sha256": "c83203d6cc428089157348e8abb6b4e8ae1c3e8c7381d30f71d8d45bc700ed86",
+      "stage": "submitted-mechanical-output",
+      "duplicates_in_hardware": [
+        "hardware/mech/fit-iso.png"
+      ]
+    },
+    {
+      "path": "reference_images/u13b-as-attached-in-chat.webp",
+      "sha256": "8611a803a9a4016160d8dadd5cdf0a6730e3c198577af00dce930e3c1d0b978a",
+      "stage": "earlier-routing",
+      "duplicates_in_hardware": []
+    },
+    {
+      "path": "reference_images/all-first-routing-full-board.png",
+      "sha256": "2c97a5409fe7dcecd16a2dfdcefb4bc83e8045215c0b7a498a6be9bf601cf910",
+      "stage": "earlier-routing",
+      "duplicates_in_hardware": []
+    },
+    {
+      "path": "reference_images/sorx-copper-In1_Cu.pdf",
+      "sha256": "7b7ef53064894611668b8ddb022eada5115e505a71c69ea7095721767947b3f8",
+      "stage": "submitted-final-board-incomplete",
+      "duplicates_in_hardware": [
+        "hardware/hw/fab/sorx-copper-In1_Cu.pdf"
+      ]
+    },
+    {
+      "path": "reference_images/u13-first-routing-mgmt-phy.png",
+      "sha256": "e19459dcb1c99641b6f36f5769832d4fbadcd7d38360e78878426328fbe301e3",
+      "stage": "earlier-routing",
+      "duplicates_in_hardware": []
+    },
+    {
+      "path": "reference_images/fit-check.png",
+      "sha256": "bfd5123be7a3cba20ec6cfb5d5e2b6a347b19aadfcb83d931bb911cba03831f7",
+      "stage": "submitted-mechanical-output",
+      "duplicates_in_hardware": [
+        "hardware/mech/fit-check.png"
+      ]
+    },
+    {
+      "path": "reference_images/README.txt",
+      "sha256": "f5505dbd0d74a48266ba385c3a338e38cd1d44715adf37e6e5d3d2fcf2bb8ec7",
+      "stage": "bundle-description",
+      "duplicates_in_hardware": []
+    },
+    {
+      "path": "reference_images/final-board-full.png",
+      "sha256": "3ff924c84a17a8d1b65d84911cd06255c534250a59afb1a0db7fd93e3b8dc03e",
+      "stage": "submitted-final-board-incomplete",
+      "duplicates_in_hardware": []
+    },
+    {
+      "path": "reference_images/fit-check.pdf",
+      "sha256": "3154bcf541c87b831d33dcc8f84a2748cfb18f1ff32c4967d5e7819caaabd38f",
+      "stage": "submitted-mechanical-output",
+      "duplicates_in_hardware": [
+        "hardware/mech/fit-check.pdf"
+      ]
+    },
+    {
+      "path": "reference_images/final-board-mgmt-phy-crop.png",
+      "sha256": "8bcab5dea079589dbd227cb8062d434228113e6e4da8bd67aac7db000091e3b1",
+      "stage": "submitted-final-board-incomplete",
+      "duplicates_in_hardware": []
+    },
+    {
+      "path": "reference_images/board-outline-dimensioned.pdf",
+      "sha256": "3c093878370403770888b73e86d06ae6b2771b7aa8339a73ac9c2ebe209a9b17",
+      "stage": "submitted-mechanical-output",
+      "duplicates_in_hardware": [
+        "hardware/mech/board-outline-dimensioned.pdf"
+      ]
+    },
+    {
+      "path": "reference_images/sorx-copper-B_Cu.pdf",
+      "sha256": "19a617e111101057135fdae0d91467be1acfb491f99750eb1a7c8eaa4bc41aca",
+      "stage": "submitted-final-board-incomplete",
+      "duplicates_in_hardware": [
+        "hardware/hw/fab/sorx-copper-B_Cu.pdf"
+      ]
+    },
+    {
+      "path": "reference_images/u13b-variant-B-mgmt-phy.png",
+      "sha256": "eceffb2244a4282a3562ef792e9a69098657c8d48799159eac3f27a4bb445ab7",
+      "stage": "earlier-routing",
+      "duplicates_in_hardware": []
+    }
+  ]
+}
