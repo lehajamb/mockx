@@ -1,0 +1,7 @@
+.trash-*/
+tmp/
+intermediate/
+diff-overlay.json
+dashboard*.log
+dashboard*.pid
+runtime/
