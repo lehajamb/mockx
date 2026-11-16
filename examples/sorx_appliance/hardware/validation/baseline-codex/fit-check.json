@@ -1,0 +1,281 @@
+{
+ "interference_mm3": {
+  "J9": 5.002
+ },
+ "ports": [
+  {
+   "port": "OE",
+   "wall": "rear",
+   "ref": "J6",
+   "opening_x": [
+    21.63,
+    39.52
+   ],
+   "opening_z": [
+    -0.3,
+    14.1
+   ],
+   "margins": {
+    "left": 0.5,
+    "right": 0.5,
+    "bottom": 0.3,
+    "top": 0.5
+   },
+   "ok": true
+  },
+  {
+   "port": "MD-IN",
+   "wall": "rear",
+   "ref": "J4",
+   "opening_x": [
+    41.63,
+    59.52
+   ],
+   "opening_z": [
+    -0.3,
+    14.1
+   ],
+   "margins": {
+    "left": 0.5,
+    "right": 0.5,
+    "bottom": 0.3,
+    "top": 0.5
+   },
+   "ok": true
+  },
+  {
+   "port": "MGMT",
+   "wall": "rear",
+   "ref": "J7",
+   "opening_x": [
+    61.63,
+    79.52
+   ],
+   "opening_z": [
+    -0.3,
+    14.1
+   ],
+   "margins": {
+    "left": 0.5,
+    "right": 0.5,
+    "bottom": 0.3,
+    "top": 0.5
+   },
+   "ok": true
+  },
+  {
+   "port": "USB-C PWR",
+   "wall": "rear",
+   "ref": "J3",
+   "opening_x": [
+    7.68,
+    20.32
+   ],
+   "opening_z": [
+    -1.6,
+    4.9
+   ],
+   "margins": {
+    "left": 1.8,
+    "right": 1.8,
+    "bottom": 1.6,
+    "top": 1.6
+   },
+   "ok": true
+  },
+  {
+   "port": "PPS",
+   "wall": "rear",
+   "ref": "J5",
+   "opening_x": [
+    95.8,
+    104.2
+   ],
+   "opening_z": [
+    -5.0,
+    3.4
+   ],
+   "margins": {
+    "left": 1.0,
+    "right": 1.0,
+    "bottom": 1.0,
+    "top": 1.0
+   },
+   "ok": true
+  },
+  {
+   "port": "USB 1",
+   "wall": "front",
+   "ref": "J8",
+   "opening_x": [
+    59.9,
+    76.1
+   ],
+   "opening_z": [
+    -0.3,
+    7.5
+   ],
+   "margins": {
+    "left": 0.5,
+    "right": 0.5,
+    "bottom": 0.3,
+    "top": 0.5
+   },
+   "ok": true
+  },
+  {
+   "port": "USB 2",
+   "wall": "front",
+   "ref": "J9",
+   "opening_x": [
+    77.9,
+    94.1
+   ],
+   "opening_z": [
+    -0.3,
+    7.5
+   ],
+   "margins": {
+    "left": 0.5,
+    "right": 0.5,
+    "bottom": 0.3,
+    "top": 0.5
+   },
+   "ok": true
+  },
+  {
+   "port": "CONSOLE",
+   "wall": "front",
+   "ref": "J11",
+   "opening_x": [
+    95.23,
+    111.66
+   ],
+   "opening_z": [
+    -0.3,
+    13.7
+   ],
+   "margins": {
+    "left": 0.5,
+    "right": 0.5,
+    "bottom": 0.3,
+    "top": 0.5
+   },
+   "ok": true
+  },
+  {
+   "port": "USB-C DEBUG",
+   "wall": "front",
+   "ref": "J10",
+   "opening_x": [
+    111.98,
+    124.02
+   ],
+   "opening_z": [
+    -1.6,
+    4.9
+   ],
+   "margins": {
+    "left": 1.5,
+    "right": 1.5,
+    "bottom": 1.6,
+    "top": 1.6
+   },
+   "ok": true
+  },
+  {
+   "port": "microSD",
+   "wall": "front",
+   "ref": "J12",
+   "opening_x": [
+    148.43,
+    163.57
+   ],
+   "opening_z": [
+    -0.3,
+    2.8
+   ],
+   "margins": {
+    "left": 0.6,
+    "right": 0.6,
+    "bottom": 0.3,
+    "top": 0.9
+   },
+   "ok": true
+  },
+  {
+   "port": "RESET",
+   "wall": "front",
+   "ref": "SW1",
+   "opening_x": [
+    127.75,
+    131.75
+   ],
+   "opening_z": [
+    1.9,
+    5.9
+   ],
+   "margins": {
+    "left": 0.5,
+    "right": 0.5,
+    "bottom": 0.5,
+    "top": 0.5
+   },
+   "ok": true
+  },
+  {
+   "port": "RECOVERY",
+   "wall": "front",
+   "ref": "SW2",
+   "opening_x": [
+    137.75,
+    141.75
+   ],
+   "opening_z": [
+    1.9,
+    5.9
+   ],
+   "margins": {
+    "left": 0.5,
+    "right": 0.5,
+    "bottom": 0.5,
+    "top": 0.5
+   },
+   "ok": true
+  },
+  {
+   "port": "LED window",
+   "wall": "front",
+   "ref": "D4-D10",
+   "opening_x": [
+    11.45,
+    52.55
+   ],
+   "opening_z": [
+    -0.4,
+    2.4
+   ],
+   "margins": {
+    "left": 1.0,
+    "right": 1.0,
+    "bottom": 0.4,
+    "top": 1.4
+   },
+   "ok": true
+  }
+ ],
+ "clearances": {
+  "heatsink_top_to_lid_mm": 15.6,
+  "magjack_top_to_lid_mm": 18.8,
+  "internal_height_mm": 40.0,
+  "fan_height_mm": 40.0,
+  "bottom_parts_to_floor_mm": 4.8,
+  "outer_mm": [
+   215.0,
+   123.6,
+   44.0
+  ]
+ },
+ "all_ports_aligned": true,
+ "max_interference_mm3": 5.002
+}

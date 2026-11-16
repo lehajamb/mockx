@@ -1,0 +1,4 @@
+components in schematic netlist: 348
+model nets: 262 matching: 262 mismatching: 0
+extra multi-node nets in schematic: []
+single-node (no-connect) nets in schematic: 179

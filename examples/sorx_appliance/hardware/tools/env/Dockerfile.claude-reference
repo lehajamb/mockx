@@ -1,0 +1,28 @@
+# SORX hardware tool environment.  Pinned by digest so every check in docs/validation/ is reproducible.
+#   docker build -t sorx-hw-env:1 examples/sorx_appliance/hardware/tools/env
+# Base: official KiCad 7.0.11 image (Debian 12, Python 3.11, pcbnew Python API, KiCad symbol/footprint libraries).
+FROM kicad/kicad@sha256:e7c1f996ab81da3d734a41e0d088cc27e71c3574b4c1027d13a02586078e785e
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3-pip python3-venv python3-shapely python3-numpy python3-pil python3-matplotlib python3-cairosvg \
+      python3-psutil python3-xvfbwrapper python3-yaml \
+      xvfb xauth xdotool xclip x11-utils x11-xserver-utils \
+      default-jre poppler-utils librsvg2-bin curl ca-certificates zip unzip \
+    && rm -rf /var/lib/apt/lists/*
+# KiAuto drives the KiCad 7 GUI for ERC (KiCad 7 has no command-line ERC).
+RUN pip3 install --break-system-packages --no-deps kiauto==2.3.4
+# The imported routing/finishing scripts use the Shapely 2 STRtree API (index results); Debian 12 ships 1.8.
+RUN pip3 install --break-system-packages --no-deps shapely==2.0.6
+# CadQuery lives in its own venv so its numpy/OCP wheels cannot disturb the pcbnew system Python.
+RUN python3 -m venv /opt/cq && /opt/cq/bin/pip install --no-cache-dir cadquery==2.4.0 matplotlib==3.8.4 numpy==1.26.4
+# Freerouting 1.9.0 (only used to reproduce the historical flow; the corrected board is not re-autorouted).
+RUN mkdir -p /opt/freerouting && curl -fsSL -o /opt/freerouting/freerouting-1.9.0.jar \
+      https://github.com/freerouting/freerouting/releases/download/v1.9.0/freerouting-1.9.0.jar \
+    && sha256sum /opt/freerouting/freerouting-1.9.0.jar
+# The official image omits the GUI bitmap archive, so eeschema (needed for the KiCad 7 ERC) aborts with a dialog.
+# Take exactly that one file from Debian's build of the same KiCad release (snapshot.debian.org, pinned by hash).
+RUN cd /tmp && curl -fsSL -o k.deb "https://snapshot.debian.org/archive/debian/20240315T000000Z/pool/main/k/kicad/kicad_7.0.11+dfsg-1~bpo12+1_amd64.deb"     && echo "9c854090c499795f9ba02feec89f1c50be177cc609e1029fd52199aa35693488  k.deb" | sha256sum -c -     && mkdir x && dpkg -x k.deb x && mkdir -p /usr/share/kicad/resources     && cp x/usr/share/kicad/resources/images.tar.gz /usr/share/kicad/resources/ && rm -rf /tmp/k.deb /tmp/x
+ENV SORX_FREEROUTING_JAR=/opt/freerouting/freerouting-1.9.0.jar
+USER kicad
+WORKDIR /work/hardware
