@@ -1,0 +1,8 @@
+{
+  "alias": "/hardware/hw",
+  "same_clone_content": true,
+  "read_only": true,
+  "loaded_footprint": "LT_MS8E",
+  "kicad": "7.0.11",
+  "success": true
+}

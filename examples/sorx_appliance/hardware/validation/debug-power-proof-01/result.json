@@ -1,0 +1,335 @@
+{
+  "status": "REJECTED",
+  "source_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "output_sha256": "b31d7aff94ab0b6a534077599c27798106b839d3cf95bc96c6facbc286fc71a4",
+  "tool_sha256": "91da6ce2bb25e3e365dbd41681ef3838745351a2688c0949133e86d0c65b122f",
+  "current_allocation_a": 0.1,
+  "before": {
+    "DRC violations": 95,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 120,
+    "unconnected pads": 33,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1732 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.4000 mm, 112.6000 mm): Track [VBUS_DBG_RAW] on B.Cu, length 0.5000 mm\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "d388ea4c291b5a7a429e9bd0a7578d09fc567bbf491223c5e7a83b50b1f245cd",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0583 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.6000 mm, 111.8500 mm): Track [VBUS_DBG_RAW] on B.Cu, length 0.7500 mm\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "e1db1c889016ed38f4694930ea981c9e2386ee483b3043859fb245f565c172d9",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0113 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(114.7000 mm, 106.4200 mm): Track [VBUS_DBG_RAW] on B.Cu, length 5.5041 mm\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "f63f8d6e5329a488ad19a814b53a9e59a263ace355f9152d1847de5e965b66c9",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0400 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.4000 mm, 110.6400 mm): Track [VBUS_DBG_RAW] on F.Cu, length 1.4600 mm\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "98855f16880fb4bf29960b7d3a3323147af62328c5a6f62e6ddab4def2c7071c",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0400 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.6000 mm, 110.6400 mm): Track [VBUS_DBG_RAW] on F.Cu, length 1.2100 mm\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "021c7b601326f00db4f51a9a7f12dff2b7c7a1fb270a1730ea0b1cb1d4ef7af8",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.4000 mm, 112.1000 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "1b9a9150a81337162d11e81efa9a8b965f5a1a3dcadfb7f532294889081d332f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.4000 mm, 112.1000 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "1b9a9150a81337162d11e81efa9a8b965f5a1a3dcadfb7f532294889081d332f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.4000 mm, 112.1000 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "1b9a9150a81337162d11e81efa9a8b965f5a1a3dcadfb7f532294889081d332f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.4000 mm, 112.1000 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "1b9a9150a81337162d11e81efa9a8b965f5a1a3dcadfb7f532294889081d332f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.4000 mm, 112.1000 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "1b9a9150a81337162d11e81efa9a8b965f5a1a3dcadfb7f532294889081d332f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.4000 mm, 112.1000 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "1b9a9150a81337162d11e81efa9a8b965f5a1a3dcadfb7f532294889081d332f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.6000 mm, 111.8500 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "96818f09caeb6688ebe111787c9dc73058015f0ceeaf5c74203d68234e070c6f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.6000 mm, 111.8500 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "96818f09caeb6688ebe111787c9dc73058015f0ceeaf5c74203d68234e070c6f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.6000 mm, 111.8500 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "96818f09caeb6688ebe111787c9dc73058015f0ceeaf5c74203d68234e070c6f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.6000 mm, 111.8500 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "96818f09caeb6688ebe111787c9dc73058015f0ceeaf5c74203d68234e070c6f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.6000 mm, 111.8500 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "96818f09caeb6688ebe111787c9dc73058015f0ceeaf5c74203d68234e070c6f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.6000 mm, 111.8500 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "96818f09caeb6688ebe111787c9dc73058015f0ceeaf5c74203d68234e070c6f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "clearance",
+      "message": "Clearance violation (netclass 'DP90' clearance 0.1800 mm; actual 0.1724 mm)",
+      "objects": "Rule: netclass 'DP90'; Severity: error\n    @(114.7000 mm, 106.4200 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(114.3433 mm, 106.8385 mm): Track [DBG_D_P] on F.Cu, length 1.0583 mm",
+      "fingerprint": "9226b366c38b36a61b43e91a1d6de5bdbc2d1e647c9fc8ef28fdaa6ff6a759c6",
+      "section": "DRC violations"
+    },
+    {
+      "category": "clearance",
+      "message": "Clearance violation (netclass 'DP90' clearance 0.1800 mm; actual 0.1724 mm)",
+      "objects": "Rule: netclass 'DP90'; Severity: error\n    @(114.7000 mm, 106.4200 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(114.6937 mm, 107.1889 mm): Track [DBG_D_P] on F.Cu, length 0.4955 mm",
+      "fingerprint": "05e03f3e86769e513cdce40b7cdf9bb2ded70f04644431fb377c6135835dc511",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0333 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10\n    @(115.6000 mm, 111.8500 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu",
+      "fingerprint": "90a7f1f7da93d96c400dd599f1d5f69a461761c3f4f58abf1401c1f306364321",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1482 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10\n    @(120.4000 mm, 112.1000 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu",
+      "fingerprint": "c4b83c9b64f2b0f349c77b9425fe3890df40ded7d0e27d5a0610e5c65ef8734f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_near_hole",
+      "message": "Drilled holes too close together (board setup constraints min 0.2495 mm; actual 0.1482 mm)",
+      "objects": "Rule: board setup constraints; Severity: error\n    @(120.4000 mm, 112.1000 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "846cfc33d9c98413d1c49dea0409e084c34b14c66002dd5c5496ca4c7cd0a253",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_near_hole",
+      "message": "Drilled holes too close together (board setup constraints min 0.2495 mm; actual 0.0333 mm)",
+      "objects": "Rule: board setup constraints; Severity: error\n    @(115.6000 mm, 111.8500 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10",
+      "fingerprint": "775e8466c6b878b1ccdf1044eb098582476465eb5c8e6ef7e473f13a4f46b932",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_near_hole",
+      "message": "Drilled holes too close together (board setup constraints min 0.2495 mm; actual 0.0333 mm)",
+      "objects": "Rule: board setup constraints; Severity: error\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10\n    @(115.6000 mm, 111.8500 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu",
+      "fingerprint": "91c3320b0e6fd2cb831b2d421a68fcc339c8edae3d5db4451a4eefcb698dd74a",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_near_hole",
+      "message": "Drilled holes too close together (board setup constraints min 0.2495 mm; actual 0.1482 mm)",
+      "objects": "Rule: board setup constraints; Severity: error\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10\n    @(120.4000 mm, 112.1000 mm): Via [VBUS_DBG_RAW] on F.Cu - B.Cu",
+      "fingerprint": "acce64cbd50da8e27d5d1f4b9c19db9d01274cde7dc43b11bc209f685ce88c16",
+      "section": "DRC violations"
+    }
+  ],
+  "added": [
+    {
+      "uuid": "fdf31713-76b8-48f3-adef-130233fc3b60",
+      "kind": "via",
+      "net": "VBUS_DBG_RAW",
+      "xy": [
+        114.7,
+        106.42
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    {
+      "uuid": "ea14fd60-b07a-46f1-ba83-011030af27f1",
+      "kind": "via",
+      "net": "VBUS_DBG_RAW",
+      "xy": [
+        115.6,
+        111.85
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    {
+      "uuid": "664e43f9-b6e0-43e3-b31a-153edcada509",
+      "kind": "via",
+      "net": "VBUS_DBG_RAW",
+      "xy": [
+        120.4,
+        112.1
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    {
+      "uuid": "27525bce-b2af-4aa2-bab7-72cc5500a92a",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "F.Cu",
+      "start": [
+        115.6525,
+        106.42
+      ],
+      "end": [
+        114.7,
+        106.42
+      ],
+      "width_mm": 0.25
+    },
+    {
+      "uuid": "c0591ae6-8bf6-4f67-b53b-6f5ce510ac0c",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "F.Cu",
+      "start": [
+        115.6,
+        110.64
+      ],
+      "end": [
+        115.6,
+        111.85
+      ],
+      "width_mm": 0.25
+    },
+    {
+      "uuid": "ad028e5b-4ba5-4c6b-b542-ea6f78c24626",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "F.Cu",
+      "start": [
+        120.4,
+        110.64
+      ],
+      "end": [
+        120.4,
+        112.1
+      ],
+      "width_mm": 0.25
+    },
+    {
+      "uuid": "2a21c7c6-929c-4a26-aa51-bf3beff9c5bc",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "B.Cu",
+      "start": [
+        114.7,
+        106.42
+      ],
+      "end": [
+        115.6,
+        111.85
+      ],
+      "width_mm": 0.25
+    },
+    {
+      "uuid": "aefc34bb-b8ce-4f5c-8113-0b031a1893d7",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "B.Cu",
+      "start": [
+        115.6,
+        111.85
+      ],
+      "end": [
+        115.6,
+        112.6
+      ],
+      "width_mm": 0.25
+    },
+    {
+      "uuid": "e7d51eeb-4931-4595-a40c-d829a9ba8ba2",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "B.Cu",
+      "start": [
+        115.6,
+        112.6
+      ],
+      "end": [
+        120.4,
+        112.6
+      ],
+      "width_mm": 0.25
+    },
+    {
+      "uuid": "199f60ff-3ec0-4988-aee9-9f26eccbfb8a",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "B.Cu",
+      "start": [
+        120.4,
+        112.6
+      ],
+      "end": [
+        120.4,
+        112.1
+      ],
+      "width_mm": 0.25
+    }
+  ],
+  "fabrication_ready": false
+}

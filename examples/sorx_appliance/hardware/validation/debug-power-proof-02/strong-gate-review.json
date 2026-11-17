@@ -1,0 +1,40 @@
+{
+  "accepted": true,
+  "before_open_by_net": {
+    "GND": 16,
+    "USB1_OC#": 1,
+    "USB1_VBUS_DET": 1,
+    "FRAM_MOSI": 1,
+    "+1V8": 2,
+    "MG_TXD0": 1,
+    "PD_ALERT#": 1,
+    "PCIE_RST#_1V8": 1,
+    "VBUS_IN": 1,
+    "PD_ATTACH#": 2,
+    "PD_EN_SNK#": 1,
+    "+1V2_PHY": 1,
+    "PCIE_RST#_3V3": 1,
+    "OE_JTAG_PU": 1,
+    "MG_LED2": 2,
+    "VBUS_DBG_RAW": 2
+  },
+  "after_open_by_net": {
+    "GND": 16,
+    "USB1_OC#": 1,
+    "USB1_VBUS_DET": 1,
+    "FRAM_MOSI": 1,
+    "+1V8": 2,
+    "MG_TXD0": 1,
+    "PD_ALERT#": 1,
+    "PCIE_RST#_1V8": 1,
+    "VBUS_IN": 1,
+    "PD_ATTACH#": 2,
+    "PD_EN_SNK#": 1,
+    "+1V2_PHY": 1,
+    "PCIE_RST#_3V3": 1,
+    "OE_JTAG_PU": 1,
+    "MG_LED2": 2
+  },
+  "increased_open_by_net": {},
+  "required_power_opens": {}
+}

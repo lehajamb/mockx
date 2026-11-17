@@ -1,0 +1,120 @@
+{
+  "status": "ACCEPTED FOR FURTHER DEVELOPMENT",
+  "source_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "output_sha256": "e849a676c5e91515ff0062ab52897d156b6bc2ee250b4ec288071f4b126e2204",
+  "tool_sha256": "cc779c5044f9900de8652eac408f430218e4f5c1a4d0bce5da75cae8fe21a839",
+  "current_allocation_a": 0.1,
+  "via_in_power_pad_qualification_required": [
+    "FB2.1",
+    "J10.A4/B9",
+    "J10.A9/B4"
+  ],
+  "assembly_requirement": "Filled and copper-capped planar vias; no open or merely underside-tented holes in solder lands. Supplier approval required.",
+  "before": {
+    "DRC violations": 95,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 95,
+    "unconnected pads": 33,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [],
+  "added": [
+    {
+      "uuid": "2ca0986b-259e-4a98-9933-e19c065751f9",
+      "kind": "via",
+      "net": "VBUS_DBG_RAW",
+      "xy": [
+        115.6525,
+        106.42
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    {
+      "uuid": "a214a443-f6c6-4b3e-a255-42f68a7f616d",
+      "kind": "via",
+      "net": "VBUS_DBG_RAW",
+      "xy": [
+        115.6,
+        110.64
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    {
+      "uuid": "bb7affb6-3783-494f-a3f1-887b2c9e1461",
+      "kind": "via",
+      "net": "VBUS_DBG_RAW",
+      "xy": [
+        120.4,
+        110.64
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    {
+      "uuid": "b2673753-a3fd-40d1-a441-ecd1c3005853",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "B.Cu",
+      "start": [
+        115.6525,
+        106.42
+      ],
+      "end": [
+        115.6,
+        106.4725
+      ],
+      "width_mm": 0.25
+    },
+    {
+      "uuid": "093ef42b-1447-4891-abe2-0c13229d129a",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "B.Cu",
+      "start": [
+        115.6,
+        106.4725
+      ],
+      "end": [
+        115.6,
+        110.64
+      ],
+      "width_mm": 0.25
+    },
+    {
+      "uuid": "ec83467c-84d8-4e98-81dc-1f5b2568bfcb",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "B.Cu",
+      "start": [
+        115.6,
+        107.8
+      ],
+      "end": [
+        120.4,
+        107.8
+      ],
+      "width_mm": 0.25
+    },
+    {
+      "uuid": "b2d2c0a3-e8eb-4c69-8347-8131ed1df5ea",
+      "kind": "track",
+      "net": "VBUS_DBG_RAW",
+      "layer": "B.Cu",
+      "start": [
+        120.4,
+        107.8
+      ],
+      "end": [
+        120.4,
+        110.64
+      ],
+      "width_mm": 0.25
+    }
+  ],
+  "fabrication_ready": false
+}
