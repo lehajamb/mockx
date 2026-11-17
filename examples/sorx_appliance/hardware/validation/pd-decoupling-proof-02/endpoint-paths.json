@@ -1,0 +1,1512 @@
+{
+  "before": {
+    "PD_1V2": {
+      "source": "U2:21",
+      "destination": "C14:1",
+      "planar_length_mm": 20.465144952182037,
+      "track_length_mm": 18.074735511842242,
+      "pad_copper_length_mm": 0.890481056109967,
+      "via_radial_estimate_mm": 1.4999283842298263,
+      "series_components": [],
+      "via_count": 4,
+      "via_ids": [
+        "103cfc3c-c68c-4b06-8b8e-0327e3d3f9f9",
+        "8613ec36-e2a3-4002-a1cd-644cb2f45276",
+        "bd260389-8a51-4232-ad69-9cfe5ee544ae",
+        "df51cd63-6894-46df-8fb9-70985690e164"
+      ],
+      "layer_sequence": [
+        "F.Cu",
+        "In3.Cu",
+        "F.Cu",
+        "B.Cu",
+        "F.Cu"
+      ],
+      "via_barrel_length_mm": null,
+      "edges": [
+        {
+          "length_mm": 0.41249999999999964,
+          "kind": "pad_copper",
+          "object": "U2:21",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            15.75,
+            11.0375
+          ],
+          "end": [
+            15.75,
+            10.625
+          ]
+        },
+        {
+          "length_mm": 0.6575000000000006,
+          "kind": "track",
+          "object": "340263e1-dc72-40f7-8ac4-230c877704b0",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            15.75,
+            10.625
+          ],
+          "end": [
+            15.75,
+            9.9675
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.47404438610746075,
+          "kind": "track",
+          "object": "2bb2031f-2216-47e8-a1e3-593d210dfa00",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            15.75,
+            9.9675
+          ],
+          "end": [
+            16.0852,
+            9.6323
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.4640999999999984,
+          "kind": "track",
+          "object": "41ad8bd3-3096-4dea-a986-f75f162c05f9",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            16.0852,
+            9.6323
+          ],
+          "end": [
+            16.5493,
+            9.6323
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 1.5637692277594444,
+          "kind": "track",
+          "object": "5501fa80-6b47-4f59-b1fc-5c94b0f70e8d",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            16.5493,
+            9.6323
+          ],
+          "end": [
+            17.655051825159553,
+            10.738051825159554
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.29998369857043944,
+          "kind": "via_copper",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            17.7119,
+            11.0326
+          ],
+          "end": [
+            17.655052,
+            10.738052
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "xy": [
+            17.7119,
+            11.0326
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "xy": [
+            17.7119,
+            11.0326
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "xy": [
+            17.7119,
+            11.0326
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.2999786079039635,
+          "kind": "via_copper",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            17.7119,
+            11.0326
+          ],
+          "end": [
+            17.42614,
+            11.12386
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 5.976664939883437,
+          "kind": "track",
+          "object": "802d2ed2-c329-47c5-b0d0-9cb27673b197",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            13.2,
+            15.35
+          ],
+          "end": [
+            17.426140307871467,
+            11.123859692128532
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.20000000000000107,
+          "kind": "track",
+          "object": "a0f92b14-7664-4260-941a-e11552adb26e",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            13.2,
+            15.55
+          ],
+          "end": [
+            13.2,
+            15.35
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.07071067811865324,
+          "kind": "track",
+          "object": "5e5accd7-3294-46df-bc55-f30928e46e68",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            13.15,
+            15.6
+          ],
+          "end": [
+            13.2,
+            15.55
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.15000000000000036,
+          "kind": "track",
+          "object": "97029177-ab3f-456d-86e2-42ad6b169da9",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            13.15,
+            15.75
+          ],
+          "end": [
+            13.15,
+            15.6
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.0707106781186545,
+          "kind": "track",
+          "object": "29da9313-2c13-4c3b-8f9c-c0bb97868fb0",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            13.2,
+            15.8
+          ],
+          "end": [
+            13.15,
+            15.75
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.14999999999999858,
+          "kind": "track",
+          "object": "55ce01f2-cbbb-4694-a2e8-b071be6f6c91",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            13.2,
+            15.95
+          ],
+          "end": [
+            13.2,
+            15.8
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.14142135623731153,
+          "kind": "track",
+          "object": "eb8e9f0d-7cbe-4e3f-be94-45aed479b0f3",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            13.3,
+            16.05
+          ],
+          "end": [
+            13.2,
+            15.95
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.517169723460114,
+          "kind": "track",
+          "object": "546eb0a6-958c-4cc8-87ab-10f3542979a0",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            13.3,
+            16.567169723460115
+          ],
+          "end": [
+            13.3,
+            16.05
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.2999880145939178,
+          "kind": "via_copper",
+          "object": "103cfc3c-c68c-4b06-8b8e-0327e3d3f9f9",
+          "net": "PD_1V2",
+          "layer": "In3.Cu",
+          "start": [
+            13.2,
+            16.85
+          ],
+          "end": [
+            13.3,
+            16.56717
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "103cfc3c-c68c-4b06-8b8e-0327e3d3f9f9",
+          "xy": [
+            13.2,
+            16.85
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "103cfc3c-c68c-4b06-8b8e-0327e3d3f9f9",
+          "xy": [
+            13.2,
+            16.85
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "103cfc3c-c68c-4b06-8b8e-0327e3d3f9f9",
+          "xy": [
+            13.2,
+            16.85
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.3000000000000007,
+          "kind": "track",
+          "object": "1c7c6ef8-7160-4976-b2ae-a85187db438b",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            13.2,
+            16.55
+          ],
+          "end": [
+            13.2,
+            16.85
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.9192388155425111,
+          "kind": "track",
+          "object": "4e9d9cc3-d6bb-4a55-bb3a-dfda603a2df0",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.55,
+            15.9
+          ],
+          "end": [
+            13.2,
+            16.55
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 1.0500000000000007,
+          "kind": "track",
+          "object": "80bec374-6154-4847-ad31-4712c68282c7",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.55,
+            14.85
+          ],
+          "end": [
+            12.55,
+            15.9
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.14142135623731025,
+          "kind": "track",
+          "object": "08415b91-b963-49c6-a0d8-90c2e51adc6c",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.45,
+            14.75
+          ],
+          "end": [
+            12.55,
+            14.85
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.05000000000000071,
+          "kind": "track",
+          "object": "13310b1c-777a-489d-b7ff-10eda3e10dd9",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.45,
+            14.7
+          ],
+          "end": [
+            12.45,
+            14.75
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.07071067811865324,
+          "kind": "track",
+          "object": "5e0df091-6eae-4fd5-be68-14cd7105405c",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.4,
+            14.65
+          ],
+          "end": [
+            12.45,
+            14.7
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.6216000000000008,
+          "kind": "track",
+          "object": "a03ab45b-b291-4bde-9e47-8c88f9c9d91d",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.4,
+            14.0284
+          ],
+          "end": [
+            12.4,
+            14.65
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 1.5204805847034486,
+          "kind": "track",
+          "object": "9360b47e-c2c7-4dcc-9ecb-75fb84a39a0a",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.4,
+            14.0284
+          ],
+          "end": [
+            11.324857867893705,
+            15.103542132106295
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.29997811174817546,
+          "kind": "via_copper",
+          "object": "bd260389-8a51-4232-ad69-9cfe5ee544ae",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            11.1047,
+            15.3073
+          ],
+          "end": [
+            11.324858,
+            15.103542
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "bd260389-8a51-4232-ad69-9cfe5ee544ae",
+          "xy": [
+            11.1047,
+            15.3073
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "bd260389-8a51-4232-ad69-9cfe5ee544ae",
+          "xy": [
+            11.1047,
+            15.3073
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "bd260389-8a51-4232-ad69-9cfe5ee544ae",
+          "xy": [
+            11.1047,
+            15.3073
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "bd260389-8a51-4232-ad69-9cfe5ee544ae",
+          "xy": [
+            11.1047,
+            15.3073
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "bd260389-8a51-4232-ad69-9cfe5ee544ae",
+          "xy": [
+            11.1047,
+            15.3073
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.3000000000000007,
+          "kind": "track",
+          "object": "fa1a3f2e-2279-44f2-ad3d-ebcaf9fa320b",
+          "net": "PD_1V2",
+          "layer": "B.Cu",
+          "start": [
+            11.1047,
+            15.3073
+          ],
+          "end": [
+            11.1047,
+            15.6073
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 2.1401999999999983,
+          "kind": "track",
+          "object": "fa1a3f2e-2279-44f2-ad3d-ebcaf9fa320b",
+          "net": "PD_1V2",
+          "layer": "B.Cu",
+          "start": [
+            11.1047,
+            15.6073
+          ],
+          "end": [
+            11.1047,
+            17.7475
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.05949308755524133,
+          "kind": "track",
+          "object": "b78edd7e-3a59-47a1-85f7-07891dfb8c7a",
+          "net": "PD_1V2",
+          "layer": "B.Cu",
+          "start": [
+            11.1047,
+            17.7475
+          ],
+          "end": [
+            11.062632034355964,
+            17.789567965644036
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.29999995141333,
+          "kind": "via_copper",
+          "object": "8613ec36-e2a3-4002-a1cd-644cb2f45276",
+          "net": "PD_1V2",
+          "layer": "B.Cu",
+          "start": [
+            10.8505,
+            18.0017
+          ],
+          "end": [
+            11.062632,
+            17.789568
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "8613ec36-e2a3-4002-a1cd-644cb2f45276",
+          "xy": [
+            10.8505,
+            18.0017
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "8613ec36-e2a3-4002-a1cd-644cb2f45276",
+          "xy": [
+            10.8505,
+            18.0017
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "8613ec36-e2a3-4002-a1cd-644cb2f45276",
+          "xy": [
+            10.8505,
+            18.0017
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "8613ec36-e2a3-4002-a1cd-644cb2f45276",
+          "xy": [
+            10.8505,
+            18.0017
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "8613ec36-e2a3-4002-a1cd-644cb2f45276",
+          "xy": [
+            10.8505,
+            18.0017
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.30000000000000066,
+          "kind": "track",
+          "object": "8d280384-983d-47b3-a521-c6b867b8df5d",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            10.8505,
+            18.0017
+          ],
+          "end": [
+            10.5505,
+            18.0017
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.16549999999999976,
+          "kind": "track",
+          "object": "8d280384-983d-47b3-a521-c6b867b8df5d",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            10.5505,
+            18.0017
+          ],
+          "end": [
+            10.385,
+            18.0017
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.4779810561099673,
+          "kind": "pad_copper",
+          "object": "C14:1",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            9.91,
+            18.055
+          ],
+          "end": [
+            10.385,
+            18.0017
+          ]
+        }
+      ],
+      "off_path_track_length_mm": 4.0371060000000005,
+      "off_path_tracks": [
+        {
+          "object": "45a080a1-8d34-4175-a0d6-384c74ec2599",
+          "length_mm": 0.0216,
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.45,
+            14.0
+          ],
+          "end": [
+            12.4284,
+            14.0
+          ]
+        },
+        {
+          "object": "45a080a1-8d34-4175-a0d6-384c74ec2599",
+          "length_mm": 0.0284,
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.4284,
+            14.0
+          ],
+          "end": [
+            12.4,
+            14.0
+          ]
+        },
+        {
+          "object": "9360b47e-c2c7-4dcc-9ecb-75fb84a39a0a",
+          "length_mm": 0.031113,
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.4504,
+            13.978
+          ],
+          "end": [
+            12.4284,
+            14.0
+          ]
+        },
+        {
+          "object": "9360b47e-c2c7-4dcc-9ecb-75fb84a39a0a",
+          "length_mm": 0.040164,
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.4284,
+            14.0
+          ],
+          "end": [
+            12.4,
+            14.0284
+          ]
+        },
+        {
+          "object": "a03ab45b-b291-4bde-9e47-8c88f9c9d91d",
+          "length_mm": 0.0284,
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.4,
+            14.0
+          ],
+          "end": [
+            12.4,
+            14.0284
+          ]
+        },
+        {
+          "object": "cb52c67d-4df6-436b-b427-94378fae4679",
+          "length_mm": 0.022004,
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            12.4504,
+            13.978
+          ],
+          "end": [
+            12.45,
+            14.0
+          ]
+        },
+        {
+          "object": "717a6dd3-0b07-47ce-9788-30b00e129a84",
+          "length_mm": 3.865425,
+          "net": "PD_1V2",
+          "layer": "B.Cu",
+          "start": [
+            17.499767965644036,
+            11.244732034355964
+          ],
+          "end": [
+            14.7665,
+            13.978
+          ]
+        }
+      ]
+    },
+    "PD_2V7": {
+      "source": "U2:23",
+      "destination": "C15:1",
+      "planar_length_mm": 16.455083549327295,
+      "track_length_mm": 16.042583549327297,
+      "pad_copper_length_mm": 0.41249999999999964,
+      "via_radial_estimate_mm": 0,
+      "series_components": [],
+      "via_count": 0,
+      "via_ids": [],
+      "layer_sequence": [
+        "F.Cu"
+      ],
+      "via_barrel_length_mm": 0.0,
+      "edges": [
+        {
+          "length_mm": 0.41249999999999964,
+          "kind": "pad_copper",
+          "object": "U2:23",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            14.75,
+            11.0375
+          ],
+          "end": [
+            14.75,
+            10.625
+          ]
+        },
+        {
+          "length_mm": 0.09619999999999962,
+          "kind": "track",
+          "object": "5326039b-7b28-4be1-8f5c-b3c3630df7b7",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            14.75,
+            10.5288
+          ],
+          "end": [
+            14.75,
+            10.625
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 1.720249377270633,
+          "kind": "track",
+          "object": "8c787eda-6988-4b8f-b3ae-00a5ede6b0f4",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            15.9664,
+            9.3124
+          ],
+          "end": [
+            14.75,
+            10.5288
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.780899999999999,
+          "kind": "track",
+          "object": "efd269c1-bb08-41a6-8f97-ad685c8f2a60",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            16.7473,
+            9.3124
+          ],
+          "end": [
+            15.9664,
+            9.3124
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 3.1780207173648183,
+          "kind": "track",
+          "object": "c5ae1794-e871-4a78-9efc-833c158b0550",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            18.9945,
+            11.5596
+          ],
+          "end": [
+            16.7473,
+            9.3124
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 9.270900000000001,
+          "kind": "track",
+          "object": "84ceeb39-e153-4d3d-b102-1669a5b3666e",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            18.9945,
+            20.8305
+          ],
+          "end": [
+            18.9945,
+            11.5596
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.438954024892353,
+          "kind": "track",
+          "object": "44e5a821-352c-47b2-85d7-0b54bb916fe6",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            18.684112632369487,
+            21.140887367630512
+          ],
+          "end": [
+            18.9945,
+            20.8305
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.5573594297994917,
+          "kind": "track",
+          "object": "44e5a821-352c-47b2-85d7-0b54bb916fe6",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            18.29,
+            21.535
+          ],
+          "end": [
+            18.684112632369487,
+            21.140887367630512
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "pad_copper",
+          "object": "C15:1",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            18.29,
+            21.535
+          ],
+          "end": [
+            18.29,
+            21.535
+          ]
+        }
+      ],
+      "off_path_track_length_mm": 0,
+      "off_path_tracks": []
+    }
+  },
+  "after": {
+    "PD_1V2": {
+      "source": "U2:21",
+      "destination": "C14:1",
+      "planar_length_mm": 4.880217061090547,
+      "track_length_mm": 3.8677561327275773,
+      "pad_copper_length_mm": 0.41249999999999964,
+      "via_radial_estimate_mm": 0.5999609283629692,
+      "series_components": [],
+      "via_count": 1,
+      "via_ids": [
+        "df51cd63-6894-46df-8fb9-70985690e164"
+      ],
+      "layer_sequence": [
+        "F.Cu",
+        "B.Cu"
+      ],
+      "via_barrel_length_mm": null,
+      "edges": [
+        {
+          "length_mm": 0.41249999999999964,
+          "kind": "pad_copper",
+          "object": "U2:21",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            15.75,
+            11.0375
+          ],
+          "end": [
+            15.75,
+            10.625
+          ]
+        },
+        {
+          "length_mm": 0.6575000000000006,
+          "kind": "track",
+          "object": "340263e1-dc72-40f7-8ac4-230c877704b0",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            15.75,
+            10.625
+          ],
+          "end": [
+            15.75,
+            9.9675
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.47404438610746075,
+          "kind": "track",
+          "object": "2bb2031f-2216-47e8-a1e3-593d210dfa00",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            15.75,
+            9.9675
+          ],
+          "end": [
+            16.0852,
+            9.6323
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.4640999999999984,
+          "kind": "track",
+          "object": "41ad8bd3-3096-4dea-a986-f75f162c05f9",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            16.0852,
+            9.6323
+          ],
+          "end": [
+            16.5493,
+            9.6323
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 1.5637692277594444,
+          "kind": "track",
+          "object": "5501fa80-6b47-4f59-b1fc-5c94b0f70e8d",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            16.5493,
+            9.6323
+          ],
+          "end": [
+            17.655051825159553,
+            10.738051825159554
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.29998369857043944,
+          "kind": "via_copper",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "net": "PD_1V2",
+          "layer": "F.Cu",
+          "start": [
+            17.7119,
+            11.0326
+          ],
+          "end": [
+            17.655052,
+            10.738052
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "xy": [
+            17.7119,
+            11.0326
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "xy": [
+            17.7119,
+            11.0326
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "xy": [
+            17.7119,
+            11.0326
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "xy": [
+            17.7119,
+            11.0326
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "xy": [
+            17.7119,
+            11.0326
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.29997722979252983,
+          "kind": "via_copper",
+          "object": "df51cd63-6894-46df-8fb9-70985690e164",
+          "net": "PD_1V2",
+          "layer": "B.Cu",
+          "start": [
+            17.7119,
+            11.0326
+          ],
+          "end": [
+            17.723235,
+            10.732837
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.25802093000004295,
+          "kind": "track",
+          "object": "9a07b474-ca7d-4a23-9f71-7b03987bf872",
+          "net": "PD_1V2",
+          "layer": "B.Cu",
+          "start": [
+            17.723234838137078,
+            10.732836669109714
+          ],
+          "end": [
+            17.732984319174275,
+            10.475
+          ],
+          "width_mm": 0.25
+        },
+        {
+          "length_mm": 0.45032158886063,
+          "kind": "track",
+          "object": "9a07b474-ca7d-4a23-9f71-7b03987bf872",
+          "net": "PD_1V2",
+          "layer": "B.Cu",
+          "start": [
+            17.732984319174275,
+            10.475
+          ],
+          "end": [
+            17.75,
+            10.025
+          ],
+          "width_mm": 0.25
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "pad_copper",
+          "object": "C14:1",
+          "net": "PD_1V2",
+          "layer": "B.Cu",
+          "start": [
+            17.75,
+            10.025
+          ],
+          "end": [
+            17.75,
+            10.025
+          ]
+        }
+      ],
+      "off_path_track_length_mm": 0,
+      "off_path_tracks": []
+    },
+    "PD_2V7": {
+      "source": "U2:23",
+      "destination": "C15:1",
+      "planar_length_mm": 7.170179754530784,
+      "track_length_mm": 6.00684925112591,
+      "pad_copper_length_mm": 0.8633305519915462,
+      "via_radial_estimate_mm": 0.29999995141332747,
+      "series_components": [],
+      "via_count": 1,
+      "via_ids": [
+        "f0423e53-bd21-4a4c-9109-2ddd536c7867"
+      ],
+      "layer_sequence": [
+        "F.Cu",
+        "B.Cu"
+      ],
+      "via_barrel_length_mm": null,
+      "edges": [
+        {
+          "length_mm": 0.41249999999999964,
+          "kind": "pad_copper",
+          "object": "U2:23",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            14.75,
+            11.0375
+          ],
+          "end": [
+            14.75,
+            10.625
+          ]
+        },
+        {
+          "length_mm": 0.09619999999999962,
+          "kind": "track",
+          "object": "5326039b-7b28-4be1-8f5c-b3c3630df7b7",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            14.75,
+            10.5288
+          ],
+          "end": [
+            14.75,
+            10.625
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 1.720249377270633,
+          "kind": "track",
+          "object": "8c787eda-6988-4b8f-b3ae-00a5ede6b0f4",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            15.9664,
+            9.3124
+          ],
+          "end": [
+            14.75,
+            10.5288
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.780899999999999,
+          "kind": "track",
+          "object": "efd269c1-bb08-41a6-8f97-ad685c8f2a60",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            16.7473,
+            9.3124
+          ],
+          "end": [
+            15.9664,
+            9.3124
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 2.878020717364819,
+          "kind": "track",
+          "object": "c5ae1794-e871-4a78-9efc-833c158b0550",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            18.782367965644035,
+            11.347467965644036
+          ],
+          "end": [
+            16.7473,
+            9.3124
+          ],
+          "width_mm": 0.15
+        },
+        {
+          "length_mm": 0.29999995141332747,
+          "kind": "via_copper",
+          "object": "f0423e53-bd21-4a4c-9109-2ddd536c7867",
+          "net": "PD_2V7",
+          "layer": "F.Cu",
+          "start": [
+            18.9945,
+            11.5596
+          ],
+          "end": [
+            18.782368,
+            11.347468
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "f0423e53-bd21-4a4c-9109-2ddd536c7867",
+          "xy": [
+            18.9945,
+            11.5596
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "f0423e53-bd21-4a4c-9109-2ddd536c7867",
+          "xy": [
+            18.9945,
+            11.5596
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "f0423e53-bd21-4a4c-9109-2ddd536c7867",
+          "xy": [
+            18.9945,
+            11.5596
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "f0423e53-bd21-4a4c-9109-2ddd536c7867",
+          "xy": [
+            18.9945,
+            11.5596
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "f0423e53-bd21-4a4c-9109-2ddd536c7867",
+          "xy": [
+            18.9945,
+            11.5596
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.2999774736525388,
+          "kind": "track",
+          "object": "d645cf15-1c34-4391-afec-c0fa64d2190b",
+          "net": "PD_2V7",
+          "layer": "B.Cu",
+          "start": [
+            18.9945,
+            11.5596
+          ],
+          "end": [
+            19.293924818131185,
+            11.541399368525632
+          ],
+          "width_mm": 0.25
+        },
+        {
+          "length_mm": 0.23150168283792028,
+          "kind": "track",
+          "object": "d645cf15-1c34-4391-afec-c0fa64d2190b",
+          "net": "PD_2V7",
+          "layer": "B.Cu",
+          "start": [
+            19.293924818131185,
+            11.541399368525632
+          ],
+          "end": [
+            19.525,
+            11.527353391126976
+          ],
+          "width_mm": 0.25
+        },
+        {
+          "length_mm": 0.45083055199154654,
+          "kind": "pad_copper",
+          "object": "C15:1",
+          "net": "PD_2V7",
+          "layer": "B.Cu",
+          "start": [
+            19.975,
+            11.5
+          ],
+          "end": [
+            19.525,
+            11.527353
+          ]
+        }
+      ],
+      "off_path_track_length_mm": 0,
+      "off_path_tracks": []
+    }
+  }
+}

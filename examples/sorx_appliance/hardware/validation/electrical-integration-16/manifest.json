@@ -1,0 +1,73 @@
+{
+  "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "environment": {
+    "KICAD7_FOOTPRINT_DIR": "/usr/share/kicad/footprints"
+  },
+  "steps": [
+    {
+      "name": "network",
+      "command": [
+        "/usr/bin/python3",
+        "tools/power_network.py",
+        "runs/route-combined-15b-ground.kicad_pcb",
+        "validation/electrical-integration-16/network-before.json"
+      ],
+      "started_utc": "2026-11-17T02:38:28.936140+00:00",
+      "tool_sha256": "fdb03624a7b1a0b6c19d0f0fdc0da93cf1212c73dbc65aa502146bff2272c8b2",
+      "returncode": 0
+    },
+    {
+      "name": "widen",
+      "command": [
+        "/usr/bin/python3",
+        "tools/widen_main_power.py",
+        "runs/route-combined-15b-ground.kicad_pcb",
+        "validation/electrical-integration-16/network-before.json",
+        "runs/route-electrical-16a-widen.kicad_pcb",
+        "validation/electrical-integration-16/widen"
+      ],
+      "started_utc": "2026-11-17T02:38:36.759633+00:00",
+      "tool_sha256": "182d16f89521071f406d23200eb9fabb294ea87f9a3f97005729419414fdc168",
+      "returncode": 0
+    },
+    {
+      "name": "bypass",
+      "command": [
+        "/usr/bin/python3",
+        "tools/route_main_bypass.py",
+        "runs/route-electrical-16a-widen.kicad_pcb",
+        "runs/route-electrical-16b-bypass.kicad_pcb",
+        "validation/electrical-integration-16/bypass"
+      ],
+      "started_utc": "2026-11-17T02:40:10.975001+00:00",
+      "tool_sha256": "8102f210f9d5d674d796eae0db0d4c6f8af57be4069befe3d09702dd0aec5558",
+      "returncode": 0
+    },
+    {
+      "name": "pd-local",
+      "command": [
+        "/usr/bin/python3",
+        "tools/relocate_pd_decoupling.py",
+        "runs/route-electrical-16b-bypass.kicad_pcb",
+        "runs/route-electrical-16c-pd.kicad_pcb",
+        "validation/electrical-integration-16/pd-local"
+      ],
+      "started_utc": "2026-11-17T02:40:55.844681+00:00",
+      "tool_sha256": "aabf03c6abc083ecedc05fa0be45530c34259f9f1b5876343bba52d35cf9fb7a",
+      "returncode": 0
+    },
+    {
+      "name": "headers",
+      "command": [
+        "/usr/bin/python3",
+        "tools/update_service_headers.py",
+        "runs/route-electrical-16c-pd.kicad_pcb",
+        "runs/route-electrical-16d-headers.kicad_pcb",
+        "validation/electrical-integration-16/headers"
+      ],
+      "started_utc": "2026-11-17T02:41:25.145281+00:00",
+      "tool_sha256": "dd72769762bbeda1ff210aa230bc80cd7505c2463c4335c25c8afaea37e76a2d",
+      "returncode": 0
+    }
+  ]
+}

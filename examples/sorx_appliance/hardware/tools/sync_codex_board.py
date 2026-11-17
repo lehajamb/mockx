@@ -13,6 +13,7 @@ from gen_pcb import fp_path,api_rect,overlap
 mm=pcbnew.FromMM;MM=pcbnew.ToMM
 # Fixed manual engineering placements, including the manufacturer's module mounts.
 PLACEMENT={
+ 'C14':(17.75,9.25,90,'B'),'C15':(20.75,11.5,0,'B'),
  'U1':(134,46,0,'F'),'R12':(18,16,90,'B'),
  'U38':(8,15,0,'B'),'C136':(3,18.5,0,'B'),'C137':(8,19,0,'B'),'C138':(7,22,0,'B'),
  'U39':(13,22,0,'B'),'R112':(13,26,0,'B'),'R113':(17,26,0,'B'),'Q5':(18,22,0,'B'),'TP21':(17.5,28,0,'F'),

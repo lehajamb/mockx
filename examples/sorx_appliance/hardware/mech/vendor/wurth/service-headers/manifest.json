@@ -1,0 +1,18 @@
+{
+  "retrieved_date": "2026-11-17",
+  "source_author": "Wurth Elektronik",
+  "files": {
+    "61300311121.pdf": {
+      "sha256": "d8a8e70731d06c6a1b0685f3c24e2fc7b481dbbe1d25ffa9edfe14b89fb5eb8e",
+      "source": "https://www.we-online.com/components/products/datasheet/61300311121.pdf"
+    },
+    "61300211121.pdf": {
+      "sha256": "a054dde42f94b42e1f34117df97a37071aa9e57febcb8375058a3fb7dbae6dbe",
+      "source": "https://www.we-online.com/components/products/datasheet/61300211121.pdf"
+    },
+    "60900213421.pdf": {
+      "sha256": "f73326c5d57351217dc42e366496ccf8fabaa08eb83b53b232a80bcc8ee5930a",
+      "source": "https://www.we-online.com/components/products/datasheet/60900213421.pdf"
+    }
+  }
+}

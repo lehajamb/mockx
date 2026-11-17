@@ -1,0 +1,96 @@
+{
+  "purpose": "Byte-identical scratch projects used by historical native DRC. Extract under an isolated scratch hardware directory; do not overwrite current native source.",
+  "archive_sha256": "8df824d56a506e2dfb912c6bdf169fa5e0c8e1100abd3eb67fc038c804e7d16e",
+  "members": [
+    {
+      "member": "validation/electrical-integration-16/headers/after-drc-project/fp-lib-table",
+      "sha256": "c47ad22a090353f7a8f94d14d58502b43ec663330d3ce8717e0b73b060ba0a80",
+      "bytes": 125
+    },
+    {
+      "member": "validation/electrical-integration-16/headers/after-drc-project/route-electrical-16d-headers.kicad_pcb",
+      "sha256": "c07f2ea56a1070314e144a89b0a8ebe854f3fa5ef83933abc69055da0e19e646",
+      "bytes": 9852128
+    },
+    {
+      "member": "validation/electrical-integration-16/headers/after-drc-project/route-electrical-16d-headers.kicad_pro",
+      "sha256": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+      "bytes": 11408
+    },
+    {
+      "member": "validation/electrical-integration-16/headers/before-drc-project/fp-lib-table",
+      "sha256": "c47ad22a090353f7a8f94d14d58502b43ec663330d3ce8717e0b73b060ba0a80",
+      "bytes": 125
+    },
+    {
+      "member": "validation/electrical-integration-16/headers/before-drc-project/route-electrical-16d-headers.kicad_pcb",
+      "sha256": "82b2c0d5eb3bbf321786b59afba036325cb8c333760eef0959d42d39a79c8984",
+      "bytes": 9855339
+    },
+    {
+      "member": "validation/electrical-integration-16/headers/before-drc-project/route-electrical-16d-headers.kicad_pro",
+      "sha256": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+      "bytes": 11408
+    },
+    {
+      "member": "validation/header-proof-02/after-drc-project/fp-lib-table",
+      "sha256": "c47ad22a090353f7a8f94d14d58502b43ec663330d3ce8717e0b73b060ba0a80",
+      "bytes": 125
+    },
+    {
+      "member": "validation/header-proof-02/after-drc-project/header-proof-02.kicad_pcb",
+      "sha256": "397ddd15a3eb7bc530d1f7df9440a93edb8498ee178ce9c4353f61c10ce178b9",
+      "bytes": 9595376
+    },
+    {
+      "member": "validation/header-proof-02/after-drc-project/header-proof-02.kicad_pro",
+      "sha256": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+      "bytes": 11408
+    },
+    {
+      "member": "validation/header-proof-02/before-drc-project/fp-lib-table",
+      "sha256": "c47ad22a090353f7a8f94d14d58502b43ec663330d3ce8717e0b73b060ba0a80",
+      "bytes": 125
+    },
+    {
+      "member": "validation/header-proof-02/before-drc-project/header-proof-02.kicad_pcb",
+      "sha256": "1b0d2daeb9027e756f05e196231699b36a1eb811ffe74caaf152d1c49109778a",
+      "bytes": 9598587
+    },
+    {
+      "member": "validation/header-proof-02/before-drc-project/header-proof-02.kicad_pro",
+      "sha256": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+      "bytes": 11408
+    },
+    {
+      "member": "validation/header-proof-03/after-drc-project/fp-lib-table",
+      "sha256": "c47ad22a090353f7a8f94d14d58502b43ec663330d3ce8717e0b73b060ba0a80",
+      "bytes": 125
+    },
+    {
+      "member": "validation/header-proof-03/after-drc-project/header-proof-03.kicad_pcb",
+      "sha256": "a2f614437c2151a90c20b06f82857536faf54edbfdb81172912aa1ed3ea51dcf",
+      "bytes": 9595376
+    },
+    {
+      "member": "validation/header-proof-03/after-drc-project/header-proof-03.kicad_pro",
+      "sha256": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+      "bytes": 11408
+    },
+    {
+      "member": "validation/header-proof-03/before-drc-project/fp-lib-table",
+      "sha256": "c47ad22a090353f7a8f94d14d58502b43ec663330d3ce8717e0b73b060ba0a80",
+      "bytes": 125
+    },
+    {
+      "member": "validation/header-proof-03/before-drc-project/header-proof-03.kicad_pcb",
+      "sha256": "1b0d2daeb9027e756f05e196231699b36a1eb811ffe74caaf152d1c49109778a",
+      "bytes": 9598587
+    },
+    {
+      "member": "validation/header-proof-03/before-drc-project/header-proof-03.kicad_pro",
+      "sha256": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+      "bytes": 11408
+    }
+  ]
+}

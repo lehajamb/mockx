@@ -1,0 +1,128 @@
+[
+  {
+    "uuid": "7cb74cb6-b71a-425d-a887-ba74861535ca",
+    "kind": "track",
+    "net": "PD_1V2",
+    "layer": "B.Cu",
+    "start": [
+      17.7119,
+      11.0326
+    ],
+    "end": [
+      17.0,
+      11.725
+    ],
+    "width_mm": 0.25
+  },
+  {
+    "uuid": "bc62d6ea-168e-4c28-aa8c-41d9ec5b97a0",
+    "kind": "via",
+    "net": "PD_2V7",
+    "xy": [
+      18.9945,
+      11.5596
+    ],
+    "diameter_mm": 0.6,
+    "drill_mm": 0.3
+  },
+  {
+    "uuid": "3e602b94-a3ad-4c52-b0ec-64795ef259f6",
+    "kind": "track",
+    "net": "PD_2V7",
+    "layer": "B.Cu",
+    "start": [
+      18.9945,
+      11.5596
+    ],
+    "end": [
+      19.975,
+      11.5
+    ],
+    "width_mm": 0.25
+  },
+  {
+    "uuid": "3f47ef5c-cc69-4bda-8886-36c33dd07c53",
+    "kind": "via",
+    "net": "GND",
+    "xy": [
+      15,
+      12.5
+    ],
+    "diameter_mm": 0.6,
+    "drill_mm": 0.3
+  },
+  {
+    "uuid": "43c48de3-2d54-44d9-9c50-829b3175ef16",
+    "kind": "via",
+    "net": "GND",
+    "xy": [
+      16,
+      12.5
+    ],
+    "diameter_mm": 0.6,
+    "drill_mm": 0.3
+  },
+  {
+    "uuid": "6bd0e439-91fa-4d36-996e-5967ff02b269",
+    "kind": "via",
+    "net": "GND",
+    "xy": [
+      15,
+      13.5
+    ],
+    "diameter_mm": 0.6,
+    "drill_mm": 0.3
+  },
+  {
+    "uuid": "37351f02-ae2c-4ff9-9a49-4473723b64dd",
+    "kind": "via",
+    "net": "GND",
+    "xy": [
+      16,
+      13.5
+    ],
+    "diameter_mm": 0.6,
+    "drill_mm": 0.3
+  },
+  {
+    "uuid": "1260e5d8-1b50-4e6e-a6bd-04d89f1be9fb",
+    "kind": "track",
+    "net": "GND",
+    "layer": "B.Cu",
+    "start": [
+      17,
+      13.275
+    ],
+    "end": [
+      16,
+      13.5
+    ],
+    "width_mm": 0.25
+  },
+  {
+    "uuid": "8dcb6f47-ec9e-44c0-9316-1e94397908ea",
+    "kind": "via",
+    "net": "GND",
+    "xy": [
+      22.5,
+      11.5
+    ],
+    "diameter_mm": 0.6,
+    "drill_mm": 0.3
+  },
+  {
+    "uuid": "168de71f-a421-4f49-bfbb-eb350cd248b4",
+    "kind": "track",
+    "net": "GND",
+    "layer": "B.Cu",
+    "start": [
+      21.525,
+      11.5
+    ],
+    "end": [
+      22.5,
+      11.5
+    ],
+    "width_mm": 0.25
+  }
+]
