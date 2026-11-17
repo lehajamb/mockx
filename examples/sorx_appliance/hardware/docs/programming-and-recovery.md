@@ -90,3 +90,12 @@ session to keep the hardware source interlock active. Use the separate USB-C
 DEBUG connection if a UART log is needed. Select and hash a matching Toradex
 Easy Installer/recovery loader; retain actual enumeration and recovery from
 invalid boot media before closing the gate. Restore normal shunts before host use.
+
+
+Service hardware selection: JP1 is Wurth61300311121; JP2/J14 are Wurth61300211121.
+BOM-only SH1/SH2 are Wurth60900213421 removable shunts, installed on JP1 pins1–2
+and JP2 pins1–2 for the normal HOST assembly state. Do not place a shunt across
+J14: its pins are isolated host-PC VBUS sense and GND. SERVICE operation moves
+SH1 to JP1 pins2–3 and removes SH2, with power-off handling and the isolated-VBUS
+fixture already described above. The header mating fixture remains to be
+qualified; ordinary USB-A-to-A cabling is not an approved recovery cable.

@@ -1965,6 +1965,23 @@
         )
       )
     )
+    (symbol "SORX:MECHANICAL_ITEM"
+      (in_bom yes)
+      (on_board no)
+      (property "Reference" "HS" (at 0 5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "MECHANICAL_ITEM" (at 0 -5.08 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+      (symbol "MECHANICAL_ITEM_0_1"
+        (rectangle
+          (start -17.78 -3.81)
+          (end 17.78 3.81)
+          (stroke (width 0.254) (type default))
+          (fill (type background))
+        )
+        (text "Assembly component; see mechanical BOM" (at 0 0 0) (effects (font (size 1 1))))
+      )
+    )
     (symbol "power:PWR_FLAG"
       (power)
       (pin_numbers hide)
@@ -5746,12 +5763,17 @@
       (at 223.13 363.36 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+    (property "Footprint" "sorx:Wurth_61300311121"
       (at 251.46 368.3 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (at 251.46 368.3 0) (effects (font (size 1.27 1.27)) hide))
-    (property "Description" "3-pin 2.54mm header and removable shunt; exact procurement MPN pending"
+    (property "MPN" "61300311121" (at 251.46 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Manufacturer" "Wurth Elektronik"
+      (at 251.46 368.3 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Description" "3-pin WR-PHD service header; finished holes1.20+/-0.05mm; separate SH1 shunt"
       (at 251.46 368.3 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -5804,12 +5826,17 @@
       (at 263.73 363.36 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+    (property "Footprint" "sorx:Wurth_61300211121"
       (at 289.56 368.3 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (at 289.56 368.3 0) (effects (font (size 1.27 1.27)) hide))
-    (property "Description" "2-pin 2.54mm header and removable shunt; exact procurement MPN pending"
+    (property "MPN" "61300211121" (at 289.56 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Manufacturer" "Wurth Elektronik"
+      (at 289.56 368.3 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Description" "2-pin WR-PHD service header; finished holes1.20+/-0.05mm; separate SH2 shunt"
       (at 289.56 368.3 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -5853,12 +5880,17 @@
       (at 300.54 363.36 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+    (property "Footprint" "sorx:Wurth_61300211121"
       (at 325.12 368.3 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (at 325.12 368.3 0) (effects (font (size 1.27 1.27)) hide))
-    (property "Description" "Service fixture1=host VBUS,2=GND; not a power input; exact procurement MPN pending"
+    (property "MPN" "61300211121" (at 325.12 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Manufacturer" "Wurth Elektronik"
+      (at 325.12 368.3 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Description" "WR-PHD service sense header:1=isolated host VBUS,2=GND; not a power input"
       (at 325.12 368.3 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -5890,20 +5922,86 @@
     (property "Intersheetrefs" "${INTERSHEET_REFS}" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
   )
   (symbol
-    (lib_id "power:PWR_FLAG")
+    (lib_id "SORX:MECHANICAL_ITEM")
     (at 340.36 368.3 0)
+    (unit 1)
+    (in_bom yes)
+    (on_board no)
+    (dnp no)
+    (uuid "ad5812f5-0ac5-577c-962a-d2b82ed80b7f")
+    (property "Reference" "SH1" (at 337.82 361.26 0) (effects (font (size 1.27 1.27)) (justify left)))
+    (property "Value" "2.54mm removable shunt for JP1"
+      (at 337.82 363.36 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "" (at 340.36 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Datasheet" "~" (at 340.36 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "MPN" "60900213421" (at 340.36 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Manufacturer" "Wurth Elektronik"
+      (at 340.36 368.3 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Description" "WR-PHD black shunt with test point; factory HOST state per recovery procedure; reserve9.5mm installed envelope"
+      (at 340.36 368.3 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (instances
+      (project "sorx"
+        (path "/1f89f89b-24dc-5538-8d47-065880977055/11c4a157-1d57-58a9-9e1a-519cb3a4834a"
+          (reference "SH1")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (symbol
+    (lib_id "SORX:MECHANICAL_ITEM")
+    (at 355.6 368.3 0)
+    (unit 1)
+    (in_bom yes)
+    (on_board no)
+    (dnp no)
+    (uuid "af8f8846-e117-55c9-9c97-4dc5d738649c")
+    (property "Reference" "SH2" (at 353.06 361.26 0) (effects (font (size 1.27 1.27)) (justify left)))
+    (property "Value" "2.54mm removable shunt for JP2"
+      (at 353.06 363.36 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "" (at 355.6 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Datasheet" "~" (at 355.6 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "MPN" "60900213421" (at 355.6 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Manufacturer" "Wurth Elektronik"
+      (at 355.6 368.3 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Description" "WR-PHD black shunt with test point; factory HOST state per recovery procedure; reserve9.5mm installed envelope"
+      (at 355.6 368.3 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (instances
+      (project "sorx"
+        (path "/1f89f89b-24dc-5538-8d47-065880977055/11c4a157-1d57-58a9-9e1a-519cb3a4834a"
+          (reference "SH2")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (symbol
+    (lib_id "power:PWR_FLAG")
+    (at 370.84 368.3 0)
     (unit 1)
     (in_bom no)
     (on_board no)
     (dnp no)
     (uuid "9a5fc2f9-4869-5efa-804b-ab7babf10f02")
     (property "Reference" "#FLG701"
-      (at 337.82 361.26 0)
+      (at 368.3 361.26 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Value" "PWR_FLAG" (at 337.82 363.36 0) (effects (font (size 1.27 1.27)) (justify left)))
-    (property "Footprint" "" (at 340.36 368.3 0) (effects (font (size 1.27 1.27)) hide))
-    (property "Datasheet" "~" (at 340.36 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Value" "PWR_FLAG" (at 368.3 363.36 0) (effects (font (size 1.27 1.27)) (justify left)))
+    (property "Footprint" "" (at 370.84 368.3 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Datasheet" "~" (at 370.84 368.3 0) (effects (font (size 1.27 1.27)) hide))
     (pin "1" (uuid "16c506d4-2588-5eb0-9053-1c64df6b7ff7"))
     (instances
       (project "sorx"
@@ -5916,7 +6014,7 @@
   )
   (global_label "VBUS_DBG"
     (shape passive)
-    (at 340.36 368.3 270)
+    (at 370.84 368.3 270)
     (fields_autoplaced)
     (effects (font (size 1.27 1.27)) (justify right))
     (uuid "f3e1e1fd-e7cb-59ef-aa6b-56088df8ce17")

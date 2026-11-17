@@ -1,0 +1,99 @@
+{
+  "image_identity": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "commands": [
+    {
+      "label": "schematic",
+      "command": [
+        "python3",
+        "tools/gen_sch.py"
+      ],
+      "cwd": "/hardware",
+      "started_utc": "2026-11-17T01:55:57.044454+00:00",
+      "returncode": 0
+    },
+    {
+      "label": "bom",
+      "command": [
+        "python3",
+        "tools/gen_bom.py"
+      ],
+      "cwd": "/hardware",
+      "started_utc": "2026-11-17T01:56:06.306936+00:00",
+      "returncode": 0
+    },
+    {
+      "label": "power-budget",
+      "command": [
+        "python3",
+        "tools/power_budget.py"
+      ],
+      "cwd": "/hardware",
+      "started_utc": "2026-11-17T01:56:06.413231+00:00",
+      "returncode": 0
+    },
+    {
+      "label": "netlist",
+      "command": [
+        "kicad-cli",
+        "sch",
+        "export",
+        "netlist",
+        "--format",
+        "kicadsexpr",
+        "-o",
+        "/hardware/hw/sorx.net",
+        "/hardware/hw/sorx.kicad_sch"
+      ],
+      "cwd": "/hardware",
+      "started_utc": "2026-11-17T01:56:06.479100+00:00",
+      "returncode": 0
+    },
+    {
+      "label": "erc",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "eeschema_do",
+        "run_erc",
+        "/tmp/sorx-codex-electrical-erc-tez8sogb/hw/sorx.kicad_sch",
+        "/tmp/sorx-codex-electrical-erc-tez8sogb/erc"
+      ],
+      "cwd": "/hardware",
+      "started_utc": "2026-11-17T01:56:09.626975+00:00",
+      "returncode": 0
+    },
+    {
+      "label": "netlist-parity",
+      "command": [
+        "python3",
+        "tools/verification_worker.py",
+        "netlist",
+        "/hardware/hw/sorx.net",
+        "/hardware/validation/sourcing-20261117/generation/netlist-parity.json"
+      ],
+      "cwd": "/hardware",
+      "started_utc": "2026-11-17T01:56:17.993781+00:00",
+      "returncode": 0
+    }
+  ],
+  "pcb_hash_before": "4b0b5f18692eecd80ba4ca10c9bc060dbb6584ba1aa6668b223d5afe200c771a",
+  "pcb_hash_after": "4b0b5f18692eecd80ba4ca10c9bc060dbb6584ba1aa6668b223d5afe200c771a",
+  "pcb_unchanged": true,
+  "artifacts": {
+    "hw/sorx.kicad_sch": "4f0b232f26e9a42f1cccb450e06f638d7abc08c1360896c7c1d9eef4dde4dd66",
+    "hw/sorx_eth_md.kicad_sch": "0868a0230571e3bc4ce17dd22d54b29957d0b7cb5737d89b03fe2367b5ff1987",
+    "hw/sorx_eth_mgmt.kicad_sch": "14e314f8cb33f16d22e6b5cb016fcb2485b65ef443db9e1dbc60ab729c809b0d",
+    "hw/sorx_eth_oe.kicad_sch": "19afe5e02d9b601de9cad2d271f4038f9453978e102322cce3198ca551a26687",
+    "hw/sorx_mgmt_io.kicad_sch": "20215e3b8e911a58bdcb0a384d19c37f0169b2b7105208ee52ffd5244c09fde6",
+    "hw/sorx_power.kicad_sch": "85c3b500448c3c25b699d6d3363c8bbc83fd5fe056b7a5a510a9f71b298cf519",
+    "hw/sorx_som.kicad_sch": "897bb6cd7d13a526b14e6a67b20ec6145f4dbcd10d2bc86eabb714c567344aa0",
+    "hw/sorx_usb_console.kicad_sch": "4ddbb242ae3bb19358713bc6ad5cb3387d76797dfbb9d9078ddecb20d914c9c1",
+    "hw/sorx.kicad_sym": "8ec76e03fa3f05606881cc118ad809e47dc42ef6e7c025aad4509b71d9134113",
+    "hw/sorx.net": "7d6be424fc30528302a2da9bec6867cceb9b73f0a0a294c29ce3be9a6b708ca3",
+    "tools/netmap.json": "ddec61cb10e082e40d10e8ee11fb511ee413d78c01a91027540bfdb05209dcb0",
+    "docs/power-budget.md": "2d150b018c642b364c3155e3a2dcd3aff6fa293e241e9ae67894fbaab6a722e2",
+    "bom/cost-rollup.csv": "206d82ad61e0cccb1289f17eb6a7753244dabcd29c7ca9f0bff2154b9e866bdf",
+    "bom/sorx-bom.csv": "5678e81b7e801149ef44b84eef1bc17df891c680e1ed2b9f77f74dce3a4d88d1",
+    "bom/stock-check.csv": "cb6cc35ace9fadd1c0668179f79be1f755ca2185e5dafc833797dbb183ced88d"
+  }
+}

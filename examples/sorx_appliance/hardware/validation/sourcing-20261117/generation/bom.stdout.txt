@@ -1,0 +1,2 @@
+BOM lines 104 | unquoted references: U1, C12 C136, C18, U38, U39, Q5, H5 H6, H7 H8, HS1, SC1 SC2 SC3 SC4, JP1, J14 JP2, SH1 SH2
+Stock rows 49 | independently rechecked in this run: 0

@@ -1,5 +1,5 @@
 Line,Per unit @10,Per unit @100,Per unit @1k,Basis
-BOM known-price subtotal including SoM and specified mounting items,473.73,410.57,368.17,"INCOMPLETE: unquoted references U1, C12 C136, C18, U38, U39, Q5, H5 H6, H7 H8, HS1, SC1 SC2 SC3 SC4, JP1, JP2, J14"
+BOM known-price subtotal including SoM and specified mounting items,473.73,410.57,368.17,"INCOMPLETE: unquoted references U1, C12 C136, C18, U38, U39, Q5, H5 H6, H7 H8, HS1, SC1 SC2 SC3 SC4, JP1, J14 JP2, SH1 SH2"
 "PCB, 6-layer 172 x 118 mm, 1.6 mm candidate, ENIG, impedance controlled (SORX-CARRIER-CODEX-B)",,,,NOT QUOTED; fabricator stackup approval required
 "Assembly, double-sided SMT + through-hole connectors (-)",45.00,18.00,9.00,estimate
 "Fan 40 x 40 x 10 mm, 5 V, 4-pin PWM (NF-A4x10 5V PWM)",15.00,13.00,11.00,estimate; any 5 V 4-pin PWM 40 mm fan >= 8 m3/h

@@ -1,0 +1,51 @@
+{
+  "sources": [
+    {
+      "mpn": "61300311121",
+      "url": "https://www.we-online.com/components/products/datasheet/61300311121.pdf",
+      "sha256": "d8a8e70731d06c6a1b0685f3c24e2fc7b481dbbe1d25ffa9edfe14b89fb5eb8e",
+      "bytes": 383793,
+      "drawing_revision": "003.000",
+      "visual_review": "Page1 rendered with pdftoppm and inspected for3-pin header and shunt;2-pin ordering dimensions checked in manufacturer PDF text.",
+      "retrieval": "Public HTTPS urllib request with standard Mozilla User-Agent and manufacturer Referer; no authentication or access challenge bypassed."
+    },
+    {
+      "mpn": "61300211121",
+      "url": "https://www.we-online.com/components/products/datasheet/61300211121.pdf",
+      "sha256": "a054dde42f94b42e1f34117df97a37071aa9e57febcb8375058a3fb7dbae6dbe",
+      "bytes": 383644,
+      "drawing_revision": "003.000",
+      "visual_review": "Page1 rendered with pdftoppm and inspected for3-pin header and shunt;2-pin ordering dimensions checked in manufacturer PDF text.",
+      "retrieval": "Public HTTPS urllib request with standard Mozilla User-Agent and manufacturer Referer; no authentication or access challenge bypassed."
+    },
+    {
+      "mpn": "60900213421",
+      "url": "https://www.we-online.com/components/products/datasheet/60900213421.pdf",
+      "sha256": "f73326c5d57351217dc42e366496ccf8fabaa08eb83b53b232a80bcc8ee5930a",
+      "bytes": 349056,
+      "drawing_revision": "002.000",
+      "visual_review": "Page1 rendered with pdftoppm and inspected for3-pin header and shunt;2-pin ordering dimensions checked in manufacturer PDF text.",
+      "retrieval": "Public HTTPS urllib request with standard Mozilla User-Agent and manufacturer Referer; no authentication or access challenge bypassed."
+    }
+  ],
+  "selected_finished_hole_mm": 1.2,
+  "finished_hole_tolerance_mm": 0.05,
+  "maximum_pin_diagonal_mm": 1.1172287142747452,
+  "manufacturer_hole_range_mm": [
+    0.95,
+    1.25
+  ],
+  "pad_copper_mm": [
+    1.7,
+    1.7
+  ],
+  "pin_pitch_mm": 2.54,
+  "bare_header_max_above_board_mm": 8.94,
+  "populated_shunt_reserved_height_mm": 9.5,
+  "stock_verified": false,
+  "fit_limitations": [
+    "Pin diagonal-to-hole check is necessary but does not include pitch/hole-position tolerance combinations or pin compliance. Assembler must approve finished-hole and positional process.",
+    "Mating fixture connector remains unselected.",
+    "Envelope9.5mm includes conservative space for fully seated shunt; verify supplier assembly seating."
+  ]
+}

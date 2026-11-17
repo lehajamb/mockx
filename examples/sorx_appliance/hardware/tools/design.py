@@ -520,17 +520,24 @@ P('U', '74xGxx:74LVC1G08', '74LVC1G08', G['fp'],
 D.C('100nF', '+1V8')
 D.R('22k', 'USB1_EN_SAFE', 'GND')
 P('JP', 'Connector_Generic:Conn_01x03', 'USB1 VBUS SENSE: 1-2 HOST / 2-3 SERVICE',
-  'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical',
+  'sorx:Wurth_61300311121',
   {'1': 'USB1_VBUS', '2': 'USB1_DET_SOURCE', '3': 'USB_REC_VBUS'},
-  desc='3-pin 2.54mm header and removable shunt; exact procurement MPN pending')
+  mpn='61300311121', mfr='Wurth Elektronik',
+  desc='3-pin WR-PHD service header; finished holes1.20+/-0.05mm; separate SH1 shunt')
 P('JP', 'Connector_Generic:Conn_01x02', 'USB1 ID: FIT HOST / REMOVE SERVICE',
-  'Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical',
+  'sorx:Wurth_61300211121',
   {'1': 'USB1_ID_STRAP', '2': 'GND'},
-  desc='2-pin 2.54mm header and removable shunt; exact procurement MPN pending')
+  mpn='61300211121', mfr='Wurth Elektronik',
+  desc='2-pin WR-PHD service header; finished holes1.20+/-0.05mm; separate SH2 shunt')
 P('J', 'Connector_Generic:Conn_01x02', 'SERVICE HOST VBUS SENSE ONLY',
-  'Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical',
+  'sorx:Wurth_61300211121',
   {'1': 'USB_REC_VBUS', '2': 'GND'},
-  desc='Service fixture1=host VBUS,2=GND; not a power input; exact procurement MPN pending')
+  mpn='61300211121', mfr='Wurth Elektronik',
+  desc='WR-PHD service sense header:1=isolated host VBUS,2=GND; not a power input')
+for header in ('JP1','JP2'):
+    P('SH', 'SORX:MECHANICAL_ITEM', '2.54mm removable shunt for '+header, '', {},
+      mpn='60900213421', mfr='Wurth Elektronik',
+      desc='WR-PHD black shunt with test point; factory HOST state per recovery procedure; reserve9.5mm installed envelope')
 
 D.sheet = 'power'
 D.R('3.9k', '+4V5_PD', 'GND')  # R115: >=1mA at worst-case regulated lower bound

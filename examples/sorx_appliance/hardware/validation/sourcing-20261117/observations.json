@@ -1,0 +1,187 @@
+{
+  "reviewed_at_utc": "2026-11-17T01:46:28Z",
+  "status": "PARTIAL SOURCING REVIEW; R09 OPEN",
+  "fabrication_ready": false,
+  "orders_placed": false,
+  "original_bom_quotes_modified": false,
+  "entries": [
+    {
+      "refs": [
+        "J1"
+      ],
+      "manufacturer": "TE Connectivity",
+      "mpn": "2309409-2",
+      "source": "https://www.te.com/en/product-2309409-2.html",
+      "method": "Root agent live IAB accessibility observation, public US region",
+      "observed_date": "2026-11-17",
+      "observed_utc": null,
+      "available_quantity": 20790,
+      "unit_price_usd_at_quantity_1": 2.22,
+      "availability": "Manufacturer page displayed immediate shipment",
+      "confidence": "Live manufacturer observation, attributed to root; not independently repeated by electrical agent",
+      "limitations": [
+        "No quantity reservation, checkout, quote validity, shipping or tax confirmation.",
+        "Cached web extraction contradicted the live UI; cached availability was not used."
+      ]
+    },
+    {
+      "refs": [
+        "U1"
+      ],
+      "manufacturer": "Infineon",
+      "mpn": "CY15V104QN-50SXI",
+      "source": "https://www.infineon.com/part/CY15V104QN-50SXI",
+      "method": "Electrical agent live IAB page and EMEA distributor inventory dialog",
+      "observed_utc_window": [
+        "2026-11-17T01:42:28Z",
+        "2026-11-17T01:46:28Z"
+      ],
+      "lifecycle": "Active and preferred",
+      "manufacturer_direct_quantity": null,
+      "inventory_panel": [
+        {
+          "supplier": "Arrow Electronics",
+          "quantity": 200
+        },
+        {
+          "supplier": "Mouser",
+          "quantity": 37
+        },
+        {
+          "supplier": "Rochester Electronics",
+          "quantity": 206,
+          "caveat": "Panel identifies overstock/discontinued authorized reseller with reseller warranty, no longer Infineon warranty."
+        }
+      ],
+      "confidence": "Live manufacturer-hosted distributor listing; not independent distributor checkout confirmation",
+      "limitations": [
+        "No price or confirmed destination-specific allocation.",
+        "Cached manufacturer direct quantity2 and priceUSD20.60, dated2026-10-12, were absent live and are not current evidence."
+      ]
+    },
+    {
+      "refs": [
+        "U38"
+      ],
+      "manufacturer": "Analog Devices",
+      "mpn": "LT3010EMS8E#PBF",
+      "source": "https://www.analog.com/en/products/lt3010.html",
+      "method": "Manufacturer web extraction retrieved2026-11-17",
+      "lifecycle": "Family recommended for new designs; exact adjustable8-lead MSOP-EP model listed",
+      "available_quantity": null,
+      "price": null,
+      "confidence": "Manufacturer catalog confirmation only",
+      "limitations": [
+        "No current exact-SKU stock confirmed.",
+        "Fixed-output LT3010EMS8E-5#PBF is not the selected adjustable device.",
+        "Family starting1ku price is not an exact-SKU prototype quote."
+      ]
+    },
+    {
+      "refs": [
+        "U39"
+      ],
+      "manufacturer": "Texas Instruments",
+      "mpn": "TL431BIPK",
+      "source": "https://www.ti.com/product/TL431/part-details/TL431BIPK",
+      "method": "Live IAB manufacturer page plus web extraction",
+      "observed_utc_window": [
+        "2026-11-17T01:42:28Z",
+        "2026-11-17T01:46:28Z"
+      ],
+      "lifecycle": "Active; SOT-89PK3pin;-40to85C",
+      "available_quantity": null,
+      "displayed_price_usd_quantity_1_to_99": 0.306,
+      "confidence": "Exact part/package status verified; current inventory unknown",
+      "limitations": [
+        "Live page showed availability unavailable, then human-verification iframe; no CAPTCHA attempted.",
+        "Rendered pricing is a display observation, not a quote or inventory confirmation.",
+        "Cached out-of-stock/login text is not treated as zero global stock."
+      ]
+    },
+    {
+      "refs": [
+        "Q5"
+      ],
+      "manufacturer": "Nexperia",
+      "mpn": "PMV65XP,215",
+      "source": "https://www.nexperia.com/product/PMV65XP",
+      "method": "Manufacturer web extraction retrieved2026-11-17",
+      "lifecycle": "PMV65XP family in production",
+      "available_quantity": null,
+      "price": null,
+      "confidence": "Family lifecycle confirmed; exact,215 carrier inventory unknown",
+      "limitations": [
+        "No current exact-SKU inventory exposed in extracted manufacturer content."
+      ]
+    },
+    {
+      "refs": [
+        "U40",
+        "U28"
+      ],
+      "manufacturer": "Texas Instruments",
+      "mpn": "SN74LVC1G08DBVR",
+      "source": "https://www.ti.com/product/SN74LVC1G08/part-details/SN74LVC1G08DBVR",
+      "method": "Manufacturer web extraction retrieved2026-11-17",
+      "lifecycle": "Active;5pinSOT-23DBV;-40to125C",
+      "available_quantity": null,
+      "price": null,
+      "confidence": "Exact catalog/package status verified; inventory unknown",
+      "limitations": [
+        "Public extraction combines unavailable and login-required inventory labels.",
+        "DCKR/SC70 search hits and same-base-number products from another manufacturer are not substitutes for this DBVR TI selection."
+      ]
+    },
+    {
+      "refs": [
+        "H5",
+        "H6"
+      ],
+      "manufacturer": "Wurth Elektronik",
+      "mpn": "9774025243R",
+      "source": "https://www.we-online.com/components/products/datasheet/9774025243R.pdf",
+      "method": "Manufacturer drawing already validated by mechanical agent",
+      "available_quantity": null,
+      "price": null,
+      "confidence": "Dimensions validated; inventory not verified"
+    },
+    {
+      "refs": [
+        "H7",
+        "H8"
+      ],
+      "manufacturer": "Wurth Elektronik",
+      "mpn": "9774070243R",
+      "source": "https://www.we-online.com/components/products/datasheet/9774070243R.pdf",
+      "method": "Manufacturer drawing already validated by mechanical agent",
+      "available_quantity": null,
+      "price": null,
+      "confidence": "Dimensions validated; inventory not verified"
+    },
+    {
+      "refs": [
+        "HS1"
+      ],
+      "manufacturer": "Toradex",
+      "mpn": "23111101",
+      "source": "https://developer.toradex.com/hardware/verdin-som-family/add-ons/verdin-industrial-heatsink/",
+      "method": "Manufacturer product revision table retrieved2026-11-17",
+      "lifecycle": "Type1V1.1B releasedQ3 2026;TIM revision resolvesHAR-13572",
+      "available_quantity": null,
+      "price": null,
+      "confidence": "Exact intended revision confirmed; revision-specific order allocation unknown",
+      "limitations": [
+        "Distributor alias lists combine older and current revisions; require exact23111101 confirmation.",
+        "Physical TIM/module/screw qualification remains a mechanical release gate."
+      ]
+    }
+  ],
+  "not_completed": [
+    "Full current BOM inventory and prototype-quantity quotation",
+    "Current service-header/shunt stock, fixture connector and screw procurement qualification",
+    "Region-specific shipping, tax, lead-time and lifecycle confirmation",
+    "Licensed Intel NVM assets and exact PD configuration/programming assets"
+  ],
+  "header_selection_record": "service-header-selection.json"
+}
