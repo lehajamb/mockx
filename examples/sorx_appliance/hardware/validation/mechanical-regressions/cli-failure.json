@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/opt/cq/bin/python",
+    "/work/tools/gen_mech.py",
+    "--check-only",
+    "--parts",
+    "/tmp/intentionally-absent.json",
+    "--output-dir",
+    "/tmp/cli-failure"
+  ],
+  "returncode": 1,
+  "stdout": "",
+  "stderr": "Mechanical generation FAILED: [Errno 2] No such file or directory: '/tmp/intentionally-absent.json'\n",
+  "report": {
+    "schema_version": 2,
+    "success": false,
+    "geometry_errors": [
+      "[Errno 2] No such file or directory: '/tmp/intentionally-absent.json'"
+    ],
+    "max_interference_mm3": null,
+    "all_ports_aligned": false,
+    "blockers": [
+      "Mechanical generation failed."
+    ]
+  }
+}
