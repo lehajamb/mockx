@@ -1,0 +1,16 @@
+test_exact_library_and_item_match (test_board_identity.BoardIdentityTests.test_exact_library_and_item_match) ... ok
+test_same_item_in_wrong_library_is_mismatch (test_board_identity.BoardIdentityTests.test_same_item_in_wrong_library_is_mismatch) ... FAIL
+
+======================================================================
+FAIL: test_same_item_in_wrong_library_is_mismatch (test_board_identity.BoardIdentityTests.test_same_item_in_wrong_library_is_mismatch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_board_identity.py", line 29, in test_same_item_in_wrong_library_is_mismatch
+    self.assertEqual(len(issues),1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.015s
+
+FAILED (failures=1)

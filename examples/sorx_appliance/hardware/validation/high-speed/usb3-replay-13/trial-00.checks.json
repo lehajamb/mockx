@@ -1,0 +1,12 @@
+{
+  "targeted_geometric_checks_pass": true,
+  "fabrication_ready": false,
+  "failures": [],
+  "native_usb_errors": [],
+  "not_qualified": [
+    "layer-specific impedance and delay",
+    "escape/coupling discontinuities",
+    "reference transitions and return inductance",
+    "whole-board electrical and mechanical release gates"
+  ]
+}

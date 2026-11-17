@@ -1,0 +1,20 @@
+test_crossing_layers_do_not_create_a_connection (test_high_speed_audit.PathRegressions.test_crossing_layers_do_not_create_a_connection) ... ok
+test_duplicate_copper_is_an_error (test_high_speed_audit.PathRegressions.test_duplicate_copper_is_an_error) ... ok
+test_esd_stub_does_not_inflate_endpoint_length (test_high_speed_audit.PathRegressions.test_esd_stub_does_not_inflate_endpoint_length) ... ok
+test_geometry_scalar_report_roundtrips_boolean (test_high_speed_audit.PathRegressions.test_geometry_scalar_report_roundtrips_boolean) ... ok
+test_reference_slot_and_foreign_copper_are_reported (test_high_speed_audit.PathRegressions.test_reference_slot_and_foreign_copper_are_reported) ... ok
+test_series_capacitor_requires_explicit_bridge (test_high_speed_audit.PathRegressions.test_series_capacitor_requires_explicit_bridge) ... ok
+test_six_layer_internal_signal_requires_continuous_in4_ground (test_high_speed_audit.PathRegressions.test_six_layer_internal_signal_requires_continuous_in4_ground) ... ok
+test_track_ending_inside_via_annulus_is_connected (test_high_speed_audit.PathRegressions.test_track_ending_inside_via_annulus_is_connected) ... ok
+test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) ... ok
+test_missing_pair_and_overlapping_copper_fail (test_usb_candidate_checks.CandidateChecks.test_missing_pair_and_overlapping_copper_fail) ... ok
+test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) ... ok
+test_physical_drc_error_cannot_be_hidden_by_good_lengths (test_usb_candidate_checks.CandidateChecks.test_physical_drc_error_cannot_be_hidden_by_good_lengths) ... ok
+test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) ... ok
+test_unremoved_branch_and_extra_via_fail (test_usb_candidate_checks.CandidateChecks.test_unremoved_branch_and_extra_via_fail) ... ok
+test_valid_geometry_is_explicitly_not_fabrication_approval (test_usb_candidate_checks.CandidateChecks.test_valid_geometry_is_explicitly_not_fabrication_approval) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.014s
+
+OK

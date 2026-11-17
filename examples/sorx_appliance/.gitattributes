@@ -6,3 +6,6 @@ reference_images/** -text
 # Supplier STEP and license artifacts are immutable, hash-bound upstream bytes.
 hardware/mech/vendor/**/*.step -diff
 hardware/mech/vendor/**/*-README.txt -diff
+
+# Preserve raw subprocess log bytes, including unittest subtest trailing spaces.
+hardware/validation/**/*.log -whitespace

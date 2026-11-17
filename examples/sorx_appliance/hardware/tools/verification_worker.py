@@ -23,8 +23,10 @@ def check_board(pcb, drc, result):
         if fp is None:
             issues.append(f"Missing footprint {part.ref}")
             continue
-        if str(fp.GetFPID().GetLibItemName()) != part.fp.split(":", 1)[1]:
-            issues.append(f"{part.ref}: wrong footprint {fp.GetFPID().GetLibItemName()}")
+        identity = fp.GetFPID()
+        actual_footprint = str(identity.GetLibNickname()) + ":" + str(identity.GetLibItemName())
+        if actual_footprint != part.fp:
+            issues.append(f"{part.ref}: wrong footprint {actual_footprint!r} != {part.fp!r}")
         if fp.GetValue() != part.value:
             issues.append(f"{part.ref}: value {fp.GetValue()!r} != {part.value!r}")
         expected = resolve(part)

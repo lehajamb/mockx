@@ -1,0 +1,164 @@
+test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) ... 
+  test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) (text='') ... FAIL
+  test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) (text='** End of Report **') ... FAIL
+  test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) (text='** Drc report for test **\n** Found 0 DRC violations **\n** Found 0 unconnected pads **\n** Found 0 Footprint errors **\n\n') ... FAIL
+  test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) (text='** Drc report for test **\n** Found 1 DRC violations **\n** Found 0 unconnected pads **\n** Found 0 Footprint errors **\n** End of Report **\n') ... FAIL
+test_missing_pair_and_overlapping_copper_fail (test_usb_candidate_checks.CandidateChecks.test_missing_pair_and_overlapping_copper_fail) ... ok
+test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) ... 
+  test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) (value=nan) ... FAIL
+  test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) (value=-1) ... FAIL
+  test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) (value='0') ... ERROR
+  test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) (value=None) ... ERROR
+test_physical_drc_error_cannot_be_hidden_by_good_lengths (test_usb_candidate_checks.CandidateChecks.test_physical_drc_error_cannot_be_hidden_by_good_lengths) ... ok
+test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) ... 
+  test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='planar_length_gate_pass', value=1) ... FAIL
+  test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='planar_length_gate_pass', value='true') ... FAIL
+  test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='via_symmetry_pass', value=1) ... FAIL
+  test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='via_symmetry_pass', value='true') ... FAIL
+  test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='via_budget_pass', value=1) ... FAIL
+  test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='via_budget_pass', value='true') ... FAIL
+  test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='layer_sequence_symmetry_pass', value=1) ... FAIL
+  test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='layer_sequence_symmetry_pass', value='true') ... FAIL
+test_unremoved_branch_and_extra_via_fail (test_usb_candidate_checks.CandidateChecks.test_unremoved_branch_and_extra_via_fail) ... ok
+test_valid_geometry_is_explicitly_not_fabrication_approval (test_usb_candidate_checks.CandidateChecks.test_valid_geometry_is_explicitly_not_fabrication_approval) ... ok
+
+======================================================================
+ERROR: test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) (value='0')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 41, in test_off_path_measurements_require_finite_nonnegative_real_numbers
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/tools/usb_candidate_checks.py", line 26, in assess_usb_candidate
+    if pair[polarity].get('off_path_track_length_mm',float('inf'))>0.01:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '>' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) (value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 41, in test_off_path_measurements_require_finite_nonnegative_real_numbers
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/tools/usb_candidate_checks.py", line 26, in assess_usb_candidate
+    if pair[polarity].get('off_path_track_length_mm',float('inf'))>0.01:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '>' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+FAIL: test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) (text='')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 35, in test_empty_truncated_and_count_mismatched_native_reports_fail
+    self.assertFalse(assess_usb_candidate(fixture(),text)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) (text='** End of Report **')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 35, in test_empty_truncated_and_count_mismatched_native_reports_fail
+    self.assertFalse(assess_usb_candidate(fixture(),text)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) (text='** Drc report for test **\n** Found 0 DRC violations **\n** Found 0 unconnected pads **\n** Found 0 Footprint errors **\n\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 35, in test_empty_truncated_and_count_mismatched_native_reports_fail
+    self.assertFalse(assess_usb_candidate(fixture(),text)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_empty_truncated_and_count_mismatched_native_reports_fail (test_usb_candidate_checks.CandidateChecks.test_empty_truncated_and_count_mismatched_native_reports_fail) (text='** Drc report for test **\n** Found 1 DRC violations **\n** Found 0 unconnected pads **\n** Found 0 Footprint errors **\n** End of Report **\n')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 35, in test_empty_truncated_and_count_mismatched_native_reports_fail
+    self.assertFalse(assess_usb_candidate(fixture(),text)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) (value=nan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 41, in test_off_path_measurements_require_finite_nonnegative_real_numbers
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_off_path_measurements_require_finite_nonnegative_real_numbers (test_usb_candidate_checks.CandidateChecks.test_off_path_measurements_require_finite_nonnegative_real_numbers) (value=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 41, in test_off_path_measurements_require_finite_nonnegative_real_numbers
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='planar_length_gate_pass', value=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 48, in test_required_flags_are_explicit_booleans
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='planar_length_gate_pass', value='true')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 48, in test_required_flags_are_explicit_booleans
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='via_symmetry_pass', value=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 48, in test_required_flags_are_explicit_booleans
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='via_symmetry_pass', value='true')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 48, in test_required_flags_are_explicit_booleans
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='via_budget_pass', value=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 48, in test_required_flags_are_explicit_booleans
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='via_budget_pass', value='true')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 48, in test_required_flags_are_explicit_booleans
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='layer_sequence_symmetry_pass', value=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 48, in test_required_flags_are_explicit_booleans
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_required_flags_are_explicit_booleans (test_usb_candidate_checks.CandidateChecks.test_required_flags_are_explicit_booleans) (field='layer_sequence_symmetry_pass', value='true')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_usb_candidate_checks.py", line 48, in test_required_flags_are_explicit_booleans
+    self.assertFalse(assess_usb_candidate(report,CLEAN_DRC)['targeted_geometric_checks_pass'])
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.041s
+
+FAILED (failures=14, errors=2)

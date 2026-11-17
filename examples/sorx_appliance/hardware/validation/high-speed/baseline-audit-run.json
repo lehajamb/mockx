@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "/work/tools/high_speed_audit.py",
+    "/work/hw/sorx.kicad_pcb",
+    "--output",
+    "/out/baseline-path-audit.json"
+  ],
+  "returncode": 1,
+  "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2"
+}

@@ -1,0 +1,20 @@
+{
+  "targeted_geometric_checks_pass": true,
+  "fabrication_ready": false,
+  "failures": [],
+  "native_usb_errors": [],
+  "native_counts": {
+    "DRC violations": 321,
+    "unconnected pads": 61,
+    "Footprint errors": 0
+  },
+  "not_qualified": [
+    "layer-specific impedance and delay",
+    "escape/coupling discontinuities",
+    "reference transitions and return inductance",
+    "whole-board electrical and mechanical release gates"
+  ],
+  "source_report_sha256": "525679bf8293102c4359d9ba12768e68f651a869c40d05d299cf81e4bd4bc690",
+  "native_drc_sha256": "b295201c8988437935c7fcc8dbed0fb002993ebd7e7600f1e9c9780953b0e988",
+  "checker_sha256": "0342f15ed2b560c0cdcfb8ad6d24262761f753681b17c040a8b531e8cdcd7576"
+}

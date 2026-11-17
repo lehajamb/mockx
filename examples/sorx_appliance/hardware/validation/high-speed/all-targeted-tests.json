@@ -1,0 +1,14 @@
+{
+  "tests": 15,
+  "success": true,
+  "python": "3.11.2",
+  "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "source_hashes": {
+    "tools/high_speed_audit.py": "60625a45ec78d7f8960ad164629d9a82af111b118c3ad3255b079afae73c171f",
+    "tools/correct_high_speed.py": "3e6b5ff3d5685a9a8430819aec8c376e62cbedd18a377d24430fced20f8b227b",
+    "tools/usb_candidate_checks.py": "0342f15ed2b560c0cdcfb8ad6d24262761f753681b17c040a8b531e8cdcd7576",
+    "tools/verification_core.py": "9cba3ff6700c514cba895cb032ea95ddcf553f39155b3f19c4b89439c512e847",
+    "tests/test_high_speed_audit.py": "e65f7ab73a6fd57cbb7ba98ac10564535a3e44988314f21bdc61fd3f0b5a5b89",
+    "tests/test_usb_candidate_checks.py": "8a6127931e64ffa01d525f7e7c90cabc425df8bf70e215a6ee5ed98952eda0b1"
+  }
+}
