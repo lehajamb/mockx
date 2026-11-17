@@ -1,0 +1,886 @@
+{
+  "source": "validation/native-promotion-01/drc-refilled.txt",
+  "counts": {
+    "DRC violations": 93,
+    "unconnected pads": 30,
+    "Footprint errors": 0
+  },
+  "required_opens_by_net": {
+    "GND": 16,
+    "USB1_OC#": 1,
+    "USB1_VBUS_DET": 1,
+    "FRAM_MOSI": 1,
+    "MG_TXD0": 1,
+    "PD_ALERT#": 1,
+    "PCIE_RST#_1V8": 1,
+    "PD_ATTACH#": 2,
+    "PD_EN_SNK#": 1,
+    "+1V2_PHY": 1,
+    "PCIE_RST#_3V3": 1,
+    "OE_JTAG_PU": 1,
+    "MG_LED2": 2
+  },
+  "findings": [
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(111.1190 mm, 59.0728 mm): Track [IMON_ADC] on F.Cu, length 2.1253 mm",
+      "fingerprint": "d2d39b1625838c31cfbd3e6a87f1f62bed667b3b32da4de2a077192f2ee10a89",
+      "section": "DRC violations"
+    },
+    {
+      "category": "via_dangling",
+      "message": "Via is not connected or connected on only one layer",
+      "objects": "Local override; Severity: warning\n    @(120.5169 mm, 60.9427 mm): Via [I2C1_SCL] on F.Cu - B.Cu",
+      "fingerprint": "083cc5a143666be92c918e3cac40e4558617c54ffc3e1f851664fda927bc197d",
+      "section": "DRC violations"
+    },
+    {
+      "category": "via_dangling",
+      "message": "Via is not connected or connected on only one layer",
+      "objects": "Local override; Severity: warning\n    @(85.8624 mm, 88.1275 mm): Via [CON_RXD_1V8] on F.Cu - B.Cu",
+      "fingerprint": "33b6e704d51d13551ce5985ad08f4b95083fd3a19a50b2161bfc8544b60fd3a7",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(93.5165 mm, 48.8106 mm): Track [USB1_EN] on F.Cu, length 1.2924 mm",
+      "fingerprint": "15c27c07cbd5b77862f9bd3134af4bdc3cdc471aee0581a43b7142bae33fda18",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(126.9561 mm, 46.1539 mm): Track [FRAM_SCK] on F.Cu, length 0.8691 mm",
+      "fingerprint": "5c60726c8e5856fc9d419bf700d0bb2c2617448c511149c60b2c823e078db2f8",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(127.8252 mm, 46.1539 mm): Track [FRAM_SCK] on B.Cu, length 11.9693 mm",
+      "fingerprint": "35dff4cf931ca7cc757908b2df61a117ce9b1ff1f880ced41a8c58f51c600b12",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(109.1951 mm, 54.2966 mm): Track [FRAM_MOSI] on F.Cu, length 0.6177 mm",
+      "fingerprint": "c1c91df21493f634240ab057189a69644b6db6b1f2c7cab98988ea8db73ec830",
+      "section": "DRC violations"
+    },
+    {
+      "category": "via_dangling",
+      "message": "Via is not connected or connected on only one layer",
+      "objects": "Local override; Severity: warning\n    @(33.9663 mm, 56.8400 mm): Via [WD_SET0_N] on F.Cu - B.Cu",
+      "fingerprint": "01f8e15cac241344f4fe65cbe4ce1b98032b4ef76fba9135f6ae250707709d24",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(66.5092 mm, 92.6642 mm): Track [+1V8] on F.Cu, length 2.0100 mm",
+      "fingerprint": "c1ee5ef08437169c3bec71537313b1e36d27e4e5d13b59f6fd141ccd3a3e5ed2",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(125.2224 mm, 47.2700 mm): Track [+1V8] on F.Cu, length 2.2966 mm",
+      "fingerprint": "5bf5779d513fa985dbbe72d817e40848b7c171b253a8532d04e15a2fbe404d41",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(57.2166 mm, 99.5366 mm): Track [+1V8] on F.Cu, length 2.4202 mm",
+      "fingerprint": "5ae46bcb9968d895de7904fd73b0f8a6af291b28530988a587696cf87e1d3510",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(36.1241 mm, 59.6241 mm): Track [+1V8] on F.Cu, length 0.7379 mm",
+      "fingerprint": "ca75a89c53334d801a0ba4e19c6531652a344cdccda93458148d7ce928eb1d6d",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(11.6316 mm, 12.1834 mm): Track [PD_ALERT#] on B.Cu, length 1.4202 mm",
+      "fingerprint": "609ee50ae66d787f905c700d62fc5130bbf390fca1e2dd1dde373d16efc28090",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(30.8130 mm, 59.9929 mm): Track [PD_ALERT#] on B.Cu, length 20.3211 mm",
+      "fingerprint": "9abd0f7b14e5d6c6962f8368d9c435bc0b3d7458c89dc75513d74d8e42e551eb",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(146.6311 mm, 111.6605 mm): Track [RECOVERY#] on F.Cu, length 34.0258 mm",
+      "fingerprint": "7ff58ecbe345d4f734e7d9122e1a75585483c2b4899669861867a961a18decc7",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(126.5921 mm, 44.9900 mm): Track [VBAT_RTC] on B.Cu, length 3.4212 mm",
+      "fingerprint": "3883cf9a0a12dacfd55201bfcce83970d0a706493e1e0ab1192be49118600ece",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(40.4400 mm, 55.9026 mm): Track [+5V] on In2.Cu, length 0.0515 mm",
+      "fingerprint": "8c10a8b2c56bb51bca79b97e220775fd51d7e17250b517f9c1edddccc9ed7198",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(37.8123 mm, 61.4009 mm): Track [WAKE1#] on F.Cu, length 1.1086 mm",
+      "fingerprint": "2b333dea01df279fdd96de060e5a7caa6eb6de7021707f7d5a76bb34ca2dfaed",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(10.7400 mm, 21.7300 mm): Track [VBUS_IN] on F.Cu, length 6.7150 mm",
+      "fingerprint": "6415ec50c6daf54ef7765503464bb4702fece892b1e11489192ddc449cf0ad7f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(12.2600 mm, 21.9500 mm): Track [VBUS_IN] on F.Cu, length 1.3025 mm",
+      "fingerprint": "3bfba26bca90049630562b4b3e4ac173c3480e849601d50450caa379a691bd85",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(24.0140 mm, 25.8600 mm): Track [PD_ATTACH#] on F.Cu, length 2.0717 mm",
+      "fingerprint": "e405214d4bd86468984cb6ee89bfe3604b35e14ff1b860824480086cce8f2825",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(17.3393 mm, 17.6862 mm): Track [PD_ATTACH#] on F.Cu, length 6.4831 mm",
+      "fingerprint": "b5f645092b7c8178ac674836e927fe9c108a8335303dedd5456b64d812343fa1",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(18.1555 mm, 15.4874 mm): Track [PD_EN_SNK#] on F.Cu, length 1.5507 mm",
+      "fingerprint": "90afa3625cc12cebef4ebcb2c442770eb223c4098fdcd66701e25d863855575d",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(17.0590 mm, 16.5839 mm): Track [PD_EN_SNK#] on B.Cu, length 1.5057 mm",
+      "fingerprint": "569f25068a867ecaf7807f6b2dff9e500864d75634ddc932a61d52feabda6cb1",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(15.3007 mm, 21.1368 mm): Track [EF_BGATE] on F.Cu, length 1.2376 mm",
+      "fingerprint": "cd13e6715d23f825bcea4f58c0060cd88fa98879e17be4468d5ff6002d92fd21",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(4.9395 mm, 25.8195 mm): Track [EF_BGATE] on B.Cu, length 4.4409 mm",
+      "fingerprint": "88f985496c157f1c0fbaf35401f7203b12b9f54e166cd7f95cf345d96f5ff12a",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(109.0671 mm, 53.7067 mm): Track [+3V3] on In2.Cu, length 0.3968 mm",
+      "fingerprint": "3c986a3f1120956b21f9acfa7e656fab50bd486aa0570fab36e43701b9e67f1e",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(32.5183 mm, 51.5528 mm): Track [OE_JTAG_PU] on F.Cu, length 2.7422 mm",
+      "fingerprint": "97df0d084a0ec10854d1e257eea44fc64095af378ca4c7aafa66b081aa3be67b",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(32.6200 mm, 51.4511 mm): Track [OE_JTAG_PU] on B.Cu, length 0.1438 mm",
+      "fingerprint": "45bc302fd70c2773707228c5bb51e51f31eb92a28e3e00201cecd1d6b8ce3850",
+      "section": "DRC violations"
+    },
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(72.3121 mm, 104.2335 mm): Track [LED_FIXA#] on B.Cu, length 19.2929 mm",
+      "fingerprint": "17e115e685c982c2e12e7808d6bff2d368bcf9cec12234a404ee24a54f2cbf53",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(45.3945 mm, 87.0740 mm): NPTH pad of H5\n    @(47.4695 mm, 87.0740 mm): Pad 1 [<no net>] of H5 on F.Cu",
+      "fingerprint": "6800247b3bc64c3556df715eb143940e28edd89a97b6d3a3829527aac0828514",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6\n    @(112.6695 mm, 87.0740 mm): Pad 1 [<no net>] of H6 on F.Cu",
+      "fingerprint": "3c4b731d9580c0d09613face216246e2f5912bd452e0ec9b0d175b675ecd2c26",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(37.9945 mm, 56.0740 mm): NPTH pad of H7\n    @(40.0695 mm, 56.0740 mm): Pad 1 [<no net>] of H7 on F.Cu",
+      "fingerprint": "6e19a819693c1f7dd38c8279029972f6d2b6a09ee3ee4060170a77048cf1c36a",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10\n    @(114.8000 mm, 110.6400 mm): Pad A1 [GND] of J10 on F.Cu",
+      "fingerprint": "7b00f4e84fb438198d9a2678d5e217b8ab5de9816ad44a57c9aca839a5e52726",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(115.1100 mm, 111.7150 mm): NPTH pad of J10\n    @(114.8000 mm, 110.6400 mm): Pad B12 [GND] of J10 on F.Cu",
+      "fingerprint": "8874d284a2ea7ef11946d15b13cf437fedf9f4a9aec21731527f24af7e820b14",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10\n    @(121.2000 mm, 110.6400 mm): Pad A12 [GND] of J10 on F.Cu",
+      "fingerprint": "b73e3d19b8cc518847b163ed8663eabd20e67bd4fa11b1b4b5e8d871cafb1e86",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(120.8900 mm, 111.7150 mm): NPTH pad of J10\n    @(121.2000 mm, 110.6400 mm): Pad B1 [GND] of J10 on F.Cu",
+      "fingerprint": "251b3c3c257684c3948c428ccb4242fa9eeaa071450672d90b3bbe01cc266dc7",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(16.8900 mm, 6.2850 mm): NPTH pad of J3\n    @(17.2000 mm, 7.3600 mm): Pad B12 [GND] of J3 on F.Cu",
+      "fingerprint": "bc7318d73ffa2459b495fac1d920673762cd797ed5de56b2697571b53f919eb6",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(16.8900 mm, 6.2850 mm): NPTH pad of J3\n    @(17.2000 mm, 7.3600 mm): Pad A1 [GND] of J3 on F.Cu",
+      "fingerprint": "63513c26709b82e549ced4dc59ed9b1ad2c2e3d2d2195474a16a5a63cb2ebe86",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(11.1100 mm, 6.2850 mm): NPTH pad of J3\n    @(10.8000 mm, 7.3600 mm): Pad A12 [GND] of J3 on F.Cu",
+      "fingerprint": "5c1e2fe85cc33269329ac943cd60beb078a981b4c512291d4074ddb16adeff49",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(11.1100 mm, 6.2850 mm): NPTH pad of J3\n    @(10.8000 mm, 7.3600 mm): Pad B1 [GND] of J3 on F.Cu",
+      "fingerprint": "20405e68da936eb094fe7e3f02f6017327ac5a9c75f391f0da2a72eaed1bab1c",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(117.9945 mm, 56.0740 mm): NPTH pad of H8\n    @(120.0695 mm, 56.0740 mm): Pad 1 [<no net>] of H8 on F.Cu",
+      "fingerprint": "d2a11389df58697ac2b6f3a720d6b8a052c20d24a27fb825646cac3c90164e82",
+      "section": "DRC violations"
+    },
+    {
+      "category": "courtyards_overlap",
+      "message": "Courtyards overlap",
+      "objects": "Rule: board setup constraints courtyard; Severity: error\n    @(45.3945 mm, 87.0740 mm): Footprint H5\n    @(78.0000 mm, 64.0000 mm): Footprint J1",
+      "fingerprint": "2f1408bcc0572d533d467ccb36a54ee49291e8c2cb8ea6624c29bb89878975c4",
+      "section": "DRC violations"
+    },
+    {
+      "category": "courtyards_overlap",
+      "message": "Courtyards overlap",
+      "objects": "Rule: board setup constraints courtyard; Severity: error\n    @(78.0000 mm, 64.0000 mm): Footprint J1\n    @(110.5945 mm, 87.0740 mm): Footprint H6",
+      "fingerprint": "58c67b8cf9dfcfc915d92566c7794f2e1eeb08e3c41ac2430efbeaaf9cac9814",
+      "section": "DRC violations"
+    },
+    {
+      "category": "courtyards_overlap",
+      "message": "Courtyards overlap",
+      "objects": "Rule: board setup constraints courtyard; Severity: error\n    @(78.0000 mm, 64.0000 mm): Footprint J1\n    @(37.9945 mm, 56.0740 mm): Footprint H7",
+      "fingerprint": "7bff30de6ef99d86f6baa44db5670be9858041a5fdd88029607a2bb01a304a28",
+      "section": "DRC violations"
+    },
+    {
+      "category": "courtyards_overlap",
+      "message": "Courtyards overlap",
+      "objects": "Rule: board setup constraints courtyard; Severity: error\n    @(78.0000 mm, 64.0000 mm): Footprint J1\n    @(117.9945 mm, 56.0740 mm): Footprint H8",
+      "fingerprint": "6866530e26e8591bdcfb8ad7b3a023dda668b0e2899fb4f68640b02c8c05c12e",
+      "section": "DRC violations"
+    },
+    {
+      "category": "courtyards_overlap",
+      "message": "Courtyards overlap",
+      "objects": "Rule: board setup constraints courtyard; Severity: error\n    @(34.4200 mm, 59.9500 mm): Footprint TP4\n    @(33.0000 mm, 61.0000 mm): Footprint R4",
+      "fingerprint": "c2688545af792223ade312ad12cac79dccb28dd431b6cbae582f2293973a0988",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(79.3500 mm, 118.6700 mm): Line on F.Silkscreen",
+      "fingerprint": "8616e82102cb3a70626a8c7c7438dce87c64364ad0fd25e84bca413fe0716410",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(92.6500 mm, 118.6700 mm): Line on F.Silkscreen",
+      "fingerprint": "95c870fda0ab8e647795f72fc8aeeb3fe190f0640866fb3ff072335993d70a24",
+      "section": "DRC violations"
+    },
+    {
+      "category": "copper_edge_clearance",
+      "message": "Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0750 mm)",
+      "objects": "Rule: board setup constraints edge; Severity: error\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(149.1750 mm, 116.5250 mm): Pad 11 [GND] of J12 on F.Cu",
+      "fingerprint": "4fa3aeea880a6d95e43e831b731f34b247085c4e08aa63a8272809b21d33ada3",
+      "section": "DRC violations"
+    },
+    {
+      "category": "copper_edge_clearance",
+      "message": "Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0750 mm)",
+      "objects": "Rule: board setup constraints edge; Severity: error\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(162.6750 mm, 116.9750 mm): Pad 11 [GND] of J12 on F.Cu",
+      "fingerprint": "8ce981dae2db2c805e87188fb9703548cb2fb062bd4bf35efe8040f9728fc268",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(150.0550 mm, 117.9850 mm): Line on F.Silkscreen",
+      "fingerprint": "833838301e9e2b5b42bf564e8a9636702ed93b6b5d0b9a8790b71454fde995ad",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(150.0550 mm, 117.9850 mm): Line on F.Silkscreen",
+      "fingerprint": "833838301e9e2b5b42bf564e8a9636702ed93b6b5d0b9a8790b71454fde995ad",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(151.9150 mm, 117.9850 mm): Line on F.Silkscreen",
+      "fingerprint": "0e6badbabb40b2ed250a15ddf28fda7e08840c6e7488eea6852180458061099e",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(159.0050 mm, 117.9850 mm): Line on F.Silkscreen",
+      "fingerprint": "055422627216d72dd12ef6ef1c18a33e7bd78a235d6abaa0bf7f11a476bebefa",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(161.3150 mm, 117.9850 mm): Line on F.Silkscreen",
+      "fingerprint": "85c07da967216229fe7d65765e3520dd9b91fa77fe3428c606116ff6a9b4b0fe",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(161.3150 mm, 117.9850 mm): Line on F.Silkscreen",
+      "fingerprint": "85c07da967216229fe7d65765e3520dd9b91fa77fe3428c606116ff6a9b4b0fe",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(95.6850 mm, 101.0900 mm): Line on F.Silkscreen",
+      "fingerprint": "544a3b1147b72c45d4e00c29d8b83b1321890c37ad4a34b4922c625e83469bf1",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(111.2050 mm, 101.0900 mm): Line on F.Silkscreen",
+      "fingerprint": "657122ed768b5312d0e9809f3edcdb16fcd30fe4ec374ad547d3cff649c84e00",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(61.3500 mm, 118.6700 mm): Line on F.Silkscreen",
+      "fingerprint": "ac9f7e61030f4f19538d5da3ae055c864dcb6ea456e47d59cb638d0a9d10f609",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts\n    @(74.6500 mm, 118.6700 mm): Line on F.Silkscreen",
+      "fingerprint": "fb47a2562685f740a10aa568f2376526bd13e87e6b081ff9a737788d045cdef0",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(62.0800 mm, -1.0500 mm): Line on F.Silkscreen",
+      "fingerprint": "ca0081481c42f4c8e6f462ec9075d61f7293d0ad00f3fb589c8c49f2b0d7c45f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(79.0700 mm, -1.0500 mm): Line on F.Silkscreen",
+      "fingerprint": "b23065cdf8747678fed0e36c0af284e54a6651c3ed84f96af88139415ab0f149",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(22.0800 mm, -1.0500 mm): Line on F.Silkscreen",
+      "fingerprint": "b258e10ee6f8fc32415b836ea02fd8115d9a0dafd5f2697305acb7046cf7c41f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(39.0700 mm, -1.0500 mm): Line on F.Silkscreen",
+      "fingerprint": "f1406e7ef97d2867ded5d4f35970c7a4fcf3ad850c53827e686ca979fff12b24",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(42.0800 mm, -1.0500 mm): Line on F.Silkscreen",
+      "fingerprint": "f0b55b7cde9361ca6e22b756e9b3791b93343f1a2ceab46747154a5e6d590875",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_edge_clearance",
+      "message": "Silkscreen clipped by board edge",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(59.0700 mm, -1.0500 mm): Line on F.Silkscreen",
+      "fingerprint": "9664c7258251eb3f1fe6bef752ea4d84e09b615852b4a4ab152f14b93a3c65a0",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(14.0000 mm, 9.6000 mm): PCB Text 'PWR 15-20V PD' on F.Silkscreen",
+      "fingerprint": "78f40e6e15a6e738e009ee764a55b079076463ac38239a1d0453c876843e7e58",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(156.0000 mm, 100.2000 mm): PCB Text 'SD' on F.Silkscreen",
+      "fingerprint": "6771f1461ea696e4282436a04d335e77146b3b6f1d7d74173d5e49b5aa0b11bb",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(78.0000 mm, 94.2000 mm): PCB Text 'Verdin iMX8M Plus  J1' on F.Silkscreen",
+      "fingerprint": "a9bddde36ee9196d4b7bf002540fc04a9935b657132ead89490b5243882596c5",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(152.0000 mm, 42.0000 mm): PCB Text 'CR2032 +' on F.Silkscreen",
+      "fingerprint": "51b8f3226517245023d09fb6631635e0f49a47f1466144367a564aab0307d47b",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(118.0000 mm, 108.2000 mm): PCB Text 'DEBUG' on F.Silkscreen",
+      "fingerprint": "d9b8fbdd7465fa927f2fab927c7f14d49668eea4551ac0f4b0ed8f0720e60294",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen",
+      "fingerprint": "513d97fc53f5f70779a0d5daa075e710148ee43efb82f0e8556ad429f683ec9f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(139.8000 mm, 13.6000 mm): PCB Text 'FAN' on F.Silkscreen",
+      "fingerprint": "779cb651602ac9498321330f7bc24214aa1075b05f1cf9bf69fa7bd4948344aa",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(50.0000 mm, 112.8000 mm): PCB Text 'ALARM' on F.Silkscreen",
+      "fingerprint": "03e0e8f84ffd6a03bce72428fdab83ee0e971ea170195a112d2cd0862ab7449b",
+      "section": "DRC violations"
+    },
+    {
+      "category": "solder_mask_bridge",
+      "message": "Front solder mask aperture bridges items with different nets",
+      "objects": "Rule: board setup solder mask min width; Severity: error\n    @(45.3945 mm, 87.0740 mm): NPTH pad of H5\n    @(47.4695 mm, 87.0740 mm): Pad 1 [<no net>] of H5 on F.Cu",
+      "fingerprint": "5da1ca6aad2f1eccc287aefd4f5f27b9765915c0ffbb68850f4c4df0dde0f635",
+      "section": "DRC violations"
+    },
+    {
+      "category": "solder_mask_bridge",
+      "message": "Front solder mask aperture bridges items with different nets",
+      "objects": "Rule: board setup solder mask min width; Severity: error\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6\n    @(112.6695 mm, 87.0740 mm): Pad 1 [<no net>] of H6 on F.Cu",
+      "fingerprint": "add1edd73e58fb629555ada8cbf494f80c59289751a62fa3c86f834487e0bcf8",
+      "section": "DRC violations"
+    },
+    {
+      "category": "solder_mask_bridge",
+      "message": "Front solder mask aperture bridges items with different nets",
+      "objects": "Rule: board setup solder mask min width; Severity: error\n    @(37.9945 mm, 56.0740 mm): NPTH pad of H7\n    @(40.0695 mm, 56.0740 mm): Pad 1 [<no net>] of H7 on F.Cu",
+      "fingerprint": "144c1cf2bb0dcd3409cd15a6087710d3c5ca9930884ae01e30c2fe112bc2fa9a",
+      "section": "DRC violations"
+    },
+    {
+      "category": "solder_mask_bridge",
+      "message": "Front solder mask aperture bridges items with different nets",
+      "objects": "Rule: board setup solder mask min width; Severity: error\n    @(117.9945 mm, 56.0740 mm): NPTH pad of H8\n    @(120.0695 mm, 56.0740 mm): Pad 1 [<no net>] of H8 on F.Cu",
+      "fingerprint": "42743f12f3da3ed60bc0c0528e2e93c5bda855fbf66c3dca4fa8a22c6f002647",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(9.6800 mm, 10.2936 mm): Line on F.Silkscreen\n    @(14.0000 mm, 9.6000 mm): PCB Text 'PWR 15-20V PD' on F.Silkscreen",
+      "fingerprint": "067e6cda8028fafbb088f06e0343b39feb49b6ce3cce56677b3da25ec08b36e3",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(10.4400 mm, 10.2936 mm): Line on F.Silkscreen\n    @(14.0000 mm, 9.6000 mm): PCB Text 'PWR 15-20V PD' on F.Silkscreen",
+      "fingerprint": "a8bc6a188e4de789e89ee6dc20f18cb7514581c42c18399d621131c2bc7aea8a",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(78.0000 mm, 94.2000 mm): PCB Text 'Verdin iMX8M Plus  J1' on F.Silkscreen\n    @(-1.3000 mm, -1.5100 mm): Polygon on F.Silkscreen",
+      "fingerprint": "924dd726b87f5dd2e19e8ce1bd4ca9908618b1bacca985bd7e2517f264c06b69",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(78.0000 mm, 94.2000 mm): PCB Text 'Verdin iMX8M Plus  J1' on F.Silkscreen\n    @(77.0000 mm, 94.4400 mm): Line on F.Silkscreen",
+      "fingerprint": "5d1570eb074e26631d13c4577f31ea426fc9a2a0588e8722a2edadc45aa4bd9c",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(78.0000 mm, 94.2000 mm): PCB Text 'Verdin iMX8M Plus  J1' on F.Silkscreen\n    @(77.0000 mm, 94.4400 mm): Line on F.Silkscreen",
+      "fingerprint": "5d1570eb074e26631d13c4577f31ea426fc9a2a0588e8722a2edadc45aa4bd9c",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(86.0000 mm, 99.9000 mm): PCB Text 'USB 2 / REC' on F.Silkscreen\n    @(82.6000 mm, 100.3200 mm): Line on F.Silkscreen",
+      "fingerprint": "1eb55fa29c47f3e1814f57c9fe26430ae281e5e119a6c5013aa50e159c1f3df3",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(118.0000 mm, 108.2000 mm): PCB Text 'DEBUG' on F.Silkscreen\n    @(116.4864 mm, 108.0100 mm): Line on F.Silkscreen",
+      "fingerprint": "51970c2540b760d23c2c83babf79fdebea7c9c0f065a15555204c2d6a63902ec",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(118.0000 mm, 108.2000 mm): PCB Text 'DEBUG' on F.Silkscreen\n    @(119.4864 mm, 108.0100 mm): Line on F.Silkscreen",
+      "fingerprint": "ddde47a2efb70224ad4d7e2a09e3a6b1d2c796ff5ea8533475bd740cfc459bae",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(152.0000 mm, 42.0000 mm): PCB Text 'CR2032 +' on F.Silkscreen\n    @(151.4100 mm, 41.2600 mm): Line on F.Silkscreen",
+      "fingerprint": "066e117cc2b2f7da9f9d7384c45b0181089603e601c8a74e1353a6bc3cb8de5b",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen\n    @(98.7164 mm, 6.5200 mm): Line on F.Silkscreen",
+      "fingerprint": "ac1da2b5c66a0763326d35e377dbd22a8e5b4703a99b0f6468a6ce3e21514a4f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen\n    @(99.7500 mm, 6.2500 mm): Line on F.Silkscreen",
+      "fingerprint": "a85d871c578ecdfbdd0243d17266df2dae7358ad6a895d08f4046713c706fec7",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen\n    @(100.0000 mm, 5.7500 mm): Line on F.Silkscreen",
+      "fingerprint": "f2155e8e498ce4362e84333da769d4fd1831d601bfa58d271be9909384688d95",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen\n    @(100.2500 mm, 6.2500 mm): Line on F.Silkscreen",
+      "fingerprint": "12ed8c40f822c944020d078ccfddd47c84b51424cf6093104d116a9ac60762f7",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen\n    @(101.4064 mm, 6.3800 mm): Line on F.Silkscreen",
+      "fingerprint": "381eb861e051a40410496828bcc034079db4dd31f6fb0cb1c34328bb3f76e59f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu",
+      "fingerprint": "c8b5840b76bba81b9679fd72b1471745494251d289d0cb9b04411553b58e96c7",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(17.6100 mm, 34.1900 mm): Pad 2 [GND] of Y1 on B.Cu\n    @(16.9600 mm, 35.7600 mm): Pad 2 [GND] of R20 on F.Cu",
+      "fingerprint": "30820ae28732f9a9291f06b452714ac03ddae51496aaf11f82d5f1e82780fd93",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu",
+      "fingerprint": "c8b5840b76bba81b9679fd72b1471745494251d289d0cb9b04411553b58e96c7",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu",
+      "fingerprint": "c8b5840b76bba81b9679fd72b1471745494251d289d0cb9b04411553b58e96c7",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(40.5650 mm, 49.4000 mm): Pad 4 [GND] of U11 on B.Cu\n    @(42.6750 mm, 47.4200 mm): Pad 2 [GND] of C1 on F.Cu",
+      "fingerprint": "7d92edcbae12fed1c936ab9f3c768654b2abd76d687aa552b206c6671c4a51b3",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "1997bff64492a8ef6fdb9f1c8fbd75c58911a84029a64b4d8db42de390857089",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(70.3695 mm, 51.9740 mm): Pad 157 [USB1_OC#] of J1 on F.Cu\n    @(77.5600 mm, 98.6475 mm): Track [USB1_OC#] on F.Cu, length 2.4006 mm",
+      "fingerprint": "c681b80434dae3fbdcebf041b27c961055d33175dac456b6195cae0a86131b80",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(69.8695 mm, 51.9740 mm): Pad 159 [USB1_VBUS_DET] of J1 on F.Cu\n    @(87.1200 mm, 93.0300 mm): Pad 2 [USB1_VBUS_DET] of R83 on F.Cu",
+      "fingerprint": "891a6a62bf8973a26f75e971feac5d10f366122554a2b031cb959b07fb450257",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(109.1951 mm, 54.2966 mm): Track [FRAM_MOSI] on F.Cu, length 0.6177 mm\n    @(137.6000 mm, 47.9050 mm): Pad 5 [FRAM_MOSI] of U1 on F.Cu",
+      "fingerprint": "f2465cf7c2c4558186d042d543234607454533f99b1773c2b0aba0a161aca69e",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(54.3695 mm, 51.9740 mm): Pad 221 [MG_TXD0] of J1 on F.Cu\n    @(67.1625 mm, 39.7500 mm): Pad 19 [MG_TXD0] of U13 on F.Cu",
+      "fingerprint": "774ea505874f4f9a40a96c6fa8aea84255affdf81e75a926fa8132bda6a9a959",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(11.6316 mm, 12.1834 mm): Track [PD_ALERT#] on B.Cu, length 1.4202 mm\n    @(30.8130 mm, 59.9929 mm): Track [PD_ALERT#] on B.Cu, length 20.3211 mm",
+      "fingerprint": "a9f6fc8e6a1f4340c0736d1e0718f8a694d591035bf852c6298155075e8a8bfe",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(28.8625 mm, 55.5000 mm): Pad 2 [PCIE_RST#_1V8] of U12 on B.Cu\n    @(48.6195 mm, 60.1740 mm): Pad 244 [PCIE_RST#_1V8] of J1 on F.Cu",
+      "fingerprint": "b7c92899397662cf1d29d14676b587dbe9e777c5b3a6fb8de3ca62188be8c6cd",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(17.3393 mm, 17.6862 mm): Track [PD_ATTACH#] on F.Cu, length 6.4831 mm\n    @(19.0300 mm, 25.8600 mm): Pad 1 [PD_ATTACH#] of TP14 on F.Cu",
+      "fingerprint": "1f09db199ea45ba17acb1c1b2ea7b6d23860644dc1fc354cce41e0346030845a",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(24.0140 mm, 25.8600 mm): Track [PD_ATTACH#] on F.Cu, length 2.0717 mm\n    @(19.0300 mm, 25.8600 mm): Pad 1 [PD_ATTACH#] of TP14 on F.Cu",
+      "fingerprint": "6dd83afc8e844abed137a649fc76fa5ffc726a51b76df2765483dc994f3aa467",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(17.0590 mm, 16.5839 mm): Track [PD_EN_SNK#] on B.Cu, length 0.0184 mm\n    @(18.1555 mm, 15.4874 mm): Track [PD_EN_SNK#] on F.Cu, length 1.5507 mm",
+      "fingerprint": "0380051a1cb57847deddb7ac6f50a304ca1f490eef7b96ea46864e06c06313e3",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(69.3500 mm, 36.0625 mm): Track [+1V2_PHY] on F.Cu, length 6.2940 mm\n    @(71.8500 mm, 36.0625 mm): Pad 4 [+1V2_PHY] of U13 on F.Cu",
+      "fingerprint": "176d0536d9dcfd152ace16bd565645f3fdad6642c6c0327da734a4181375fc95",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(34.3500 mm, 45.9375 mm): Pad 17 [PCIE_RST#_3V3] of U10 on B.Cu\n    @(34.2932 mm, 53.0647 mm): Track [PCIE_RST#_3V3] on B.Cu, length 0.7986 mm",
+      "fingerprint": "49cb25e7579e1b9bb2058fbc7fd9c3e433303bd1e43aafe677e7ba56839c8195",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(32.6200 mm, 51.4511 mm): Track [OE_JTAG_PU] on B.Cu, length 0.1438 mm\n    @(32.5183 mm, 51.5528 mm): Track [OE_JTAG_PU] on F.Cu, length 2.7422 mm",
+      "fingerprint": "864ac5e1814bc817f5c05aecf1082c0b7d40448b5cac5566b241579ceaab1f39",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(67.1625 mm, 37.7500 mm): Pad 15 [MG_LED2] of U13 on F.Cu\n    @(59.6200 mm, 40.6300 mm): Pad 2 [MG_LED2] of R71 on F.Cu",
+      "fingerprint": "fd198d5f27110efc7fbd9bd02c4e0b2aa51d2acd030a787adf7d520b038c6894",
+      "section": "unconnected pads"
+    },
+    {
+      "category": "unconnected_items",
+      "message": "Missing connection between items",
+      "objects": "Local override; Severity: error\n    @(87.5700 mm, 31.8075 mm): Pad 2 [MG_LED2] of U15 on F.Cu\n    @(67.1625 mm, 37.7500 mm): Pad 15 [MG_LED2] of U13 on F.Cu",
+      "fingerprint": "ed91dbe8630d60e415ec9b5a5e238a684b2a9a22aaf8dac4f60cc26e04a54be5",
+      "section": "unconnected pads"
+    }
+  ]
+}

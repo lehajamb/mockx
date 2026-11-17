@@ -1,0 +1,127 @@
+⚠ the diff is over 400 KB; only the first 400 KB is checked
+checking 500 changed files against 4 learnings and 0 skills
+
+● examples/sorx_appliance/CODEX_RESUME.md:7
+  brings back board track call, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated board.Remove(track) calls corrupted SWIG's
+  wrapping metadata: GetNetInfo, GetFootprints and Pads returned bare
+  SwigPyObject values, and even reloading the board in the same
+  process could return an unwrapped object.
+● examples/sorx_appliance/CODEX_RESUME.md:41
+  brings back bound supplier model, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated bounding-box extraction inside the
+  all-pairs loop made a supplier-model check exceed six minutes:
+  106,643 expensive CAD calls for 327 components.
+● examples/sorx_appliance/docs/independent-implementation.md:6
+  brings back loop model check, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated bounding-box extraction inside the
+  all-pairs loop made a supplier-model check exceed six minutes:
+  106,643 expensive CAD calls for 327 components.
+● examples/sorx_appliance/docs/independent-implementation.md:20
+  brings back tool bind failure, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: This is a tool-binding failure, not evidence that
+  routing passed.
+● examples/sorx_appliance/docs/independent-workspace.json:8
+  brings back pair model check, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated bounding-box extraction inside the
+  all-pairs loop made a supplier-model check exceed six minutes:
+  106,643 expensive CAD calls for 327 components.
+● examples/sorx_appliance/hardware/docs/block-diagram.svg:1
+  brings back one tim height, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Treating the full Toradex heatsink STEP as one
+  rigid metal body would also include uncompressed TIM and screws at
+  incorrect support heights.
+● examples/sorx_appliance/hardware/docs/connector-land-review.md:1
+  brings back repeated inside supplier, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated bounding-box extraction inside the
+  all-pairs loop made a supplier-model check exceed six minutes:
+  106,643 expensive CAD calls for 327 components.
+● examples/sorx_appliance/hardware/docs/connector-land-review.md:3
+  brings back repeated board track, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated board.Remove(track) calls corrupted SWIG's
+  wrapping metadata: GetNetInfo, GetFootprints and Pads returned bare
+  SwigPyObject values, and even reloading the board in the same
+  process could return an unwrapped object.
+● examples/sorx_appliance/hardware/docs/critical-sourcing-review.md:13
+  brings back extraction supplier model, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated bounding-box extraction inside the
+  all-pairs loop made a supplier-model check exceed six minutes:
+  106,643 expensive CAD calls for 327 components.
+● examples/sorx_appliance/hardware/docs/debug-power-and-via-fill.md:3
+  brings back board track call, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated board.Remove(track) calls corrupted SWIG's
+  wrapping metadata: GetNetInfo, GetFootprints and Pads returned bare
+  SwigPyObject values, and even reloading the board in the same
+  process could return an unwrapped object.
+● examples/sorx_appliance/hardware/docs/debug-power-and-via-fill.md:17
+  brings back call regression, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: A bounded-call regression reproduced this; caching
+  brings the complete nine-test suite to roughly30 seconds.
+● examples/sorx_appliance/hardware/docs/design-review-notes.md:32
+  brings back supplier model six, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated bounding-box extraction inside the
+  all-pairs loop made a supplier-model check exceed six minutes:
+  106,643 expensive CAD calls for 327 components.
+● examples/sorx_appliance/hardware/docs/electrical-corrections.md:4
+  brings back value process board, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Caching NETINFO values and same-process
+  SaveBoard/LoadBoard roundtrips did not reliably cure it.
+● examples/sorx_appliance/hardware/docs/electrical-corrections.md:5
+  brings back bound supplier model, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated bounding-box extraction inside the
+  all-pairs loop made a supplier-model check exceed six minutes:
+  106,643 expensive CAD calls for 327 components.
+● examples/sorx_appliance/hardware/docs/electrical-resume.md:13
+  brings back board track metadata, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated board.Remove(track) calls corrupted SWIG's
+  wrapping metadata: GetNetInfo, GetFootprints and Pads returned bare
+  SwigPyObject values, and even reloading the board in the same
+  process could return an unwrapped object.
+● examples/sorx_appliance/hardware/docs/high-speed-path-audit.md:7
+  brings back extraction inside pair, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated bounding-box extraction inside the
+  all-pairs loop made a supplier-model check exceed six minutes:
+  106,643 expensive CAD calls for 327 components.
+● examples/sorx_appliance/hardware/docs/high-speed-path-audit.md:9
+  brings back board remove track, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated board.Remove(track) calls corrupted SWIG's
+  wrapping metadata: GetNetInfo, GetFootprints and Pads returned bare
+  SwigPyObject values, and even reloading the board in the same
+  process could return an unwrapped object.
+● examples/sorx_appliance/hardware/docs/high-speed-resume.md:10
+  brings back board remove track, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated board.Remove(track) calls corrupted SWIG's
+  wrapping metadata: GetNetInfo, GetFootprints and Pads returned bare
+  SwigPyObject values, and even reloading the board in the same
+  process could return an unwrapped object.
+● examples/sorx_appliance/hardware/docs/high-speed-resume.md:19
+  brings back pair check six, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: Repeated bounding-box extraction inside the
+  all-pairs loop made a supplier-model check exceed six minutes:
+  106,643 expensive CAD calls for 327 components.
+● examples/sorx_appliance/hardware/docs/mechanical-validation.md:3
+  brings back tool bind failure, which Lehajamb's learning ruled out
+  worth a look, can't fail the check: not on the base branch yet
+  Lehajamb · Nov 17: This is a tool-binding failure, not evidence that
+  routing passed.
+
+· no conflicts · 20 worth a look

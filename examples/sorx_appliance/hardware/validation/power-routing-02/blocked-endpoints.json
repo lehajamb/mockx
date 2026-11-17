@@ -1,0 +1,73 @@
+[
+  {
+    "description": "Pad 5 [+1V8] of U12 on B.Cu",
+    "xy": [
+      37.8175,
+      54.64
+    ],
+    "layer": "B",
+    "blockers": [
+      {
+        "net": "<npth:H7>",
+        "layers": "FBCI",
+        "distance_mm": 0.0,
+        "hole": true,
+        "object_uuid": null,
+        "bounds": [
+          36.4945,
+          54.574,
+          39.4945,
+          57.574
+        ]
+      }
+    ]
+  },
+  {
+    "description": "Pad 5 [+1V8] of U12 on B.Cu",
+    "xy": [
+      37.8175,
+      54.64
+    ],
+    "layer": "B",
+    "blockers": [
+      {
+        "net": "<npth:H7>",
+        "layers": "FBCI",
+        "distance_mm": 0.0,
+        "hole": true,
+        "object_uuid": null,
+        "bounds": [
+          36.4945,
+          54.574,
+          39.4945,
+          57.574
+        ]
+      }
+    ]
+  },
+  {
+    "description": "Pad 1 [+4V5_PD] of TP21 on F.Cu",
+    "xy": [
+      19.0,
+      26.5
+    ],
+    "layer": "F",
+    "blockers": [
+      {
+        "net": "PD_ATTACH#",
+        "layers": [
+          "F"
+        ],
+        "distance_mm": 0.14508899999999872,
+        "hole": false,
+        "object_uuid": null,
+        "bounds": [
+          18.53,
+          25.365089,
+          19.53,
+          26.354911
+        ]
+      }
+    ]
+  }
+]

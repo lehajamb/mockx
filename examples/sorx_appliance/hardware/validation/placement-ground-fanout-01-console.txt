@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/work/hardware/tools/ground_fanout.py", line 109, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/work/hardware/tools/ground_fanout.py", line 106, in main
+    return run(p.parse_args())
+           ^^^^^^^^^^^^^^^^^^^
+  File "/work/hardware/tools/ground_fanout.py", line 57, in run
+    raise ValueError(f"Protected collision: {track.GetNetname()} {track.m_Uuid.AsString()} ({reason})")
+ValueError: Protected collision: I2C1_SCL 250c6ccf-309a-469a-a5c9-a3e055d9c1d8 (generic signal routing)

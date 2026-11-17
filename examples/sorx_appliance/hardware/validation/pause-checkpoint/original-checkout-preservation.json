@@ -1,0 +1,136 @@
+{
+  "unchanged": false,
+  "files": {
+    "examples/sorx_appliance/hardware/tools/design.py": {
+      "expected_sha256": "1d45d89177753ac3bf129c944097a6c1cc3f1c10de8cff4abb07ec64877d04e0",
+      "actual_sha256": "55dbd4e8904972989bc954a3c77424a18da3f9b7f3f33c2aeb274760f262f8df",
+      "unchanged": false
+    },
+    "examples/sorx_appliance/hardware/tools/audit.py": {
+      "expected_sha256": "739fdd4b0e292b893cead58b8802638e7d7f8f813154606f46bfbbe7a53b3d0d",
+      "actual_sha256": "739fdd4b0e292b893cead58b8802638e7d7f8f813154606f46bfbbe7a53b3d0d",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/tools/env/Dockerfile": {
+      "expected_sha256": "ecd9c71cd5ea7adf22d4020aef57582826b839c5986151b2669457c38b15a165",
+      "actual_sha256": "ecd9c71cd5ea7adf22d4020aef57582826b839c5986151b2669457c38b15a165",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/tools/env/run.sh": {
+      "expected_sha256": "2f22f325cb7dd9388e8d5e43e69ea6277640fd0e304e3292d67ed5bbb4c18174",
+      "actual_sha256": "2f22f325cb7dd9388e8d5e43e69ea6277640fd0e304e3292d67ed5bbb4c18174",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/tools/near.py": {
+      "expected_sha256": "0da0bf5af14a05b4a7f9a2b5b426454349b3fc92d173d8a191c2fb8e64cd28fc",
+      "actual_sha256": "0da0bf5af14a05b4a7f9a2b5b426454349b3fc92d173d8a191c2fb8e64cd28fc",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/tools/repro_baseline.sh": {
+      "expected_sha256": "1d1a5a3782a9279afebaf48c4c582596dfb9737f5373155cf5dc9d0ca9a30e0c",
+      "actual_sha256": "1d1a5a3782a9279afebaf48c4c582596dfb9737f5373155cf5dc9d0ca9a30e0c",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/tools/view.py": {
+      "expected_sha256": "3fb4c04e0b2effa6bf023de815f3d96dbd001c48d3c227f8687f03027378a434",
+      "actual_sha256": "3fb4c04e0b2effa6bf023de815f3d96dbd001c48d3c227f8687f03027378a434",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/connectivity.json": {
+      "expected_sha256": "584c67b1a5dba2374536fc7a611738abe5d267e48ce4d4d43295b152c001705c",
+      "actual_sha256": "584c67b1a5dba2374536fc7a611738abe5d267e48ce4d4d43295b152c001705c",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/connectivity.txt": {
+      "expected_sha256": "84f30b8c473b1725398bc3eced6153385aeb65123df3f16fc7858849b876a5e8",
+      "actual_sha256": "84f30b8c473b1725398bc3eced6153385aeb65123df3f16fc7858849b876a5e8",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/drc-report-refilled.txt": {
+      "expected_sha256": "b4f8c51141685fc02d171edafff8f8cce78f029e90397653fdca5ff4ae7d9fdf",
+      "actual_sha256": "b4f8c51141685fc02d171edafff8f8cce78f029e90397653fdca5ff4ae7d9fdf",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/drc-report.txt": {
+      "expected_sha256": "ead3cb288ad8f7615e1d00e8b6c3a40ebbe0563080bc2d13b921a2f041caaa67",
+      "actual_sha256": "ead3cb288ad8f7615e1d00e8b6c3a40ebbe0563080bc2d13b921a2f041caaa67",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/drc-run.log": {
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/dupvias.txt": {
+      "expected_sha256": "a206d1ecd694ccb71ccdc54e6a54340cdf5d79a782c18370e45bd159dbfec288",
+      "actual_sha256": "a206d1ecd694ccb71ccdc54e6a54340cdf5d79a782c18370e45bd159dbfec288",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/environment.txt": {
+      "expected_sha256": "952b97e01f7955ec205b4378a9e9fa3e37419724ce9c772c1e7522db74a7ee59",
+      "actual_sha256": "952b97e01f7955ec205b4378a9e9fa3e37419724ce9c772c1e7522db74a7ee59",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/erc-report.txt": {
+      "expected_sha256": "7e59b9f7a0457028abb6ad0b6289130f734f3aaa30e81d0fc5f7a104da21ac19",
+      "actual_sha256": "7e59b9f7a0457028abb6ad0b6289130f734f3aaa30e81d0fc5f7a104da21ac19",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/erc-run.log": {
+      "expected_sha256": "ad030bda8585b454f78b71ec8bc8c5c2406c470c206544f429efd7a4023e8d68",
+      "actual_sha256": "ad030bda8585b454f78b71ec8bc8c5c2406c470c206544f429efd7a4023e8d68",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/fit-check.json": {
+      "expected_sha256": "80db7e85e6af59e60891113c62a1d63724d221cea4bd94bd6b29d54701e25e1f",
+      "actual_sha256": "80db7e85e6af59e60891113c62a1d63724d221cea4bd94bd6b29d54701e25e1f",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/gen_mech.log": {
+      "expected_sha256": "d2802b2bd65284c412e65f207241ad98e0d8ed392770db4d9db886c079145220",
+      "actual_sha256": "d2802b2bd65284c412e65f207241ad98e0d8ed392770db4d9db886c079145220",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/gen_sch-diff.txt": {
+      "expected_sha256": "a31914dcf46a43b80c7808f52e9c8c6b8d5a7b2bb9b7f8dc7e0a62b112c1eb4a",
+      "actual_sha256": "a31914dcf46a43b80c7808f52e9c8c6b8d5a7b2bb9b7f8dc7e0a62b112c1eb4a",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/gen_sch.log": {
+      "expected_sha256": "c7441aa203c907f43daf4fe593f414fea30dd6f536661604752f9d964f1b1dd2",
+      "actual_sha256": "c7441aa203c907f43daf4fe593f414fea30dd6f536661604752f9d964f1b1dd2",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/inventory.json": {
+      "expected_sha256": "0a982a2662f334c51276d954c7c57885d6657117d97c0a17882d7a32b6fd0aff",
+      "actual_sha256": "0a982a2662f334c51276d954c7c57885d6657117d97c0a17882d7a32b6fd0aff",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/mech_export.log": {
+      "expected_sha256": "bc7dba4ef64703a69c8b1d3f206e0b2451e507c0e881574463665511f71e5899",
+      "actual_sha256": "bc7dba4ef64703a69c8b1d3f206e0b2451e507c0e881574463665511f71e5899",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/netlist-parity.txt": {
+      "expected_sha256": "895115b8b1545ff4c1aba37d181aa20ac783d5e924d987f988148f07d7972486",
+      "actual_sha256": "895115b8b1545ff4c1aba37d181aa20ac783d5e924d987f988148f07d7972486",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/padnets.txt": {
+      "expected_sha256": "8f8214a2dbb84c6755d411d6447737c97e3b54761f75328b867b8d8868503ec2",
+      "actual_sha256": "8f8214a2dbb84c6755d411d6447737c97e3b54761f75328b867b8d8868503ec2",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/baseline-repro/pairs-netsum.txt": {
+      "expected_sha256": "bfa4040b38ecdfa60caa2bde6a4260d5f77c43df3a7469f6e84b258aa063fd02",
+      "actual_sha256": "bfa4040b38ecdfa60caa2bde6a4260d5f77c43df3a7469f6e84b258aa063fd02",
+      "unchanged": true
+    },
+    "examples/sorx_appliance/hardware/validation/manufacturer-evidence.json": {
+      "expected_sha256": "442a9b5003ae6865b9fd0eb21c3851c8b1b79a12ed80661eb8e69490779f611c",
+      "actual_sha256": "442a9b5003ae6865b9fd0eb21c3851c8b1b79a12ed80661eb8e69490779f611c",
+      "unchanged": true
+    }
+  },
+  "interpretation": "Read-only observation:25 of26 initial sampled files match. Original tools/design.py differs from the initial snapshot. No file in that checkout was changed or restored during this independent implementation; the observation cannot establish its author. Leave the original checkout as found."
+}

@@ -1,0 +1,47 @@
+{
+  "placement": {
+    "name": "placement",
+    "command": [
+      "python3",
+      "/tmp/sorx-mech-v2-smoke-ypos82g1/hardware/tools/mech_export.py",
+      "/tmp/sorx-mech-v2-smoke-ypos82g1/hardware/hw/sorx.kicad_pcb",
+      "/tmp/sorx-mech-v2-smoke-ypos82g1/hardware/hw/build/mech_parts.json"
+    ],
+    "started_utc": "2026-11-16T23:48:43.486827+00:00",
+    "returncode": 0,
+    "elapsed_seconds": 1.074,
+    "finished_utc": "2026-11-16T23:48:44.560829+00:00",
+    "missing_outputs": [],
+    "success": true,
+    "outputs": {
+      "mech_parts.json": "23795b0f1734b70f8d58180ad507d97af7e7c13bd30cd5c115e721df3ef00439"
+    }
+  },
+  "fit": {
+    "name": "fit",
+    "command": [
+      "/opt/cq/bin/python",
+      "/tmp/sorx-mech-v2-smoke-ypos82g1/hardware/tools/gen_mech.py"
+    ],
+    "started_utc": "2026-11-16T23:48:44.562452+00:00",
+    "returncode": 1,
+    "elapsed_seconds": 30.442,
+    "finished_utc": "2026-11-16T23:49:15.001914+00:00",
+    "missing_outputs": [],
+    "success": false,
+    "outputs": {
+      "fit-check.json": "458045d21501912f17c258ed6660350cbc4d272f756c7e8a7d219e5ea90b263e"
+    }
+  },
+  "mechanical_schema": 2,
+  "geometry_pass": true,
+  "failures": [
+    "mechanical checker did not pass",
+    "Module/heatsink mounting footprints absent or not at the manufacturer coordinates.",
+    "Envelope heights from the prior design and inferred package bounds require exact-MPN maximum-height qualification.",
+    "Heatsink envelope bounds Type 1 23111101; supplier geometry/TIM compression and assembly access require qualification.",
+    "1.5 mm floor/lid and fan nominal dimensions require enclosure-process and supplier tolerance/strength sign-off.",
+    "Cable plug/latch and microSD removal access envelopes have not been qualified."
+  ],
+  "source_pcb_sha256": "4b0b5f18692eecd80ba4ca10c9bc060dbb6584ba1aa6668b223d5afe200c771a"
+}

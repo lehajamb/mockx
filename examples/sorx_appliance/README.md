@@ -1,14 +1,18 @@
 # SORX appliance hardware workspace
 
-**NOT READY FOR FABRICATION.** This is a hardware-first bootstrap for continuing
-the submitted SORX carrier design. No electrical or mechanical corrections have
-been made by the bootstrap. Existing fabrication files describe an incomplete
-board and must not be ordered.
+**NOT READY FOR FABRICATION.** This checkout contains the independent Codex
+hardware implementation on `codex/sorx-hardware-independent`. It starts from
+bootstrap commit `c2e1b3c`, with immutable source-import benchmark `df82478`.
+The original archives and supplied images remain unchanged.
 
-Start with [Claude's continuation prompt](CLAUDE_HANDOFF.md), the
-[independent review](docs/independent-review.md) and the
-[release criteria](docs/release-criteria.md). The [comparison guide](docs/comparison.md)
-identifies the fixed Git baseline for measuring a later design revision.
+The independent implementation is paused at the user's request. The corrected
+native PCB is saved with 30 required opens; release qualification is unfinished.
+Read [the Codex resume handoff](CODEX_RESUME.md) for the exact accepted state,
+unpromoted experiments, validation results and remaining work.
+Read the [independent implementation record](docs/independent-implementation.md),
+[release criteria](docs/release-criteria.md) and
+[comparison guide](docs/comparison.md). Existing historical fabrication files
+are not approved manufacturing outputs.
 
 ## Contents and authority
 
@@ -22,9 +26,9 @@ identifies the fixed Git baseline for measuring a later design revision.
 | [validation](docs/bootstrap-validation.md) | Bootstrap checks and hardware checks not executed |
 | [future lab](docs/future-lab.md) | Later Docker venues, replay and optional ARM emulation; not implemented here |
 
-The original [hardware handoff](hardware/HANDOFF.md), README and verification
-report are imported byte-for-byte. Their instructions and status statements are
-historical material. In particular, their “Later” list contains release blockers
+The original [hardware handoff](hardware/HANDOFF.md) and archived ZIP contents
+remain historical evidence. Active hardware reports and engineering documentation
+are being regenerated; their source-bound validation records govern current status. In particular, their “Later” list contains release blockers
 that must be resolved before fabrication. The independent review records the
 current assessment without rewriting that evidence.
 
@@ -32,12 +36,18 @@ The active design and original archives are intentionally both included. The
 archives preserve every original file, including the excluded bytecode/UI-state
 entries. See [baseline provenance](baseline/README.md) for the exact import policy.
 
-## Start Claude Code
+## Independent development environment
 
-Open this repository on `codex/sorx-appliance-bootstrap`, then paste the text in
-[CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md). Read [CLAUDE.md](CLAUDE.md) for workspace
-boundaries. Work in `hardware/`; preserve `baseline/` and `reference_images/`.
-Keep the fixed import commit available for the before/after review.
+This standalone clone has separate Git objects, branch and working files from
+Claude's checkout. Do not run its generators or use its output directories.
+The dedicated [container launcher](hardware/tools/env/README.md) uses an exact
+immutable image ID, unique Codex container names and read-only baseline/image
+mounts. The image's tool layers were reused with attribution; no unfinished
+Claude circuit changes were imported.
+
+The original [Claude continuation prompt](CLAUDE_HANDOFF.md) remains available
+for comparison. Work in this clone's `hardware/`, preserve `baseline/` and
+`reference_images/`, and retain `df82478` as the fixed source benchmark.
 
 ## Check the workspace
 
@@ -56,4 +66,4 @@ to include newly added files and the complete engineering diff.
 **A passing bootstrap check is not a passing hardware verification.** KiCad,
 electrical review, sourcing, mechanical validation and physical bring-up remain
 separate gates. No Docker appliance, new order client or QEMU image is delivered
-by this bootstrap.
+by this hardware implementation.

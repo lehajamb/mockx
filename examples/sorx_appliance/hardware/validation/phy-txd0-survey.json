@@ -1,0 +1,51 @@
+{
+  "source_sha256": "5188991db0633f32b6552605679a701606510d5833916cdc843b0ec5413cead1",
+  "direct_via_options": [
+    {
+      "xy": [
+        65.5,
+        39.2
+      ],
+      "length_mm": 1.751115715765231
+    },
+    {
+      "xy": [
+        65.47500000000001,
+        39.2
+      ],
+      "length_mm": 1.7748679528347873
+    },
+    {
+      "xy": [
+        65.45,
+        39.2
+      ],
+      "length_mm": 1.7986540106423934
+    },
+    {
+      "xy": [
+        65.425,
+        39.175000000000004
+      ],
+      "length_mm": 1.8301724645508097
+    }
+  ],
+  "removed_for_survey_only": [
+    "MG_LED1 tracks/vias",
+    "587b360f-ca17-4750-964c-23ae3a9b430d",
+    "48ed1cdd-c2d8-4309-b877-92fcf9a5d823"
+  ],
+  "conservative_clearance_mm": 0.185,
+  "trace_width_mm": 0.15,
+  "via_diameter_mm": 0.6,
+  "drill_mm": 0.3,
+  "no_board_changes": true,
+  "metadata_correction": {
+    "recorded_during_safe_wrap": true,
+    "actual_trace_width_mm": 0.15,
+    "actual_trace_clearance_mm": 0.16,
+    "actual_via_clearance_mm": 0.185,
+    "reason": "The executed straight-trace distance threshold is 0.235 mm, so subtracting the 0.075 mm trace half-width leaves 0.160 mm. The original conservative_clearance_mm field applies only to the via survey; it must not be applied to the trace.",
+    "acceptance": "UNACCEPTED GEOMETRIC HYPOTHESIS ONLY; no native DRC or restoration of removed connections performed."
+  }
+}

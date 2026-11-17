@@ -1,0 +1,23 @@
+{
+  "footprints": 348,
+  "pads": 1500,
+  "track_segments": 3317,
+  "vias": 1180,
+  "model_mismatches": [
+    "U1: wrong footprint <pcbnew.LIB_ID; proxy of <Swig Object of type 'LIB_ID *' at 0x7560de0aec10> >",
+    "U1: value 'CY15B104QN' != 'CY15V104QN'",
+    "U1.7: FRAM_HOLD# != FRAM_DNU",
+    "R11.2: FRAM_HOLD# != FRAM_DNU",
+    "R76: value '12.1k' != '6.04k'"
+  ],
+  "duplicate_via_sites": [
+    {
+      "x_mm": 36.9,
+      "y_mm": 41.5,
+      "nets": [
+        "GND",
+        "GND"
+      ]
+    }
+  ]
+}

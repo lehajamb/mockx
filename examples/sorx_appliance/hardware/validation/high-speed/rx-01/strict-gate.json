@@ -1,0 +1,18 @@
+{
+  "targeted_geometric_checks_pass": true,
+  "fabrication_ready": false,
+  "failures": [],
+  "native_pcie_errors": [],
+  "native_counts": {
+    "DRC violations": 95,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "not_qualified": [
+    "layer-specific impedance and delay",
+    "escape/coupling discontinuities",
+    "reference transitions and return inductance",
+    "whole-board electrical and mechanical release gates"
+  ],
+  "gate_sha256": "0bae83115e87fc9f06bdcd192a24141785d17ea388f523c3df5ec9ed31c5c50f"
+}

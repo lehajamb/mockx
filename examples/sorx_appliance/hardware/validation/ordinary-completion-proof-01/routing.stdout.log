@@ -1,0 +1,42 @@
+pass 1:   REFUSED: +1V8 | endpoint lies on an unsupported routing layer
+  REFUSED: +1V8 | endpoint lies on an unsupported routing layer
+  REFUSED: MG_TXD0 | single-ended timing interface requires reviewed routing constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V2_PHY | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_DBG_RAW | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_DBG_RAW | power routing requires reviewed per-net width/current constraints
+12 open: 6 routed, 0 routed with rip-up, 6 failed
+  FAILED: PD_EN_SNK#
+  FAILED: MG_LED2
+  FAILED: MG_LED2
+  FAILED: FRAM_MOSI
+  FAILED: USB1_VBUS_DET
+  FAILED: USB1_OC#
+pass 2:   REFUSED: +1V8 | endpoint lies on an unsupported routing layer
+  REFUSED: +1V8 | endpoint lies on an unsupported routing layer
+  REFUSED: MG_TXD0 | single-ended timing interface requires reviewed routing constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V2_PHY | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_DBG_RAW | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_DBG_RAW | power routing requires reviewed per-net width/current constraints
+6 open: 0 routed, 0 routed with rip-up, 6 failed
+  FAILED: PD_EN_SNK#
+  FAILED: MG_LED2
+  FAILED: MG_LED2
+  FAILED: FRAM_MOSI
+  FAILED: USB1_VBUS_DET
+  FAILED: USB1_OC#
+open signal/power connections left: 13
+  OPEN USB1_OC# | Pad 157 [USB1_OC#] of J1 on F.Cu | Track [USB1_OC#] on F.Cu, length 2.4006 mm
+  OPEN USB1_VBUS_DET | Pad 159 [USB1_VBUS_DET] of J1 on F.Cu | Pad 2 [USB1_VBUS_DET] of R83 on F.Cu
+  OPEN FRAM_MOSI | Track [FRAM_MOSI] on F.Cu, length 0.6177 mm | Pad 5 [FRAM_MOSI] of U1 on F.Cu
+  OPEN +1V8 | Track [+1V8] on In2.Cu, length 15.4936 mm | Track [+1V8] on B.Cu, length 0.0125 mm
+  OPEN +1V8 | Track [+1V8] on In2.Cu, length 10.4678 mm | Track [+1V8] on F.Cu, length 1.8662 mm
+  OPEN MG_TXD0 | Pad 221 [MG_TXD0] of J1 on F.Cu | Pad 19 [MG_TXD0] of U13 on F.Cu
+  OPEN VBUS_IN | Track [VBUS_IN] on F.Cu, length 1.3025 mm | Track [VBUS_IN] on F.Cu, length 6.7150 mm
+  OPEN PD_EN_SNK# | Track [PD_EN_SNK#] on F.Cu, length 1.5507 mm | Track [PD_EN_SNK#] on B.Cu, length 1.5057 mm
+  OPEN +1V2_PHY | Track [+1V2_PHY] on F.Cu, length 6.2940 mm | Pad 4 [+1V2_PHY] of U13 on F.Cu
+  OPEN MG_LED2 | Pad 15 [MG_LED2] of U13 on F.Cu | Pad 2 [MG_LED2] of R71 on F.Cu
+  OPEN MG_LED2 | Pad 2 [MG_LED2] of U15 on F.Cu | Pad 15 [MG_LED2] of U13 on F.Cu
+  OPEN VBUS_DBG_RAW | Pad 1 [VBUS_DBG_RAW] of FB2 on F.Cu | Pad A4 [VBUS_DBG_RAW] of J10 on F.Cu
+  OPEN VBUS_DBG_RAW | Pad A4 [VBUS_DBG_RAW] of J10 on F.Cu | Pad A9 [VBUS_DBG_RAW] of J10 on F.Cu

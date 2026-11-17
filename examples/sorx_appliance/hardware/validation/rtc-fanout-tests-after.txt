@@ -1,0 +1,8 @@
+test_added_length_over_twenty_mm_is_rejected (test_rtc_fanout.RtcFanoutTests.test_added_length_over_twenty_mm_is_rejected) ... ok
+test_length_budget_records_engineering_current_allocation (test_rtc_fanout.RtcFanoutTests.test_length_budget_records_engineering_current_allocation) ... ok
+test_rtc_exception_requires_explicit_review_and_exact_width (test_rtc_fanout.RtcFanoutTests.test_rtc_exception_requires_explicit_review_and_exact_width) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.011s
+
+OK

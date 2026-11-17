@@ -325,7 +325,7 @@ def route_group(board, grid, group, inside_board, forbidden, allow_supply_detour
     return None
 
 
-def stitch(src, dst, report_dir, iterations=3, allow_supply_detours=False, trace_escapes=False):
+def stitch(src, dst, report_dir, iterations=3, allow_supply_detours=False, trace_escapes=False, targets=None):
     import pcbnew
     from verification_core import parse_drc
     src, dst, report_dir = Path(src).resolve(), Path(dst).resolve(), Path(report_dir).resolve()
@@ -334,11 +334,15 @@ def stitch(src, dst, report_dir, iterations=3, allow_supply_detours=False, trace
     if dst.exists():
         raise ValueError("Output already exists; use a new checkpoint name")
     report_dir.mkdir(parents=True, exist_ok=False)
+    requested_targets = set(targets or ())
     source_inputs = {str(src): hashlib.sha256(src.read_bytes()).hexdigest()}
-    for dependency in (src.with_suffix(".kicad_pro"), src.with_suffix(".kicad_dru"), Path(__file__), Path(__file__).with_name("route_completion.py"), Path(__file__).with_name("proj.py")):
+    for dependency in (src.with_suffix(".kicad_pro"), src.with_suffix(".kicad_dru"), src.parent / "fp-lib-table", Path(__file__), Path(__file__).with_name("route_completion.py"), Path(__file__).with_name("proj.py")):
         if dependency.is_file():
             source_inputs[str(dependency)] = hashlib.sha256(dependency.read_bytes()).hexdigest()
     board = pcbnew.LoadBoard(str(src))
+    actual_targets = {f.GetReference()+"."+p.GetNumber() for f in board.GetFootprints() for p in f.Pads() if p.GetNetname()=="GND"}
+    if requested_targets - actual_targets:
+        raise ValueError("Unknown required GND targets: "+str(sorted(requested_targets-actual_targets)))
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     before = report_dir / "drc-before.txt"
     pcbnew.WriteDRCReport(board, str(before), pcbnew.EDA_UNITS_MILLIMETRES, True)
@@ -363,6 +367,8 @@ def stitch(src, dst, report_dir, iterations=3, allow_supply_detours=False, trace
             grid = Grid(board)
             grid.load(board)
         for group in groups:
+            if requested_targets and not any(p["reference"]+"."+p["pad"] in requested_targets for p in group["pads"]):
+                continue
             print("Planning ground group", group["pads"][0]["reference"], group["pads"][0]["pad"], flush=True)
             # Preserve already-legal sites before considering supply moves.
             masks = [strict_forbidden, forbidden] if allow_supply_detours else [forbidden]
@@ -424,7 +430,9 @@ def stitch(src, dst, report_dir, iterations=3, allow_supply_detours=False, trace
     added_findings = [f for f in after_data["findings"] if f["section"] != "unconnected pads" and f["fingerprint"] not in previous]
     native_ground_opens = [finding for finding in after_data["findings"] if finding["section"] == "unconnected pads" and "[GND]" in finding["objects"]]
     sources_unchanged = all(Path(p).is_file() and hashlib.sha256(Path(p).read_bytes()).hexdigest() == digest for p, digest in source_inputs.items())
-    result = {"schema_version": 1, "source_inputs_sha256": source_inputs,
+    unresolved_target_ids = {p["reference"]+"."+p["pad"] for g in groups for p in g["pads"]}
+    result = {"schema_version": 1, "requested_targets": sorted(requested_targets),
+              "unresolved_requested_targets": sorted(requested_targets & unresolved_target_ids), "source_inputs_sha256": source_inputs,
               "sources_unchanged": sources_unchanged,
               "tool_environment": {"python": sys.version, "kicad": pcbnew.Version(),
                                    "container_image": os.environ.get("SORX_IMAGE_ID"), "command": sys.argv},
@@ -450,8 +458,9 @@ def main():
     parser.add_argument("--iterations", type=int, default=3)
     parser.add_argument("--detour-supply", action="store_true", help="Permit collision-checked In2 power detours, retaining widths and endpoints")
     parser.add_argument("--trace-escapes", action="store_true", help="Route GND escape traces without moving or removing any other net")
+    parser.add_argument("--target", action="append", default=[], help="Limit proposed work to exact REF.PAD; all global DRC and remaining-ground checks still run")
     args = parser.parse_args()
-    return stitch(args.input, args.output, args.report_dir, args.iterations, args.detour_supply, args.trace_escapes)
+    return stitch(args.input, args.output, args.report_dir, args.iterations, args.detour_supply, args.trace_escapes, args.target)
 
 
 if __name__ == "__main__":

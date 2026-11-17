@@ -1,0 +1,12 @@
+{
+  "files": [
+    "examples/sorx_appliance/CODEX_RESUME.md",
+    "examples/sorx_appliance/README.md",
+    "examples/sorx_appliance/docs/independent-implementation.md",
+    "examples/sorx_appliance/hardware/docs/verification-report.md",
+    "examples/sorx_appliance/hardware/docs/electrical-resume.md",
+    "examples/sorx_appliance/hardware/docs/high-speed-resume.md",
+    "examples/sorx_appliance/hardware/docs/verification-routing-resume.md"
+  ],
+  "missing": []
+}

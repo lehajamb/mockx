@@ -1,0 +1,13 @@
+{
+  "command": "python -m pytest -q -p no:cacheprovider",
+  "environment": "existing Conda mockx interpreter; PYTHONPATH points to independent clone/src; PYTHONDONTWRITEBYTECODE=1",
+  "exit_status": 0,
+  "result": {
+    "passed": 1075,
+    "skipped": 5,
+    "seconds": 84.8
+  },
+  "scope": "full repository collection; CAD dependency skips on Windows host require separate mandatory container hardware tests",
+  "source_status": "in-progress independent branch after verification milestone 4e3d306",
+  "physical_hardware_validation": false
+}

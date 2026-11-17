@@ -1,0 +1,12 @@
+{"net": "OE_MDI0_P", "escape": [["B", [[32.3391, 34.0693], [32.35, 34.050000000000004], [32.35, 34.800000000000004], [32.400000000000006, 34.85], [32.400000000000006, 35.00000000000001], [32.45, 35.050000000000004], [32.45, 35.2], [32.50000000000001, 35.25000000000001], [32.50000000000001, 35.300000000000004]]]], "via_mm": [32.50000000000001, 35.300000000000004]}
+Traceback (most recent call last):
+  File "/work/tools/correct_mdi.py", line 179, in <module>
+    if __name__=='__main__':raise SystemExit(main())
+                                             ^^^^^^
+  File "/work/tools/correct_mdi.py", line 166, in main
+    if args.worker:return worker(args)
+                          ^^^^^^^^^^^^
+  File "/work/tools/correct_mdi.py", line 143, in worker
+    if chosen is None:raise ValueError('No legal single-transition escape '+net)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: No legal single-transition escape OE_MDI0_N

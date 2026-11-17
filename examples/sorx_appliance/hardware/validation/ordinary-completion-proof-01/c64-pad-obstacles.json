@@ -1,0 +1,16 @@
+[
+  {
+    "ref": "C64",
+    "pad": "2",
+    "net": "GND",
+    "layers": [
+      "B.Cu",
+      "B.Paste",
+      "B.Mask"
+    ],
+    "size_mm": [
+      0.56,
+      0.62
+    ]
+  }
+]

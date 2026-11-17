@@ -1,0 +1,73 @@
+{
+  "status": "UNPROMOTED/HISTORICAL evidence; see CODEX_RESUME.md. Never overwrite the active board with an archived experiment.",
+  "archive_sha256": "aaba042f87e6ed35b54a807a8017f029132624fd6b524982deea994b52219677",
+  "archive_size_bytes": 19037339,
+  "members": [
+    {
+      "member": "runs/labels-proof-03/output.kicad_pcb",
+      "size_bytes": 9852965,
+      "sha256": "346ca7b4832edc0b5f6c79fc0e9524057c36845d2594c4bfd4e4d024f93426e8"
+    },
+    {
+      "member": "runs/labels-proof-03/output.kicad_pro",
+      "size_bytes": 11408,
+      "sha256": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782"
+    },
+    {
+      "member": "runs/ordinary-ground-repair/ordinary-ground-repaired.kicad_pcb",
+      "size_bytes": 9870969,
+      "sha256": "5e5750170a9084001044e0af19aafb28c99f02aafa705ea133555619cbb48a0c"
+    },
+    {
+      "member": "runs/ordinary-ground-repair/ordinary-ground-repaired.kicad_pro",
+      "size_bytes": 11408,
+      "sha256": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782"
+    },
+    {
+      "member": "runs/rx-trial-01.kicad_pcb",
+      "size_bytes": 9856408,
+      "sha256": "4e08c2cedee7f731aa5e918245257377e85e3336fe90106e1885ad83e14501d8"
+    },
+    {
+      "member": "runs/rx-trial-01.kicad_pro",
+      "size_bytes": 11408,
+      "sha256": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782"
+    },
+    {
+      "member": "validation/high-speed/mdi-paired-01/filtered.kicad_pcb",
+      "size_bytes": 9691857,
+      "sha256": "808a2e81ab259bd9cc3ff41d9d77fef0728dd21edffbc0fbf0af396e8751eddd"
+    },
+    {
+      "member": "validation/high-speed/mdi-paired-02/filtered.kicad_pcb",
+      "size_bytes": 9847365,
+      "sha256": "dc0f161705cbae23403fc208300548c28ce2cae2538089aa8447236e6ffd7c16"
+    },
+    {
+      "member": "validation/high-speed/rgmii-06/anchors-MG_TXD0.kicad_pcb",
+      "size_bytes": 9844788,
+      "sha256": "25a97d8a2a90da46d3fdd0fb91ded95fff15e6ba143a3312f5ccfebfebf1a1ad"
+    },
+    {
+      "member": "validation/high-speed/rgmii-07/anchors-MG_TXD0.kicad_pcb",
+      "size_bytes": 9844788,
+      "sha256": "6b8237886dc7a663f8595adc8bdeed9e12c18de0e6bc41af7ab2f6b739b1593f"
+    },
+    {
+      "member": "validation/high-speed/rgmii-08/anchors-MG_TXD0.kicad_pcb",
+      "size_bytes": 9844509,
+      "sha256": "02b4f4d197c343dbcf8c06861eddd86ea0603b602a7ce5e2d1a11d54d41f548f"
+    },
+    {
+      "member": "validation/high-speed/rx-01/filtered.kicad_pcb",
+      "size_bytes": 9852813,
+      "sha256": "ffc775985cff29c44d367c8d0956588fe87efc1c30453957aaa0a695316f5ec8"
+    },
+    {
+      "member": "validation/verifier-smoke-20261117/mechanical/sorx-assembly.step",
+      "size_bytes": 7223322,
+      "sha256": "da48f01e1c9552ecf80a580f10c65ea4ab1001f2ff075c7697037b46ff2198d4"
+    }
+  ],
+  "original_files_retained": true
+}

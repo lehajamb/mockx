@@ -175,8 +175,6 @@ with approval of those circuits.
 
 ## Sourcing evidence
 
-This run performed **zero independent distributor stock checks**. Seven inherited
-listing snapshots are historical evidence only. Unquoted references include
-U1, C12/C136, C18, U38/U39, Q5, H5-H8, HS1, SC1-SC4, JP1/JP2 and J14. Exact header,
-shunt and screw procurement selections remain open. Primary datasheet review
-establishes requirements; it does not establish stock or lead time.
+The initial circuit-audit milestone performed no independent distributor stock checks. A later dated review now records live primary-source observations separately from the seven inherited historical snapshots; see [critical sourcing review](critical-sourcing-review.md) and `validation/sourcing-20261117/observations.json`.
+
+JP1 is Wurth 61300311121; JP2 and J14 are Wurth 61300211121. SH1/SH2 are Wurth 60900213421. Their exact manufacturer drawings and custom land patterns have been validated, including the selected finished-hole tolerance. Stock, procurement acceptance and the populated assembly process remain open. Other unquoted parts retain an explicit unknown stock status. No order has been placed, and primary datasheet review alone does not establish availability or lead time.

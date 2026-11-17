@@ -1,0 +1,218 @@
+{
+  "source_pcb_sha256": "9e4f04e0c5a1aacff22f042f629b0677f8b1434f5d74cbb7e14045035744ddb1",
+  "reference": "C64",
+  "pad": "2",
+  "net": "GND",
+  "pad_uuid": "68f8c9a6-4ded-4c96-bea4-3685b643c316",
+  "pad_size_mm": [
+    0.56,
+    0.62
+  ],
+  "proposed_land_drill_mm": [
+    0.6,
+    0.3
+  ],
+  "sites": [
+    {
+      "xy_mm": [
+        33.179998999999995,
+        49.01
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.179998999999995,
+        49.06
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.179998999999995,
+        49.11
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.179998999999995,
+        49.16
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.179998999999995,
+        49.21
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.229999,
+        49.01
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.229999,
+        49.06
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.229999,
+        49.11
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.229999,
+        49.16
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.229999,
+        49.21
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.279999,
+        49.01
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.279999,
+        49.06
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.279999,
+        49.11
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.279999,
+        49.16
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.279999,
+        49.21
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.329998999999994,
+        49.01
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.329998999999994,
+        49.06
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.329998999999994,
+        49.11
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.329998999999994,
+        49.16
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.329998999999994,
+        49.21
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.379999,
+        49.01
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.379999,
+        49.06
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.379999,
+        49.11
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.379999,
+        49.16
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    },
+    {
+      "xy_mm": [
+        33.379999,
+        49.21
+      ],
+      "drill_inside_target_with_0p02_margin": true,
+      "foreign_copper_or_drill_conflict": true
+    }
+  ],
+  "fabrication_approval": false
+}

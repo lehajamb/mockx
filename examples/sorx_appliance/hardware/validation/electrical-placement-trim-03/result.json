@@ -1,0 +1,76 @@
+{
+  "source_sha256": "06d15cbf861c13614fb749b68824ce74f27ae014d4ad6dddcffbe4a8ada8f6f6",
+  "output_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "removed": [
+    {
+      "uuid": "d0bdcd93-97d0-4132-8fe8-b37799de5b9c",
+      "record": "(segment (start 11.6254 15.5318) (end 11.6316 15.5256) (width 0.15) (layer \"B.Cu\") (net 61) (tstamp d0bdcd93-97d0-4132-8fe8-b37799de5b9c))"
+    },
+    {
+      "uuid": "9b87a185-80e1-4ef1-a4d4-b80306cfdc04",
+      "record": "(segment (start 36.68 54.7397) (end 36.68 54.5051) (width 0.15) (layer \"B.Cu\") (net 76) (tstamp 9b87a185-80e1-4ef1-a4d4-b80306cfdc04))"
+    },
+    {
+      "uuid": "1bbcdbe2-c00e-4fe0-888a-e770e5f76d18",
+      "record": "(segment (start 126.475 45.365) (end 128.664999 45.365) (width 0.15) (layer \"F.Cu\") (net 90) (tstamp 1bbcdbe2-c00e-4fe0-888a-e770e5f76d18))"
+    },
+    {
+      "uuid": "ca38022c-b546-4865-825a-acd077ff4f0d",
+      "record": "(segment (start 128.664999 45.365) (end 129.17 44.86) (width 0.15) (layer \"F.Cu\") (net 90) (tstamp ca38022c-b546-4865-825a-acd077ff4f0d))"
+    },
+    {
+      "uuid": "0a4ad39e-efb2-4485-bf69-e91b7c45ff73",
+      "record": "(segment (start 31.2862 50.7711) (end 31.2862 51.5584) (width 0.15) (layer \"F.Cu\") (net 150) (tstamp 0a4ad39e-efb2-4485-bf69-e91b7c45ff73))"
+    },
+    {
+      "uuid": "1466590b-817e-4e34-9d19-9264b1dfa941",
+      "record": "(segment (start 34.1577 44.9582) (end 33.2275 44.028) (width 0.15) (layer \"F.Cu\") (net 150) (tstamp 1466590b-817e-4e34-9d19-9264b1dfa941))"
+    },
+    {
+      "uuid": "74b9eb09-3460-438e-bcaa-3f33c42fd9e8",
+      "record": "(segment (start 28.385 44.028) (end 28.0152 44.3978) (width 0.15) (layer \"F.Cu\") (net 150) (tstamp 74b9eb09-3460-438e-bcaa-3f33c42fd9e8))"
+    },
+    {
+      "uuid": "9c327d75-49e9-4754-bb9c-77e11e31ad0a",
+      "record": "(segment (start 28.0152 44.3978) (end 28.0152 47.5001) (width 0.15) (layer \"F.Cu\") (net 150) (tstamp 9c327d75-49e9-4754-bb9c-77e11e31ad0a))"
+    },
+    {
+      "uuid": "cd581392-10e9-47c4-892b-5672bf2432db",
+      "record": "(segment (start 28.0152 47.5001) (end 31.2862 50.7711) (width 0.15) (layer \"F.Cu\") (net 150) (tstamp cd581392-10e9-47c4-892b-5672bf2432db))"
+    },
+    {
+      "uuid": "e4f3b09a-77e0-4823-932b-89564eb68998",
+      "record": "(segment (start 33.2275 44.028) (end 28.385 44.028) (width 0.15) (layer \"F.Cu\") (net 150) (tstamp e4f3b09a-77e0-4823-932b-89564eb68998))"
+    },
+    {
+      "uuid": "86e46e56-f585-4720-b75e-ab4d00345e7e",
+      "record": "(via (at 34.1577 44.9582) (size 0.6) (drill 0.3) (layers \"F.Cu\" \"B.Cu\") (net 150) (tstamp 86e46e56-f585-4720-b75e-ab4d00345e7e))"
+    },
+    {
+      "uuid": "082062f8-e9a7-4282-993c-24916dcea85c",
+      "record": "(segment (start 37.7285 53.7147) (end 37.8175 53.6257) (width 0.15) (layer \"B.Cu\") (net 150) (tstamp 082062f8-e9a7-4282-993c-24916dcea85c))"
+    },
+    {
+      "uuid": "836e21c9-d1ee-4ceb-84a9-4508d3c594b0",
+      "record": "(segment (start 34.35 45.9375) (end 34.35 45.1505) (width 0.15) (layer \"B.Cu\") (net 150) (tstamp 836e21c9-d1ee-4ceb-84a9-4508d3c594b0))"
+    },
+    {
+      "uuid": "fbb18043-56a7-4d03-839f-0df5fc83c152",
+      "record": "(segment (start 34.35 45.1505) (end 34.1577 44.9582) (width 0.15) (layer \"B.Cu\") (net 150) (tstamp fbb18043-56a7-4d03-839f-0df5fc83c152))"
+    }
+  ],
+  "pad_connectivity_unchanged": true,
+  "before": {
+    "DRC violations": 321,
+    "unconnected pads": 61,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 306,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [],
+  "accepted": true,
+  "fabrication_ready": false
+}

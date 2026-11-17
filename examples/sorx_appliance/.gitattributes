@@ -10,3 +10,7 @@ hardware/mech/vendor/**/*-README.txt -diff
 # Preserve raw subprocess log bytes, including unittest subtest trailing spaces.
 hardware/validation/**/*.log -whitespace
 hardware/validation/**/*.txt -whitespace
+
+# Preserve generated CAD evidence byte-for-byte; do not treat STEP as source text.
+hardware/validation/**/*.step -diff -whitespace
+hardware/validation/**/*.svg -whitespace

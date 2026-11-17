@@ -1,0 +1,119 @@
+{
+  "accepted": true,
+  "source_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "output_sha256": "e23b5b6de6b6b891eea5d66c6e5ad668bab6159ecd23cb12e7139f03b04f257f",
+  "tool_sha256": "724558298ccc6a7d0148b6d4e5476c16f905994f3fe602cc07b49e53860d4cb5",
+  "changes": [
+    {
+      "uuid": "1ad24985-24ad-4fc7-9c2f-9f354f456f87",
+      "text": "PWR 15-20V PD",
+      "before_mm": [
+        14.0,
+        9.6
+      ],
+      "after_mm": [
+        14.0,
+        16.6
+      ]
+    },
+    {
+      "uuid": "31e83e62-0ac8-42ff-8523-3c25d5dd837b",
+      "text": "SD",
+      "before_mm": [
+        156.0,
+        100.2
+      ],
+      "after_mm": [
+        156.5,
+        97.2
+      ]
+    },
+    {
+      "uuid": "5203c68f-4001-4523-bd16-29eb8649252b",
+      "text": "Verdin iMX8M Plus  J1",
+      "before_mm": [
+        78.0,
+        94.2
+      ],
+      "after_mm": [
+        76.5,
+        92.2
+      ]
+    },
+    {
+      "uuid": "5cbdf230-1282-4701-ab78-e7f0f56bb855",
+      "text": "CR2032 +",
+      "before_mm": [
+        152.0,
+        42.0
+      ],
+      "after_mm": [
+        152.0,
+        45.0
+      ]
+    },
+    {
+      "uuid": "b37f840a-2ffd-4faa-8d08-4966b28dbdfe",
+      "text": "DEBUG",
+      "before_mm": [
+        118.0,
+        108.2
+      ],
+      "after_mm": [
+        116.5,
+        104.7
+      ]
+    },
+    {
+      "uuid": "d8644b6a-e877-4aa8-8427-b1ab4f7122ae",
+      "text": "PPS IN",
+      "before_mm": [
+        100.0,
+        6.3
+      ],
+      "after_mm": [
+        104.0,
+        8.3
+      ]
+    },
+    {
+      "uuid": "e6c0b552-9b15-4ff6-97a3-ee01172e7607",
+      "text": "FAN",
+      "before_mm": [
+        139.8,
+        13.6
+      ],
+      "after_mm": [
+        139.8,
+        15.6
+      ]
+    },
+    {
+      "uuid": "f585b5a2-facd-4c9b-b7de-1fcdc0ee494d",
+      "text": "ALARM",
+      "before_mm": [
+        50.0,
+        112.8
+      ],
+      "after_mm": [
+        50.5,
+        112.8
+      ]
+    }
+  ],
+  "unresolved": [
+    "USB 2 / REC"
+  ],
+  "before": {
+    "DRC violations": 95,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 74,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "new_findings": [],
+  "fabrication_ready": false
+}

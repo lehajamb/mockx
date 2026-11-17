@@ -1,0 +1,35 @@
+test_added_length_over_twenty_mm_is_rejected (test_rtc_fanout.RtcFanoutTests.test_added_length_over_twenty_mm_is_rejected) ... ERROR
+test_length_budget_records_engineering_current_allocation (test_rtc_fanout.RtcFanoutTests.test_length_budget_records_engineering_current_allocation) ... ERROR
+test_rtc_exception_requires_explicit_review_and_exact_width (test_rtc_fanout.RtcFanoutTests.test_rtc_exception_requires_explicit_review_and_exact_width) ... ERROR
+
+======================================================================
+ERROR: test_added_length_over_twenty_mm_is_rejected (test_rtc_fanout.RtcFanoutTests.test_added_length_over_twenty_mm_is_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_rtc_fanout.py", line 18, in test_added_length_over_twenty_mm_is_rejected
+    with self.assertRaises(ValueError):g.rtc_detour_budget(old,new)
+                                       ^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'ground_fanout' has no attribute 'rtc_detour_budget'
+
+======================================================================
+ERROR: test_length_budget_records_engineering_current_allocation (test_rtc_fanout.RtcFanoutTests.test_length_budget_records_engineering_current_allocation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_rtc_fanout.py", line 23, in test_length_budget_records_engineering_current_allocation
+    r=g.rtc_detour_budget(old,new)
+      ^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'ground_fanout' has no attribute 'rtc_detour_budget'
+
+======================================================================
+ERROR: test_rtc_exception_requires_explicit_review_and_exact_width (test_rtc_fanout.RtcFanoutTests.test_rtc_exception_requires_explicit_review_and_exact_width)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_rtc_fanout.py", line 10, in test_rtc_exception_requires_explicit_review_and_exact_width
+    self.assertFalse(g.fanout_policy("VBAT_RTC",.15,False)[0])
+                     ^^^^^^^^^^^^^^^
+AttributeError: module 'ground_fanout' has no attribute 'fanout_policy'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.016s
+
+FAILED (errors=3)

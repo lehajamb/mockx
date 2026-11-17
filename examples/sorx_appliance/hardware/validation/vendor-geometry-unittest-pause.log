@@ -1,0 +1,11 @@
+test_heatsink_and_screws_match_mount_drawing (test_vendor_geometry.SupplierGeometryTests.test_heatsink_and_screws_match_mount_drawing) ... ok
+test_heatsink_screws_seat_on_rigid_body (test_vendor_geometry.SupplierGeometryTests.test_heatsink_screws_seat_on_rigid_body) ... ok
+test_module_maximum_envelope_and_holes (test_vendor_geometry.SupplierGeometryTests.test_module_maximum_envelope_and_holes) ... ok
+test_socket_body_clears_near_mounts_and_screws (test_vendor_geometry.SupplierGeometryTests.test_socket_body_clears_near_mounts_and_screws) ... ok
+test_socket_solder_datum_and_locating_pegs (test_vendor_geometry.SupplierGeometryTests.test_socket_solder_datum_and_locating_pegs) ... ok
+test_tampered_supplier_step_fails (test_vendor_geometry.SupplierGeometryTests.test_tampered_supplier_step_fails) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 21.255s
+
+OK

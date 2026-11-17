@@ -1,0 +1,171 @@
+pass 1:   REFUSED: USB2_SSTX_N | differential interface requires coupled interface-specific routing
+  REFUSED: USB2_SSTX_P | differential interface requires coupled interface-specific routing
+  REFUSED: USB2_SSRX_N | differential interface requires coupled interface-specific routing
+  REFUSED: USB2_SSRX_P | differential interface requires coupled interface-specific routing
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | endpoint lies on an unsupported routing layer
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | endpoint lies on an unsupported routing layer
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: MG_TXD0 | single-ended timing interface requires reviewed routing constraints
+  REFUSED: PCIE_CLK_N | differential interface requires coupled interface-specific routing
+  REFUSED: PCIE_TX_N | differential interface requires coupled interface-specific routing
+  REFUSED: PCIE_TX_N | differential interface requires coupled interface-specific routing
+  REFUSED: +5V | endpoint lies on an unsupported routing layer
+  REFUSED: +5V | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: +3V3 | endpoint lies on an unsupported routing layer
+  REFUSED: +1V2_PHY | power routing requires reviewed per-net width/current constraints
+  REFUSED: OE_0V9 | power routing requires reviewed per-net width/current constraints
+  REFUSED: USB1_VBUS | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_DBG_RAW | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_DBG_RAW | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: USB_REC_VBUS | power routing requires reviewed per-net width/current constraints
+53 open: 41 routed, 0 routed with rip-up, 12 failed
+  FAILED: PD_EN_SNK#
+  FAILED: PCIE_RST#_3V3
+  FAILED: PD_ALERT#
+  FAILED: PD_ATTACH#
+  FAILED: MG_LED2
+  FAILED: PD_ATTACH#
+  FAILED: PCIE_RST#_1V8
+  FAILED: MG_LED2
+  FAILED: FRAM_MOSI
+  FAILED: USB1_VBUS_DET
+  FAILED: USB1_OC#
+  FAILED: PD_ALERT#
+pass 2:   REFUSED: USB2_SSTX_N | differential interface requires coupled interface-specific routing
+  REFUSED: USB2_SSTX_P | differential interface requires coupled interface-specific routing
+  REFUSED: USB2_SSRX_N | differential interface requires coupled interface-specific routing
+  REFUSED: USB2_SSRX_P | differential interface requires coupled interface-specific routing
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | endpoint lies on an unsupported routing layer
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: +1V8 | power routing requires reviewed per-net width/current constraints
+  REFUSED: MG_TXD0 | single-ended timing interface requires reviewed routing constraints
+  REFUSED: PCIE_CLK_N | differential interface requires coupled interface-specific routing
+  REFUSED: PCIE_TX_N | differential interface requires coupled interface-specific routing
+  REFUSED: PCIE_TX_N | differential interface requires coupled interface-specific routing
+  REFUSED: +5V | power routing requires reviewed per-net width/current constraints
+  REFUSED: +5V | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_IN | power routing requires reviewed per-net width/current constraints
+  REFUSED: +3V3 | endpoint lies on an unsupported routing layer
+  REFUSED: +1V2_PHY | power routing requires reviewed per-net width/current constraints
+  REFUSED: OE_0V9 | power routing requires reviewed per-net width/current constraints
+  REFUSED: USB1_VBUS | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_DBG_RAW | power routing requires reviewed per-net width/current constraints
+  REFUSED: VBUS_DBG_RAW | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: +4V5_PD | power routing requires reviewed per-net width/current constraints
+  REFUSED: USB_REC_VBUS | power routing requires reviewed per-net width/current constraints
+12 open: 0 routed, 0 routed with rip-up, 12 failed
+  FAILED: PD_EN_SNK#
+  FAILED: PCIE_RST#_3V3
+  FAILED: PD_ALERT#
+  FAILED: PD_ATTACH#
+  FAILED: MG_LED2
+  FAILED: PD_ATTACH#
+  FAILED: PCIE_RST#_1V8
+  FAILED: MG_LED2
+  FAILED: FRAM_MOSI
+  FAILED: USB1_VBUS_DET
+  FAILED: USB1_OC#
+  FAILED: PD_ALERT#
+open signal/power connections left: 56
+  OPEN USB1_OC# | Pad 157 [USB1_OC#] of J1 on F.Cu | Track [USB1_OC#] on F.Cu, length 2.4006 mm
+  OPEN USB1_VBUS_DET | Pad 159 [USB1_VBUS_DET] of J1 on F.Cu | Pad 2 [USB1_VBUS_DET] of R83 on F.Cu
+  OPEN USB2_SSTX_N | Pad 9 [USB2_SSTX_N] of U19 on F.Cu | Track [USB2_SSTX_N] on F.Cu, length 0.9551 mm
+  OPEN USB2_SSTX_P | Pad 10 [USB2_SSTX_P] of U19 on F.Cu | Track [USB2_SSTX_P] on F.Cu, length 1.3028 mm
+  OPEN USB2_SSRX_N | Pad 6 [USB2_SSRX_N] of U19 on F.Cu | Track [USB2_SSRX_N] on F.Cu, length 5.2179 mm
+  OPEN USB2_SSRX_P | Pad 7 [USB2_SSRX_P] of U19 on F.Cu | Track [USB2_SSRX_P] on F.Cu, length 1.2055 mm
+  OPEN FRAM_MOSI | Track [FRAM_MOSI] on F.Cu, length 0.6177 mm | Pad 5 [FRAM_MOSI] of U1 on F.Cu
+  OPEN +1V8 | Track [+1V8] on F.Cu, length 0.7379 mm | Track [+1V8] on F.Cu, length 1.8662 mm
+  OPEN +1V8 | Track [+1V8] on F.Cu, length 0.2546 mm | Pad 1 [+1V8] of R107 on F.Cu
+  OPEN +1V8 | Track [+1V8] on F.Cu, length 2.0860 mm | Track [+1V8] on F.Cu, length 2.2966 mm
+  OPEN +1V8 | Pad 5 [+1V8] of U12 on B.Cu | Pad 1 [+1V8] of C76 on B.Cu
+  OPEN +1V8 | Pad 1 [+1V8] of C139 on B.Cu | Pad 5 [+1V8] of U40 on B.Cu
+  OPEN +1V8 | Track [+1V8] on F.Cu, length 0.2546 mm | Track [+1V8] on F.Cu, length 0.7379 mm
+  OPEN +1V8 | Track [+1V8] on In2.Cu, length 15.4936 mm | Pad 1 [+1V8] of R107 on F.Cu
+  OPEN +1V8 | Pad 1 [+1V8] of R4 on F.Cu | Pad 1 [+1V8] of R107 on F.Cu
+  OPEN +1V8 | Pad 8 [+1V8] of U1 on F.Cu | Pad 1 [+1V8] of R11 on F.Cu
+  OPEN +1V8 | Track [+1V8] on In2.Cu, length 10.4678 mm | Track [+1V8] on F.Cu, length 1.8662 mm
+  OPEN +1V8 | Pad 5 [+1V8] of U12 on B.Cu | Track [+1V8] on F.Cu, length 0.7379 mm
+  OPEN +1V8 | Track [+1V8] on F.Cu, length 1.3163 mm | Track [+1V8] on F.Cu, length 3.6782 mm
+  OPEN +1V8 | Pad 8 [+1V8] of U1 on F.Cu | Track [+1V8] on F.Cu, length 0.0402 mm
+  OPEN +1V8 | Pad 5 [+1V8] of U40 on B.Cu | Track [+1V8] on F.Cu, length 1.1173 mm
+  OPEN MG_TXD0 | Pad 221 [MG_TXD0] of J1 on F.Cu | Pad 19 [MG_TXD0] of U13 on F.Cu
+  OPEN PD_ALERT# | Track [PD_ALERT#] on B.Cu, length 0.0088 mm | Track [PD_ALERT#] on B.Cu, length 1.4202 mm
+  OPEN PD_ALERT# | Track [PD_ALERT#] on B.Cu, length 0.0088 mm | Track [PD_ALERT#] on B.Cu, length 20.3211 mm
+  OPEN PCIE_CLK_N | Track [PCIE_CLK_N] on B.Cu, length 1.8209 mm | Track [PCIE_CLK_N] on F.Cu, length 5.1238 mm
+  OPEN PCIE_TX_N | Track [PCIE_TX_N] on F.Cu, length 3.2085 mm | Track [PCIE_TX_N] on F.Cu, length 3.1716 mm
+  OPEN PCIE_TX_N | Track [PCIE_TX_N] on F.Cu, length 5.7197 mm | Track [PCIE_TX_N] on F.Cu, length 3.1716 mm
+  OPEN PCIE_RST#_1V8 | Track [PCIE_RST#_1V8] on B.Cu, length 0.2346 mm | Track [PCIE_RST#_1V8] on B.Cu, length 9.9420 mm
+  OPEN +5V | Track [+5V] on F.Cu, length 5.7870 mm | Track [+5V] on In2.Cu, length 2.1551 mm
+  OPEN +5V | Track [+5V] on F.Cu, length 1.9617 mm | Pad 1 [+5V] of C3 on F.Cu
+  OPEN VBUS_IN | Pad 1 [VBUS_IN] of C136 on B.Cu | Track [VBUS_IN] on F.Cu, length 2.8341 mm
+  OPEN VBUS_IN | Pad 5 [VBUS_IN] of U38 on B.Cu | Track [VBUS_IN] on F.Cu, length 2.0064 mm
+  OPEN VBUS_IN | Track [VBUS_IN] on F.Cu, length 6.7150 mm | Track [VBUS_IN] on F.Cu, length 1.3025 mm
+  OPEN VBUS_IN | Pad 5 [VBUS_IN] of U38 on B.Cu | Pad 8 [VBUS_IN] of U38 on B.Cu
+  OPEN VBUS_IN | Track [VBUS_IN] on F.Cu, length 1.3125 mm | Pad 1 [VBUS_IN] of R12 on B.Cu
+  OPEN PD_ATTACH# | Track [PD_ATTACH#] on F.Cu, length 6.4831 mm | Pad 1 [PD_ATTACH#] of TP14 on F.Cu
+  OPEN PD_ATTACH# | Track [PD_ATTACH#] on F.Cu, length 2.0717 mm | Pad 1 [PD_ATTACH#] of TP14 on F.Cu
+  OPEN PD_EN_SNK# | Track [PD_EN_SNK#] on B.Cu, length 0.0184 mm | Track [PD_EN_SNK#] on F.Cu, length 1.5507 mm
+  OPEN +3V3 | Track [+3V3] on In2.Cu, length 0.3968 mm | Track [+3V3] on F.Cu, length 1.9236 mm
+  OPEN +1V2_PHY | Track [+1V2_PHY] on F.Cu, length 6.2940 mm | Pad 4 [+1V2_PHY] of U13 on F.Cu
+  OPEN OE_0V9 | Track [OE_0V9] on B.Cu, length 1.3552 mm | Pad 1 [OE_0V9] of C64 on B.Cu
+  OPEN PCIE_RST#_3V3 | Track [PCIE_RST#_3V3] on F.Cu, length 0.7873 mm | Track [PCIE_RST#_3V3] on B.Cu, length 0.4285 mm
+  OPEN MG_LED2 | Pad 15 [MG_LED2] of U13 on F.Cu | Pad 2 [MG_LED2] of R71 on F.Cu
+  OPEN MG_LED2 | Pad 2 [MG_LED2] of U15 on F.Cu | Pad 15 [MG_LED2] of U13 on F.Cu
+  OPEN USB1_VBUS | PTH pad 1 [USB1_VBUS] of JP1 | Track [USB1_VBUS] on F.Cu, length 5.7388 mm
+  OPEN VBUS_DBG_RAW | Pad 1 [VBUS_DBG_RAW] of FB2 on F.Cu | Pad A4 [VBUS_DBG_RAW] of J10 on F.Cu
+  OPEN VBUS_DBG_RAW | Pad A4 [VBUS_DBG_RAW] of J10 on F.Cu | Pad A9 [VBUS_DBG_RAW] of J10 on F.Cu
+  OPEN +4V5_PD | Pad 1 [+4V5_PD] of C137 on B.Cu | Pad 1 [+4V5_PD] of C138 on B.Cu
+  OPEN +4V5_PD | Pad 1 [+4V5_PD] of U38 on B.Cu | Pad 1 [+4V5_PD] of C137 on B.Cu
+  OPEN +4V5_PD | Pad 1 [+4V5_PD] of R15 on F.Cu | Pad 1 [+4V5_PD] of R115 on B.Cu
+  OPEN +4V5_PD | Pad 1 [+4V5_PD] of R117 on B.Cu | Pad 24 [+4V5_PD] of U2 on F.Cu
+  OPEN +4V5_PD | Pad 1 [+4V5_PD] of R115 on B.Cu | Pad 1 [+4V5_PD] of R117 on B.Cu
+  OPEN +4V5_PD | Pad 1 [+4V5_PD] of R15 on F.Cu | Pad 1 [+4V5_PD] of C137 on B.Cu
+  OPEN +4V5_PD | Pad 1 [+4V5_PD] of R115 on B.Cu | Pad 2 [+4V5_PD] of Q5 on B.Cu
+  OPEN +4V5_PD | Pad 1 [+4V5_PD] of TP21 on F.Cu | Pad 2 [+4V5_PD] of Q5 on B.Cu
+  OPEN USB_REC_VBUS | PTH pad 3 [USB_REC_VBUS] of JP1 | PTH pad 1 [USB_REC_VBUS] of J14

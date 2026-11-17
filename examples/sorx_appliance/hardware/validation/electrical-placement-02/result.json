@@ -1,0 +1,110 @@
+{
+  "status": "REJECTED",
+  "fabrication_ready": false,
+  "source": "runs/route-electrical-10-usb3.kicad_pcb",
+  "source_sha256": "122ac32215ebd9788de9dec640cb5011972145cf89a5acd8780efb3a2a3efd16",
+  "output": "runs/route-electrical-11b-placement.kicad_pcb",
+  "output_sha256": "ad97bb6f8dd0a1c12b3ebc8dbb68fe08307998eb159551a09cd09889798c0e9c",
+  "tool_sha256": "45f2f569a7952237ccac04131a64f08427ef12e2be972f7ceea92456789fd4eb",
+  "placements": [
+    {
+      "reference": "U12",
+      "before": {
+        "xy": [
+          36.68,
+          53.69
+        ],
+        "angle": 0.0,
+        "side": "B.Cu"
+      },
+      "after": {
+        "xy": [
+          30,
+          55.5
+        ],
+        "angle": 0,
+        "side": "B"
+      }
+    },
+    {
+      "reference": "C76",
+      "before": {
+        "xy": [
+          40.07,
+          54.64
+        ],
+        "angle": 90.0,
+        "side": "B.Cu"
+      },
+      "after": {
+        "xy": [
+          30.75,
+          58.5
+        ],
+        "angle": 90,
+        "side": "B"
+      }
+    },
+    {
+      "reference": "TP21",
+      "before": {
+        "xy": [
+          19.0,
+          26.5
+        ],
+        "angle": 0.0,
+        "side": "F.Cu"
+      },
+      "after": {
+        "xy": [
+          17.5,
+          28
+        ],
+        "angle": 0,
+        "side": "F"
+      }
+    }
+  ],
+  "removed_copper": [
+    {
+      "uuid": "aa359ca2-7c0b-4437-987a-e5f917fa3977",
+      "net": "PCIE_RST#_1V8",
+      "reference": "U12",
+      "pad": "2",
+      "reason": "copper attached to relocated pad"
+    },
+    {
+      "uuid": "d7b6f962-937f-4f21-a646-fa63102bfb02",
+      "net": "PCIE_RST#_1V8",
+      "reference": "U12",
+      "pad": "2",
+      "reason": "copper attached to relocated pad"
+    },
+    {
+      "uuid": "8f451478-a681-4e15-8278-936e93e265d3",
+      "net": "PCIE_RST#_3V3",
+      "reference": "U12",
+      "pad": "4",
+      "reason": "copper attached to relocated pad"
+    }
+  ],
+  "before": {
+    "DRC violations": 321,
+    "unconnected pads": 61,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 312,
+    "unconnected pads": 62,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(37.7285 mm, 53.7147 mm): Track [PCIE_RST#_3V3] on B.Cu, length 0.1259 mm",
+      "fingerprint": "08fc56bbf65c1c3f92e3eabfccb8ea04451999617d993ff54056825c8d3303d3",
+      "section": "DRC violations"
+    }
+  ]
+}

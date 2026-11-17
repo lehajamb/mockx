@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "input": "/work/hardware/runs/route-06-final-model.kicad_pcb",
+  "output": "/work/hardware/runs/route-final-07-signals.kicad_pcb",
+  "input_sha256": "ccbf911c4430a682cdaffed3a2639979b6d9043ec5fdc37cba586e1f96044981",
+  "output_sha256": "dd6a5ca96b2a84ba3cab271e2493f89485fda086047e69ee224a26d907def40c",
+  "source_inputs_sha256": {
+    "/work/hardware/runs/route-06-final-model.kicad_pcb": "ccbf911c4430a682cdaffed3a2639979b6d9043ec5fdc37cba586e1f96044981",
+    "/work/hardware/runs/route-06-final-model.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/tools/route_completion.py": "1827b6df85a8c85b0e38d0df444e08aca1f402002a7623fe05f73f49b981d16e",
+    "/work/hardware/tools/proj.py": "56ec7009279be311eeb2d347e0daf5e49a8dac6437e7549fb6cfb05a387d2575",
+    "/work/hardware/tools/verification_worker.py": "640b76ebe2c9fbffeaac16b87e919d258acc20127a78070828791891c7ef6c10",
+    "/work/hardware/tools/design.py": "ac634b2a78c3162b00201b10acd3f5c02c8949d274c758a36864da1c76a0a039",
+    "/work/hardware/tools/gen_sch.py": "9e485f390e0d713626f9acb9bf20af5b071cc517b4c459d63b60e53db73e836d",
+    "/work/hardware/tools/../validation/final-model-signal-01/execute.py": "bd27c85e835c8e088ae51c77badf5cda388895b3be5fd463a96f428265df1693"
+  },
+  "sources_unchanged": true,
+  "environment": {
+    "python": "3.11.2 (main, Oct  7 2026, 12:35:07) [GCC 12.2.0]",
+    "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2"
+  },
+  "commands": [
+    {
+      "label": "before-board",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/verification_worker.py",
+        "board",
+        "/work/hardware/runs/route-06-final-model.kicad_pcb",
+        "/work/hardware/validation/final-model-signal-01/before/model.json",
+        "--drc",
+        "/work/hardware/validation/final-model-signal-01/before/drc-stored.txt"
+      ],
+      "returncode": 0,
+      "seconds": 20.07042908668518
+    },
+    {
+      "label": "routing",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/route_completion.py",
+        "/work/hardware/runs/route-06-final-model.kicad_pcb",
+        "/work/hardware/runs/route-final-07-signals.kicad_pcb",
+        "2"
+      ],
+      "returncode": 1,
+      "seconds": 239.65394616127014
+    },
+    {
+      "label": "after-board",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/verification_worker.py",
+        "board",
+        "/work/hardware/runs/route-final-07-signals.kicad_pcb",
+        "/work/hardware/validation/final-model-signal-01/after/model.json",
+        "--drc",
+        "/work/hardware/validation/final-model-signal-01/after/drc-stored.txt"
+      ],
+      "returncode": 0,
+      "seconds": 22.346243858337402
+    }
+  ],
+  "before_counts": {
+    "DRC violations": 339,
+    "unconnected pads": 138,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 323,
+    "unconnected pads": 98,
+    "Footprint errors": 0
+  },
+  "new_non_connectivity_findings": [],
+  "board_model": {
+    "footprints": 371,
+    "pads": 1588,
+    "track_segments": 6736,
+    "vias": 1202,
+    "model_mismatches": [],
+    "duplicate_via_sites": []
+  },
+  "routing_exit_code": 1,
+  "fabrication_approval": false
+}

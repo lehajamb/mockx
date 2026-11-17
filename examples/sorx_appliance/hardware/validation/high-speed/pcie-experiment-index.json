@@ -1,0 +1,167 @@
+[
+  {
+    "original_evidence": "validation\\high-speed\\pcie-02",
+    "accepted": false,
+    "returncode": 1,
+    "output_sha256": null,
+    "pair_summary": null,
+    "disposition": "Rejected exploratory evidence moved to ignored runs/high-speed-experiments"
+  },
+  {
+    "original_evidence": "validation\\high-speed\\pcie-03",
+    "accepted": false,
+    "returncode": 1,
+    "output_sha256": null,
+    "pair_summary": null,
+    "disposition": "Rejected exploratory evidence moved to ignored runs/high-speed-experiments"
+  },
+  {
+    "original_evidence": "validation\\high-speed\\pcie-04",
+    "accepted": false,
+    "returncode": 0,
+    "output_sha256": "f49b5466b8f5c9b724610bb1d51737ed718638821c0a3e49d0d186f84ee2cdb4",
+    "pair_summary": [
+      {
+        "name": "PCIE_TX",
+        "errors": [],
+        "planar_skew_mm": 2.2380588898802074,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      },
+      {
+        "name": "PCIE_CLK",
+        "errors": [],
+        "planar_skew_mm": 7.278879089721805,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      }
+    ],
+    "disposition": "Rejected exploratory evidence moved to ignored runs/high-speed-experiments"
+  },
+  {
+    "original_evidence": "validation\\high-speed\\pcie-05",
+    "accepted": false,
+    "returncode": 1,
+    "output_sha256": null,
+    "pair_summary": null,
+    "disposition": "Rejected exploratory evidence moved to ignored runs/high-speed-experiments"
+  },
+  {
+    "original_evidence": "validation\\high-speed\\pcie-06",
+    "accepted": false,
+    "returncode": 1,
+    "output_sha256": null,
+    "pair_summary": null,
+    "disposition": "Rejected exploratory evidence moved to ignored runs/high-speed-experiments"
+  },
+  {
+    "original_evidence": "validation\\high-speed\\pcie-07",
+    "accepted": false,
+    "returncode": 0,
+    "output_sha256": "80c2d3813d0cb715aeab238e2e12d821ebd0f59f927099da89279f8695aecff8",
+    "pair_summary": [
+      {
+        "name": "PCIE_TX",
+        "errors": [],
+        "planar_skew_mm": 0.31734373466661125,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      },
+      {
+        "name": "PCIE_CLK",
+        "errors": [],
+        "planar_skew_mm": 12.258176502367029,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      }
+    ],
+    "disposition": "Rejected exploratory evidence moved to ignored runs/high-speed-experiments"
+  },
+  {
+    "original_evidence": "validation\\high-speed\\pcie-08",
+    "accepted": false,
+    "returncode": 1,
+    "output_sha256": null,
+    "pair_summary": null,
+    "disposition": "Rejected exploratory evidence moved to ignored runs/high-speed-experiments"
+  },
+  {
+    "original_evidence": "validation\\high-speed\\pcie-09",
+    "accepted": false,
+    "returncode": 0,
+    "output_sha256": "07fbc9ebb9e17587fc4c732b913e45bcbb9f7dc06595e0366a46182e93845a9a",
+    "pair_summary": [
+      {
+        "name": "PCIE_TX",
+        "errors": [],
+        "planar_skew_mm": 0.23242586942856747,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      },
+      {
+        "name": "PCIE_CLK",
+        "errors": [],
+        "planar_skew_mm": 0.7479928797733848,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      }
+    ],
+    "disposition": "Rejected exploratory evidence moved to ignored runs/high-speed-experiments"
+  },
+  {
+    "original_evidence": "validation\\high-speed\\pcie-10",
+    "accepted": false,
+    "returncode": 0,
+    "output_sha256": "e9b7a45c6701fb295c3e4e59904a3cc670a71841040aa5a1dc0acfccb2ee8ee0",
+    "pair_summary": [
+      {
+        "name": "PCIE_TX",
+        "errors": [],
+        "planar_skew_mm": 0.20913081706169834,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      },
+      {
+        "name": "PCIE_CLK",
+        "errors": [],
+        "planar_skew_mm": 0.573027312875972,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      }
+    ],
+    "disposition": "Rejected exploratory evidence moved to ignored runs/high-speed-experiments"
+  },
+  {
+    "original_evidence": "validation\\high-speed\\pcie-11",
+    "accepted": true,
+    "returncode": 0,
+    "output_sha256": "be0e7b2efc6d55d5b02c0e0923cbbab927f18c36e189ecd4d92fb11a7ceba647",
+    "pair_summary": [
+      {
+        "name": "PCIE_TX",
+        "errors": [],
+        "planar_skew_mm": 0.032426078107551604,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      },
+      {
+        "name": "PCIE_CLK",
+        "errors": [],
+        "planar_skew_mm": 0.047993024362362746,
+        "via_symmetry_pass": true,
+        "via_budget_pass": true,
+        "layer_sequence_symmetry_pass": true
+      }
+    ],
+    "disposition": "Retain selected raw reports"
+  }
+]

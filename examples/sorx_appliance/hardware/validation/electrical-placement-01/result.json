@@ -1,0 +1,131 @@
+{
+  "status": "REJECTED",
+  "fabrication_ready": false,
+  "source": "runs/route-electrical-10-usb3.kicad_pcb",
+  "source_sha256": "122ac32215ebd9788de9dec640cb5011972145cf89a5acd8780efb3a2a3efd16",
+  "output": "runs/route-electrical-11-placement.kicad_pcb",
+  "output_sha256": "906b8e782e7ff958017476b2fea618764c14420eafedcbcded819395d59a2dc1",
+  "tool_sha256": "f21e28415d823f6de02425e7b2830ed27563b8e15feea71f05a05308d99679d7",
+  "placements": [
+    {
+      "reference": "U12",
+      "before": {
+        "xy": [
+          36.68,
+          53.69
+        ],
+        "angle": 0.0,
+        "side": "B.Cu"
+      },
+      "after": {
+        "xy": [
+          30,
+          55.5
+        ],
+        "angle": 0,
+        "side": "B"
+      }
+    },
+    {
+      "reference": "C76",
+      "before": {
+        "xy": [
+          40.07,
+          54.64
+        ],
+        "angle": 90.0,
+        "side": "B.Cu"
+      },
+      "after": {
+        "xy": [
+          30.75,
+          58.5
+        ],
+        "angle": 90,
+        "side": "B"
+      }
+    },
+    {
+      "reference": "TP21",
+      "before": {
+        "xy": [
+          19.0,
+          26.5
+        ],
+        "angle": 0.0,
+        "side": "F.Cu"
+      },
+      "after": {
+        "xy": [
+          18.75,
+          27
+        ],
+        "angle": 0,
+        "side": "F"
+      }
+    }
+  ],
+  "removed_copper": [
+    {
+      "uuid": "aa359ca2-7c0b-4437-987a-e5f917fa3977",
+      "net": "PCIE_RST#_1V8",
+      "reference": "U12",
+      "pad": "2",
+      "reason": "copper attached to relocated pad"
+    },
+    {
+      "uuid": "d7b6f962-937f-4f21-a646-fa63102bfb02",
+      "net": "PCIE_RST#_1V8",
+      "reference": "U12",
+      "pad": "2",
+      "reason": "copper attached to relocated pad"
+    },
+    {
+      "uuid": "8f451478-a681-4e15-8278-936e93e265d3",
+      "net": "PCIE_RST#_3V3",
+      "reference": "U12",
+      "pad": "4",
+      "reason": "copper attached to relocated pad"
+    }
+  ],
+  "before": {
+    "DRC violations": 321,
+    "unconnected pads": 61,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 316,
+    "unconnected pads": 62,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [
+    {
+      "category": "track_dangling",
+      "message": "Track has unconnected end",
+      "objects": "Local override; Severity: warning\n    @(37.7285 mm, 53.7147 mm): Track [PCIE_RST#_3V3] on B.Cu, length 0.1259 mm",
+      "fingerprint": "08fc56bbf65c1c3f92e3eabfccb8ea04451999617d993ff54056825c8d3303d3",
+      "section": "DRC violations"
+    },
+    {
+      "category": "courtyards_overlap",
+      "message": "Courtyards overlap",
+      "objects": "Rule: board setup constraints courtyard; Severity: error\n    @(19.0300 mm, 25.8600 mm): Footprint TP14\n    @(18.7500 mm, 27.0000 mm): Footprint TP21",
+      "fingerprint": "14fbf8a927b6cc566b9d9541199de957479dbbe7285aae39ac8b12062a467a5c",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(18.7500 mm, 27.0000 mm): Circle on F.Silkscreen",
+      "fingerprint": "24ad1ffa0b3c69997b8746eb4e0aca3aa3a6c0b09967bb28cb7c5b0035d93132",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(19.0300 mm, 25.8600 mm): Circle on F.Silkscreen\n    @(18.7500 mm, 27.0000 mm): Circle on F.Silkscreen",
+      "fingerprint": "ad363b095ea09a5a5a2fba8e93b83d5de0b016dc012f483fc33afbe6164993c2",
+      "section": "DRC violations"
+    }
+  ]
+}

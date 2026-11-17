@@ -5,7 +5,7 @@ Always writes a separate candidate and retains native before/after DRC. It never
 removes vias, power, differential or single-ended timing routes. A rejected
 candidate remains evidence only and must not be promoted.
 """
-import argparse, hashlib, json, os, sys
+import argparse, hashlib, json, math, os, sys
 from pathlib import Path
 import pcbnew
 from shapely.geometry import Point, LineString
@@ -15,6 +15,27 @@ from verification_core import parse_drc
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+def fanout_policy(net, width_mm, reviewed_rtc=False):
+    if net == "VBAT_RTC" and reviewed_rtc:
+        return (abs(width_mm - 0.15) < 1e-6,
+                "Explicit RTC backup allocation: 1mA, retain 0.15mm width, added length at most20mm")
+    return route_policy(net)
+
+
+def rtc_detour_budget(old, reroutes):
+    before=sum(math.dist(r["a"],r["b"]) for r in old if r["net"]=="VBAT_RTC")
+    selected=[r for r in reroutes if r["net"]=="VBAT_RTC"]
+    after=sum(math.dist(a,b) for r in selected for _,points in r["new_runs"] for a,b in zip(points,points[1:]))
+    added=after-before
+    if not math.isfinite(added) or added>20+1e-6:
+        raise ValueError("RTC backup detour exceeds the reviewed20mm added-length allocation")
+    return {"old_planar_length_mm":before,"new_planar_length_mm":after,"added_planar_length_mm":added,
+            "new_via_count":sum(len(r["new_vias"]) for r in selected),
+            "engineering_current_allocation_a":0.001,"manufacturer_maximum_current_claimed":False,
+            "width_mm":0.15,"maximum_added_length_mm":20,
+            "remaining_requirement":"Confirm exact Toradex backup-current requirements and final fabrication stackup"}
+
 
 def run(args):
     src, dst, report = args.input.resolve(), args.output.resolve(), args.report_dir.resolve()
@@ -26,6 +47,11 @@ def run(args):
     source_hashes={str(p):sha(p) for p in dependencies}
     report.mkdir(parents=True, exist_ok=False)
     board = pcbnew.LoadBoard(str(src))
+    rtc_review = getattr(args, "rtc_backup_detour", False)
+    c9 = board.FindFootprintByReference("C9") if rtc_review else None
+    if rtc_review and c9 is None:
+        raise ValueError("Reviewed RTC decoupler C9 is missing")
+    c9_position = (c9.GetPosition().x, c9.GetPosition().y) if c9 else None
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     pcbnew.WriteDRCReport(board, str(report/"before.txt"), pcbnew.EDA_UNITS_MILLIMETRES, True)
     before = parse_drc((report/"before.txt").read_text())
@@ -55,7 +81,7 @@ def run(args):
             collision=shape.distance(land)<.20 or (track.GetLayer()==pcbnew.F_Cu and shape.distance(wire)<.20)
         if not collision:
             continue
-        allowed, reason=route_policy(track.GetNetname())
+        allowed, reason=fanout_policy(track.GetNetname(), track.GetWidth()/1e6, rtc_review)
         if (not allowed or track.IsLocked() or isinstance(track,pcbnew.PCB_VIA)
                 or abs(track.GetWidth()/1e6-W_TRK)>1e-6 or track.GetLayer() not in LAY.values()):
             raise ValueError(f"Protected collision: {track.GetNetname()} {track.m_Uuid.AsString()} ({reason})")
@@ -77,6 +103,12 @@ def run(args):
         commit(board,grid,old["net"],board.GetNetsByName()[old["net"]],*path)
         reroutes.append({"old_uuid":old["uuid"],"net":old["net"],"width_mm":old["width_mm"],
                          "old_endpoints":[old["a"],old["b"]],"new_runs":path[0],"new_vias":path[1]})
+    rtc_budget = rtc_detour_budget(removed, reroutes) if rtc_review else None
+    if c9 and c9_position != (c9.GetPosition().x, c9.GetPosition().y):
+        raise ValueError("RTC decoupler C9 moved during fanout")
+    if rtc_budget is not None:
+        rtc_budget["C9_position_nm"] = c9_position
+        rtc_budget["C9_position_unchanged"] = True
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     pcbnew.WriteDRCReport(board,str(report/"after.txt"),pcbnew.EDA_UNITS_MILLIMETRES,True)
     after=parse_drc((report/"after.txt").read_text())
@@ -95,7 +127,7 @@ def run(args):
     result={"schema_version":1,"source_inputs_sha256":source_hashes,"sources_unchanged":sources_unchanged,"input":str(src),"input_sha256":sha(src),"output":str(dst),"output_sha256":sha(dst),
             "tool_sha256":sha(__file__),"environment":{"python":sys.version,"kicad":pcbnew.Version(),"image":os.environ.get("SORX_IMAGE_ID")},
             "target":{"reference":args.reference,"pad":args.pad,"start_mm":start,"via_mm":site},
-            "before_counts":before["counts"],"after_counts":after["counts"],"reroutes":reroutes,
+            "before_counts":before["counts"],"after_counts":after["counts"],"reroutes":reroutes,"rtc_backup_detour":rtc_budget,
             "new_non_connectivity_findings":new,"remaining_affected_signal_opens":signal_opens,
             "target_still_open":still_open,"accepted_for_further_development":accepted,"fabrication_approval":False}
     (report/"result.json").write_text(json.dumps(result,indent=2))
@@ -108,6 +140,7 @@ def main():
     p.add_argument("--report-dir",type=Path,required=True)
     p.add_argument("--reference",required=True);p.add_argument("--pad",required=True)
     p.add_argument("--x",type=float,required=True);p.add_argument("--y",type=float,required=True)
+    p.add_argument("--rtc-backup-detour",action="store_true",help="Explicit1mA RTC-only allocation; preserve0.15mm width and C9 placement, add at most20mm")
     return run(p.parse_args())
 
 if __name__=="__main__":

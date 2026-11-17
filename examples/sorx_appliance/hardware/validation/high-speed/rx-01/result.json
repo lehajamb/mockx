@@ -1,0 +1,26 @@
+{
+  "targeted_geometric_checks_pass": true,
+  "fabrication_ready": false,
+  "source_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "output_sha256": "4e08c2cedee7f731aa5e918245257377e85e3336fe90106e1885ad83e14501d8",
+  "tool_sha256": "f3e0b85e794ab96c14e6a9001944270137f6adc895d483f09cb4f65210b08ade",
+  "before_native": {
+    "DRC violations": 95,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "after_native": {
+    "DRC violations": 95,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "new_native_findings": [],
+  "failures": [],
+  "before_skew_mm": 0.9196902020224336,
+  "after_skew_mm": 0.019690287406678664,
+  "unqualified": [
+    "impedance and propagation-delay prescription",
+    "remaining coupling and reference discontinuities",
+    "whole-board release gates"
+  ]
+}

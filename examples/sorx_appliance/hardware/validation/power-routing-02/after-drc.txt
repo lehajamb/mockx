@@ -1,0 +1,1321 @@
+** Drc report for /hardware/runs/route-combined-08-signals.kicad_pcb **
+** Created on 2026-11-17 01:11:11 **
+
+** Found 319 DRC violations **
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(111.1190 mm, 59.0728 mm): Track [IMON_ADC] on F.Cu, length 2.1253 mm
+[via_dangling]: Via is not connected or connected on only one layer
+    Local override; Severity: warning
+    @(120.5169 mm, 60.9427 mm): Via [I2C1_SCL] on F.Cu - B.Cu
+[via_dangling]: Via is not connected or connected on only one layer
+    Local override; Severity: warning
+    @(85.8624 mm, 88.1275 mm): Via [CON_RXD_1V8] on F.Cu - B.Cu
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(93.5165 mm, 48.8106 mm): Track [USB1_EN] on F.Cu, length 1.2924 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(126.9561 mm, 46.1539 mm): Track [FRAM_SCK] on F.Cu, length 0.8691 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(127.8252 mm, 46.1539 mm): Track [FRAM_SCK] on B.Cu, length 11.9693 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(109.1951 mm, 54.2966 mm): Track [FRAM_MOSI] on F.Cu, length 0.6177 mm
+[via_dangling]: Via is not connected or connected on only one layer
+    Local override; Severity: warning
+    @(33.9663 mm, 56.8400 mm): Via [WD_SET0_N] on F.Cu - B.Cu
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(125.2224 mm, 47.2700 mm): Track [+1V8] on F.Cu, length 2.2966 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(36.1241 mm, 59.6241 mm): Track [+1V8] on F.Cu, length 0.7379 mm
+[via_dangling]: Via is not connected or connected on only one layer
+    Local override; Severity: warning
+    @(30.6387 mm, 55.3606 mm): Via [+1V8] on F.Cu - B.Cu
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(50.7340 mm, 59.7290 mm): Track [+1V8] on In2.Cu, length 10.4678 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(11.6316 mm, 12.1834 mm): Track [PD_ALERT#] on B.Cu, length 1.4202 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(30.8130 mm, 59.9929 mm): Track [PD_ALERT#] on B.Cu, length 20.3211 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(11.6254 mm, 15.5318 mm): Track [PD_ALERT#] on B.Cu, length 0.0088 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(42.1873 mm, 53.8016 mm): Track [PCIE_CLK_N] on F.Cu, length 5.1238 mm
+[via_dangling]: Via is not connected or connected on only one layer
+    Local override; Severity: warning
+    @(31.6376 mm, 48.5984 mm): Via [PCIE_CLK_N] on F.Cu - B.Cu
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(37.7589 mm, 52.3982 mm): Track [PCIE_TX_N] on F.Cu, length 3.1716 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(49.7831 mm, 58.7027 mm): Track [PCIE_TX_N] on F.Cu, length 5.7197 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(31.0198 mm, 48.8307 mm): Track [PCIE_TX_N] on F.Cu, length 3.2085 mm
+[via_dangling]: Via is not connected or connected on only one layer
+    Local override; Severity: warning
+    @(38.6740 mm, 61.2988 mm): Via [PCIE_RST#_1V8] on F.Cu - B.Cu
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(36.6800 mm, 54.7397 mm): Track [PCIE_RST#_1V8] on B.Cu, length 0.2346 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(146.6311 mm, 111.6605 mm): Track [RECOVERY#] on F.Cu, length 34.0258 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(126.5921 mm, 44.9900 mm): Track [VBAT_RTC] on B.Cu, length 3.4212 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(40.4400 mm, 55.9026 mm): Track [+5V] on In2.Cu, length 0.0515 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(37.8123 mm, 61.4009 mm): Track [WAKE1#] on F.Cu, length 1.1086 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(126.4750 mm, 45.3650 mm): Track [FRAM_HOLD#] on F.Cu, length 2.1900 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(128.6650 mm, 45.3650 mm): Track [FRAM_HOLD#] on F.Cu, length 0.7142 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(10.7400 mm, 21.7300 mm): Track [VBUS_IN] on F.Cu, length 6.7150 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(12.2600 mm, 21.9500 mm): Track [VBUS_IN] on F.Cu, length 1.3025 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(24.0140 mm, 25.8600 mm): Track [PD_ATTACH#] on F.Cu, length 2.0717 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(17.3393 mm, 17.6862 mm): Track [PD_ATTACH#] on F.Cu, length 6.4831 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(18.1555 mm, 15.4874 mm): Track [PD_EN_SNK#] on F.Cu, length 1.5507 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(17.0590 mm, 16.5839 mm): Track [PD_EN_SNK#] on B.Cu, length 1.5057 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(17.7119 mm, 11.0326 mm): Track [PD_1V2] on B.Cu, length 4.1654 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(15.3007 mm, 21.1368 mm): Track [EF_BGATE] on F.Cu, length 1.2376 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(4.9395 mm, 25.8195 mm): Track [EF_BGATE] on B.Cu, length 4.4409 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(109.0671 mm, 53.7067 mm): Track [+3V3] on In2.Cu, length 0.3968 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(31.2862 mm, 50.7711 mm): Track [PCIE_RST#_3V3] on F.Cu, length 0.7873 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(32.5183 mm, 51.5528 mm): Track [OE_JTAG_PU] on F.Cu, length 2.7422 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(32.6200 mm, 51.4511 mm): Track [OE_JTAG_PU] on B.Cu, length 0.1438 mm
+[track_dangling]: Track has unconnected end
+    Local override; Severity: warning
+    @(72.3121 mm, 104.2335 mm): Track [LED_FIXA#] on B.Cu, length 19.2929 mm
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(45.3945 mm, 87.0740 mm): NPTH pad of H5
+    @(47.4695 mm, 87.0740 mm): Pad 1 [<no net>] of H5 on F.Cu
+[clearance]: Clearance violation (netclass 'Default' clearance 0.1500 mm; actual 0.0000 mm)
+    Rule: netclass 'Default'; Severity: error
+    @(19.0300 mm, 25.8600 mm): Pad 1 [PD_ATTACH#] of TP14 on F.Cu
+    @(19.0000 mm, 26.5000 mm): Pad 1 [+4V5_PD] of TP21 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(110.5945 mm, 87.0740 mm): NPTH pad of H6
+    @(112.6695 mm, 87.0740 mm): Pad 1 [<no net>] of H6 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(37.9945 mm, 56.0740 mm): NPTH pad of H7
+    @(40.0695 mm, 56.0740 mm): Pad 1 [<no net>] of H7 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(37.9945 mm, 56.0740 mm): NPTH pad of H7
+    @(37.8175 mm, 54.6400 mm): Pad 5 [+1V8] of U12 on B.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(115.1100 mm, 111.7150 mm): NPTH pad of J10
+    @(114.8000 mm, 110.6400 mm): Pad A1 [GND] of J10 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(115.1100 mm, 111.7150 mm): NPTH pad of J10
+    @(114.8000 mm, 110.6400 mm): Pad B12 [GND] of J10 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(120.8900 mm, 111.7150 mm): NPTH pad of J10
+    @(121.2000 mm, 110.6400 mm): Pad A12 [GND] of J10 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(120.8900 mm, 111.7150 mm): NPTH pad of J10
+    @(121.2000 mm, 110.6400 mm): Pad B1 [GND] of J10 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(16.8900 mm, 6.2850 mm): NPTH pad of J3
+    @(17.2000 mm, 7.3600 mm): Pad A1 [GND] of J3 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(16.8900 mm, 6.2850 mm): NPTH pad of J3
+    @(17.2000 mm, 7.3600 mm): Pad B12 [GND] of J3 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(11.1100 mm, 6.2850 mm): NPTH pad of J3
+    @(10.8000 mm, 7.3600 mm): Pad A12 [GND] of J3 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(11.1100 mm, 6.2850 mm): NPTH pad of J3
+    @(10.8000 mm, 7.3600 mm): Pad B1 [GND] of J3 on F.Cu
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; Severity: error
+    @(117.9945 mm, 56.0740 mm): NPTH pad of H8
+    @(120.0695 mm, 56.0740 mm): Pad 1 [<no net>] of H8 on F.Cu
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; Severity: error
+    @(45.3945 mm, 87.0740 mm): Footprint H5
+    @(78.0000 mm, 64.0000 mm): Footprint J1
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; Severity: error
+    @(19.0300 mm, 25.8600 mm): Footprint TP14
+    @(19.0000 mm, 26.5000 mm): Footprint TP21
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; Severity: error
+    @(78.0000 mm, 64.0000 mm): Footprint J1
+    @(110.5945 mm, 87.0740 mm): Footprint H6
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; Severity: error
+    @(78.0000 mm, 64.0000 mm): Footprint J1
+    @(37.9945 mm, 56.0740 mm): Footprint H7
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; Severity: error
+    @(78.0000 mm, 64.0000 mm): Footprint J1
+    @(117.9945 mm, 56.0740 mm): Footprint H8
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; Severity: error
+    @(34.4200 mm, 59.9500 mm): Footprint TP4
+    @(33.0000 mm, 61.0000 mm): Footprint R4
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(79.3500 mm, 118.6700 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(92.6500 mm, 118.6700 mm): Line on F.Silkscreen
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0750 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(149.1750 mm, 116.5250 mm): Pad 11 [GND] of J12 on F.Cu
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0750 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(162.6750 mm, 116.9750 mm): Pad 11 [GND] of J12 on F.Cu
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(150.0550 mm, 117.9850 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(150.0550 mm, 117.9850 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(151.9150 mm, 117.9850 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(159.0050 mm, 117.9850 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(161.3150 mm, 117.9850 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(161.3150 mm, 117.9850 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(95.6850 mm, 101.0900 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(111.2050 mm, 101.0900 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(61.3500 mm, 118.6700 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(172.0000 mm, 118.0000 mm): Line on Edge.Cuts
+    @(74.6500 mm, 118.6700 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(62.0800 mm, -1.0500 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(79.0700 mm, -1.0500 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(22.0800 mm, -1.0500 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(39.0700 mm, -1.0500 mm): Line on F.Silkscreen
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(100.0000 mm, 2.5400 mm): Pad 1 [PPS_RAW] of J5 on F.Cu
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(95.7500 mm, 2.5400 mm): Pad 2 [GND] of J5 on F.Cu
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(95.7500 mm, 2.5400 mm): Pad 2 [GND] of J5 on B.Cu
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(104.2500 mm, 2.5400 mm): Pad 2 [GND] of J5 on F.Cu
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; Severity: error
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(104.2500 mm, 2.5400 mm): Pad 2 [GND] of J5 on B.Cu
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(42.0800 mm, -1.0500 mm): Line on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; Severity: warning
+    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts
+    @(59.0700 mm, -1.0500 mm): Line on F.Silkscreen
+[lib_footprint_issues]: Footprint 'USB3_A_Receptacle_Wuerth_692122030100' not found in library 'Connector_USB'.
+    Local override; Severity: warning
+    @(86.0000 mm, 110.6200 mm): Footprint J9
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(68.2900 mm, 46.1100 mm): Footprint C88
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(65.8200 mm, 46.1000 mm): Footprint C89
+[lib_footprint_issues]: Footprint 'L_Coilcraft_XAL5050-XXX' not found in library 'Inductor_SMD'.
+    Local override; Severity: warning
+    @(19.0000 mm, 59.0000 mm): Footprint L1
+[lib_footprint_issues]: Footprint 'C_1206_3216Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(21.2200 mm, 99.9200 mm): Footprint C43
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(91.8400 mm, 30.7500 mm): Footprint U25
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(47.4600 mm, 113.6200 mm): Footprint R103
+[lib_footprint_issues]: Footprint 'Texas_HSOP-8-1EP_3.9x4.9mm_P1.27mm_ThermalVias' not found in library 'Package_SO'.
+    Local override; Severity: warning
+    @(8.0000 mm, 77.0000 mm): Footprint U5
+[lib_footprint_issues]: Footprint 'C_0603_1608Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(14.5200 mm, 96.9700 mm): Footprint C40
+[lib_footprint_issues]: Footprint 'USON-10_2.5x1.0mm_P0.5mm' not found in library 'Package_SON'.
+    Local override; Severity: warning
+    @(94.1200 mm, 46.1500 mm): Footprint U19
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(81.4900 mm, 42.9500 mm): Footprint C94
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(145.5400 mm, 14.2200 mm): Footprint U37
+[lib_footprint_issues]: Footprint 'LED_Kingbright_KPA-3010_3x2x1mm' not found in library 'LED_SMD'.
+    Local override; Severity: warning
+    @(14.0000 mm, 116.7000 mm): Footprint D4
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(77.0500 mm, 98.8600 mm): Footprint R82
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(41.4600 mm, 113.6200 mm): Footprint R102
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(81.7000 mm, 17.3600 mm): Footprint C101
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(108.2100 mm, 15.3400 mm): Footprint R43
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(95.8500 mm, 40.0000 mm): Footprint C47
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(85.6400 mm, 25.1100 mm): Footprint R77
+[lib_footprint_issues]: Footprint 'C_0603_1608Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(9.9100 mm, 17.2800 mm): Footprint C14
+[lib_footprint_issues]: Footprint 'LED_Kingbright_KPA-3010_3x2x1mm' not found in library 'LED_SMD'.
+    Local override; Severity: warning
+    @(32.0000 mm, 116.7000 mm): Footprint D7
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(116.6400 mm, 108.3900 mm): Footprint R86
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(119.6400 mm, 108.3900 mm): Footprint R87
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(106.0200 mm, 16.7000 mm): Footprint R44
+[lib_footprint_issues]: Footprint 'C_0603_1608Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(57.9200 mm, 46.7900 mm): Footprint C7
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(36.9000 mm, 68.9400 mm): Footprint R105
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(57.0000 mm, 96.0000 mm): Footprint U17
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(113.6400 mm, 107.8800 mm): Footprint R89
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(33.0000 mm, 54.5000 mm): Footprint R5
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(27.5600 mm, 39.1900 mm): Footprint TP20
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(140.0000 mm, 46.0000 mm): Footprint R11
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(131.4400 mm, 108.2300 mm): Footprint R7
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(92.1800 mm, 34.4000 mm): Footprint R85
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(111.0300 mm, 99.5500 mm): Footprint C111
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(72.6900 mm, 46.0700 mm): Footprint C84
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(116.6700 mm, 27.5400 mm): Footprint TP2
+[lib_footprint_issues]: Footprint 'C_0805_2012Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(60.8400 mm, 95.0500 mm): Footprint C104
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(82.8000 mm, 26.6100 mm): Footprint U14
+[lib_footprint_issues]: Footprint 'microSD_HC_Hirose_DM3AT-SF-PEJM5' not found in library 'Connector_Card'.
+    Local override; Severity: warning
+    @(156.0000 mm, 109.6000 mm): Footprint J12
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(35.5500 mm, 33.7500 mm): Footprint C78
+[lib_footprint_issues]: The current configuration does not include the library 'sorx'.
+    Local override; Severity: warning
+    @(45.3945 mm, 87.0740 mm): Footprint H5
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(10.9000 mm, 39.9300 mm): Footprint R18
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(121.6800 mm, 20.4600 mm): Footprint TP6
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(11.6800 mm, 28.0700 mm): Footprint R24
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(84.7000 mm, 31.8900 mm): Footprint C97
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(101.5600 mm, 6.7600 mm): Footprint R39
+[lib_footprint_issues]: Footprint 'PinHeader_1x06_P2.54mm_Vertical' not found in library 'Connector_PinHeader_2.54mm'.
+    Local override; Severity: warning
+    @(116.0000 mm, 24.0000 mm): Footprint J2
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(83.2000 mm, 22.8400 mm): Footprint C102
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(16.9800 mm, 30.3100 mm): Footprint R23
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(70.5800 mm, 46.5300 mm): Footprint C91
+[lib_footprint_issues]: Footprint 'C_0603_1608Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(14.5200 mm, 56.3900 mm): Footprint C27
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(17.5900 mm, 38.8500 mm): Footprint TP12
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(61.6000 mm, 33.6800 mm): Footprint C49
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(14.6800 mm, 81.8500 mm): Footprint R32
+[lib_footprint_issues]: Footprint 'Crystal_SMD_3225-4Pin_3.2x2.5mm' not found in library 'Crystal'.
+    Local override; Severity: warning
+    @(80.5000 mm, 36.0000 mm): Footprint Y2
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(61.7000 mm, 36.0600 mm): Footprint C90
+[lib_footprint_issues]: Footprint 'SOT-23' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(101.4300 mm, 45.5200 mm): Footprint Q3
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(119.0700 mm, 90.0900 mm): Footprint C122
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(18.9900 mm, 23.4200 mm): Footprint C79
+[lib_footprint_issues]: Footprint 'C_1210_3225Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(4.0600 mm, 88.6500 mm): Footprint C38
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(96.7100 mm, 17.0900 mm): Footprint TP17
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(35.4600 mm, 113.6200 mm): Footprint R101
+[lib_footprint_issues]: Footprint 'D_SMA' not found in library 'Diode_SMD'.
+    Local override; Severity: warning
+    @(6.0000 mm, 11.5000 mm): Footprint D2
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(125.2100 mm, 80.1100 mm): Footprint U35
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(81.6000 mm, 22.4900 mm): Footprint C99
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(14.9300 mm, 42.1900 mm): Footprint TP13
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(86.6100 mm, 93.0300 mm): Footprint R83
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(43.7600 mm, 42.1000 mm): Footprint C5
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(62.3400 mm, 38.3700 mm): Footprint C86
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(148.1200 mm, 8.0000 mm): Footprint U36
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(41.5600 mm, 35.3500 mm): Footprint C53
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(83.6800 mm, 44.8300 mm): Footprint TP10
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(19.0300 mm, 25.8600 mm): Footprint TP14
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(127.4800 mm, 72.5400 mm): Footprint R109
+[lib_footprint_issues]: Footprint 'SOT-23-6' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(85.8900 mm, 96.5100 mm): Footprint U22
+[lib_footprint_issues]: Footprint 'C_1210_3225Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(7.0900 mm, 65.3400 mm): Footprint C24
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(74.7800 mm, 46.6900 mm): Footprint R74
+[lib_footprint_issues]: Footprint 'QFN-48-1EP_7x7mm_P0.5mm_EP5.15x5.15mm' not found in library 'Package_DFN_QFN'.
+    Local override; Severity: warning
+    @(70.6000 mm, 39.5000 mm): Footprint U13
+[lib_footprint_issues]: Footprint 'RJ45_Amphenol_54602-x08_Horizontal' not found in library 'Connector_RJ'.
+    Local override; Severity: warning
+    @(99.0000 mm, 104.9700 mm): Footprint J11
+[lib_footprint_issues]: Footprint 'C_1206_3216Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(83.7800 mm, 40.6800 mm): Footprint C46
+[lib_footprint_issues]: Footprint 'SW_Tactile_SKHH_Angled' not found in library 'Button_Switch_THT'.
+    Local override; Severity: warning
+    @(132.0000 mm, 113.6000 mm): Footprint SW1
+[lib_footprint_issues]: Footprint 'PinHeader_1x03_P2.54mm_Vertical' not found in library 'Connector_PinHeader_2.54mm'.
+    Local override; Severity: warning
+    @(146.0000 mm, 77.0000 mm): Footprint JP1
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(4.1000 mm, 38.7600 mm): Footprint R17
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(130.7400 mm, 76.3300 mm): Footprint U34
+[lib_footprint_issues]: Footprint 'C_0805_2012Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(80.8400 mm, 95.0500 mm): Footprint C108
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(87.5700 mm, 30.6700 mm): Footprint U15
+[lib_footprint_issues]: Footprint 'D_SOD-323' not found in library 'Diode_SMD'.
+    Local override; Severity: warning
+    @(153.0200 mm, 42.1100 mm): Footprint D1
+[lib_footprint_issues]: Footprint 'L_0603_1608Metric' not found in library 'Inductor_SMD'.
+    Local override; Severity: warning
+    @(78.5000 mm, 42.5000 mm): Footprint FB1
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(126.4500 mm, 101.4500 mm): Footprint C116
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(17.4600 mm, 113.6200 mm): Footprint R98
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(39.8500 mm, 40.6500 mm): Footprint U16
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(57.4300 mm, 37.1900 mm): Footprint C52
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(1.8100 mm, 97.8000 mm): Footprint R36
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(125.4800 mm, 42.0700 mm): Footprint C11
+[lib_footprint_issues]: Footprint 'USB3_A_Receptacle_Wuerth_692122030100' not found in library 'Connector_USB'.
+    Local override; Severity: warning
+    @(68.0000 mm, 110.6200 mm): Footprint J8
+[lib_footprint_issues]: The current configuration does not include the library 'sorx'.
+    Local override; Severity: warning
+    @(78.0000 mm, 64.0000 mm): Footprint J1
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(2.8200 mm, 82.8200 mm): Footprint TP9
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(29.4600 mm, 113.6200 mm): Footprint R100
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(139.9500 mm, 3.6400 mm): Footprint R111
+[lib_footprint_issues]: The current configuration does not include the library 'sorx'.
+    Local override; Severity: warning
+    @(110.5945 mm, 87.0740 mm): Footprint H6
+[lib_footprint_issues]: Footprint 'C_0805_2012Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(87.6500 mm, 45.3500 mm): Footprint C45
+[lib_footprint_issues]: Footprint 'C_1210_3225Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(2.6900 mm, 30.8500 mm): Footprint C18
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(18.6900 mm, 32.1200 mm): Footprint R26
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(7.7500 mm, 39.9200 mm): Footprint R16
+[lib_footprint_issues]: Footprint 'C_1206_3216Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(21.2200 mm, 81.9200 mm): Footprint C36
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(88.4800 mm, 35.2300 mm): Footprint R81
+[lib_footprint_issues]: Footprint 'MountingHole_3.2mm_M3' not found in library 'MountingHole'.
+    Local override; Severity: warning
+    @(4.5000 mm, 4.5000 mm): Footprint H1
+[lib_footprint_issues]: Footprint 'PinHeader_1x02_P2.54mm_Vertical' not found in library 'Connector_PinHeader_2.54mm'.
+    Local override; Severity: warning
+    @(160.5000 mm, 77.5000 mm): Footprint J14
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(1.8100 mm, 79.8000 mm): Footprint R33
+[lib_footprint_issues]: Footprint 'LED_Kingbright_KPA-3010_3x2x1mm' not found in library 'LED_SMD'.
+    Local override; Severity: warning
+    @(50.0000 mm, 116.7000 mm): Footprint D10
+[lib_footprint_issues]: Footprint 'C_0805_2012Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(82.5100 mm, 31.7200 mm): Footprint C95
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(34.4200 mm, 59.9500 mm): Footprint TP4
+[lib_footprint_issues]: Footprint 'MountingHole_3.2mm_M3' not found in library 'MountingHole'.
+    Local override; Severity: warning
+    @(4.5000 mm, 113.5000 mm): Footprint H3
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(44.7100 mm, 34.1700 mm): Footprint C50
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(90.5600 mm, 34.5200 mm): Footprint R84
+[lib_footprint_issues]: The current configuration does not include the library 'sorx'.
+    Local override; Severity: warning
+    @(37.9945 mm, 56.0740 mm): Footprint H7
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(97.4400 mm, 41.2100 mm): Footprint C107
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(129.4300 mm, 79.7500 mm): Footprint C130
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(11.8100 mm, 64.3300 mm): Footprint R27
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(129.1500 mm, 72.6000 mm): Footprint C129
+[lib_footprint_issues]: Footprint 'USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal' not found in library 'Connector_USB'.
+    Local override; Severity: warning
+    @(118.0000 mm, 114.3200 mm): Footprint J10
+[lib_footprint_issues]: Footprint 'TSSOP-16_4.4x5mm_P0.65mm' not found in library 'Package_SO'.
+    Local override; Severity: warning
+    @(126.0000 mm, 62.0000 mm): Footprint U30
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(36.8200 mm, 65.5100 mm): Footprint C10
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(11.8100 mm, 100.3300 mm): Footprint R34
+[lib_footprint_issues]: Footprint 'RJ45_Pulse_JK0654219NL_Horizontal' not found in library 'Connector_RJ'.
+    Local override; Severity: warning
+    @(65.5000 mm, 25.2000 mm): Footprint J7
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(56.8500 mm, 40.2000 mm): Footprint R73
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(10.0600 mm, 10.1400 mm): Footprint R13
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(105.0300 mm, 44.5800 mm): Footprint R94
+[lib_footprint_issues]: Footprint 'SOIC-8_3.9x4.9mm_P1.27mm' not found in library 'Package_SO'.
+    Local override; Severity: warning
+    @(140.0000 mm, 62.0000 mm): Footprint U29
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(118.4700 mm, 93.6700 mm): Footprint U26
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(82.0100 mm, 47.0600 mm): Footprint R75
+[lib_footprint_issues]: Footprint 'C_1206_3216Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(19.8700 mm, 54.1100 mm): Footprint C30
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(35.1600 mm, 66.8400 mm): Footprint R106
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(34.6600 mm, 62.8600 mm): Footprint TP3
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(7.2200 mm, 102.9500 mm): Footprint TP8
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(57.0500 mm, 98.8600 mm): Footprint R80
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(119.0600 mm, 47.7500 mm): Footprint R10
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(58.3600 mm, 33.8100 mm): Footprint C48
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(64.0100 mm, 39.9800 mm): Footprint C83
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(146.0500 mm, 113.6000 mm): Footprint R8
+[lib_footprint_issues]: Footprint 'C_1206_3216Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(23.8000 mm, 95.0000 mm): Footprint C42
+[lib_footprint_issues]: Footprint 'C_0805_2012Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(157.7700 mm, 99.1000 mm): Footprint C124
+[lib_footprint_issues]: Footprint 'BatteryHolder_Keystone_3034_1x20mm' not found in library 'Battery'.
+    Local override; Severity: warning
+    @(152.0000 mm, 30.0000 mm): Footprint BT1
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(61.2000 mm, 47.1800 mm): Footprint C8
+[lib_footprint_issues]: Footprint 'LED_Kingbright_KPA-3010_3x2x1mm' not found in library 'LED_SMD'.
+    Local override; Severity: warning
+    @(38.0000 mm, 116.7000 mm): Footprint D8
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(47.9000 mm, 107.8000 mm): Footprint C128
+[lib_footprint_issues]: Footprint 'L_0603_1608Metric' not found in library 'Inductor_SMD'.
+    Local override; Severity: warning
+    @(136.8800 mm, 3.3400 mm): Footprint FB3
+[lib_footprint_issues]: Footprint 'C_1210_3225Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(22.2800 mm, 34.8400 mm): Footprint C22
+[lib_footprint_issues]: Footprint 'L_Coilcraft_XAL5050-XXX' not found in library 'Inductor_SMD'.
+    Local override; Severity: warning
+    @(19.0000 mm, 95.0000 mm): Footprint L3
+[lib_footprint_issues]: Footprint 'C_0603_1608Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(14.5200 mm, 60.9700 mm): Footprint C26
+[lib_footprint_issues]: Footprint 'Texas_HSOP-8-1EP_3.9x4.9mm_P1.27mm_ThermalVias' not found in library 'Package_SO'.
+    Local override; Severity: warning
+    @(8.0000 mm, 95.0000 mm): Footprint U6
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(123.9800 mm, 97.2000 mm): Footprint C114
+[lib_footprint_issues]: Footprint 'CP_Elec_6.3x7.7' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(54.5000 mm, 107.0000 mm): Footprint C106
+[lib_footprint_issues]: Footprint 'C_1210_3225Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(15.0500 mm, 25.0000 mm): Footprint C21
+[lib_footprint_issues]: Footprint 'RJ45_Pulse_JK0654219NL_Horizontal' not found in library 'Connector_RJ'.
+    Local override; Severity: warning
+    @(25.5000 mm, 25.2000 mm): Footprint J6
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(77.0000 mm, 96.0000 mm): Footprint U21
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(44.2300 mm, 38.1100 mm): Footprint C54
+[lib_footprint_issues]: Footprint 'C_0603_1608Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(14.5200 mm, 92.3900 mm): Footprint C41
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(14.6800 mm, 63.8500 mm): Footprint R28
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(130.8300 mm, 72.4500 mm): Footprint C131
+[lib_footprint_issues]: Footprint 'C_0805_2012Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(140.4300 mm, 13.5300 mm): Footprint C133
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(121.7100 mm, 106.1500 mm): Footprint C112
+[lib_footprint_issues]: Footprint 'Fiducial_1mm_Mask2mm' not found in library 'Fiducial'.
+    Local override; Severity: warning
+    @(7.0000 mm, 107.5000 mm): Footprint FID1
+[lib_footprint_issues]: Footprint 'LED_Kingbright_KPA-3010_3x2x1mm' not found in library 'LED_SMD'.
+    Local override; Severity: warning
+    @(20.0000 mm, 116.7000 mm): Footprint D5
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(105.0000 mm, 13.5000 mm): Footprint U9
+[lib_footprint_issues]: Footprint 'C_1206_3216Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(23.8000 mm, 59.0000 mm): Footprint C28
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(123.0000 mm, 57.0000 mm): Footprint C20
+[lib_footprint_issues]: Footprint 'C_0805_2012Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(61.6900 mm, 41.9900 mm): Footprint C93
+[lib_footprint_issues]: Footprint 'SW_Tactile_SKHH_Angled' not found in library 'Button_Switch_THT'.
+    Local override; Severity: warning
+    @(142.0000 mm, 113.6000 mm): Footprint SW2
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(79.8200 mm, 39.3500 mm): Footprint R72
+[lib_footprint_issues]: Footprint 'CP_Elec_6.3x7.7' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(93.0000 mm, 95.6000 mm): Footprint C110
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(81.4100 mm, 39.2700 mm): Footprint C96
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(76.9400 mm, 47.1500 mm): Footprint R76
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(123.0200 mm, 27.5400 mm): Footprint TP5
+[lib_footprint_issues]: Footprint 'SOIC-8_5.23x5.23mm_P1.27mm' not found in library 'Package_SO'.
+    Local override; Severity: warning
+    @(134.0000 mm, 46.0000 mm): Footprint U1
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(119.4200 mm, 60.1700 mm): Footprint R1
+[lib_footprint_issues]: Footprint 'C_1206_3216Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(42.4000 mm, 44.4400 mm): Footprint C2
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(29.2100 mm, 41.8500 mm): Footprint TP19
+[lib_footprint_issues]: Footprint 'C_0805_2012Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(6.3400 mm, 16.6300 mm): Footprint C12
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(90.3300 mm, 27.4300 mm): Footprint C117
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(110.3900 mm, 97.4000 mm): Footprint C120
+[lib_footprint_issues]: Footprint 'TestPoint_Pad_D1.0mm' not found in library 'TestPoint'.
+    Local override; Severity: warning
+    @(32.8500 mm, 37.0600 mm): Footprint TP18
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(63.5300 mm, 46.3300 mm): Footprint R67
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(132.4600 mm, 61.6700 mm): Footprint R96
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(57.5300 mm, 42.9800 mm): Footprint R68
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(58.3400 mm, 35.4200 mm): Footprint R37
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(44.1800 mm, 36.4000 mm): Footprint R38
+[lib_footprint_issues]: Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.
+    Local override; Severity: warning
+    @(122.9100 mm, 93.5800 mm): Footprint U28
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(98.3900 mm, 14.4500 mm): Footprint R42
+[lib_footprint_issues]: Footprint 'Fiducial_1mm_Mask2mm' not found in library 'Fiducial'.
+    Local override; Severity: warning
+    @(120.0000 mm, 4.0000 mm): Footprint FID3
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(127.8500 mm, 56.7400 mm): Footprint C127
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(14.1600 mm, 39.9700 mm): Footprint R19
+[lib_footprint_issues]: Footprint 'C_0603_1608Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(4.0700 mm, 53.5700 mm): Footprint C25
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(37.0900 mm, 47.4400 mm): Footprint C6
+[lib_footprint_issues]: Footprint 'C_0603_1608Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(2.8100 mm, 13.5000 mm): Footprint C16
+[lib_footprint_issues]: Footprint 'C_0603_1608Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(14.5200 mm, 74.3900 mm): Footprint C34
+[lib_footprint_issues]: Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.
+    Local override; Severity: warning
+    @(77.1700 mm, 37.4000 mm): Footprint C82
+[lib_footprint_issues]: Footprint 'SMA_Amphenol_132289_EdgeMount' not found in library 'Connector_Coaxial'.
+    Local override; Severity: warning
+    @(100.0000 mm, 2.5400 mm): Footprint J5
+[lib_footprint_issues]: Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.
+    Local override; Severity: warning
+    @(120.7400 mm, 89.9400 mm): Footprint R91
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(14.0000 mm, 9.6000 mm): PCB Text 'PWR 15-20V PD' on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(156.0000 mm, 100.2000 mm): PCB Text 'SD' on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(78.0000 mm, 94.2000 mm): PCB Text 'Verdin iMX8M Plus  J1' on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(152.0000 mm, 42.0000 mm): PCB Text 'CR2032 +' on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(118.0000 mm, 108.2000 mm): PCB Text 'DEBUG' on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(139.8000 mm, 13.6000 mm): PCB Text 'FAN' on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(50.0000 mm, 112.8000 mm): PCB Text 'ALARM' on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(19.0300 mm, 25.8600 mm): Circle on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(19.0000 mm, 26.5000 mm): Circle on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(36.6800 mm, 55.2500 mm): Line on B.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; Severity: warning
+    @(36.6800 mm, 55.2500 mm): Line on B.Silkscreen
+[solder_mask_bridge]: Front solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; Severity: error
+    @(45.3945 mm, 87.0740 mm): NPTH pad of H5
+    @(47.4695 mm, 87.0740 mm): Pad 1 [<no net>] of H5 on F.Cu
+[solder_mask_bridge]: Front solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; Severity: error
+    @(19.0300 mm, 25.8600 mm): Pad 1 [PD_ATTACH#] of TP14 on F.Cu
+    @(19.0000 mm, 26.5000 mm): Pad 1 [+4V5_PD] of TP21 on F.Cu
+[solder_mask_bridge]: Front solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; Severity: error
+    @(110.5945 mm, 87.0740 mm): NPTH pad of H6
+    @(112.6695 mm, 87.0740 mm): Pad 1 [<no net>] of H6 on F.Cu
+[solder_mask_bridge]: Front solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; Severity: error
+    @(37.9945 mm, 56.0740 mm): NPTH pad of H7
+    @(40.0695 mm, 56.0740 mm): Pad 1 [<no net>] of H7 on F.Cu
+[solder_mask_bridge]: Rear solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; Severity: error
+    @(37.9945 mm, 56.0740 mm): NPTH pad of H7
+    @(37.8175 mm, 54.6400 mm): Pad 5 [+1V8] of U12 on B.Cu
+[solder_mask_bridge]: Front solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; Severity: error
+    @(117.9945 mm, 56.0740 mm): NPTH pad of H8
+    @(120.0695 mm, 56.0740 mm): Pad 1 [<no net>] of H8 on F.Cu
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(10.4400 mm, 10.2936 mm): Line on F.Silkscreen
+    @(14.0000 mm, 9.6000 mm): PCB Text 'PWR 15-20V PD' on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(9.6800 mm, 10.2936 mm): Line on F.Silkscreen
+    @(14.0000 mm, 9.6000 mm): PCB Text 'PWR 15-20V PD' on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(19.0300 mm, 25.8600 mm): Circle on F.Silkscreen
+    @(19.0000 mm, 26.5000 mm): Circle on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(78.0000 mm, 94.2000 mm): PCB Text 'Verdin iMX8M Plus  J1' on F.Silkscreen
+    @(-1.3000 mm, -1.5100 mm): Polygon on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(78.0000 mm, 94.2000 mm): PCB Text 'Verdin iMX8M Plus  J1' on F.Silkscreen
+    @(77.0000 mm, 94.4400 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(78.0000 mm, 94.2000 mm): PCB Text 'Verdin iMX8M Plus  J1' on F.Silkscreen
+    @(77.0000 mm, 94.4400 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(86.0000 mm, 99.9000 mm): PCB Text 'USB 2 / REC' on F.Silkscreen
+    @(82.6000 mm, 100.3200 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(118.0000 mm, 108.2000 mm): PCB Text 'DEBUG' on F.Silkscreen
+    @(116.4864 mm, 108.0100 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(118.0000 mm, 108.2000 mm): PCB Text 'DEBUG' on F.Silkscreen
+    @(119.4864 mm, 108.0100 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(152.0000 mm, 42.0000 mm): PCB Text 'CR2032 +' on F.Silkscreen
+    @(151.4100 mm, 41.2600 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen
+    @(98.7164 mm, 6.5200 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen
+    @(99.7500 mm, 6.2500 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen
+    @(100.0000 mm, 5.7500 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen
+    @(100.2500 mm, 6.2500 mm): Line on F.Silkscreen
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; Severity: warning
+    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen
+    @(101.4064 mm, 6.3800 mm): Line on F.Silkscreen
+
+** Found 72 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(33.2800 mm, 49.1100 mm): Pad 2 [GND] of C64 on B.Cu
+    @(33.0000 mm, 50.7250 mm): Pad 2 [GND] of C3 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(122.1900 mm, 106.1500 mm): Pad 2 [GND] of C112 on F.Cu
+    @(120.5100 mm, 106.0000 mm): Pad 2 [GND] of R114 on B.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(17.6100 mm, 34.1900 mm): Pad 2 [GND] of Y1 on B.Cu
+    @(16.9600 mm, 35.7600 mm): Pad 2 [GND] of R20 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(13.0100 mm, 16.0000 mm): Pad 2 [GND] of R118 on B.Cu
+    @(13.5375 mm, 14.2500 mm): Pad 6 [GND] of U2 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(40.5650 mm, 49.4000 mm): Pad 4 [GND] of U11 on B.Cu
+    @(42.6750 mm, 47.4200 mm): Pad 2 [GND] of C1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(70.3695 mm, 51.9740 mm): Pad 157 [USB1_OC#] of J1 on F.Cu
+    @(77.5600 mm, 98.6475 mm): Track [USB1_OC#] on F.Cu, length 2.4006 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(69.8695 mm, 51.9740 mm): Pad 159 [USB1_VBUS_DET] of J1 on F.Cu
+    @(87.1200 mm, 93.0300 mm): Pad 2 [USB1_VBUS_DET] of R83 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(94.5050 mm, 45.6500 mm): Pad 9 [USB2_SSTX_N] of U19 on F.Cu
+    @(92.7799 mm, 45.6500 mm): Track [USB2_SSTX_N] on F.Cu, length 0.9551 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(94.5050 mm, 45.1500 mm): Pad 10 [USB2_SSTX_P] of U19 on F.Cu
+    @(93.7350 mm, 45.1500 mm): Track [USB2_SSTX_P] on F.Cu, length 1.3028 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(94.5050 mm, 47.1500 mm): Pad 6 [USB2_SSRX_N] of U19 on F.Cu
+    @(90.0454 mm, 50.8396 mm): Track [USB2_SSRX_N] on F.Cu, length 5.2179 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(94.5050 mm, 46.6500 mm): Pad 7 [USB2_SSRX_P] of U19 on F.Cu
+    @(92.5295 mm, 46.6500 mm): Track [USB2_SSRX_P] on F.Cu, length 1.2055 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(109.1951 mm, 54.2966 mm): Track [FRAM_MOSI] on F.Cu, length 0.6177 mm
+    @(137.6000 mm, 47.9050 mm): Pad 5 [FRAM_MOSI] of U1 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(40.0700 mm, 55.1200 mm): Pad 1 [+1V8] of C76 on B.Cu
+    @(37.8175 mm, 54.6400 mm): Pad 5 [+1V8] of U12 on B.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(30.6387 mm, 55.3606 mm): Track [+1V8] on In2.Cu, length 15.4936 mm
+    @(31.6000 mm, 58.4500 mm): Track [+1V8] on F.Cu, length 0.0707 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(50.7340 mm, 59.7290 mm): Track [+1V8] on In2.Cu, length 10.4678 mm
+    @(36.3131 mm, 62.5131 mm): Track [+1V8] on F.Cu, length 1.8662 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(36.1241 mm, 59.6241 mm): Track [+1V8] on F.Cu, length 0.7379 mm
+    @(37.8175 mm, 54.6400 mm): Pad 5 [+1V8] of U12 on B.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(54.3695 mm, 51.9740 mm): Pad 221 [MG_TXD0] of J1 on F.Cu
+    @(67.1625 mm, 39.7500 mm): Pad 19 [MG_TXD0] of U13 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(11.6254 mm, 15.5318 mm): Track [PD_ALERT#] on B.Cu, length 0.0088 mm
+    @(11.6316 mm, 12.1834 mm): Track [PD_ALERT#] on B.Cu, length 1.4202 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(11.6254 mm, 15.5318 mm): Track [PD_ALERT#] on B.Cu, length 0.0088 mm
+    @(30.8130 mm, 59.9929 mm): Track [PD_ALERT#] on B.Cu, length 20.3211 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(31.6376 mm, 48.5984 mm): Via [PCIE_CLK_N] on F.Cu - B.Cu
+    @(42.1873 mm, 53.8016 mm): Track [PCIE_CLK_N] on F.Cu, length 5.1238 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(31.0198 mm, 48.8307 mm): Track [PCIE_TX_N] on F.Cu, length 3.2085 mm
+    @(37.7589 mm, 52.3982 mm): Track [PCIE_TX_N] on F.Cu, length 3.1716 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(49.7831 mm, 58.7027 mm): Track [PCIE_TX_N] on F.Cu, length 5.7197 mm
+    @(37.7589 mm, 52.3982 mm): Track [PCIE_TX_N] on F.Cu, length 3.1716 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(36.6800 mm, 54.7397 mm): Track [PCIE_RST#_1V8] on B.Cu, length 0.2346 mm
+    @(48.6160 mm, 61.2988 mm): Track [PCIE_RST#_1V8] on B.Cu, length 9.9420 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(12.2600 mm, 21.9500 mm): Track [VBUS_IN] on F.Cu, length 1.3025 mm
+    @(10.7400 mm, 21.7300 mm): Track [VBUS_IN] on F.Cu, length 6.7150 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(17.3393 mm, 17.6862 mm): Track [PD_ATTACH#] on F.Cu, length 6.4831 mm
+    @(19.0300 mm, 25.8600 mm): Pad 1 [PD_ATTACH#] of TP14 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(24.0140 mm, 25.8600 mm): Track [PD_ATTACH#] on F.Cu, length 2.0717 mm
+    @(19.0300 mm, 25.8600 mm): Pad 1 [PD_ATTACH#] of TP14 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(18.1555 mm, 15.4874 mm): Track [PD_EN_SNK#] on F.Cu, length 1.5507 mm
+    @(17.0590 mm, 16.5839 mm): Track [PD_EN_SNK#] on B.Cu, length 0.0184 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(69.3500 mm, 36.0625 mm): Track [+1V2_PHY] on F.Cu, length 6.2940 mm
+    @(71.8500 mm, 36.0625 mm): Pad 4 [+1V2_PHY] of U13 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(31.2862 mm, 50.7711 mm): Track [PCIE_RST#_3V3] on F.Cu, length 0.7873 mm
+    @(33.7285 mm, 52.5000 mm): Track [PCIE_RST#_3V3] on B.Cu, length 0.4285 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(32.5183 mm, 51.5528 mm): Track [OE_JTAG_PU] on F.Cu, length 2.7422 mm
+    @(32.6200 mm, 51.4511 mm): Track [OE_JTAG_PU] on B.Cu, length 0.1438 mm
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(67.1625 mm, 37.7500 mm): Pad 15 [MG_LED2] of U13 on F.Cu
+    @(59.6200 mm, 40.6300 mm): Pad 2 [MG_LED2] of R71 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(87.5700 mm, 31.8075 mm): Pad 2 [MG_LED2] of U15 on F.Cu
+    @(67.1625 mm, 37.7500 mm): Pad 15 [MG_LED2] of U13 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(115.6525 mm, 106.4200 mm): Pad 1 [VBUS_DBG_RAW] of FB2 on F.Cu
+    @(115.6000 mm, 110.6400 mm): Pad B9 [VBUS_DBG_RAW] of J10 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(115.6000 mm, 110.6400 mm): Pad B9 [VBUS_DBG_RAW] of J10 on F.Cu
+    @(120.4000 mm, 110.6400 mm): Pad A9 [VBUS_DBG_RAW] of J10 on F.Cu
+[unconnected_items]: Missing connection between items
+    Local override; Severity: error
+    @(17.0625 mm, 21.0500 mm): Pad 2 [+4V5_PD] of Q5 on B.Cu
+    @(19.0000 mm, 26.5000 mm): Pad 1 [+4V5_PD] of TP21 on F.Cu
+
+** Found 0 Footprint errors **
+
+** End of Report **

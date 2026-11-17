@@ -1,0 +1,16 @@
+{"all_ports_aligned": true, "max_interference_mm3": 5.002, "interference_mm3": {"J9": 5.002}, "clearances": {"heatsink_top_to_lid_mm": 15.6, "magjack_top_to_lid_mm": 18.8, "internal_height_mm": 40.0, "fan_height_mm": 40.0, "bottom_parts_to_floor_mm": 4.8, "outer_mm": [215.0, 123.6, 44.0]}}
+OE {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+MD-IN {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+MGMT {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+USB-C PWR {'left': 1.8, 'right': 1.8, 'bottom': 1.6, 'top': 1.6} OK
+PPS {'left': 1.0, 'right': 1.0, 'bottom': 1.0, 'top': 1.0} OK
+USB 1 {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+USB 2 {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+CONSOLE {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+USB-C DEBUG {'left': 1.5, 'right': 1.5, 'bottom': 1.6, 'top': 1.6} OK
+microSD {'left': 0.6, 'right': 0.6, 'bottom': 0.3, 'top': 0.9} OK
+RESET {'left': 0.5, 'right': 0.5, 'bottom': 0.5, 'top': 0.5} OK
+RECOVERY {'left': 0.5, 'right': 0.5, 'bottom': 0.5, 'top': 0.5} OK
+LED window {'left': 1.0, 'right': 1.0, 'bottom': 0.4, 'top': 1.4} OK
+
+--- stderr ---

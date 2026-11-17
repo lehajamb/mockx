@@ -1,0 +1,1 @@
+Observed AttributeError: Point object has no attribute exterior while rasterizing a clipped geometry collection. No candidate or final DRC was produced. Reproduced and fixed by test_clipped_obstacle_tangencies_remain_blocked; see routing-point-tests-before/after.txt.

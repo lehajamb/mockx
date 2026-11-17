@@ -1,0 +1,19 @@
+{
+  "footprints": 368,
+  "pads": 1582,
+  "track_segments": 6831,
+  "vias": 1214,
+  "model_mismatches": [
+    "R21: value '24.9k' != '9.1k'"
+  ],
+  "duplicate_via_sites": [
+    {
+      "x_mm": 18.35,
+      "y_mm": 12.0,
+      "nets": [
+        "PD_VS",
+        "PD_VS"
+      ]
+    }
+  ]
+}

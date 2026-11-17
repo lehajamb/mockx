@@ -10,7 +10,7 @@ ERC, routing and generated-file coherence are separate checks in the release rep
 |---|---|---|---|
 | U1 FRAM | CY15B104QN (1.8-3.6 V), narrow3.9mm SOIC, nominal 1.8V rail | CY15V104QN-50SXI (1.71-1.89V), wide5.23mm SOIC; pin7 named DNU | Exact variant/package checked in Infineon datasheet. DNU may float or connect VDD; R11 changed to 0ohm for a direct VDD tie; the custom symbol labels DNU correctly. SoM1.8V guaranteed tolerance, load/transient budget still needed. |
 | KSZ9131 ISET | 12.1k to GND | 6.04k1% | Microchip DS00002841C ISET requirement; regression protects value. |
-| J1 socket | Incorrect locating-hole sizes and hold-down positions/lands | Generator uses Toradex guideFig114 specifically for TE2309409-2 | Peg diameters1.10/1.60, spacing68.8; hold-down spacing67.6,3.5x4.6lands. Exact TE drawing and actual socket/PCB overlay still required for sign-off. |
+| J1 socket | Incorrect locating-hole sizes and hold-down positions/lands | Generator uses Toradex guideFig114 specifically for TE2309409-2 | Peg diameters1.10/1.60, spacing68.8; hold-down spacing67.6,3.5x4.6lands. The exact TE revision 6 land pattern and supplier STEP have now been reviewed; see [socket land validation](te-socket-land-validation.md) and the mechanical evidence. Fabricator tolerance acceptance remains required. |
 | UART names | CTS/RTS names swapped on unused socket pins | Pins133/141RTS;135/143CTS | No routed-net change. |
 | U2 supply | Raw VBUS directly on28V-absolute-max VDD | U38 LT3010EMS8E#PBF supplies +4V5_PD |80V-input LDO with reverse-input/output protection; ADJ pin2 uses R117/R118=24.9k/10k. Detailed negative/startup/discharge issues below. |
 | PD load enable | PD_EN_SNK# only reached pullup and testpoint | Q5 PMV65XP connects auxiliary voltage to SHDN only when PD enable is asserted | Pullup R15 now +4V5_PD; R1164.7k defaults SHDN low; requires programmed POWER_ONLY_ABOVE_5V and a validated startup sequence. |
@@ -107,8 +107,9 @@ U38MS8E1OUT/2ADJ/3NC/4GND/5SHDN/6NC/7NC/8IN/9EP; U39PK1REF/2ANODE/3CATHODE;
 Q5SOT23 1G/2S/3D; eFuse PWP13SHDN and external reverse-blocking topology;
 U2QFN24VDD/18VBUS_VS_DISCH/16VBUS_EN_SNK/22VSYS. KiCad resolves every declared
 symbol pin, but this is not a complete independent audit of every manufacturer
-pinout on the board. FRAM rail guarantees, exact TE drawing sign-off and the
-remaining critical pin/package audit are R02 open items.
+pinout on the board. FRAM rail guarantees and the remaining critical pin/package audit are R02 open items.
+The exact TE drawing review is complete; fabrication process tolerances and the
+physical module/socket assembly remain separate qualifications.
 
 ## Manufacturer references
 
@@ -126,3 +127,11 @@ remaining critical pin/package audit are R02 open items.
 Downloaded-source hashes are in `validation/electrical/manufacturer-sources.json`.
 Only actually retrieved sources have hashes. Missing documents remain explicitly
 unverified rather than receiving invented hashes or approvals.
+
+## Latest manufacturer confidence review
+
+The current [Verdin iMX8M Plus V1.1 datasheet](https://docs.toradex.com/116795-verdin_imx8mp_datasheet.pdf), Table 12, lists PWR_1V8_MOCI on pin 214 as a 1.8 V output with a 250 mA maximum load. That establishes the output load ceiling; the reviewed table does not supply a guaranteed minimum/maximum output-voltage range. Do not infer a tolerance from the nominal voltage. The FRAM requires 1.71-1.89 V at its pins, including module regulation, board drop and transients. Obtain the module-level guaranteed range and finish the aggregate carrier load budget before closing this compatibility item.
+
+For U13, Microchip DS00002841D Figure 7-3 is a recommended land pattern with 0.30 mm thermal holes at 1.00 mm pitch. Its soldering note qualifies the vias with “if used”; the drawing does not establish that all 25 illustrated sites are mandatory electrical connections. Section 6.3 gives thermal data for a different JEDEC 2S2P test board. The five clear U13 thermal vias on the accepted layout close that GND group, while the partial field's thermal performance and assembly process remain unqualified. Do not apply the published junction-to-ambient value directly to this PCB. Source: [Microchip KSZ9131RNX, revision D](https://ww1.microchip.com/downloads/en/DeviceDoc/00002841D.pdf), pages 122 and 145.
+
+Current sourcing observations and the exact service-header/shunt selections supersede the earlier procurement snapshot; see [critical sourcing review](critical-sourcing-review.md). They are not a complete approved orderable BOM.
