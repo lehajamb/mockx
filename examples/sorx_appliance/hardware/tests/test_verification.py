@@ -192,7 +192,7 @@ class GateTests(unittest.TestCase):
         fake_pcbnew = types.SimpleNamespace(LoadBoard=lambda path: types.SimpleNamespace(GetCopperLayerCount=lambda: 4))
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            with patch.dict(sys.modules, {"pcbnew": fake_pcbnew}), patch.object(module, "run_tool", return_value={"success": False, "returncode": 9}):
+            with patch.dict(sys.modules, {"pcbnew": fake_pcbnew}), patch.object(module, "kicad_environment", return_value={"KICAD7_FOOTPRINT_DIR": "/test/fixtures/footprints"}), patch.object(module, "run_tool", return_value={"success": False, "returncode": 9}):
                 self.assertEqual(module.export(root, development=True), 1)
             self.assertFalse(list(root.rglob("*.zip")))
             report = json.loads(next(root.rglob("export-result.json")).read_text())
@@ -203,7 +203,7 @@ class GateTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("export_no_approval", TOOLS / "export.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        with tempfile.TemporaryDirectory() as tmp, patch.object(sys, "argv", ["export.py", "--root", tmp]):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(sys, "argv", ["export.py", "--root", tmp]), patch.object(module, "kicad_environment", return_value={"KICAD7_FOOTPRINT_DIR": "/test/fixtures/footprints"}):
             self.assertEqual(module.main(), 1)
             self.assertFalse(list(Path(tmp).rglob("*.zip")))
 
