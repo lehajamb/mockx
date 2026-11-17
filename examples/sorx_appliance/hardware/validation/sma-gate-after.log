@@ -1,0 +1,8 @@
+test_native_errors_fail_and_equal_counts_pass (test_sma_land_pattern.SmaCandidateGateTests.test_native_errors_fail_and_equal_counts_pass) ... ok
+test_new_required_open_fails (test_sma_land_pattern.SmaCandidateGateTests.test_new_required_open_fails) ... ok
+test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.140s
+
+OK

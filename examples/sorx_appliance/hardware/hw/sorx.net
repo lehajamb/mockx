@@ -1,7 +1,7 @@
 (export (version "E")
   (design
-    (source "/hardware/hw/sorx.kicad_sch")
-    (date "Tue Nov 17 01:56:07 2026")
+    (source "/work/hardware/hw/sorx.kicad_sch")
+    (date "Tue Nov 17 02:42:54 2026")
     (tool "Eeschema 7.0.11")
     (sheet (number "1") (name "/") (tstamps "/")
       (title_block
@@ -2557,7 +2557,7 @@
       (tstamps "0256f818-da7d-571e-9d1b-9511f6fb0961"))
     (comp (ref "J5")
       (value "PPS IN")
-      (footprint "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount")
+      (footprint "sorx:SMA_Amphenol_132289_Drawing")
       (fields
         (field (name "Alternates") "Cinch 142-0701-801, Molex 73251-1153 (footprint in library)")
         (field (name "Description") "SMA jack, edge mount, 50 ohm, for 1.57 mm PCB")
@@ -7701,7 +7701,7 @@
     (library (logical "Regulator_Switching")
       (uri "/usr/share/kicad/symbols//Regulator_Switching.kicad_sym"))
     (library (logical "SORX")
-      (uri "/hardware/hw/sorx.kicad_sym"))
+      (uri "/work/hardware/hw/sorx.kicad_sym"))
     (library (logical "Sensor_Temperature")
       (uri "/usr/share/kicad/symbols//Sensor_Temperature.kicad_sym"))
     (library (logical "Switch")

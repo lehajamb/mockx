@@ -1,0 +1,113 @@
+{
+  "source_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "output_sha256": "c0d84c6ced414cb4b5efd1584d9bb595c069e189d05a1e8ce564405d12615942",
+  "tool_sha256": "c01b3055cce916fbaeadf472d1295334d3274d00629a2a3ca812e86cfefbaeeb",
+  "footprint_sha256": "c6e1adfcd111280db5ed8b5934f36827ccaedc1116c05fabc73f96e18746b1a0",
+  "before": {
+    "DRC violations": 107,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 103,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(100.0000 mm, 6.3000 mm): PCB Text 'PPS IN' on F.Silkscreen\n    @(97.0000 mm, 6.5000 mm): Reference 'J5'",
+      "fingerprint": "8c578a50e0fa358a03270a5f523d06784d734149aee13ac24a71cbce953f9db7",
+      "section": "DRC violations"
+    }
+  ],
+  "pad_changes": [
+    {
+      "uuid": "4109f700-7d11-4595-8d6d-e126b15481c4",
+      "pad": "1",
+      "net": "PPS_RAW",
+      "before_nm": [
+        100000000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        100000000,
+        2900000,
+        1500000,
+        5200000
+      ]
+    },
+    {
+      "uuid": "89c20d49-9ac1-4b98-969a-68647e30c217",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        95750000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        95750000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    },
+    {
+      "uuid": "c4de2317-394d-4936-981d-23efcf38262b",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        95750000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        95750000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    },
+    {
+      "uuid": "e1dc2e66-7935-41e7-a8bc-84522e114891",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        104250000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        104250000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    },
+    {
+      "uuid": "8add629a-6f2f-44fc-aa52-49635ec8e150",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        104250000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        104250000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    }
+  ],
+  "fabrication_ready": false
+}

@@ -2620,7 +2620,7 @@
     (uuid "ce5ef745-45dd-5f69-8d89-605fb0da2535")
     (property "Reference" "J5" (at 418.55 33.6 0) (effects (font (size 1.27 1.27)) (justify left)))
     (property "Value" "PPS IN" (at 418.55 35.7 0) (effects (font (size 1.27 1.27)) (justify left)))
-    (property "Footprint" "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount"
+    (property "Footprint" "sorx:SMA_Amphenol_132289_Drawing"
       (at 436.88 40.64 0)
       (effects (font (size 1.27 1.27)) hide)
     )

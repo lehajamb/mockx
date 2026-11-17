@@ -1,0 +1,16 @@
+test_native_errors_fail_and_equal_counts_pass (test_sma_land_pattern.SmaCandidateGateTests.test_native_errors_fail_and_equal_counts_pass) ... ok
+test_new_required_open_fails (test_sma_land_pattern.SmaCandidateGateTests.test_new_required_open_fails) ... FAIL
+test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) ... ok
+
+======================================================================
+FAIL: test_new_required_open_fails (test_sma_land_pattern.SmaCandidateGateTests.test_new_required_open_fails)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_sma_land_pattern.py", line 25, in test_new_required_open_fails
+    self.assertFalse(candidate_passed({"unconnected pads":0},{"unconnected pads":1},[]))
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.106s
+
+FAILED (failures=1)

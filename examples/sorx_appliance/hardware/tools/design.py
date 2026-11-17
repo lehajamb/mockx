@@ -264,7 +264,7 @@ D.sheet = 'eth_md'
 magjack('MD-IN', 'MD', 'MD_LED_LINK#', 'MD_LED_ACT#')
 D.C('1nF', 'MD_LED_LINK#'); D.C('1nF', 'MD_LED_ACT#')
 # PPS input
-P('J', 'Connector:Conn_Coaxial', 'PPS IN', 'Connector_Coaxial:SMA_Amphenol_132289_EdgeMount', {'1': 'PPS_RAW', '2': 'GND'}, mpn='132289', mfr='Amphenol RF',
+P('J', 'Connector:Conn_Coaxial', 'PPS IN', 'sorx:SMA_Amphenol_132289_Drawing', {'1': 'PPS_RAW', '2': 'GND'}, mpn='132289', mfr='Amphenol RF',
   desc='SMA jack, edge mount, 50 ohm, for 1.57 mm PCB', alt='Cinch 142-0701-801, Molex 73251-1153 (footprint in library)')
 D.R('49.9', 'PPS_RAW', 'GND', dnp=True); D.R('100', 'PPS_RAW', 'PPS_F'); D.R('100k', 'PPS_F', 'GND')
 P('D', 'SORX:ESD', 'ESD9B5.0', 'Diode_SMD:D_SOD-923', {'A': 'GND', 'K': 'PPS_F'}, mpn='ESD9B5.0ST5G', mfr='onsemi', desc='ESD diode 5 V bidirectional SOD-923',
