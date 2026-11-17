@@ -1,0 +1,147 @@
+ERROR StatusConsoleListener Could not determine local host name
+ java.net.UnknownHostException: 44fb14eba024: 44fb14eba024: Temporary failure in name resolution
+	at java.base/java.net.InetAddress.getLocalHost(InetAddress.java:1671)
+	at org.apache.logging.log4j.core.util.NetUtils.getLocalHostname(NetUtils.java:56)
+	at org.apache.logging.log4j.core.LoggerContext.lambda$setConfiguration$0(LoggerContext.java:615)
+	at java.base/java.util.concurrent.ConcurrentHashMap.computeIfAbsent(ConcurrentHashMap.java:1708)
+	at org.apache.logging.log4j.core.LoggerContext.setConfiguration(LoggerContext.java:615)
+	at org.apache.logging.log4j.core.LoggerContext.reconfigure(LoggerContext.java:694)
+	at org.apache.logging.log4j.core.LoggerContext.reconfigure(LoggerContext.java:711)
+	at org.apache.logging.log4j.core.LoggerContext.start(LoggerContext.java:253)
+	at org.apache.logging.log4j.core.impl.Log4jContextFactory.getContext(Log4jContextFactory.java:155)
+	at org.apache.logging.log4j.core.impl.Log4jContextFactory.getContext(Log4jContextFactory.java:47)
+	at org.apache.logging.log4j.LogManager.getContext(LogManager.java:196)
+	at org.apache.logging.log4j.LogManager.getLogger(LogManager.java:599)
+	at app.freerouting.logger.FRLogger.traceEntry(FRLogger.java:38)
+	at app.freerouting.gui.MainApplication.main(MainApplication.java:204)
+Caused by: java.net.UnknownHostException: 44fb14eba024: Temporary failure in name resolution
+	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)
+	at java.base/java.net.InetAddress$PlatformNameService.lookupAllHostAddr(InetAddress.java:934)
+	at java.base/java.net.InetAddress.getAddressesFromNameService(InetAddress.java:1543)
+	at java.base/java.net.InetAddress$NameServiceAddresses.get(InetAddress.java:852)
+	at java.base/java.net.InetAddress.getAllByName0(InetAddress.java:1533)
+	at java.base/java.net.InetAddress.getLocalHost(InetAddress.java:1666)
+	... 13 more
+2026-11-17 00:30:23.877 [main] INFO  Freerouting v1.9.0 (build-date: 2023-10-30)
+2026-11-17 00:30:25.082 [main] INFO  Opening '../runs/freeroute-01.dsn'...
+java.util.concurrent.CompletionException: java.net.ConnectException
+	at java.base/java.util.concurrent.CompletableFuture.encodeRelay(CompletableFuture.java:368)
+	at java.base/java.util.concurrent.CompletableFuture.uniComposeStage(CompletableFuture.java:1189)
+	at java.base/java.util.concurrent.CompletableFuture.thenCompose(CompletableFuture.java:2309)
+	at java.net.http/jdk.internal.net.http.MultiExchange.responseAsyncImpl(MultiExchange.java:477)
+	at java.net.http/jdk.internal.net.http.MultiExchange.lambda$responseAsyncImpl$7(MultiExchange.java:473)
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934)
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950)
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2340)
+	at java.net.http/jdk.internal.net.http.MultiExchange.responseAsyncImpl(MultiExchange.java:463)
+	at java.net.http/jdk.internal.net.http.MultiExchange.lambda$responseAsync0$2(MultiExchange.java:351)
+	at java.base/java.util.concurrent.CompletableFuture$UniCompose.tryFire(CompletableFuture.java:1150)
+	at java.base/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1773)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.net.ConnectException
+	at java.net.http/jdk.internal.net.http.common.Utils.toConnectException(Utils.java:1107)
+	at java.net.http/jdk.internal.net.http.PlainHttpConnection.connectAsync(PlainHttpConnection.java:203)
+	at java.net.http/jdk.internal.net.http.AsyncSSLConnection.connectAsync(AsyncSSLConnection.java:56)
+	at java.net.http/jdk.internal.net.http.Http2Connection.createAsync(Http2Connection.java:450)
+	at java.net.http/jdk.internal.net.http.Http2ClientImpl.getConnectionFor(Http2ClientImpl.java:133)
+	at java.net.http/jdk.internal.net.http.ExchangeImpl.get(ExchangeImpl.java:98)
+	at java.net.http/jdk.internal.net.http.Exchange.establishExchange(Exchange.java:374)
+	at java.net.http/jdk.internal.net.http.Exchange.responseAsyncImpl0(Exchange.java:567)
+	at java.net.http/jdk.internal.net.http.Exchange.responseAsyncImpl(Exchange.java:411)
+	at java.net.http/jdk.internal.net.http.Exchange.responseAsync(Exchange.java:403)
+	at java.net.http/jdk.internal.net.http.MultiExchange.responseAsyncImpl(MultiExchange.java:431)
+	... 12 more
+Caused by: java.nio.channels.UnresolvedAddressException
+	at java.base/sun.nio.ch.Net.checkAddress(Net.java:159)
+	at java.base/sun.nio.ch.Net.checkAddress(Net.java:167)
+	at java.base/sun.nio.ch.SocketChannelImpl.checkRemote(SocketChannelImpl.java:816)
+	at java.base/sun.nio.ch.SocketChannelImpl.connect(SocketChannelImpl.java:839)
+	at java.net.http/jdk.internal.net.http.PlainHttpConnection.lambda$connectAsync$0(PlainHttpConnection.java:187)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:569)
+	at java.net.http/jdk.internal.net.http.PlainHttpConnection.connectAsync(PlainHttpConnection.java:189)
+	... 21 more
+2026-11-17 00:34:12.839 [Thread-34] INFO  Starting auto-routing...
+2026-11-17 00:34:16.785 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:34:16.892 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:34:59.349 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:35:23.691 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:35:44.597 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:35:44.686 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:35:45.025 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:35:45.119 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:35:45.341 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:35:45.407 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:35:45.488 [Thread-34] WARN  FloatLine: Parameter is null
+2026-11-17 00:35:48.618 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:35:48.718 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:36:00.984 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:36:01.077 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:36:11.968 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:36:12.088 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:36:17.879 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:36:17.972 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:36:40.536 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:36:40.598 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:37:02.156 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:37:02.252 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:37:17.873 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:37:18.152 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:37:40.328 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:37:40.387 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:38:06.872 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:38:06.933 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:38:40.680 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:38:40.761 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:39:03.796 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:39:03.882 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:39:37.504 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:39:37.571 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:39:45.567 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:39:45.629 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:40:34.169 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:40:34.431 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:40:59.005 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:40:59.116 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:41:34.355 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:41:34.425 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:41:51.829 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:41:51.949 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:42:32.058 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:42:32.159 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:42:43.946 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:42:44.304 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:43:07.629 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:43:07.765 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:43:33.216 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:43:33.353 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:43:55.581 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:43:55.694 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:44:26.100 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:44:26.158 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:44:58.938 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:44:59.024 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:45:24.682 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:45:24.917 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:46:03.275 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:46:03.335 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:46:29.157 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:46:29.236 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:47:03.009 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:47:03.134 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:47:23.370 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:47:23.472 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:47:58.320 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:47:58.455 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:48:13.354 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:48:13.463 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:48:42.335 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:48:42.454 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:49:04.834 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:49:04.889 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:49:27.898 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:49:27.963 [Thread-34] WARN  Simplex.cutout_from: division line is null
+2026-11-17 00:50:20.933 [Thread-34] WARN  Simplex.calc_division_lines: division not found
+2026-11-17 00:50:21.024 [Thread-34] WARN  Simplex.cutout_from: division line is null

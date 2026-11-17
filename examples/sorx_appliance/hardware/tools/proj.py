@@ -9,8 +9,8 @@ CLASSES = [nc("Default", 0.15, 0.15), nc("DP100", 0.18, 0.127, dpw=0.127, dpg=0.
 PATTERNS = [("DP100", "*_MDI?_?"), ("DP90", "USB2_SS*"), ("DP90", "USB?_D_?"), ("DP90", "DBG_D_?"), ("DP90", "FT_D?"), ("DP90", "PCIE_TX_?"), ("DP90", "PCIE_RX_?"),
             ("DP90", "PCIE_CLK_?"), ("DP90", "OE_PET_?"),
             ("PWR_HI", "VBUS_IN"), ("PWR_HI", "VIN_PROT"), ("PWR_HI", "VSYS"), ("PWR_HI", "+5V"), ("PWR_HI", "+5V_USB"), ("PWR_HI", "B*_SW"),
-            ("PWR", "+3V3"), ("PWR", "+1V8"), ("PWR", "+1V2_PHY"), ("PWR", "+3V3_SD"), ("PWR", "+3V3_DBG"), ("PWR", "VBUS_DBG*"), ("PWR", "USB?_VBUS"),
-            ("PWR", "FAN_5V"), ("PWR", "OE_0V9"), ("PWR", "OE_1V5"), ("PWR", "MG_1V2_PLL")]
+            ("PWR", "+4V5_PD"), ("PWR", "USB_REC_VBUS"), ("PWR", "+3V3"), ("PWR", "+1V8"), ("PWR", "+1V2_PHY"), ("PWR", "+3V3_SD"), ("PWR", "+3V3_DBG"), ("PWR", "VBUS_DBG*"), ("PWR", "USB?_VBUS"),
+            ("PWR", "PD_1V2"), ("PWR", "PD_2V7"), ("PWR", "VBAT_RTC"), ("PWR", "RS_VP"), ("PWR", "RS_VN"), ("PWR", "FAN_5V"), ("PWR", "OE_0V9"), ("PWR", "OE_1V5"), ("PWR", "MG_1V2_PLL")]
 RULES = {"allow_blind_buried_vias": False, "allow_microvias": False, "max_error": 0.005, "min_clearance": 0.15, "min_connection": 0.0, "min_copper_edge_clearance": 0.25,
          "solder_mask_to_copper_clearance": 0.0, "min_hole_clearance": 0.2, "min_hole_to_hole": 0.25, "min_microvia_diameter": 0.2, "min_microvia_drill": 0.1,
          "min_resolved_spokes": 1, "min_silk_clearance": 0.0, "min_text_height": 0.6, "min_text_thickness": 0.08, "min_through_hole_diameter": 0.3,

@@ -1,0 +1,7 @@
+test_clipped_obstacle_tangencies_remain_blocked (test_route_completion.RoutingGeometryTests.test_clipped_obstacle_tangencies_remain_blocked) ... ok
+test_obstacle_polygon_holes_remain_available (test_route_completion.RoutingGeometryTests.test_obstacle_polygon_holes_remain_available) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.009s
+
+OK

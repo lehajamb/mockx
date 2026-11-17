@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "input": "/work/hardware/runs/route-03-placement.kicad_pcb",
+  "output": "/work/hardware/runs/route-verifier-04b-signals.kicad_pcb",
+  "input_sha256": "f96442f93b2d2e5e23471b5a0de1b2996022cb0bc5dfa35e8a4c272931941ad9",
+  "output_sha256": "0b2b02d5e5bf435b7e6cfc8d9f8d3fb428bddf2d0654e753fb78e442d33f6e4d",
+  "source_inputs_sha256": {
+    "/work/hardware/runs/route-03-placement.kicad_pcb": "f96442f93b2d2e5e23471b5a0de1b2996022cb0bc5dfa35e8a4c272931941ad9",
+    "/work/hardware/runs/route-03-placement.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/tools/route_completion.py": "1827b6df85a8c85b0e38d0df444e08aca1f402002a7623fe05f73f49b981d16e",
+    "/work/hardware/tools/proj.py": "9e0e53b46f0dd604846c318790e14d5815237e11179c3de91d48fcf15ec928a0",
+    "/work/hardware/tools/verification_worker.py": "640b76ebe2c9fbffeaac16b87e919d258acc20127a78070828791891c7ef6c10",
+    "/work/hardware/tools/design.py": "ccf55f3d1406db975eb100c0c1c2f74f0fb78a3db82d4eb2ea9468604a9e2153",
+    "/work/hardware/tools/gen_sch.py": "7aff3c50229ceb9326ca9f93a8230eb5180f24be0231c08fddd1caa4abfa6d21",
+    "/work/hardware/tools/../validation/placement-signal-02/execute.py": "b08c5069c9c5b817f08381a705c25dd50578a2704e0fb5cdd03dddc519d97e2c"
+  },
+  "sources_unchanged": true,
+  "environment": {
+    "python": "3.11.2 (main, Oct  7 2026, 12:35:07) [GCC 12.2.0]",
+    "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2"
+  },
+  "commands": [
+    {
+      "label": "before-board",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/verification_worker.py",
+        "board",
+        "/work/hardware/runs/route-03-placement.kicad_pcb",
+        "/work/hardware/validation/placement-signal-02/before/model.json",
+        "--drc",
+        "/work/hardware/validation/placement-signal-02/before/drc-stored.txt"
+      ],
+      "returncode": 0,
+      "seconds": 20.02077865600586
+    },
+    {
+      "label": "routing",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/route_completion.py",
+        "/work/hardware/runs/route-03-placement.kicad_pcb",
+        "/work/hardware/runs/route-verifier-04b-signals.kicad_pcb",
+        "2"
+      ],
+      "returncode": 1,
+      "seconds": 198.86328101158142
+    },
+    {
+      "label": "after-board",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/verification_worker.py",
+        "board",
+        "/work/hardware/runs/route-verifier-04b-signals.kicad_pcb",
+        "/work/hardware/validation/placement-signal-02/after/model.json",
+        "--drc",
+        "/work/hardware/validation/placement-signal-02/after/drc-stored.txt"
+      ],
+      "returncode": 0,
+      "seconds": 21.612687587738037
+    }
+  ],
+  "before_counts": {
+    "DRC violations": 342,
+    "unconnected pads": 130,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 326,
+    "unconnected pads": 94,
+    "Footprint errors": 0
+  },
+  "new_non_connectivity_findings": [],
+  "board_model": {
+    "footprints": 368,
+    "pads": 1582,
+    "track_segments": 6732,
+    "vias": 1206,
+    "model_mismatches": [
+      "R21: value '24.9k' != '9.1k'",
+      "U19.6:  != USB2_SSRX_N",
+      "U19.7:  != USB2_SSRX_P",
+      "U19.9:  != USB2_SSTX_N",
+      "U19.10:  != USB2_SSTX_P"
+    ],
+    "duplicate_via_sites": []
+  },
+  "routing_exit_code": 1,
+  "fabrication_approval": false
+}

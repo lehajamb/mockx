@@ -1,0 +1,9 @@
+test_detour_avoids_new_via_without_shrinking_power_trace (test_ground_stitch.GroundGeometryTests.test_detour_avoids_new_via_without_shrinking_power_trace) ... ok
+test_detour_refuses_blocked_copper (test_ground_stitch.GroundGeometryTests.test_detour_refuses_blocked_copper) ... ok
+test_detour_refuses_via_at_existing_track_endpoint (test_ground_stitch.GroundGeometryTests.test_detour_refuses_via_at_existing_track_endpoint) ... ok
+test_stitch_uses_copper_island_beyond_obstructed_pad (test_ground_stitch.GroundGeometryTests.test_stitch_uses_copper_island_beyond_obstructed_pad) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.019s
+
+OK

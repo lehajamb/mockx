@@ -9,3 +9,4 @@ hardware/mech/vendor/**/*-README.txt -diff
 
 # Preserve raw subprocess log bytes, including unittest subtest trailing spaces.
 hardware/validation/**/*.log -whitespace
+hardware/validation/**/*.txt -whitespace

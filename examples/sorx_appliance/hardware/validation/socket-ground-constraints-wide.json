@@ -1,0 +1,3881 @@
+{
+  "source_pcb_sha256": "83d0ab3a9cb488a6843790fbb178465ffd5bd0578491f36dffad56aa11e0868d",
+  "method": "Read-only straight escape/via space survey; not a routing or manufacturability proof. Positions sampled from pad center outward; copper only, independent drill/zone/rule-area checks still required.",
+  "pads_surveyed": 22,
+  "records": [
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "10",
+        "x_mm": 109.1195,
+        "y_mm": 60.174
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            109.6195,
+            60.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "I2C1_SDA",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "e9bdd89f-833f-42bd-92d7-ffd66c49117d",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2269,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "6",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "7db508e6-70a6-4849-87fe-f34cb3eb7a35"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "8",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "22eb3fa4-f8be-49ae-bcfa-91b21f298acf"
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "10",
+                "net": "GND",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "7904fd66-27de-40b3-ac5c-423641d21c86"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.42
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            109.1195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "via",
+                "net": "I2C1_SCL",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "73d70083-909d-4ac2-904b-25d6c07e06a6",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4962,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "I2C1_SDA",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "e9bdd89f-833f-42bd-92d7-ffd66c49117d",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "I2C1_SCL",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "923f2c9e-03d9-4851-9aa9-2cd4e98bf4c7",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "I2C1_SCL",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "7d550a58-e08b-4570-8b77-5263b4528fad",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0555,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            108.6195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "I2C1_SDA",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "e9bdd89f-833f-42bd-92d7-ffd66c49117d",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "12",
+                "net": "I2C1_SDA",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "a6c85adf-9bf6-4776-a575-10b923846ab5"
+              },
+              "trace_distance_mm": 0.1642,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "I2C1_SDA",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "5bb4d786-a82d-465d-a65e-8f181da970cf",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.1893,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "I2C1_SCL",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "923f2c9e-03d9-4851-9aa9-2cd4e98bf4c7",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "89",
+        "x_mm": 89.3695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            89.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            88.8695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "91",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "1b4356ae-ff1f-44b1-91cd-7d1f2000a497"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            89.3695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "cc70b280-b9b2-4811-8b7e-0d26e7f2d791",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.199,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.199,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "97",
+        "x_mm": 87.3695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            87.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            87.3695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1758,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            86.8695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "99",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6d8565f1-17e8-4005-965f-ff987e5e11a8"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "103",
+        "x_mm": 85.8695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            85.8695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            85.8695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1758,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            85.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "105",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "2658d46c-d06c-4a11-b04d-f8628a04a7b7"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "109",
+        "x_mm": 84.3695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            84.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            84.3695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1758,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            83.8695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "111",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "2a5e5ae5-5c29-456a-8a72-6a0d6a7c40f3"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "115",
+        "x_mm": 82.8695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            82.8695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "+5V_USB",
+                "layers": [
+                  "In2.Cu"
+                ],
+                "uuid": "dccfcabb-cf36-4c5a-a23c-7829b07ef362",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1705,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            83.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "113",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "f77ae9a8-e518-4eba-a522-4ab3f3fe9ce4"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            82.8695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1758,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "+5V_USB",
+                "layers": [
+                  "In2.Cu"
+                ],
+                "uuid": "dccfcabb-cf36-4c5a-a23c-7829b07ef362",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1705,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "121",
+        "x_mm": 81.3695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            81.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            81.3695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1758,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            80.8695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "123",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "2702aa4c-8337-48e2-b9ff-5efea10387dd"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "127",
+        "x_mm": 79.8695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            79.8695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            79.8695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1758,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            79.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1881,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "CON_TXD_1V8",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1f2e8de7-a1df-48c3-9b4a-431aebf5eb22",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4961,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "129",
+                "net": "AUX_RXD",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b92b2791-7ebb-435c-8b8a-0837eb7814d3"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "146",
+        "x_mm": 73.1195,
+        "y_mm": 60.174
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            72.6195,
+            61.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2231,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "148",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "a0a23427-9c92-490a-8009-bb3140d70d53"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            72.6195,
+            61.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "148",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "a0a23427-9c92-490a-8009-bb3140d70d53"
+              },
+              "trace_distance_mm": 0.103,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            72.6195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "148",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "a0a23427-9c92-490a-8009-bb3140d70d53"
+              },
+              "trace_distance_mm": 0.1642,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "158",
+        "x_mm": 70.1195,
+        "y_mm": 60.174
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            70.1195,
+            61.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.249,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            70.1195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            70.1195,
+            63.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": [
+        {
+          "site_mm": [
+            70.1195,
+            61.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.249,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            70.1195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            70.1195,
+            63.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "167",
+        "x_mm": 67.8695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            68.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSTX_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "96d16f18-7e32-49d2-bd78-a053fe5e338c",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.2898,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSTX_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1df8dafa-9203-4c12-af83-fbc566bb6000",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4046,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "165",
+                "net": "USB1_D_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "a955ab68-9d74-49bf-ace7-1d9aebbaa498"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            68.3695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSTX_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "96d16f18-7e32-49d2-bd78-a053fe5e338c",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0069,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1758,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "165",
+                "net": "USB1_D_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "a955ab68-9d74-49bf-ace7-1d9aebbaa498"
+              },
+              "trace_distance_mm": 0.103,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            68.3695,
+            51.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "167",
+                "net": "GND",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "15c0b569-ae38-404d-8780-a802165f496f"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.42
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "163",
+                "net": "USB1_D_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "fb3ed0a1-05f1-4947-ab26-f75b85da0fb7"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "165",
+                "net": "USB1_D_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "a955ab68-9d74-49bf-ace7-1d9aebbaa498"
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSTX_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "45e68643-68b8-4919-9056-b91b7ee66cbc",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4723,
+              "required_mm": 0.5
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "170",
+        "x_mm": 67.1195,
+        "y_mm": 60.174
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            67.1195,
+            61.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2231,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSTX_P",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1c97139f-9155-466b-a369-62882325b410",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.273,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.001,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            67.1195,
+            61.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSTX_P",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1c97139f-9155-466b-a369-62882325b410",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.273,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.249,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            67.1195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSTX_P",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "1c97139f-9155-466b-a369-62882325b410",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.273,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "173",
+        "x_mm": 66.3695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            65.8695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9d9fe849-6eb5-4333-bf1c-87deae0d6d68",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0886,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_QOS",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "dc791f66-b822-4430-920e-7af12b5bce9b",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.0038,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6ea6fd1d-ed08-4bb5-8de4-1baf09d2d5ec",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4891,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "175",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "fbd77294-0702-4770-aabb-5e5dbee4623f"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            65.8695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9d9fe849-6eb5-4333-bf1c-87deae0d6d68",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0392,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4117,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_QOS",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "dc791f66-b822-4430-920e-7af12b5bce9b",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.129,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "175",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "fbd77294-0702-4770-aabb-5e5dbee4623f"
+              },
+              "trace_distance_mm": 0.103,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            65.8695,
+            49.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "via",
+                "net": "MG_MDIO",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "9633eb96-fb0b-401b-81c8-337989b1d54e",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.3496,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9d9fe849-6eb5-4333-bf1c-87deae0d6d68",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4635,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4659,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "175",
+                "net": "USB2_SSRX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "fbd77294-0702-4770-aabb-5e5dbee4623f"
+              },
+              "trace_distance_mm": 0.1642,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "179",
+        "x_mm": 64.8695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            64.3695,
+            51.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_QOS",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "dc791f66-b822-4430-920e-7af12b5bce9b",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4826,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "179",
+                "net": "GND",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "53b7ba8c-53cb-4ff7-b5ff-a31a85a7e681"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.42
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "181",
+                "net": "USB2_D_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "c5d85f76-3b3c-4194-be1a-5378500b6029"
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "183",
+                "net": "USB2_D_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "49e7775c-ab0f-4727-bb37-15618c34076e"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            64.8695,
+            51.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_QOS",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "dc791f66-b822-4430-920e-7af12b5bce9b",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.129,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6ea6fd1d-ed08-4bb5-8de4-1baf09d2d5ec",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.422,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "177",
+                "net": "USB2_SSRX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "18571e5f-dc56-443d-b310-bb6bc08d79a4"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "179",
+                "net": "GND",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "53b7ba8c-53cb-4ff7-b5ff-a31a85a7e681"
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.42
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "181",
+                "net": "USB2_D_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "c5d85f76-3b3c-4194-be1a-5378500b6029"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            64.3695,
+            50.873999999999995
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_EN",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "599ecd8f-a402-4ebf-9068-30c5d819f2b7",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2007,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "179",
+                "net": "GND",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "53b7ba8c-53cb-4ff7-b5ff-a31a85a7e681"
+              },
+              "via_distance_mm": 0.4161,
+              "required_mm": 0.42
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "181",
+                "net": "USB2_D_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "c5d85f76-3b3c-4194-be1a-5378500b6029"
+              },
+              "via_distance_mm": 0.225,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_EN",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "88c074f4-aba8-4ccd-ab4d-6205b29c4e3d",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4602,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "183",
+                "net": "USB2_D_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "49e7775c-ab0f-4727-bb37-15618c34076e"
+              },
+              "via_distance_mm": 0.4161,
+              "required_mm": 0.5
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "182",
+        "x_mm": 64.1195,
+        "y_mm": 60.174
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            64.1195,
+            61.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2231,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.001,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_D_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "f4b7c3f9-92b8-4396-9be2-3f7c7627186d",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.232,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_D_P",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "624d1053-870c-4407-9e0d-ec1c1cf02209",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.173,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            63.6195,
+            61.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2231,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.001,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_D_P",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "624d1053-870c-4407-9e0d-ec1c1cf02209",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.172,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "184",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b03f54b2-8f71-4c86-b677-bcafb0de0fbc"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            64.6195,
+            61.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2231,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.001,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_D_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "f4b7c3f9-92b8-4396-9be2-3f7c7627186d",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.113,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "180",
+                "net": "",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "3d2b5b6d-8ef1-42ee-b768-14fcb1b81644"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "194",
+        "x_mm": 61.1195,
+        "y_mm": 60.174
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            61.1195,
+            61.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2231,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.001,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            61.1195,
+            61.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.249,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            61.1195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": [
+        {
+          "site_mm": [
+            61.1195,
+            61.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2231,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.001,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            61.1195,
+            61.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.249,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            61.1195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "FRAM_MISO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "6b43424f-d467-437b-9c54-04b14762715f",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9cf910d3-4ae1-4628-b043-44c8f8ea6b35",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "195",
+        "x_mm": 60.8695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            60.8695,
+            49.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RXC",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "d1ba240f-345a-440b-be0a-cc5b294fb324",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.078,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "via",
+                "net": "MG_RXC",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "24cf68f5-a3c4-4762-9359-f69763059757",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RXC",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "c88e80ae-8493-452e-bb94-8986202ae676",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            60.8695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RX_CTL",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "6e2d7f62-2f30-481f-9d40-b17d5e5bd838",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0426,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RX_CTL",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "a98d9c31-cb61-4181-ba56-70f64664db67",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0426,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_TX_CTL",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "4c22ff56-edf8-4e9d-916f-b7579dfa838f",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.1206,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RXC",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "963e8223-975f-4cb1-813e-d09ea2a06a64",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4245,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            60.3695,
+            51.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_TX_CTL",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "4c22ff56-edf8-4e9d-916f-b7579dfa838f",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0499,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RXC",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "963e8223-975f-4cb1-813e-d09ea2a06a64",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "197",
+                "net": "MG_RXC",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "eae21594-2e25-4ef3-beb7-a0bdfa2c289e"
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "195",
+                "net": "GND",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "350a4f2a-cb52-40d5-8e30-8143095c7a7b"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.42
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "199",
+                "net": "MG_RX_CTL",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "489e343c-552a-4719-bdd0-3cfc73e4b6a0"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.5
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "204",
+        "x_mm": 58.6195,
+        "y_mm": 60.174
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            59.1195,
+            61.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "202",
+                "net": "FRAM_CS#",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "434f2a38-a078-4d2d-b5ce-70f72ce34252"
+              },
+              "trace_distance_mm": 0.103,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "2137e25a-87d2-4020-8f89-4ded033aeb39",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            59.1195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "202",
+                "net": "FRAM_CS#",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "434f2a38-a078-4d2d-b5ce-70f72ce34252"
+              },
+              "trace_distance_mm": 0.1642,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "2137e25a-87d2-4020-8f89-4ded033aeb39",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            59.1195,
+            63.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "202",
+                "net": "FRAM_CS#",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "434f2a38-a078-4d2d-b5ce-70f72ce34252"
+              },
+              "trace_distance_mm": 0.2014,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "2137e25a-87d2-4020-8f89-4ded033aeb39",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": [
+        {
+          "site_mm": [
+            58.6195,
+            61.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "7c2df432-0e8d-4d05-8d5b-21f8546bcffe",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.2445,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "8354dca6-51a0-438a-8005-fcba0e3f45c6",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.1945,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "2137e25a-87d2-4020-8f89-4ded033aeb39",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            58.6195,
+            62.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "7c2df432-0e8d-4d05-8d5b-21f8546bcffe",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.2445,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "8354dca6-51a0-438a-8005-fcba0e3f45c6",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.1945,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "2137e25a-87d2-4020-8f89-4ded033aeb39",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            58.6195,
+            63.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "7c2df432-0e8d-4d05-8d5b-21f8546bcffe",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.2445,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "8354dca6-51a0-438a-8005-fcba0e3f45c6",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.1945,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "PPS_GPIO",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "2137e25a-87d2-4020-8f89-4ded033aeb39",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "209",
+        "x_mm": 57.3695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            57.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RXD3",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "4e4fe2ce-c986-495d-b20b-f45ba3b536ac",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4255,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RX_CTL",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "a98d9c31-cb61-4181-ba56-70f64664db67",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0162,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "via",
+                "net": "MG_RX_CTL",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "00d1db5a-1117-43aa-be24-da37428f567a",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.36,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            57.3695,
+            50.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RXD3",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "4e4fe2ce-c986-495d-b20b-f45ba3b536ac",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4255,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RX_CTL",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "a98d9c31-cb61-4181-ba56-70f64664db67",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.2338,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "via",
+                "net": "MG_RX_CTL",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "00d1db5a-1117-43aa-be24-da37428f567a",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.423,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            57.3695,
+            51.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MG_RXD3",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "80c85c97-96a0-48d4-a972-d17421a6a576",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4255,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "209",
+                "net": "GND",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "e9352c3c-eb8c-47f5-a115-abb04037df7c"
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.42
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "207",
+                "net": "MG_RXD3",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "86e205a0-5e8e-4640-a285-73a66b7602c2"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "211",
+                "net": "MG_TX_CTL",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "5522e1ec-e293-4d55-a4e4-fbf88b2d3544"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.5
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "229",
+        "x_mm": 52.3695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            52.8695,
+            46.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI0_P",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "dddc6be0-c17a-4e83-8824-ae4d47d975a8",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0066,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI1_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "2b1d33c9-2971-432b-aaa0-bd75c905eee2",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.3328,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI0_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "ca931391-9485-4731-89ce-b167fc1caf86",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "via",
+                "net": "MD_MDI1_N",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "f6c9a8e2-4a0c-49cc-87bb-cda587d3ec07",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0401,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "227",
+                "net": "MD_MDI0_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "abb0b314-9ec7-4faa-84f8-ed06039afe18"
+              },
+              "trace_distance_mm": 0.2612,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            52.8695,
+            51.174
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "via",
+                "net": "MD_MDI0_P",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "7e50761e-0be2-4d33-9bae-4a631f0026c3",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.4909,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI0_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "851caf31-b938-4f14-a96c-acd6cbcca502",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI0_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "9efb7128-117a-49ec-9d25-864ff77617e6",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.437,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "229",
+                "net": "GND",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "14d02473-0c74-46f4-ac2f-077ed0c0276c"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.42
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "227",
+                "net": "MD_MDI0_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "abb0b314-9ec7-4faa-84f8-ed06039afe18"
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "225",
+                "net": "MD_MDI0_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "ace8bef1-8402-4f27-9a21-00106407e4f1"
+              },
+              "via_distance_mm": 0.35,
+              "required_mm": 0.5
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            52.3695,
+            50.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI1_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "2b1d33c9-2971-432b-aaa0-bd75c905eee2",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.2323,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI0_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "ca931391-9485-4731-89ce-b167fc1caf86",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.3301,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI1_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "476503b2-5294-4e26-917f-f8bf54b8a84a",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.059,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "via",
+                "net": "MD_MDI1_N",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "f6c9a8e2-4a0c-49cc-87bb-cda587d3ec07",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI1_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "3e57d887-0fa5-4f2a-83df-21389fced797",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.144,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI0_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "851caf31-b938-4f14-a96c-acd6cbcca502",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.437,
+              "required_mm": 0.5
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "242",
+        "x_mm": 49.1195,
+        "y_mm": 60.174
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            49.6195,
+            61.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "240",
+                "net": "PCIE_TX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "270cd0d9-4152-4ed2-8966-340486f583e1"
+              },
+              "trace_distance_mm": 0.103,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            49.6195,
+            61.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "via",
+                "net": "PCIE_RST#_1V8",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "29b7c903-5348-4af6-bf4c-54efdee39be3",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.4901,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "240",
+                "net": "PCIE_TX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "270cd0d9-4152-4ed2-8966-340486f583e1"
+              },
+              "trace_distance_mm": 0.0353,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            49.6195,
+            61.274
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "240",
+                "net": "PCIE_TX_P",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "270cd0d9-4152-4ed2-8966-340486f583e1"
+              },
+              "via_distance_mm": 0.225,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "242",
+                "net": "GND",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "d8fcbf3c-4278-4f2c-b6fc-cb69893d05eb"
+              },
+              "via_distance_mm": 0.4161,
+              "required_mm": 0.42
+            },
+            {
+              "object": {
+                "kind": "pad",
+                "reference": "J1",
+                "pad": "238",
+                "net": "PCIE_TX_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "f5f48786-8a8d-43a3-8bcc-2bbcfe1844e1"
+              },
+              "via_distance_mm": 0.4161,
+              "required_mm": 0.5
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    },
+    {
+      "ground_pad": {
+        "reference": "J1",
+        "pad": "243",
+        "x_mm": 48.8695,
+        "y_mm": 51.974
+      },
+      "least_obstructed_survey_sites": [
+        {
+          "site_mm": [
+            48.8695,
+            49.574
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI3_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "211408be-d589-481e-9433-db5b4e864c37",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.2387,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI2_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b784b566-da19-4901-87c9-80d198d09060",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.0,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_EN",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "e2ba7fa4-6603-425a-921e-799ab522424d",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2916,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "via",
+                "net": "MD_MDI3_N",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "7110d881-8008-4c22-b5bb-79af25b931ef",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.1556,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            48.8695,
+            48.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI3_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "211408be-d589-481e-9433-db5b4e864c37",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.2387,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI2_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b784b566-da19-4901-87c9-80d198d09060",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.3352,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_EN",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "e2ba7fa4-6603-425a-921e-799ab522424d",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2916,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "via",
+                "net": "MD_MDI3_N",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "7110d881-8008-4c22-b5bb-79af25b931ef",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.1556,
+              "required_mm": 0.275
+            }
+          ]
+        },
+        {
+          "site_mm": [
+            48.8695,
+            46.974
+          ],
+          "blocking_objects": [
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI3_N",
+                "layers": [
+                  "B.Cu"
+                ],
+                "uuid": "211408be-d589-481e-9433-db5b4e864c37",
+                "generic_route_eligible": false
+              },
+              "via_distance_mm": 0.2387,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "USB2_EN",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "d6e0cc8b-3652-4f2e-b9be-98f56b6261a7",
+                "generic_route_eligible": true
+              },
+              "via_distance_mm": 0.2916,
+              "required_mm": 0.5
+            },
+            {
+              "object": {
+                "kind": "via",
+                "net": "USB2_EN",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "b8324769-7c8c-4f50-acbe-276061aca977",
+                "generic_route_eligible": true
+              },
+              "trace_distance_mm": 0.0666,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "track",
+                "net": "MD_MDI2_N",
+                "layers": [
+                  "F.Cu"
+                ],
+                "uuid": "b784b566-da19-4901-87c9-80d198d09060",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.0,
+              "required_mm": 0.275
+            },
+            {
+              "object": {
+                "kind": "via",
+                "net": "MD_MDI3_N",
+                "layers": [
+                  "F.Cu",
+                  "B.Cu",
+                  "In1.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "In4.Cu"
+                ],
+                "uuid": "7110d881-8008-4c22-b5bb-79af25b931ef",
+                "generic_route_eligible": false
+              },
+              "trace_distance_mm": 0.1556,
+              "required_mm": 0.275
+            }
+          ]
+        }
+      ],
+      "ordinary_only_sites": []
+    }
+  ],
+  "fabrication_approval": false
+}
