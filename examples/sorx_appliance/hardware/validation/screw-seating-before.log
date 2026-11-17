@@ -1,0 +1,14 @@
+test_heatsink_screws_seat_on_rigid_body (test_vendor_geometry.SupplierGeometryTests.test_heatsink_screws_seat_on_rigid_body) ... FAIL
+
+======================================================================
+FAIL: test_heatsink_screws_seat_on_rigid_body (test_vendor_geometry.SupplierGeometryTests.test_heatsink_screws_seat_on_rigid_body)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_vendor_geometry.py", line 23, in test_heatsink_screws_seat_on_rigid_body
+    self.assertLessEqual(parts["HS1"].intersect(parts[ref]).val().Volume(),.001,ref)
+AssertionError: 0.9292962082835503 not less than or equal to 0.001 : SC3
+
+----------------------------------------------------------------------
+Ran 1 test in 4.975s
+
+FAILED (failures=1)

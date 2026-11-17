@@ -1,0 +1,5938 @@
+[
+  {
+    "ref": "BT1",
+    "value": "CR2032",
+    "fp": "BatteryHolder_Keystone_3034_1x20mm",
+    "side": "F",
+    "x": 152.0,
+    "y": 30.0,
+    "rot": 0.0,
+    "box": [
+      141.32,
+      22.56,
+      162.68,
+      38.899199
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C1",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 41.2,
+    "y": 47.42,
+    "rot": 0.0,
+    "box": [
+      39.55,
+      46.57,
+      42.85,
+      48.27
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C10",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 36.82,
+    "y": 65.51,
+    "rot": 90.0,
+    "box": [
+      36.52,
+      64.96,
+      37.12,
+      66.06
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C100",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 81.73,
+    "y": 19.84,
+    "rot": 90.0,
+    "box": [
+      81.43,
+      19.29,
+      82.03,
+      20.39
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C101",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 81.7,
+    "y": 17.36,
+    "rot": 90.0,
+    "box": [
+      81.4,
+      16.81,
+      82.0,
+      17.91
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C102",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 83.2,
+    "y": 22.84,
+    "rot": 90.0,
+    "box": [
+      82.9,
+      22.29,
+      83.5,
+      23.39
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C103",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 40.0,
+    "y": 37.68,
+    "rot": 0.0,
+    "box": [
+      39.45,
+      37.38,
+      40.55,
+      37.98
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C104",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "F",
+    "x": 60.84,
+    "y": 95.05,
+    "rot": 90.0,
+    "box": [
+      60.165,
+      94.0,
+      61.515,
+      96.1
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C105",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 53.72,
+    "y": 95.72,
+    "rot": 90.0,
+    "box": [
+      53.42,
+      95.17,
+      54.02,
+      96.27
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C106",
+    "value": "150uF/10V",
+    "fp": "CP_Elec_6.3x7.7",
+    "side": "F",
+    "x": 54.5,
+    "y": 107.0,
+    "rot": 90.0,
+    "box": [
+      51.15,
+      103.65,
+      57.85,
+      110.35
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C107",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 97.44,
+    "y": 41.21,
+    "rot": 90.0,
+    "box": [
+      97.14,
+      40.66,
+      97.74,
+      41.76
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C108",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "F",
+    "x": 80.84,
+    "y": 95.05,
+    "rot": 90.0,
+    "box": [
+      80.165,
+      94.0,
+      81.515,
+      96.1
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C109",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 73.72,
+    "y": 95.72,
+    "rot": 90.0,
+    "box": [
+      73.42,
+      95.17,
+      74.02,
+      96.27
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C11",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 125.48,
+    "y": 42.07,
+    "rot": 0.0,
+    "box": [
+      124.93,
+      41.77,
+      126.03,
+      42.37
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C110",
+    "value": "150uF/10V",
+    "fp": "CP_Elec_6.3x7.7",
+    "side": "F",
+    "x": 93.0,
+    "y": 95.6,
+    "rot": 0.0,
+    "box": [
+      89.65,
+      92.25,
+      96.35,
+      98.95
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C111",
+    "value": "47pF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 111.03,
+    "y": 99.55,
+    "rot": 0.0,
+    "box": [
+      110.48,
+      99.25,
+      111.58,
+      99.85
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C112",
+    "value": "47pF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 121.71,
+    "y": 106.15,
+    "rot": 0.0,
+    "box": [
+      121.16,
+      105.85,
+      122.26,
+      106.45
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C113",
+    "value": "4.7uF",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 124.2,
+    "y": 100.82,
+    "rot": 90.0,
+    "box": [
+      123.75,
+      99.97,
+      124.65,
+      101.67
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C114",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 123.98,
+    "y": 97.2,
+    "rot": 90.0,
+    "box": [
+      123.68,
+      96.65,
+      124.28,
+      97.75
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C115",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 111.97,
+    "y": 97.39,
+    "rot": 90.0,
+    "box": [
+      111.67,
+      96.84,
+      112.27,
+      97.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C116",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 126.45,
+    "y": 101.45,
+    "rot": 90.0,
+    "box": [
+      126.15,
+      100.9,
+      126.75,
+      102.0
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C117",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 90.33,
+    "y": 27.43,
+    "rot": 0.0,
+    "box": [
+      89.78,
+      27.13,
+      90.88,
+      27.73
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C118",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 110.59,
+    "y": 93.88,
+    "rot": 90.0,
+    "box": [
+      110.29,
+      93.33,
+      110.89,
+      94.43
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C119",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 112.16,
+    "y": 93.26,
+    "rot": 90.0,
+    "box": [
+      111.86,
+      92.71,
+      112.46,
+      93.81
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C12",
+    "value": "1uF/50V",
+    "fp": "C_0805_2012Metric",
+    "side": "F",
+    "x": 6.34,
+    "y": 16.629999,
+    "rot": 0.0,
+    "box": [
+      5.29,
+      15.954999,
+      7.39,
+      17.304999
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C120",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 110.39,
+    "y": 97.4,
+    "rot": 90.0,
+    "box": [
+      110.09,
+      96.85,
+      110.69,
+      97.95
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C121",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 114.16,
+    "y": 92.91,
+    "rot": 90.0,
+    "box": [
+      113.86,
+      92.36,
+      114.46,
+      93.46
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C122",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 119.07,
+    "y": 90.09,
+    "rot": 90.0,
+    "box": [
+      118.77,
+      89.54,
+      119.37,
+      90.64
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C123",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 122.32,
+    "y": 89.58,
+    "rot": 90.0,
+    "box": [
+      122.02,
+      89.03,
+      122.62,
+      90.13
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C124",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "F",
+    "x": 157.77,
+    "y": 99.1,
+    "rot": 0.0,
+    "box": [
+      156.72,
+      98.425,
+      158.82,
+      99.775
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C125",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 154.14,
+    "y": 98.05,
+    "rot": 0.0,
+    "box": [
+      153.59,
+      97.75,
+      154.69,
+      98.35
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C126",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 141.48,
+    "y": 58.07,
+    "rot": 0.0,
+    "box": [
+      140.93,
+      57.77,
+      142.03,
+      58.37
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C127",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 127.85,
+    "y": 56.74,
+    "rot": 0.0,
+    "box": [
+      127.3,
+      56.44,
+      128.4,
+      57.04
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C128",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 47.9,
+    "y": 107.8,
+    "rot": 0.0,
+    "box": [
+      47.35,
+      107.5,
+      48.45,
+      108.1
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C129",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 129.15,
+    "y": 72.6,
+    "rot": 90.0,
+    "box": [
+      128.85,
+      72.05,
+      129.45,
+      73.15
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C13",
+    "value": "100nF/50V",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 9.15,
+    "y": 13.5,
+    "rot": 90.0,
+    "box": [
+      8.7,
+      12.65,
+      9.6,
+      14.35
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C130",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 129.43,
+    "y": 79.75,
+    "rot": 0.0,
+    "box": [
+      128.88,
+      79.45,
+      129.98,
+      80.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C131",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 130.83,
+    "y": 72.45,
+    "rot": 90.0,
+    "box": [
+      130.53,
+      71.9,
+      131.13,
+      73.0
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C132",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 33.09,
+    "y": 57.1,
+    "rot": 90.0,
+    "box": [
+      32.79,
+      56.55,
+      33.39,
+      57.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C133",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "F",
+    "x": 140.43,
+    "y": 13.53,
+    "rot": 0.0,
+    "box": [
+      139.38,
+      12.855,
+      141.48,
+      14.205
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C134",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 108.46,
+    "y": 45.47,
+    "rot": 0.0,
+    "box": [
+      107.91,
+      45.17,
+      109.01,
+      45.77
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C135",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 107.64,
+    "y": 43.7,
+    "rot": 0.0,
+    "box": [
+      107.09,
+      43.4,
+      108.19,
+      44.0
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C136",
+    "value": "1uF/50V",
+    "fp": "C_0805_2012Metric",
+    "side": "B",
+    "x": 3.0,
+    "y": 18.5,
+    "rot": 0.0,
+    "box": [
+      1.95,
+      17.825,
+      4.05,
+      19.175
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C137",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "B",
+    "x": 8.0,
+    "y": 19.0,
+    "rot": 0.0,
+    "box": [
+      6.95,
+      18.325,
+      9.05,
+      19.675
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C138",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 7.0,
+    "y": 22.0,
+    "rot": 0.0,
+    "box": [
+      6.45,
+      21.7,
+      7.55,
+      22.3
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C139",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 124.0,
+    "y": 107.0,
+    "rot": 0.0,
+    "box": [
+      123.45,
+      106.7,
+      124.55,
+      107.3
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C14",
+    "value": "1uF",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 9.91,
+    "y": 17.28,
+    "rot": 90.0,
+    "box": [
+      9.46,
+      16.43,
+      10.36,
+      18.13
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C15",
+    "value": "1uF",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 18.29,
+    "y": 20.76,
+    "rot": 90.0,
+    "box": [
+      17.84,
+      19.91,
+      18.74,
+      21.61
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C16",
+    "value": "100nF/50V",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 2.81,
+    "y": 13.5,
+    "rot": 90.0,
+    "box": [
+      2.36,
+      12.65,
+      3.26,
+      14.35
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C17",
+    "value": "100nF/50V",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 3.81,
+    "y": 35.66,
+    "rot": 90.0,
+    "box": [
+      3.36,
+      34.81,
+      4.26,
+      36.51
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C18",
+    "value": "10uF/50V",
+    "fp": "C_1210_3225Metric",
+    "side": "F",
+    "x": 2.69,
+    "y": 30.85,
+    "rot": 90.0,
+    "box": [
+      1.39,
+      29.2,
+      3.99,
+      32.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C19",
+    "value": "22nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 9.51,
+    "y": 41.51,
+    "rot": 0.0,
+    "box": [
+      8.96,
+      41.21,
+      10.06,
+      41.81
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C2",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 42.4,
+    "y": 44.44,
+    "rot": 0.0,
+    "box": [
+      40.75,
+      43.59,
+      44.05,
+      45.29
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C20",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 123.0,
+    "y": 57.0,
+    "rot": 90.0,
+    "box": [
+      122.7,
+      56.45,
+      123.3,
+      57.55
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C21",
+    "value": "10uF/35V",
+    "fp": "C_1210_3225Metric",
+    "side": "F",
+    "x": 15.05,
+    "y": 25.0,
+    "rot": 0.0,
+    "box": [
+      13.4,
+      23.7,
+      16.7,
+      26.3
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C22",
+    "value": "10uF/35V",
+    "fp": "C_1210_3225Metric",
+    "side": "F",
+    "x": 22.28,
+    "y": 34.84,
+    "rot": 0.0,
+    "box": [
+      20.63,
+      33.54,
+      23.93,
+      36.14
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C23",
+    "value": "100uF/35V",
+    "fp": "CP_Elec_6.3x7.7",
+    "side": "F",
+    "x": 7.0,
+    "y": 47.5,
+    "rot": 0.0,
+    "box": [
+      3.65,
+      44.15,
+      10.35,
+      50.85
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C24",
+    "value": "10uF/35V",
+    "fp": "C_1210_3225Metric",
+    "side": "F",
+    "x": 7.09,
+    "y": 65.34,
+    "rot": 0.0,
+    "box": [
+      5.44,
+      64.04,
+      8.74,
+      66.64
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C25",
+    "value": "100nF/50V",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 4.07,
+    "y": 53.57,
+    "rot": 0.0,
+    "box": [
+      3.22,
+      53.12,
+      4.92,
+      54.02
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C26",
+    "value": "1uF",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 14.52,
+    "y": 60.97,
+    "rot": 90.0,
+    "box": [
+      14.07,
+      60.12,
+      14.97,
+      61.82
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C27",
+    "value": "100nF/50V",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 14.52,
+    "y": 56.39,
+    "rot": 90.0,
+    "box": [
+      14.07,
+      55.54,
+      14.97,
+      57.24
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C28",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 23.8,
+    "y": 59.0,
+    "rot": 90.0,
+    "box": [
+      22.95,
+      57.35,
+      24.65,
+      60.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C29",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 21.22,
+    "y": 63.92,
+    "rot": 0.0,
+    "box": [
+      19.57,
+      63.07,
+      22.87,
+      64.77
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C3",
+    "value": "4.7uF",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 33.0,
+    "y": 51.5,
+    "rot": 90.0,
+    "box": [
+      32.55,
+      50.65,
+      33.45,
+      52.35
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C30",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 19.87,
+    "y": 54.11,
+    "rot": 0.0,
+    "box": [
+      18.22,
+      53.26,
+      21.52,
+      54.96
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C31",
+    "value": "10uF/35V",
+    "fp": "C_1210_3225Metric",
+    "side": "F",
+    "x": 4.059999,
+    "y": 70.65,
+    "rot": 0.0,
+    "box": [
+      2.409999,
+      69.35,
+      5.709999,
+      71.95
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C32",
+    "value": "100nF/50V",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 6.99,
+    "y": 82.44,
+    "rot": 0.0,
+    "box": [
+      6.14,
+      81.99,
+      7.84,
+      82.89
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C33",
+    "value": "1uF",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 14.52,
+    "y": 78.97,
+    "rot": 90.0,
+    "box": [
+      14.07,
+      78.12,
+      14.97,
+      79.82
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C34",
+    "value": "100nF/50V",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 14.52,
+    "y": 74.39,
+    "rot": 90.0,
+    "box": [
+      14.07,
+      73.54,
+      14.97,
+      75.24
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C35",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 23.8,
+    "y": 77.0,
+    "rot": 90.0,
+    "box": [
+      22.95,
+      75.35,
+      24.65,
+      78.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C36",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 21.22,
+    "y": 81.92,
+    "rot": 0.0,
+    "box": [
+      19.57,
+      81.07,
+      22.87,
+      82.77
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C37",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 19.87,
+    "y": 72.11,
+    "rot": 0.0,
+    "box": [
+      18.22,
+      71.26,
+      21.52,
+      72.96
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C38",
+    "value": "10uF/35V",
+    "fp": "C_1210_3225Metric",
+    "side": "F",
+    "x": 4.059999,
+    "y": 88.65,
+    "rot": 0.0,
+    "box": [
+      2.409999,
+      87.35,
+      5.709999,
+      89.95
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C39",
+    "value": "100nF/50V",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 6.99,
+    "y": 100.44,
+    "rot": 0.0,
+    "box": [
+      6.14,
+      99.99,
+      7.84,
+      100.89
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C4",
+    "value": "4.7uF",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 36.63,
+    "y": 50.18,
+    "rot": 90.0,
+    "box": [
+      36.18,
+      49.33,
+      37.08,
+      51.03
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C40",
+    "value": "1uF",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 14.52,
+    "y": 96.97,
+    "rot": 90.0,
+    "box": [
+      14.07,
+      96.12,
+      14.97,
+      97.82
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C41",
+    "value": "100nF/50V",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 14.52,
+    "y": 92.39,
+    "rot": 90.0,
+    "box": [
+      14.07,
+      91.54,
+      14.97,
+      93.24
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C42",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 23.8,
+    "y": 95.0,
+    "rot": 90.0,
+    "box": [
+      22.95,
+      93.35,
+      24.65,
+      96.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C43",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 21.22,
+    "y": 99.92,
+    "rot": 0.0,
+    "box": [
+      19.57,
+      99.07,
+      22.87,
+      100.77
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C44",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 19.87,
+    "y": 90.11,
+    "rot": 0.0,
+    "box": [
+      18.22,
+      89.26,
+      21.52,
+      90.96
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C45",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "F",
+    "x": 87.65,
+    "y": 45.35,
+    "rot": 0.0,
+    "box": [
+      86.6,
+      44.675,
+      88.7,
+      46.025
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C46",
+    "value": "22uF",
+    "fp": "C_1206_3216Metric",
+    "side": "F",
+    "x": 83.78,
+    "y": 40.68,
+    "rot": 90.0,
+    "box": [
+      82.93,
+      39.03,
+      84.63,
+      42.33
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C47",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 95.85,
+    "y": 40.0,
+    "rot": 90.0,
+    "box": [
+      95.55,
+      39.45,
+      96.15,
+      40.55
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C48",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 58.36,
+    "y": 33.81,
+    "rot": 0.0,
+    "box": [
+      57.81,
+      33.51,
+      58.91,
+      34.11
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C49",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 61.6,
+    "y": 33.68,
+    "rot": 0.0,
+    "box": [
+      61.05,
+      33.38,
+      62.15,
+      33.98
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C5",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 43.76,
+    "y": 42.1,
+    "rot": 0.0,
+    "box": [
+      43.21,
+      41.8,
+      44.31,
+      42.4
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C50",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 44.71,
+    "y": 34.17,
+    "rot": 90.0,
+    "box": [
+      44.41,
+      33.62,
+      45.01,
+      34.72
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C51",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 42.58,
+    "y": 33.75,
+    "rot": 0.0,
+    "box": [
+      42.03,
+      33.45,
+      43.13,
+      34.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C52",
+    "value": "1nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 57.43,
+    "y": 37.19,
+    "rot": 0.0,
+    "box": [
+      56.88,
+      36.89,
+      57.98,
+      37.49
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C53",
+    "value": "1nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 41.56,
+    "y": 35.35,
+    "rot": 0.0,
+    "box": [
+      41.01,
+      35.05,
+      42.11,
+      35.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C54",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 44.23,
+    "y": 38.11,
+    "rot": 0.0,
+    "box": [
+      43.68,
+      37.81,
+      44.78,
+      38.41
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C55",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 108.39,
+    "y": 12.55,
+    "rot": 90.0,
+    "box": [
+      108.09,
+      12.0,
+      108.69,
+      13.1
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C56",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 23.09,
+    "y": 41.93,
+    "rot": 90.0,
+    "box": [
+      22.79,
+      41.38,
+      23.39,
+      42.48
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C57",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 27.28,
+    "y": 33.96,
+    "rot": 0.0,
+    "box": [
+      26.73,
+      33.66,
+      27.83,
+      34.26
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C58",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 29.69,
+    "y": 49.07,
+    "rot": 0.0,
+    "box": [
+      29.14,
+      48.77,
+      30.24,
+      49.37
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C59",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 33.78,
+    "y": 33.96,
+    "rot": 0.0,
+    "box": [
+      33.23,
+      33.66,
+      34.33,
+      34.26
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C6",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 37.09,
+    "y": 47.44,
+    "rot": 0.0,
+    "box": [
+      36.54,
+      47.14,
+      37.64,
+      47.74
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C60",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 38.19,
+    "y": 42.25,
+    "rot": 90.0,
+    "box": [
+      37.89,
+      41.7,
+      38.49,
+      42.8
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C61",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "B",
+    "x": 21.62,
+    "y": 39.28,
+    "rot": 0.0,
+    "box": [
+      20.57,
+      38.605,
+      22.67,
+      39.955
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C62",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 23.0,
+    "y": 44.49,
+    "rot": 90.0,
+    "box": [
+      22.7,
+      43.94,
+      23.3,
+      45.04
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C63",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 27.2,
+    "y": 49.23,
+    "rot": 0.0,
+    "box": [
+      26.65,
+      48.93,
+      27.75,
+      49.53
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C64",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 32.799999,
+    "y": 49.11,
+    "rot": 0.0,
+    "box": [
+      32.249999,
+      48.81,
+      33.349999,
+      49.41
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C65",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 22.99,
+    "y": 47.04,
+    "rot": 90.0,
+    "box": [
+      22.69,
+      46.49,
+      23.29,
+      47.59
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C66",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "B",
+    "x": 20.9,
+    "y": 43.86,
+    "rot": 90.0,
+    "box": [
+      20.225,
+      42.81,
+      21.575,
+      44.91
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C67",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 22.94,
+    "y": 36.39,
+    "rot": 90.0,
+    "box": [
+      22.64,
+      35.84,
+      23.24,
+      36.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C68",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 29.88,
+    "y": 33.82,
+    "rot": 0.0,
+    "box": [
+      29.33,
+      33.52,
+      30.43,
+      34.12
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C69",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "B",
+    "x": 23.33,
+    "y": 33.36,
+    "rot": 0.0,
+    "box": [
+      22.28,
+      32.685,
+      24.38,
+      34.035
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C7",
+    "value": "4.7uF",
+    "fp": "C_0603_1608Metric",
+    "side": "F",
+    "x": 57.92,
+    "y": 46.79,
+    "rot": 0.0,
+    "box": [
+      57.07,
+      46.34,
+      58.77,
+      47.24
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C70",
+    "value": "39nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 24.6,
+    "y": 49.07,
+    "rot": 0.0,
+    "box": [
+      24.05,
+      48.77,
+      25.15,
+      49.37
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C71",
+    "value": "27pF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 18.73,
+    "y": 40.55,
+    "rot": 90.0,
+    "box": [
+      18.43,
+      40.0,
+      19.03,
+      41.1
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C72",
+    "value": "27pF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 18.67,
+    "y": 43.36,
+    "rot": 90.0,
+    "box": [
+      18.37,
+      42.81,
+      18.97,
+      43.91
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C73",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 30.07,
+    "y": 30.21,
+    "rot": 0.0,
+    "box": [
+      29.52,
+      29.91,
+      30.62,
+      30.51
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C74",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 34.85,
+    "y": 50.72,
+    "rot": 0.0,
+    "box": [
+      34.3,
+      50.42,
+      35.4,
+      51.02
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C75",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 37.54,
+    "y": 50.79,
+    "rot": 0.0,
+    "box": [
+      36.99,
+      50.49,
+      38.09,
+      51.09
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C76",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "B",
+    "x": 30.75,
+    "y": 58.5,
+    "rot": 90.0,
+    "box": [
+      30.45,
+      57.95,
+      31.05,
+      59.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C77",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 38.36,
+    "y": 33.81,
+    "rot": 0.0,
+    "box": [
+      37.81,
+      33.51,
+      38.91,
+      34.11
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C78",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 35.55,
+    "y": 33.75,
+    "rot": 0.0,
+    "box": [
+      35.0,
+      33.45,
+      36.1,
+      34.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C79",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 18.99,
+    "y": 23.42,
+    "rot": 0.0,
+    "box": [
+      18.44,
+      23.12,
+      19.54,
+      23.72
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C8",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 61.2,
+    "y": 47.18,
+    "rot": 0.0,
+    "box": [
+      60.65,
+      46.88,
+      61.75,
+      47.48
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C80",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 19.31,
+    "y": 29.3,
+    "rot": 90.0,
+    "box": [
+      19.01,
+      28.75,
+      19.61,
+      29.85
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C81",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 64.03,
+    "y": 37.4,
+    "rot": 90.0,
+    "box": [
+      63.73,
+      36.85,
+      64.33,
+      37.95
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C82",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 77.17,
+    "y": 37.4,
+    "rot": 90.0,
+    "box": [
+      76.87,
+      36.85,
+      77.47,
+      37.95
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C83",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 64.01,
+    "y": 39.98,
+    "rot": 90.0,
+    "box": [
+      63.71,
+      39.43,
+      64.31,
+      40.53
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C84",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 72.69,
+    "y": 46.07,
+    "rot": 0.0,
+    "box": [
+      72.14,
+      45.77,
+      73.24,
+      46.37
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C85",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 77.61,
+    "y": 40.3,
+    "rot": 0.0,
+    "box": [
+      77.06,
+      40.0,
+      78.16,
+      40.6
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C86",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 62.34,
+    "y": 38.37,
+    "rot": 90.0,
+    "box": [
+      62.04,
+      37.82,
+      62.64,
+      38.92
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C87",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 64.06,
+    "y": 42.51,
+    "rot": 90.0,
+    "box": [
+      63.76,
+      41.96,
+      64.36,
+      43.06
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C88",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 68.29,
+    "y": 46.11,
+    "rot": 0.0,
+    "box": [
+      67.74,
+      45.81,
+      68.84,
+      46.41
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C89",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 65.819999,
+    "y": 46.1,
+    "rot": 0.0,
+    "box": [
+      65.269999,
+      45.8,
+      66.369999,
+      46.4
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C9",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 38.48,
+    "y": 45.07,
+    "rot": 0.0,
+    "box": [
+      37.93,
+      44.77,
+      39.03,
+      45.37
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C90",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 61.7,
+    "y": 36.06,
+    "rot": 0.0,
+    "box": [
+      61.15,
+      35.76,
+      62.25,
+      36.36
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C91",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 70.58,
+    "y": 46.53,
+    "rot": 90.0,
+    "box": [
+      70.28,
+      45.98,
+      70.88,
+      47.08
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C92",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "F",
+    "x": 78.66,
+    "y": 45.02,
+    "rot": 0.0,
+    "box": [
+      77.61,
+      44.345,
+      79.71,
+      45.695
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C93",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "F",
+    "x": 61.69,
+    "y": 41.99,
+    "rot": 90.0,
+    "box": [
+      61.015,
+      40.94,
+      62.365,
+      43.04
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C94",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 81.49,
+    "y": 42.95,
+    "rot": 90.0,
+    "box": [
+      81.19,
+      42.4,
+      81.79,
+      43.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C95",
+    "value": "10uF",
+    "fp": "C_0805_2012Metric",
+    "side": "F",
+    "x": 82.51,
+    "y": 31.72,
+    "rot": 90.0,
+    "box": [
+      81.835,
+      30.67,
+      83.185,
+      32.77
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C96",
+    "value": "27pF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 81.41,
+    "y": 39.27,
+    "rot": 90.0,
+    "box": [
+      81.11,
+      38.72,
+      81.71,
+      39.82
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C97",
+    "value": "27pF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 84.7,
+    "y": 31.89,
+    "rot": 90.0,
+    "box": [
+      84.4,
+      31.34,
+      85.0,
+      32.44
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C98",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 86.06,
+    "y": 27.35,
+    "rot": 0.0,
+    "box": [
+      85.51,
+      27.05,
+      86.61,
+      27.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "C99",
+    "value": "100nF",
+    "fp": "C_0402_1005Metric",
+    "side": "F",
+    "x": 81.6,
+    "y": 22.49,
+    "rot": 90.0,
+    "box": [
+      81.3,
+      21.94,
+      81.9,
+      23.04
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D1",
+    "value": "BAT54WS",
+    "fp": "D_SOD-323",
+    "side": "F",
+    "x": 153.02,
+    "y": 42.11,
+    "rot": 0.0,
+    "box": [
+      152.07,
+      41.36,
+      153.97,
+      42.86
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D10",
+    "value": "ALARM",
+    "fp": "LED_Kingbright_KPA-3010_3x2x1mm",
+    "side": "F",
+    "x": 50.0,
+    "y": 116.7,
+    "rot": 180.0,
+    "box": [
+      48.45,
+      115.65,
+      51.55,
+      117.75
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D2",
+    "value": "SMAJ22A",
+    "fp": "D_SMA",
+    "side": "F",
+    "x": 6.0,
+    "y": 11.5,
+    "rot": 90.0,
+    "box": [
+      4.45,
+      9.15,
+      7.55,
+      13.85
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D3",
+    "value": "ESD9B5.0",
+    "fp": "D_SOD-923",
+    "side": "F",
+    "x": 100.0,
+    "y": 9.5,
+    "rot": 0.0,
+    "box": [
+      99.55,
+      9.15,
+      100.45,
+      9.85
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D4",
+    "value": "PWR",
+    "fp": "LED_Kingbright_KPA-3010_3x2x1mm",
+    "side": "F",
+    "x": 14.0,
+    "y": 116.7,
+    "rot": 180.0,
+    "box": [
+      12.45,
+      115.65,
+      15.55,
+      117.75
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D5",
+    "value": "SYS",
+    "fp": "LED_Kingbright_KPA-3010_3x2x1mm",
+    "side": "F",
+    "x": 20.0,
+    "y": 116.7,
+    "rot": 180.0,
+    "box": [
+      18.45,
+      115.65,
+      21.55,
+      117.75
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D6",
+    "value": "FEED A",
+    "fp": "LED_Kingbright_KPA-3010_3x2x1mm",
+    "side": "F",
+    "x": 26.0,
+    "y": 116.7,
+    "rot": 180.0,
+    "box": [
+      24.45,
+      115.65,
+      27.55,
+      117.75
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D7",
+    "value": "FEED B",
+    "fp": "LED_Kingbright_KPA-3010_3x2x1mm",
+    "side": "F",
+    "x": 32.0,
+    "y": 116.7,
+    "rot": 180.0,
+    "box": [
+      30.45,
+      115.65,
+      33.55,
+      117.75
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D8",
+    "value": "FIX A",
+    "fp": "LED_Kingbright_KPA-3010_3x2x1mm",
+    "side": "F",
+    "x": 38.0,
+    "y": 116.7,
+    "rot": 180.0,
+    "box": [
+      36.45,
+      115.65,
+      39.55,
+      117.75
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "D9",
+    "value": "FIX B",
+    "fp": "LED_Kingbright_KPA-3010_3x2x1mm",
+    "side": "F",
+    "x": 44.0,
+    "y": 116.7,
+    "rot": 180.0,
+    "box": [
+      42.45,
+      115.65,
+      45.55,
+      117.75
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "FB1",
+    "value": "600R@100MHz",
+    "fp": "L_0603_1608Metric",
+    "side": "F",
+    "x": 78.5,
+    "y": 42.5,
+    "rot": 0.0,
+    "box": [
+      77.65,
+      42.05,
+      79.35,
+      42.95
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "FB2",
+    "value": "600R@100MHz",
+    "fp": "L_0603_1608Metric",
+    "side": "F",
+    "x": 116.44,
+    "y": 106.42,
+    "rot": 0.0,
+    "box": [
+      115.59,
+      105.97,
+      117.29,
+      106.87
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "FB3",
+    "value": "600R@100MHz",
+    "fp": "L_0603_1608Metric",
+    "side": "F",
+    "x": 136.88,
+    "y": 3.34,
+    "rot": 0.0,
+    "box": [
+      136.03,
+      2.89,
+      137.73,
+      3.79
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "FID1",
+    "value": "Fiducial",
+    "fp": "Fiducial_1mm_Mask2mm",
+    "side": "F",
+    "x": 7.0,
+    "y": 107.5,
+    "rot": 0.0,
+    "box": [
+      5.95,
+      106.45,
+      8.05,
+      108.55
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "FID2",
+    "value": "Fiducial",
+    "fp": "Fiducial_1mm_Mask2mm",
+    "side": "F",
+    "x": 166.0,
+    "y": 46.0,
+    "rot": 0.0,
+    "box": [
+      164.95,
+      44.95,
+      167.05,
+      47.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "FID3",
+    "value": "Fiducial",
+    "fp": "Fiducial_1mm_Mask2mm",
+    "side": "F",
+    "x": 120.0,
+    "y": 4.0,
+    "rot": 0.0,
+    "box": [
+      118.95,
+      2.95,
+      121.05,
+      5.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "H1",
+    "value": "M3",
+    "fp": "MountingHole_3.2mm_M3",
+    "side": "F",
+    "x": 4.5,
+    "y": 4.5,
+    "rot": 0.0,
+    "box": [
+      2.9,
+      2.9,
+      6.1,
+      6.1
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "H2",
+    "value": "M3",
+    "fp": "MountingHole_3.2mm_M3",
+    "side": "F",
+    "x": 167.5,
+    "y": 4.5,
+    "rot": 0.0,
+    "box": [
+      165.9,
+      2.9,
+      169.1,
+      6.1
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "H3",
+    "value": "M3",
+    "fp": "MountingHole_3.2mm_M3",
+    "side": "F",
+    "x": 4.5,
+    "y": 113.5,
+    "rot": 0.0,
+    "box": [
+      2.9,
+      111.9,
+      6.1,
+      115.1
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "H4",
+    "value": "M3",
+    "fp": "MountingHole_3.2mm_M3",
+    "side": "F",
+    "x": 167.5,
+    "y": 113.5,
+    "rot": 0.0,
+    "box": [
+      165.9,
+      111.9,
+      169.1,
+      115.1
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "H5",
+    "value": "M2 SMT 2.5mm",
+    "fp": "Standoff_SMT_M2_WA-SMSI",
+    "side": "F",
+    "x": 45.3945,
+    "y": 87.074,
+    "rot": 0.0,
+    "box": [
+      43.1695,
+      84.849,
+      47.6195,
+      89.299
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "H6",
+    "value": "M2 SMT 2.5mm",
+    "fp": "Standoff_SMT_M2_WA-SMSI",
+    "side": "F",
+    "x": 110.5945,
+    "y": 87.074,
+    "rot": 0.0,
+    "box": [
+      108.3695,
+      84.849,
+      112.8195,
+      89.299
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "H7",
+    "value": "M2 SMT 7.0mm",
+    "fp": "Standoff_SMT_M2_WA-SMSI",
+    "side": "F",
+    "x": 37.9945,
+    "y": 56.074,
+    "rot": 0.0,
+    "box": [
+      35.7695,
+      53.849,
+      40.2195,
+      58.299
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "H8",
+    "value": "M2 SMT 7.0mm",
+    "fp": "Standoff_SMT_M2_WA-SMSI",
+    "side": "F",
+    "x": 117.9945,
+    "y": 56.074,
+    "rot": 0.0,
+    "box": [
+      115.7695,
+      53.849,
+      120.2195,
+      58.299
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J1",
+    "value": "Verdin SoM socket",
+    "fp": "SODIMM-260_DDR4_TE_2309409-2",
+    "side": "F",
+    "x": 78.0,
+    "y": 64.0,
+    "rot": 0.0,
+    "box": [
+      38.75,
+      49.75,
+      117.25,
+      90.55
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J10",
+    "value": "USB-C DEBUG",
+    "fp": "USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+    "side": "F",
+    "x": 118.0,
+    "y": 114.32,
+    "rot": 0.0,
+    "box": [
+      113.48,
+      110.595,
+      122.52,
+      118.045
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J11",
+    "value": "CONSOLE",
+    "fp": "RJ45_Amphenol_54602-x08_Horizontal",
+    "side": "F",
+    "x": 99.0,
+    "y": 104.97,
+    "rot": 0.0,
+    "box": [
+      95.735,
+      101.14,
+      111.155,
+      119.0
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J12",
+    "value": "microSD",
+    "fp": "microSD_HC_Hirose_DM3AT-SF-PEJM5",
+    "side": "F",
+    "x": 156.0,
+    "y": 109.6,
+    "rot": 0.0,
+    "box": [
+      149.025,
+      101.725,
+      162.975,
+      123.375
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J13",
+    "value": "FAN",
+    "fp": "FanPinHeader_1x04_P2.54mm_Vertical",
+    "side": "F",
+    "x": 136.0,
+    "y": 8.0,
+    "rot": 0.0,
+    "box": [
+      134.7,
+      5.45,
+      144.9,
+      11.35
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J14",
+    "value": "SERVICE HOST VBUS SENSE ONLY",
+    "fp": "PinHeader_1x02_P2.54mm_Vertical",
+    "side": "F",
+    "x": 160.5,
+    "y": 77.5,
+    "rot": 0.0,
+    "box": [
+      159.18,
+      76.18,
+      161.82,
+      81.36
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J2",
+    "value": "AUX 1V8",
+    "fp": "PinHeader_1x06_P2.54mm_Vertical",
+    "side": "F",
+    "x": 116.0,
+    "y": 24.0,
+    "rot": 90.0,
+    "box": [
+      114.68,
+      22.68,
+      130.02,
+      25.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J3",
+    "value": "USB-C PWR",
+    "fp": "USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+    "side": "F",
+    "x": 14.0,
+    "y": 3.68,
+    "rot": 180.0,
+    "box": [
+      9.48,
+      -0.045,
+      18.52,
+      7.405
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J4",
+    "value": "MD-IN",
+    "fp": "RJ45_Pulse_JK0654219NL_Horizontal",
+    "side": "F",
+    "x": 45.5,
+    "y": 25.2,
+    "rot": 90.0,
+    "box": [
+      42.13,
+      -1.0,
+      59.02,
+      32.12
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J5",
+    "value": "PPS IN",
+    "fp": "SMA_Amphenol_132289_EdgeMount",
+    "side": "F",
+    "x": 100.0,
+    "y": 2.54,
+    "rot": 90.0,
+    "box": [
+      94.87,
+      -11.48,
+      105.13,
+      4.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J6",
+    "value": "OE",
+    "fp": "RJ45_Pulse_JK0654219NL_Horizontal",
+    "side": "F",
+    "x": 25.5,
+    "y": 25.2,
+    "rot": 90.0,
+    "box": [
+      22.13,
+      -1.0,
+      39.02,
+      32.12
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J7",
+    "value": "MGMT",
+    "fp": "RJ45_Pulse_JK0654219NL_Horizontal",
+    "side": "F",
+    "x": 65.5,
+    "y": 25.2,
+    "rot": 90.0,
+    "box": [
+      62.13,
+      -1.0,
+      79.02,
+      32.12
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J8",
+    "value": "USB 1 (USB 3.0)",
+    "fp": "USB3_A_Receptacle_Wuerth_692122030100",
+    "side": "F",
+    "x": 68.0,
+    "y": 110.62,
+    "rot": 0.0,
+    "box": [
+      60.4,
+      101.84,
+      75.6,
+      119.0
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "J9",
+    "value": "USB 2 (USB 2.0 / RECOVERY)",
+    "fp": "USB3_A_Receptacle_Wuerth_692122030100",
+    "side": "F",
+    "x": 86.0,
+    "y": 110.62,
+    "rot": 0.0,
+    "box": [
+      78.4,
+      101.84,
+      93.6,
+      119.0
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "JP1",
+    "value": "USB1 VBUS SENSE: 1-2 HOST / 2-3 SERVICE",
+    "fp": "PinHeader_1x03_P2.54mm_Vertical",
+    "side": "F",
+    "x": 146.0,
+    "y": 77.0,
+    "rot": -90.0,
+    "box": [
+      139.6,
+      75.68,
+      147.32,
+      78.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "JP2",
+    "value": "USB1 ID: FIT HOST / REMOVE SERVICE",
+    "fp": "PinHeader_1x02_P2.54mm_Vertical",
+    "side": "F",
+    "x": 154.0,
+    "y": 77.0,
+    "rot": 0.0,
+    "box": [
+      152.68,
+      75.68,
+      155.32,
+      80.86
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "L1",
+    "value": "10uH",
+    "fp": "L_Coilcraft_XAL5050-XXX",
+    "side": "F",
+    "x": 19.0,
+    "y": 59.0,
+    "rot": 0.0,
+    "box": [
+      16.21,
+      56.11,
+      21.79,
+      61.89
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "L2",
+    "value": "10uH",
+    "fp": "L_Coilcraft_XAL5050-XXX",
+    "side": "F",
+    "x": 19.0,
+    "y": 77.0,
+    "rot": 0.0,
+    "box": [
+      16.21,
+      74.11,
+      21.79,
+      79.89
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "L3",
+    "value": "10uH",
+    "fp": "L_Coilcraft_XAL5050-XXX",
+    "side": "F",
+    "x": 19.0,
+    "y": 95.0,
+    "rot": 0.0,
+    "box": [
+      16.21,
+      92.11,
+      21.79,
+      97.89
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "Q1",
+    "value": "DMT6009LSS",
+    "fp": "SOIC-8_3.9x4.9mm_P1.27mm",
+    "side": "F",
+    "x": 6.5,
+    "y": 23.0,
+    "rot": 0.0,
+    "box": [
+      4.5,
+      20.5,
+      8.5,
+      25.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "Q2",
+    "value": "2N7002",
+    "fp": "SOT-23",
+    "side": "F",
+    "x": 14.5,
+    "y": 21.0,
+    "rot": 0.0,
+    "box": [
+      13.8,
+      19.5,
+      15.2,
+      22.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "Q3",
+    "value": "BSS138",
+    "fp": "SOT-23",
+    "side": "F",
+    "x": 101.43,
+    "y": 45.52,
+    "rot": 90.0,
+    "box": [
+      99.93,
+      44.82,
+      102.93,
+      46.22
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "Q4",
+    "value": "AO3401A",
+    "fp": "SOT-23",
+    "side": "F",
+    "x": 101.66,
+    "y": 40.99,
+    "rot": 0.0,
+    "box": [
+      100.96,
+      39.49,
+      102.36,
+      42.49
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "Q5",
+    "value": "PMV65XP",
+    "fp": "SOT-23",
+    "side": "B",
+    "x": 18.0,
+    "y": 22.0,
+    "rot": 0.0,
+    "box": [
+      17.3,
+      20.5,
+      18.7,
+      23.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R1",
+    "value": "1.8k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 119.42,
+    "y": 60.17,
+    "rot": 90.0,
+    "box": [
+      119.1,
+      59.595,
+      119.74,
+      60.745
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R10",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 119.06,
+    "y": 47.75,
+    "rot": 90.0,
+    "box": [
+      118.74,
+      47.175,
+      119.38,
+      48.325
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R100",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 29.46,
+    "y": 113.62,
+    "rot": 0.0,
+    "box": [
+      28.885,
+      113.3,
+      30.035,
+      113.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R101",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 35.46,
+    "y": 113.62,
+    "rot": 0.0,
+    "box": [
+      34.885,
+      113.3,
+      36.035,
+      113.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R102",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 41.46,
+    "y": 113.62,
+    "rot": 0.0,
+    "box": [
+      40.885,
+      113.3,
+      42.035,
+      113.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R103",
+    "value": "470",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 47.46,
+    "y": 113.62,
+    "rot": 0.0,
+    "box": [
+      46.885,
+      113.3,
+      48.035,
+      113.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R104",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 106.58,
+    "y": 47.09,
+    "rot": 0.0,
+    "box": [
+      106.005,
+      46.77,
+      107.155,
+      47.41
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R105",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 36.9,
+    "y": 68.94,
+    "rot": 90.0,
+    "box": [
+      36.58,
+      68.365,
+      37.22,
+      69.515
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R106",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 35.16,
+    "y": 66.84,
+    "rot": 90.0,
+    "box": [
+      34.84,
+      66.265,
+      35.48,
+      67.415
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R107",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 31.5,
+    "y": 58.0,
+    "rot": 90.0,
+    "box": [
+      31.18,
+      57.425,
+      31.82,
+      58.575
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R108",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 122.62,
+    "y": 76.75,
+    "rot": 90.0,
+    "box": [
+      122.3,
+      76.175,
+      122.94,
+      77.325
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R109",
+    "value": "0",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 127.48,
+    "y": 72.54,
+    "rot": 90.0,
+    "box": [
+      127.16,
+      71.965,
+      127.8,
+      73.115
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R11",
+    "value": "0",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 140.0,
+    "y": 46.0,
+    "rot": 90.0,
+    "box": [
+      139.68,
+      45.425,
+      140.32,
+      46.575
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R110",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 109.31,
+    "y": 47.24,
+    "rot": 0.0,
+    "box": [
+      108.735,
+      46.92,
+      109.885,
+      47.56
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R111",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 139.95,
+    "y": 3.64,
+    "rot": 0.0,
+    "box": [
+      139.375,
+      3.32,
+      140.525,
+      3.96
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R112",
+    "value": "82k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 13.0,
+    "y": 26.0,
+    "rot": 0.0,
+    "box": [
+      12.425,
+      25.68,
+      13.575,
+      26.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R113",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 17.0,
+    "y": 26.0,
+    "rot": 0.0,
+    "box": [
+      16.425,
+      25.68,
+      17.575,
+      26.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R114",
+    "value": "22k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 120.0,
+    "y": 106.0,
+    "rot": 0.0,
+    "box": [
+      119.425,
+      105.68,
+      120.575,
+      106.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R115",
+    "value": "3.9k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 13.0,
+    "y": 18.0,
+    "rot": 0.0,
+    "box": [
+      12.425,
+      17.68,
+      13.575,
+      18.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R116",
+    "value": "4.7k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 21.0,
+    "y": 22.0,
+    "rot": 0.0,
+    "box": [
+      20.425,
+      21.68,
+      21.575,
+      22.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R117",
+    "value": "24.9k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 12.5,
+    "y": 14.0,
+    "rot": 0.0,
+    "box": [
+      11.925,
+      13.68,
+      13.075,
+      14.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R118",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 12.5,
+    "y": 16.0,
+    "rot": 0.0,
+    "box": [
+      11.925,
+      15.68,
+      13.075,
+      16.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R12",
+    "value": "1k",
+    "fp": "R_1206_3216Metric",
+    "side": "B",
+    "x": 18.0,
+    "y": 16.0,
+    "rot": 90.0,
+    "box": [
+      17.15,
+      14.35,
+      18.85,
+      17.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R13",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 10.06,
+    "y": 10.14,
+    "rot": 90.0,
+    "box": [
+      9.74,
+      9.565,
+      10.38,
+      10.715
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R14",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 13.72,
+    "y": 18.13,
+    "rot": 0.0,
+    "box": [
+      13.145,
+      17.81,
+      14.295,
+      18.45
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R15",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 11.39,
+    "y": 20.57,
+    "rot": 90.0,
+    "box": [
+      11.07,
+      19.995,
+      11.71,
+      21.145
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R16",
+    "value": "909k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 7.75,
+    "y": 39.92,
+    "rot": 0.0,
+    "box": [
+      7.175,
+      39.6,
+      8.325,
+      40.24
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R17",
+    "value": "46.4k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 4.099999,
+    "y": 38.76,
+    "rot": 90.0,
+    "box": [
+      3.779999,
+      38.185,
+      4.419999,
+      39.335
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R18",
+    "value": "53.6k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 10.9,
+    "y": 39.93,
+    "rot": 0.0,
+    "box": [
+      10.325,
+      39.61,
+      11.475,
+      40.25
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R19",
+    "value": "8.2k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 14.16,
+    "y": 39.97,
+    "rot": 0.0,
+    "box": [
+      13.585,
+      39.65,
+      14.735,
+      40.29
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R2",
+    "value": "1.8k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 119.05,
+    "y": 62.85,
+    "rot": 90.0,
+    "box": [
+      118.73,
+      62.275,
+      119.37,
+      63.425
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R20",
+    "value": "0",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 16.96,
+    "y": 36.27,
+    "rot": 90.0,
+    "box": [
+      16.64,
+      35.695,
+      17.28,
+      36.845
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R21",
+    "value": "9.1k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 17.01,
+    "y": 33.22,
+    "rot": 90.0,
+    "box": [
+      16.69,
+      32.645,
+      17.33,
+      33.795
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R22",
+    "value": "1k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 18.76,
+    "y": 34.98,
+    "rot": 90.0,
+    "box": [
+      18.44,
+      34.405,
+      19.08,
+      35.555
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R23",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 16.98,
+    "y": 30.31,
+    "rot": 90.0,
+    "box": [
+      16.66,
+      29.735,
+      17.3,
+      30.885
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R24",
+    "value": "91k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 11.68,
+    "y": 28.07,
+    "rot": 0.0,
+    "box": [
+      11.105,
+      27.75,
+      12.255,
+      28.39
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R25",
+    "value": "11k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 14.38,
+    "y": 27.91,
+    "rot": 0.0,
+    "box": [
+      13.805,
+      27.59,
+      14.955,
+      28.23
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R26",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 18.69,
+    "y": 32.119999,
+    "rot": 90.0,
+    "box": [
+      18.37,
+      31.544999,
+      19.01,
+      32.694999
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R27",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 11.81,
+    "y": 64.33,
+    "rot": 0.0,
+    "box": [
+      11.235,
+      64.01,
+      12.385,
+      64.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R28",
+    "value": "24.9k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 14.68,
+    "y": 63.85,
+    "rot": 0.0,
+    "box": [
+      14.105,
+      63.53,
+      15.255,
+      64.17
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R29",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 1.81,
+    "y": 61.8,
+    "rot": 90.0,
+    "box": [
+      1.49,
+      61.225,
+      2.13,
+      62.375
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R3",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 36.93,
+    "y": 62.62,
+    "rot": 90.0,
+    "box": [
+      36.61,
+      62.045,
+      37.25,
+      63.195
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R30",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 1.73,
+    "y": 59.18,
+    "rot": 90.0,
+    "box": [
+      1.41,
+      58.605,
+      2.05,
+      59.755
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R31",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 11.81,
+    "y": 82.33,
+    "rot": 0.0,
+    "box": [
+      11.235,
+      82.01,
+      12.385,
+      82.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R32",
+    "value": "24.9k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 14.68,
+    "y": 81.85,
+    "rot": 0.0,
+    "box": [
+      14.105,
+      81.53,
+      15.255,
+      82.17
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R33",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 1.81,
+    "y": 79.8,
+    "rot": 90.0,
+    "box": [
+      1.49,
+      79.225,
+      2.13,
+      80.375
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R34",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 11.81,
+    "y": 100.33,
+    "rot": 0.0,
+    "box": [
+      11.235,
+      100.01,
+      12.385,
+      100.65
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R35",
+    "value": "43.2k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 14.68,
+    "y": 99.85,
+    "rot": 0.0,
+    "box": [
+      14.105,
+      99.53,
+      15.255,
+      100.17
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R36",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 1.81,
+    "y": 97.8,
+    "rot": 90.0,
+    "box": [
+      1.49,
+      97.225,
+      2.13,
+      98.375
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R37",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 58.34,
+    "y": 35.42,
+    "rot": 0.0,
+    "box": [
+      57.765,
+      35.1,
+      58.915,
+      35.74
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R38",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 44.18,
+    "y": 36.4,
+    "rot": 0.0,
+    "box": [
+      43.605,
+      36.08,
+      44.755,
+      36.72
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R39",
+    "value": "49.9",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 101.56,
+    "y": 6.76,
+    "rot": 0.0,
+    "box": [
+      100.985,
+      6.44,
+      102.135,
+      7.08
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R4",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 33.0,
+    "y": 61.0,
+    "rot": 90.0,
+    "box": [
+      32.68,
+      60.425,
+      33.32,
+      61.575
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R40",
+    "value": "100",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 98.87,
+    "y": 6.9,
+    "rot": 0.0,
+    "box": [
+      98.295,
+      6.58,
+      99.445,
+      7.22
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R41",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 100.14,
+    "y": 11.21,
+    "rot": 0.0,
+    "box": [
+      99.565,
+      10.89,
+      100.715,
+      11.53
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R42",
+    "value": "33",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 98.39,
+    "y": 14.45,
+    "rot": 90.0,
+    "box": [
+      98.07,
+      13.875,
+      98.71,
+      15.025
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R43",
+    "value": "33",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 108.21,
+    "y": 15.34,
+    "rot": 90.0,
+    "box": [
+      107.89,
+      14.765,
+      108.53,
+      15.915
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R44",
+    "value": "33",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 106.02,
+    "y": 16.7,
+    "rot": 0.0,
+    "box": [
+      105.445,
+      16.38,
+      106.595,
+      17.02
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R45",
+    "value": "33",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 103.84,
+    "y": 17.22,
+    "rot": 90.0,
+    "box": [
+      103.52,
+      16.645,
+      104.16,
+      17.795
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R46",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 38.19,
+    "y": 37.75,
+    "rot": 90.0,
+    "box": [
+      37.87,
+      37.175,
+      38.51,
+      38.325
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R47",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 38.64,
+    "y": 40.0,
+    "rot": 0.0,
+    "box": [
+      38.065,
+      39.68,
+      39.215,
+      40.32
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R48",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 38.19,
+    "y": 45.25,
+    "rot": 90.0,
+    "box": [
+      37.87,
+      44.675,
+      38.51,
+      45.825
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R49",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 32.11,
+    "y": 50.78,
+    "rot": 0.0,
+    "box": [
+      31.535,
+      50.46,
+      32.685,
+      51.1
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R5",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 33.0,
+    "y": 54.5,
+    "rot": 90.0,
+    "box": [
+      32.68,
+      53.925,
+      33.32,
+      55.075
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R50",
+    "value": "1k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 35.88,
+    "y": 49.1,
+    "rot": 0.0,
+    "box": [
+      35.305,
+      48.78,
+      36.455,
+      49.42
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R51",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 29.41,
+    "y": 50.86,
+    "rot": 0.0,
+    "box": [
+      28.835,
+      50.54,
+      29.985,
+      51.18
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R52",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 21.33,
+    "y": 47.15,
+    "rot": 90.0,
+    "box": [
+      21.01,
+      46.575,
+      21.65,
+      47.725
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R53",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 26.61,
+    "y": 50.94,
+    "rot": 0.0,
+    "box": [
+      26.035,
+      50.62,
+      27.185,
+      51.26
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R54",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 22.53,
+    "y": 49.94,
+    "rot": 90.0,
+    "box": [
+      22.21,
+      49.365,
+      22.85,
+      50.515
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R55",
+    "value": "4.99k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 21.34,
+    "y": 36.63,
+    "rot": 90.0,
+    "box": [
+      21.02,
+      36.055,
+      21.66,
+      37.205
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R56",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 36.1,
+    "y": 33.5,
+    "rot": 90.0,
+    "box": [
+      35.78,
+      32.925,
+      36.42,
+      34.075
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R57",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 30.05,
+    "y": 32.18,
+    "rot": 0.0,
+    "box": [
+      29.475,
+      31.86,
+      30.625,
+      32.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R58",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 38.3,
+    "y": 34.89,
+    "rot": 90.0,
+    "box": [
+      37.98,
+      34.315,
+      38.62,
+      35.465
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R59",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 42.18,
+    "y": 51.62,
+    "rot": 0.0,
+    "box": [
+      41.605,
+      51.3,
+      42.755,
+      51.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R6",
+    "value": "1k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 150.3,
+    "y": 42.77,
+    "rot": 90.0,
+    "box": [
+      149.98,
+      42.195,
+      150.62,
+      43.345
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R60",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 42.54,
+    "y": 40.02,
+    "rot": 0.0,
+    "box": [
+      41.965,
+      39.7,
+      43.115,
+      40.34
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R61",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 38.14,
+    "y": 48.01,
+    "rot": 90.0,
+    "box": [
+      37.82,
+      47.435,
+      38.46,
+      48.585
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R62",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "B",
+    "x": 32.79,
+    "y": 52.5,
+    "rot": 0.0,
+    "box": [
+      32.215,
+      52.18,
+      33.365,
+      52.82
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R63",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 38.34,
+    "y": 35.42,
+    "rot": 0.0,
+    "box": [
+      37.765,
+      35.1,
+      38.915,
+      35.74
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R64",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 28.14,
+    "y": 33.7,
+    "rot": 0.0,
+    "box": [
+      27.565,
+      33.38,
+      28.715,
+      34.02
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R65",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 61.37,
+    "y": 45.53,
+    "rot": 0.0,
+    "box": [
+      60.795,
+      45.21,
+      61.945,
+      45.85
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R66",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 57.52,
+    "y": 44.9,
+    "rot": 0.0,
+    "box": [
+      56.945,
+      44.58,
+      58.095,
+      45.22
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R67",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 63.53,
+    "y": 46.33,
+    "rot": 90.0,
+    "box": [
+      63.21,
+      45.755,
+      63.85,
+      46.905
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R68",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 57.53,
+    "y": 42.98,
+    "rot": 0.0,
+    "box": [
+      56.955,
+      42.66,
+      58.105,
+      43.3
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R69",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 59.58,
+    "y": 43.01,
+    "rot": 90.0,
+    "box": [
+      59.26,
+      42.435,
+      59.9,
+      43.585
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R7",
+    "value": "100",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 131.44,
+    "y": 108.23,
+    "rot": 0.0,
+    "box": [
+      130.865,
+      107.91,
+      132.015,
+      108.55
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R70",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 60.43,
+    "y": 38.3,
+    "rot": 90.0,
+    "box": [
+      60.11,
+      37.725,
+      60.75,
+      38.875
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R71",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 59.11,
+    "y": 40.63,
+    "rot": 0.0,
+    "box": [
+      58.535,
+      40.31,
+      59.685,
+      40.95
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R72",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 79.82,
+    "y": 39.35,
+    "rot": 90.0,
+    "box": [
+      79.5,
+      38.775,
+      80.14,
+      39.925
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R73",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 56.85,
+    "y": 40.2,
+    "rot": 90.0,
+    "box": [
+      56.53,
+      39.625,
+      57.17,
+      40.775
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R74",
+    "value": "1.5k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 74.78,
+    "y": 46.69,
+    "rot": 90.0,
+    "box": [
+      74.46,
+      46.115,
+      75.1,
+      47.265
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R75",
+    "value": "4.7k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 82.01,
+    "y": 47.06,
+    "rot": 0.0,
+    "box": [
+      81.435,
+      46.74,
+      82.585,
+      47.38
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R76",
+    "value": "6.04k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 76.94,
+    "y": 47.15,
+    "rot": 0.0,
+    "box": [
+      76.365,
+      46.83,
+      77.515,
+      47.47
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R77",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 85.64,
+    "y": 25.11,
+    "rot": 90.0,
+    "box": [
+      85.32,
+      24.535,
+      85.96,
+      25.685
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R78",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 83.43,
+    "y": 20.03,
+    "rot": 90.0,
+    "box": [
+      83.11,
+      19.455,
+      83.75,
+      20.605
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R79",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 44.07,
+    "y": 40.4,
+    "rot": 0.0,
+    "box": [
+      43.495,
+      40.08,
+      44.645,
+      40.72
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R8",
+    "value": "470",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 146.05,
+    "y": 113.6,
+    "rot": 90.0,
+    "box": [
+      145.73,
+      113.025,
+      146.37,
+      114.175
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R80",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 57.05,
+    "y": 98.86,
+    "rot": 0.0,
+    "box": [
+      56.475,
+      98.54,
+      57.625,
+      99.18
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R81",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 88.48,
+    "y": 35.23,
+    "rot": 0.0,
+    "box": [
+      87.905,
+      34.91,
+      89.055,
+      35.55
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R82",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 77.05,
+    "y": 98.86,
+    "rot": 0.0,
+    "box": [
+      76.475,
+      98.54,
+      77.625,
+      99.18
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R83",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 86.61,
+    "y": 93.03,
+    "rot": 0.0,
+    "box": [
+      86.035,
+      92.71,
+      87.185,
+      93.35
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R84",
+    "value": "1k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 90.56,
+    "y": 34.52,
+    "rot": 90.0,
+    "box": [
+      90.24,
+      33.945,
+      90.88,
+      35.095
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R85",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 92.18,
+    "y": 34.4,
+    "rot": 90.0,
+    "box": [
+      91.86,
+      33.825,
+      92.5,
+      34.975
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R86",
+    "value": "5.1k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 116.64,
+    "y": 108.39,
+    "rot": 0.0,
+    "box": [
+      116.065,
+      108.07,
+      117.215,
+      108.71
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R87",
+    "value": "5.1k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 119.64,
+    "y": 108.39,
+    "rot": 0.0,
+    "box": [
+      119.065,
+      108.07,
+      120.215,
+      108.71
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R88",
+    "value": "27",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 119.38,
+    "y": 106.28,
+    "rot": 90.0,
+    "box": [
+      119.06,
+      105.705,
+      119.7,
+      106.855
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R89",
+    "value": "27",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 113.64,
+    "y": 107.88,
+    "rot": 90.0,
+    "box": [
+      113.32,
+      107.305,
+      113.96,
+      108.455
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R9",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 120.53,
+    "y": 42.07,
+    "rot": 0.0,
+    "box": [
+      119.955,
+      41.75,
+      121.105,
+      42.39
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R90",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 114.83,
+    "y": 95.18,
+    "rot": 0.0,
+    "box": [
+      114.255,
+      94.86,
+      115.405,
+      95.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R91",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 120.74,
+    "y": 89.94,
+    "rot": 90.0,
+    "box": [
+      120.42,
+      89.365,
+      121.06,
+      90.515
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R92",
+    "value": "22",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 154.26,
+    "y": 99.63,
+    "rot": 0.0,
+    "box": [
+      153.685,
+      99.31,
+      154.835,
+      99.95
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R93",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 104.48,
+    "y": 46.64,
+    "rot": 90.0,
+    "box": [
+      104.16,
+      46.065,
+      104.8,
+      47.215
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R94",
+    "value": "100k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 105.03,
+    "y": 44.58,
+    "rot": 0.0,
+    "box": [
+      104.455,
+      44.26,
+      105.605,
+      44.9
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R95",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 135.06,
+    "y": 63.75,
+    "rot": 90.0,
+    "box": [
+      134.74,
+      63.175,
+      135.38,
+      64.325
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R96",
+    "value": "10k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 132.46,
+    "y": 61.67,
+    "rot": 90.0,
+    "box": [
+      132.14,
+      61.095,
+      132.78,
+      62.245
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R97",
+    "value": "1k",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 10.01,
+    "y": 115.97,
+    "rot": 90.0,
+    "box": [
+      9.69,
+      115.395,
+      10.33,
+      116.545
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R98",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 17.46,
+    "y": 113.62,
+    "rot": 0.0,
+    "box": [
+      16.885,
+      113.3,
+      18.035,
+      113.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "R99",
+    "value": "330",
+    "fp": "R_0402_1005Metric",
+    "side": "F",
+    "x": 23.46,
+    "y": 113.62,
+    "rot": 0.0,
+    "box": [
+      22.885,
+      113.3,
+      24.035,
+      113.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "SW1",
+    "value": "RESET",
+    "fp": "SW_Tactile_SKHH_Angled",
+    "side": "F",
+    "x": 132.0,
+    "y": 113.6,
+    "rot": 180.0,
+    "box": [
+      125.95,
+      109.55,
+      133.55,
+      119.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "SW2",
+    "value": "RECOVERY",
+    "fp": "SW_Tactile_SKHH_Angled",
+    "side": "F",
+    "x": 142.0,
+    "y": 113.6,
+    "rot": 180.0,
+    "box": [
+      135.95,
+      109.55,
+      143.55,
+      119.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "TP1",
+    "value": "+5V",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 34.46,
+    "y": 46.77,
+    "rot": 0.0,
+    "box": [
+      33.96,
+      46.27,
+      34.96,
+      47.27
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP10",
+    "value": "+3V3",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 83.68,
+    "y": 44.83,
+    "rot": 0.0,
+    "box": [
+      83.18,
+      44.33,
+      84.18,
+      45.33
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP11",
+    "value": "+1V2_PHY",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 85.84,
+    "y": 34.7,
+    "rot": 0.0,
+    "box": [
+      85.34,
+      34.2,
+      86.34,
+      35.2
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP12",
+    "value": "EF_PGOOD",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 17.59,
+    "y": 38.85,
+    "rot": 0.0,
+    "box": [
+      17.09,
+      38.35,
+      18.09,
+      39.35
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP13",
+    "value": "EF_SHDN#",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 14.93,
+    "y": 42.19,
+    "rot": 0.0,
+    "box": [
+      14.43,
+      41.69,
+      15.43,
+      42.69
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP14",
+    "value": "PD_ATTACH#",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 19.03,
+    "y": 25.86,
+    "rot": 0.0,
+    "box": [
+      18.53,
+      25.36,
+      19.53,
+      26.36
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP15",
+    "value": "PD_EN_SNK#",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 2.89,
+    "y": 17.41,
+    "rot": 0.0,
+    "box": [
+      2.39,
+      16.91,
+      3.39,
+      17.91
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP16",
+    "value": "GND",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 91.23,
+    "y": 45.26,
+    "rot": 0.0,
+    "box": [
+      90.73,
+      44.76,
+      91.73,
+      45.76
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP17",
+    "value": "PPS_3V3",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 96.71,
+    "y": 17.09,
+    "rot": 0.0,
+    "box": [
+      96.21,
+      16.59,
+      97.21,
+      17.59
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP18",
+    "value": "OE_PPS_OUT",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 32.85,
+    "y": 37.06,
+    "rot": 0.0,
+    "box": [
+      32.35,
+      36.56,
+      33.35,
+      37.56
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP19",
+    "value": "OE_0V9",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 29.21,
+    "y": 41.85,
+    "rot": 0.0,
+    "box": [
+      28.71,
+      41.35,
+      29.71,
+      42.35
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP2",
+    "value": "+1V8",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 116.67,
+    "y": 27.54,
+    "rot": 0.0,
+    "box": [
+      116.17,
+      27.04,
+      117.17,
+      28.04
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP20",
+    "value": "OE_1V5",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 27.56,
+    "y": 39.19,
+    "rot": 0.0,
+    "box": [
+      27.06,
+      38.69,
+      28.06,
+      39.69
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP21",
+    "value": "+4V5_PD",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 17.5,
+    "y": 28.0,
+    "rot": 0.0,
+    "box": [
+      17.0,
+      27.5,
+      18.0,
+      28.5
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP3",
+    "value": "RESET_MOCI#",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 34.66,
+    "y": 62.86,
+    "rot": 0.0,
+    "box": [
+      34.16,
+      62.36,
+      35.16,
+      63.36
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP4",
+    "value": "PWR_EN",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 34.42,
+    "y": 59.95,
+    "rot": 0.0,
+    "box": [
+      33.92,
+      59.45,
+      34.92,
+      60.45
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP5",
+    "value": "GND",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 123.02,
+    "y": 27.54,
+    "rot": 0.0,
+    "box": [
+      122.52,
+      27.04,
+      123.52,
+      28.04
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP6",
+    "value": "GND",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 121.68,
+    "y": 20.46,
+    "rot": 0.0,
+    "box": [
+      121.18,
+      19.96,
+      122.18,
+      20.96
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP7",
+    "value": "VBUS_IN",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 6.68,
+    "y": 42.1,
+    "rot": 0.0,
+    "box": [
+      6.18,
+      41.6,
+      7.18,
+      42.6
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP8",
+    "value": "VSYS",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 7.22,
+    "y": 102.95,
+    "rot": 0.0,
+    "box": [
+      6.72,
+      102.45,
+      7.72,
+      103.45
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "TP9",
+    "value": "+5V_USB",
+    "fp": "TestPoint_Pad_D1.0mm",
+    "side": "F",
+    "x": 2.82,
+    "y": 82.82,
+    "rot": 0.0,
+    "box": [
+      2.32,
+      82.32,
+      3.32,
+      83.32
+    ],
+    "envelope_basis": "pad bounding box; body model absent"
+  },
+  {
+    "ref": "U1",
+    "value": "CY15V104QN",
+    "fp": "SOIC-8_5.23x5.23mm_P1.27mm",
+    "side": "F",
+    "x": 134.0,
+    "y": 46.0,
+    "rot": 0.0,
+    "box": [
+      131.335,
+      43.335,
+      136.665,
+      48.665
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U10",
+    "value": "I210-AT",
+    "fp": "QFN-64-1EP_9x9mm_P0.5mm_EP3.4x3.4mm",
+    "side": "B",
+    "x": 30.6,
+    "y": 41.5,
+    "rot": 180.0,
+    "box": [
+      26.05,
+      36.95,
+      35.15,
+      46.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U11",
+    "value": "W25Q16JV",
+    "fp": "SOIC-8_5.23x5.23mm_P1.27mm",
+    "side": "B",
+    "x": 42.47,
+    "y": 45.8,
+    "rot": 90.0,
+    "box": [
+      39.805,
+      43.135,
+      45.135,
+      48.465
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U12",
+    "value": "74LVC1G07",
+    "fp": "SOT-23-5",
+    "side": "B",
+    "x": 30.0,
+    "y": 55.5,
+    "rot": 0.0,
+    "box": [
+      29.15,
+      54.0,
+      30.85,
+      57.0
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U13",
+    "value": "KSZ9131RNX",
+    "fp": "QFN-48-1EP_7x7mm_P0.5mm_EP5.15x5.15mm",
+    "side": "F",
+    "x": 70.6,
+    "y": 39.5,
+    "rot": -90.0,
+    "box": [
+      67.05,
+      35.95,
+      74.15,
+      43.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U14",
+    "value": "74LVC1G07",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 82.8,
+    "y": 26.61,
+    "rot": 90.0,
+    "box": [
+      81.3,
+      25.76,
+      84.3,
+      27.46
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U15",
+    "value": "74LVC1G07",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 87.57,
+    "y": 30.67,
+    "rot": 90.0,
+    "box": [
+      86.07,
+      29.82,
+      89.07,
+      31.52
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U16",
+    "value": "74LV1T34",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 39.85,
+    "y": 40.65,
+    "rot": 0.0,
+    "box": [
+      39.0,
+      39.15,
+      40.7,
+      42.15
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U17",
+    "value": "TPS2065C",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 57.0,
+    "y": 96.0,
+    "rot": 0.0,
+    "box": [
+      56.15,
+      94.5,
+      57.85,
+      97.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U18",
+    "value": "USBLC6-2",
+    "fp": "SOT-23-6",
+    "side": "F",
+    "x": 55.63,
+    "y": 114.06,
+    "rot": 0.0,
+    "box": [
+      54.78,
+      112.56,
+      56.48,
+      115.56
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U19",
+    "value": "TPD4E05U06",
+    "fp": "USON-10_2.5x1.0mm_P0.5mm",
+    "side": "F",
+    "x": 66.0,
+    "y": 96.0,
+    "rot": 90.0,
+    "box": [
+      64.7,
+      95.45,
+      67.3,
+      96.55
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U2",
+    "value": "STUSB4500",
+    "fp": "QFN-24-1EP_4x4mm_P0.5mm_EP2.7x2.7mm",
+    "side": "F",
+    "x": 15.5,
+    "y": 13.0,
+    "rot": 0.0,
+    "box": [
+      13.45,
+      10.95,
+      17.55,
+      15.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U20",
+    "value": "74LV1T34",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 97.38,
+    "y": 44.85,
+    "rot": 90.0,
+    "box": [
+      95.88,
+      44.0,
+      98.88,
+      45.7
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U21",
+    "value": "TPS2065C",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 77.0,
+    "y": 96.0,
+    "rot": 0.0,
+    "box": [
+      76.15,
+      94.5,
+      77.85,
+      97.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U22",
+    "value": "USBLC6-2",
+    "fp": "SOT-23-6",
+    "side": "F",
+    "x": 85.89,
+    "y": 96.51,
+    "rot": 90.0,
+    "box": [
+      84.39,
+      95.66,
+      87.39,
+      97.36
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U23",
+    "value": "USBLC6-2",
+    "fp": "SOT-23-6",
+    "side": "F",
+    "x": 125.15,
+    "y": 105.95,
+    "rot": 90.0,
+    "box": [
+      123.65,
+      105.1,
+      126.65,
+      106.8
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U24",
+    "value": "FT230XS",
+    "fp": "SSOP-16_3.9x4.9mm_P0.635mm",
+    "side": "F",
+    "x": 118.0,
+    "y": 100.5,
+    "rot": 0.0,
+    "box": [
+      115.975,
+      97.975,
+      120.025,
+      103.025
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U25",
+    "value": "74LV1T34",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 91.84,
+    "y": 30.75,
+    "rot": 90.0,
+    "box": [
+      90.34,
+      29.9,
+      93.34,
+      31.6
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U26",
+    "value": "74LVC1G125",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 118.47,
+    "y": 93.67,
+    "rot": 0.0,
+    "box": [
+      117.62,
+      92.17,
+      119.32,
+      95.17
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U27",
+    "value": "TRS3232E",
+    "fp": "TSSOP-16_4.4x5mm_P0.65mm",
+    "side": "F",
+    "x": 104.0,
+    "y": 95.5,
+    "rot": 0.0,
+    "box": [
+      101.75,
+      92.95,
+      106.25,
+      98.05
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U28",
+    "value": "74LVC1G08",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 122.91,
+    "y": 93.58,
+    "rot": 90.0,
+    "box": [
+      121.41,
+      92.73,
+      124.41,
+      94.43
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U29",
+    "value": "TMP1075",
+    "fp": "SOIC-8_3.9x4.9mm_P1.27mm",
+    "side": "F",
+    "x": 140.0,
+    "y": 62.0,
+    "rot": 0.0,
+    "box": [
+      138.0,
+      59.5,
+      142.0,
+      64.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U3",
+    "value": "TPS26631",
+    "fp": "HTSSOP-20-1EP_4.4x6.5mm_P0.65mm_EP3.4x6.5mm_Mask2.96x2.96mm_ThermalVias",
+    "side": "F",
+    "x": 10.5,
+    "y": 34.0,
+    "rot": 0.0,
+    "box": [
+      8.25,
+      30.7,
+      12.75,
+      37.3
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U30",
+    "value": "TCA9534",
+    "fp": "TSSOP-16_4.4x5mm_P0.65mm",
+    "side": "F",
+    "x": 126.0,
+    "y": 62.0,
+    "rot": 0.0,
+    "box": [
+      123.75,
+      59.45,
+      128.25,
+      64.55
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U31",
+    "value": "74LVC1G07",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 47.75,
+    "y": 110.77,
+    "rot": 0.0,
+    "box": [
+      46.9,
+      109.27,
+      48.6,
+      112.27
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U32",
+    "value": "MAX6369",
+    "fp": "SOT-23-8",
+    "side": "F",
+    "x": 126.0,
+    "y": 76.0,
+    "rot": 0.0,
+    "box": [
+      125.15,
+      74.5,
+      126.85,
+      77.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U33",
+    "value": "74LV1T34",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 124.29,
+    "y": 71.93,
+    "rot": 0.0,
+    "box": [
+      123.44,
+      70.43,
+      125.14,
+      73.43
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U34",
+    "value": "74LV1T34",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 130.74,
+    "y": 76.33,
+    "rot": 90.0,
+    "box": [
+      129.24,
+      75.48,
+      132.24,
+      77.18
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U35",
+    "value": "74LVC1G07",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 125.21,
+    "y": 80.11,
+    "rot": 0.0,
+    "box": [
+      124.36,
+      78.61,
+      126.06,
+      81.61
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U36",
+    "value": "74LVC1G07",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 148.12,
+    "y": 8.0,
+    "rot": 0.0,
+    "box": [
+      147.27,
+      6.5,
+      148.97,
+      9.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U37",
+    "value": "74LVC1G17",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 145.54,
+    "y": 14.22,
+    "rot": 0.0,
+    "box": [
+      144.69,
+      12.72,
+      146.39,
+      15.72
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U38",
+    "value": "LT3010 4.5V",
+    "fp": "LT_MS8E",
+    "side": "B",
+    "x": 8.0,
+    "y": 15.0,
+    "rot": 0.0,
+    "box": [
+      6.45,
+      13.45,
+      9.55,
+      16.55
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U39",
+    "value": "TL431B",
+    "fp": "SOT-89-3",
+    "side": "B",
+    "x": 13.0,
+    "y": 22.0,
+    "rot": 0.0,
+    "box": [
+      11.7,
+      19.7,
+      14.3,
+      24.3
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U4",
+    "value": "LMR33630ADDA",
+    "fp": "Texas_HSOP-8-1EP_3.9x4.9mm_P1.27mm_ThermalVias",
+    "side": "F",
+    "x": 8.0,
+    "y": 59.0,
+    "rot": 0.0,
+    "box": [
+      5.975,
+      56.475,
+      10.025,
+      61.525
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U40",
+    "value": "74LVC1G08",
+    "fp": "SOT-23-5",
+    "side": "B",
+    "x": 124.0,
+    "y": 104.0,
+    "rot": 0.0,
+    "box": [
+      123.15,
+      102.5,
+      124.85,
+      105.5
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U5",
+    "value": "LMR33630ADDA",
+    "fp": "Texas_HSOP-8-1EP_3.9x4.9mm_P1.27mm_ThermalVias",
+    "side": "F",
+    "x": 8.0,
+    "y": 77.0,
+    "rot": 0.0,
+    "box": [
+      5.975,
+      74.475,
+      10.025,
+      79.525
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U6",
+    "value": "LMR33630ADDA",
+    "fp": "Texas_HSOP-8-1EP_3.9x4.9mm_P1.27mm_ThermalVias",
+    "side": "F",
+    "x": 8.0,
+    "y": 95.0,
+    "rot": 0.0,
+    "box": [
+      5.975,
+      92.475,
+      10.025,
+      97.525
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U7",
+    "value": "AZ1117C-1.2",
+    "fp": "SOT-223-3_TabPin2",
+    "side": "F",
+    "x": 90.0,
+    "y": 40.0,
+    "rot": 0.0,
+    "box": [
+      88.1,
+      36.6,
+      91.9,
+      43.4
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U8",
+    "value": "74LVC1G17",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 95.0,
+    "y": 13.5,
+    "rot": 0.0,
+    "box": [
+      94.15,
+      12.0,
+      95.85,
+      15.0
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "U9",
+    "value": "74LVC1G17",
+    "fp": "SOT-23-5",
+    "side": "F",
+    "x": 105.0,
+    "y": 13.5,
+    "rot": 0.0,
+    "box": [
+      104.15,
+      12.0,
+      105.85,
+      15.0
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "Y1",
+    "value": "25MHz",
+    "fp": "Crystal_SMD_3225-4Pin_3.2x2.5mm",
+    "side": "B",
+    "x": 18.46,
+    "y": 35.29,
+    "rot": 90.0,
+    "box": [
+      17.16,
+      33.64,
+      19.76,
+      36.94
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  },
+  {
+    "ref": "Y2",
+    "value": "25MHz",
+    "fp": "Crystal_SMD_3225-4Pin_3.2x2.5mm",
+    "side": "F",
+    "x": 80.5,
+    "y": 36.0,
+    "rot": 0.0,
+    "box": [
+      78.85,
+      34.7,
+      82.15,
+      37.3
+    ],
+    "envelope_basis": "fabrication-layer graphics"
+  }
+]

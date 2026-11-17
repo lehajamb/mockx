@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "status": "GEOMETRY_PASS_QUALIFICATION_BLOCKED",
+  "pcb_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "supplier_geometry_sha256": {
+    "te/2309409-2.step": "7cc4409c3e64c473da7bf7226c7613aab25063bb91ab56ad1bd34b928f99ec05",
+    "te/2309409-2.zip": "ea1954d102b02b99c6246217ef73e1f5ba2dbdf73512dbe8cdf8b23869d5c781",
+    "te/2309409-drawing.pdf": "8b3221725a67a7f52fc4edb8b1f44856ddddcbec6a9f0c614205b32ca5f4101e",
+    "te/manifest.json": "8a050b3671df198e0457d6cc9f2d9dc398b39cdff895daa9ac199e0b4b4c3c62",
+    "toradex/heatsink-datasheet.pdf": "2ade2a6404cb37b2e49dd70f2ad9ca801e837b1d1f13263f9adc1f2960c9eff7",
+    "toradex/heatsink-type1-v11-README.txt": "6d22e6be92841a434a32c971ca828acd69206df1b7a4a8a264fd521ea2b4d92a",
+    "toradex/heatsink-type1-v11.step": "dd95472cc1919f86d7e7459711e71772d5f5ebf35befb3d85d4f56e87794e0d9",
+    "toradex/heatsink-type1-v11.zip": "05a7604c77506250360810d99c1c6f3c9b9648d1b838357d34513abe00bbc280",
+    "toradex/manifest.json": "8c763047fddfc362304088a2119f7a2a9ec3538e1deba42835d757c28d8bf690",
+    "toradex/verdin-family-max-README.txt": "2995aca954f1887667b5274af65fd4576cd33af47dda441f779050e4af778bd8",
+    "toradex/verdin-family-max.step": "1eeb1ad85e15cb6e62fed8f7f23f7a844902cf64ac50cb98ddbdc82cb198e52b",
+    "toradex/verdin-family-max.zip": "de83ae8ec8381f6565f54081200412132eb00637ddcefb3e22712e66f89dffda",
+    "toradex/verdin-imx8mp-cpu-README.txt": "cdd3bd318210ae2f2f9508f33a800c6a08fbdff7d72aafdfcf13740937b6dd8b",
+    "toradex/verdin-imx8mp-cpu.step": "7747cf9006b23bf34aa963078e2d4fc727e106e31f7769fe655ba2d5267edd3d",
+    "toradex/verdin-imx8mp-cpu.zip": "e8f2005625bd673d0a62034b7316abd972c58f61a7168a1df9f570b2ca77e467"
+  },
+  "socket_transform": {
+    "rotation_x_deg": 90,
+    "translation_mm": [
+      77.9945,
+      -76.924,
+      2.875
+    ],
+    "raw_solder_bottom_y_mm": -2.875,
+    "solder_tail_count": 260,
+    "raw_peg_x_mm": [
+      -34.4,
+      34.4
+    ],
+    "raw_peg_z_mm": -20.85,
+    "assembly_max_z_mm": 5.15,
+    "drawing_height_mm": {
+      "nominal": 5.2,
+      "tolerance": 0.25
+    }
+  },
+  "screw_adjustments": {
+    "SC3_Z_mm": 0.15,
+    "SC4_Z_mm": 0.15,
+    "basis": "Near metal seat raw Y=3.00 vs supplier screw underhead Y=2.85; rigid solids unchanged. Torque/tolerance qualification remains open."
+  },
+  "mechanical_command_exit_status": 1,
+  "geometry_pass": true,
+  "success": false,
+  "blockers": [
+    "Envelope heights from the prior design and inferred package bounds require exact-MPN maximum-height qualification.",
+    "Supplier Type 1 metal and screw geometry are placed; exact module revision, V1.1B TIM compression/load and assembly access remain unqualified.",
+    "1.5 mm floor/lid and fan nominal dimensions require enclosure-process and supplier tolerance/strength sign-off.",
+    "Cable plug/latch and microSD removal access envelopes have not been qualified."
+  ],
+  "commands": [
+    "python3 mech_export.py ../runs/route-electrical-13c-trimmed.kicad_pcb ../runs/socket-fit-13c/mech_parts.json",
+    "/opt/cq/bin/python gen_mech.py --parts ../runs/socket-fit-13c/mech_parts.json --pcb ../runs/route-electrical-13c-trimmed.kicad_pcb --output-dir ../validation/socket-fit-13c --check-only"
+  ]
+}

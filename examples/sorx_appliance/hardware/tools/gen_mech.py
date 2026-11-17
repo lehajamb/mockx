@@ -32,7 +32,7 @@ MOUNT_LOCAL = {'H5': (-32.6055, 23.074, 2.5), 'H6': (32.5945, 23.074, 2.5),
                'H7': (-40.0055, -7.926, 7.0), 'H8': (39.9945, -7.926, 7.0)}
 NONPHYSICAL_PREFIXES = ('MountingHole_3.2mm_M3', 'Fiducial_', 'TestPoint_Pad_')
 # component envelope heights above the PCB (mm), nominal datasheet values
-HEIGHT = {'RJ45_Pulse_JK0654219NL_Horizontal': 13.6, 'RJ45_Amphenol_54602-x08_Horizontal': 13.2, 'USB3_A_Receptacle_Wuerth_692122030100': 7.0,
+HEIGHT = {'Wurth_61300311121': 9.5, 'Wurth_61300211121': 9.5, 'RJ45_Pulse_JK0654219NL_Horizontal': 13.6, 'RJ45_Amphenol_54602-x08_Horizontal': 13.2, 'USB3_A_Receptacle_Wuerth_692122030100': 7.0,
           'USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal': 3.3, 'microSD_HC_Hirose_DM3AT-SF-PEJM5': 1.9, 'SW_Tactile_SKHH_Angled': 7.3,
           'LED_Kingbright_KPA-3010_3x2x1mm': 1.0, 'CP_Elec_6.3x7.7': 7.9, 'L_Coilcraft_XAL5050-XXX': 5.1, 'BatteryHolder_Keystone_3034_1x20mm': 5.6,
           'FanPinHeader_1x04_P2.54mm_Vertical': 11.6, 'PinHeader_1x06_P2.54mm_Vertical': 8.6, 'SOT-223-3_TabPin2': 1.8}
@@ -63,7 +63,7 @@ def board_assembly():
             pcb = pcb.cut(cq.Workplane('XY').circle(1.5).extrude(T).translate((p['x'], -p['y'], -T)))
             continue
         if p['fp'].startswith('SODIMM'):
-            parts['J1'] = box(x1, -P[r]['y'] + 2.2 - 8.4, x2, -P[r]['y'] + 14.2, 0, 5.2)        # socket body
+            parts['J1'] = vendor_geometry.socket_shape(p['x'],p['y'])
             xs, ys = p['x'], -p['y']
             supplier, _tim_reference = vendor_geometry.supplier_parts(p['x'], p['y'])
             parts.update(supplier)
@@ -279,6 +279,8 @@ def evaluate_fit(pcb, parts, base, lid, fan, op):
            'model_inputs_sha256': {'mech_parts.json': sha256(PARTS_PATH),
                                   'gen_mech.py': sha256(__file__)}, 'blockers': []}
     res['supplier_geometry_sha256'] = vendor_geometry.provenance()
+    res['supplier_assembly_adjustments'] = {'SC3_Z_mm':0.15,'SC4_Z_mm':0.15,
+        'basis':'Near metal seat raw Y=3.00 vs supplier screw underhead Y=2.85; rigid solids unchanged. Torque/tolerance qualification remains open.'}
     res['thermal_interface'] = {'modeled_as_rigid_component': False, 'nominal_uncompressed_thickness_mm': 3.175,
         'status': 'BLOCKED: exact module revision, CPU height, TIM compression/load and V1.1B material require qualification.'}
     res['source_binding_valid'] = source_binding_valid(PARTS_PATH, PCB_PATH, len(P))
