@@ -1,0 +1,2040 @@
+{
+  "schema_version": 1,
+  "source_hashes": {
+    "/work/hardware/runs/route-electrical-13c-trimmed.kicad_pcb": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+    "/work/hardware/runs/route-verifier-19-inward-proof.kicad_pcb": "80e27b9da71a79719965b2654becfdf695ce05ebb8cfa035f0ffd6aa24301814",
+    "/work/hardware/runs/route-electrical-14-pcie.kicad_pcb": "be0e7b2efc6d55d5b02c0e0923cbbab927f18c36e189ecd4d92fb11a7ceba647",
+    "/work/hardware/runs/route-electrical-14-pcie.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/tools/replay_copper_delta.py": "d4b20f9a8f21b76c9e0bad22a42ce2b7d75d63932221ceb4def97801e6c86193"
+  },
+  "sources_unchanged": true,
+  "base": "/work/hardware/runs/route-electrical-13c-trimmed.kicad_pcb",
+  "proof": "/work/hardware/runs/route-verifier-19-inward-proof.kicad_pcb",
+  "current": "/work/hardware/runs/route-electrical-14-pcie.kicad_pcb",
+  "output": "/work/hardware/runs/route-combined-15-ground.kicad_pcb",
+  "output_sha256": "a2b8ad82e41f6ad7c1325798857c802c0b46dfa0f1d54a13586a5bb91d37d410",
+  "removed": {
+    "6b43424f-d467-437b-9c54-04b14762715f": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60120000,
+        61275900
+      ],
+      "end_nm": [
+        73421100,
+        61275900
+      ],
+      "layer": 0
+    },
+    "9cf910d3-4ae1-4628-b043-44c8f8ea6b35": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        59950000,
+        61650000
+      ],
+      "end_nm": [
+        70600000,
+        61650000
+      ],
+      "layer": 0
+    },
+    "54e271aa-e582-494f-9446-6cd18f745fc2": {
+      "net": "+1V8",
+      "width_nm": 250000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        78410900,
+        39284000
+      ],
+      "end_nm": [
+        78410900,
+        30973900
+      ],
+      "layer": 2
+    },
+    "adc59167-b81a-4c81-96fb-b068c340c1df": {
+      "net": "+1V8",
+      "width_nm": 500000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        56988800,
+        45720800
+      ],
+      "end_nm": [
+        62850900,
+        45720800
+      ],
+      "layer": 2
+    },
+    "e6deb02c-bfd0-4198-b3b6-727871646222": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        55170600,
+        61502000
+      ],
+      "end_nm": [
+        61848200,
+        54824400
+      ],
+      "layer": 31
+    }
+  },
+  "added": {
+    "048d9640-9cd5-41ee-882a-1d9e00e51462": {
+      "net": "GND",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61119500,
+        60174000
+      ],
+      "end_nm": [
+        61119500,
+        61574000
+      ],
+      "layer": 0
+    },
+    "8f134be4-46f6-4e1a-822b-4d6b23f0b398": {
+      "net": "GND",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        58619500,
+        60174000
+      ],
+      "end_nm": [
+        58619500,
+        58374000
+      ],
+      "layer": 0
+    },
+    "0e1a18e7-9a13-497d-8cf3-054c4779a7a3": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        68600000,
+        38500000
+      ],
+      "drill_nm": 300000
+    },
+    "11a69a48-8c86-4e39-a572-54fda88fba38": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        69600000,
+        41500000
+      ],
+      "drill_nm": 300000
+    },
+    "1deb8839-46b7-47da-a585-58d6228c65db": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        74452500,
+        59384000
+      ],
+      "drill_nm": 300000
+    },
+    "2a5530b5-4a01-4894-9975-fa79922eb185": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        67826500,
+        53660700
+      ],
+      "drill_nm": 300000
+    },
+    "35068724-fb4b-4d1b-b995-0eb9f5563f8e": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        61471600,
+        46292700
+      ],
+      "drill_nm": 300000
+    },
+    "7b86d9cf-2960-41fe-9eea-fab3405b85c9": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        121701700,
+        107632100
+      ],
+      "drill_nm": 300000
+    },
+    "7e65a42a-fca0-4d20-a7b1-25746437f5ab": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        70600000,
+        40500000
+      ],
+      "drill_nm": 300000
+    },
+    "83f0ccf4-d18e-4235-b85b-bc6125c5069b": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        58619500,
+        58374000
+      ],
+      "drill_nm": 300000
+    },
+    "873768c7-1c85-45dd-8a64-fe4ff611c16f": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        78053800,
+        37436000
+      ],
+      "drill_nm": 300000
+    },
+    "9290843d-8392-4ff0-8d8a-c01a0ebf8b3f": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        27663400,
+        47104200
+      ],
+      "drill_nm": 300000
+    },
+    "c8977bda-47eb-4b69-bc72-045ba3981fa2": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        29954200,
+        49880200
+      ],
+      "drill_nm": 300000
+    },
+    "d01a3b97-141c-4173-a16d-85462297ed91": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        109399600,
+        58737200
+      ],
+      "drill_nm": 300000
+    },
+    "dba5d118-5c17-4aff-a4ad-09d2a54eb28f": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        61119500,
+        61574000
+      ],
+      "drill_nm": 300000
+    },
+    "e9aebc08-5fea-4e48-9af6-695a90e9b5ca": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        68600000,
+        39500000
+      ],
+      "drill_nm": 300000
+    },
+    "f40dcc04-8513-4c00-9aba-8b1df4f90a8b": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        23826900,
+        41486900
+      ],
+      "drill_nm": 300000
+    },
+    "ffa46a25-8437-436a-b31c-10a02f705e07": {
+      "net": "GND",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        69600000,
+        38500000
+      ],
+      "drill_nm": 300000
+    },
+    "0104b151-2d94-4bc1-9ad1-0a4849cdc05a": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        73350000,
+        61350000
+      ],
+      "end_nm": [
+        73400000,
+        61300000
+      ],
+      "layer": 0
+    },
+    "067bb216-c677-4c1b-87c2-ac84e2c73c7c": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60120000,
+        61275900
+      ],
+      "end_nm": [
+        60100000,
+        61300000
+      ],
+      "layer": 0
+    },
+    "0ce0c15e-165a-44e3-9de9-3b8df0a68a05": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60500000,
+        61700000
+      ],
+      "end_nm": [
+        60500000,
+        61800000
+      ],
+      "layer": 0
+    },
+    "1e14292b-3b78-464a-be0f-576868d0bf4d": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60750000,
+        62100000
+      ],
+      "end_nm": [
+        60800000,
+        62100000
+      ],
+      "layer": 0
+    },
+    "237b7d41-744b-4ee7-a5ce-fe1ad7631769": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60500000,
+        61800000
+      ],
+      "end_nm": [
+        60550000,
+        61850000
+      ],
+      "layer": 0
+    },
+    "4182e65a-d12d-41ac-88f4-fc93c9b1cc0d": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72850000,
+        61450000
+      ],
+      "end_nm": [
+        72900000,
+        61450000
+      ],
+      "layer": 0
+    },
+    "53cb4d3a-b8d9-4017-adcd-6732a503caee": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        73100000,
+        61400000
+      ],
+      "end_nm": [
+        73150000,
+        61350000
+      ],
+      "layer": 0
+    },
+    "59fa4c2f-1dcd-4c08-b2cd-e00f83eacde6": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72900000,
+        61450000
+      ],
+      "end_nm": [
+        72950000,
+        61400000
+      ],
+      "layer": 0
+    },
+    "609bdaec-1ce8-4a67-80f6-d89df8956312": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60200000,
+        61300000
+      ],
+      "end_nm": [
+        60350000,
+        61450000
+      ],
+      "layer": 0
+    },
+    "6f5dccca-fa92-4345-9c41-2ffefd7bbc28": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60350000,
+        61550000
+      ],
+      "end_nm": [
+        60500000,
+        61700000
+      ],
+      "layer": 0
+    },
+    "72fa4253-19cb-47b1-b003-3b7281dbf002": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72750000,
+        61550000
+      ],
+      "end_nm": [
+        72850000,
+        61450000
+      ],
+      "layer": 0
+    },
+    "782b0932-90a0-4f23-bbd1-80414146c4de": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60550000,
+        61850000
+      ],
+      "end_nm": [
+        60550000,
+        61900000
+      ],
+      "layer": 0
+    },
+    "7ff77307-be85-406a-85af-fcfcb74e4efe": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60100000,
+        61300000
+      ],
+      "end_nm": [
+        60200000,
+        61300000
+      ],
+      "layer": 0
+    },
+    "8021d901-f5e5-431a-8f26-6d1a46ed83df": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60350000,
+        61450000
+      ],
+      "end_nm": [
+        60350000,
+        61550000
+      ],
+      "layer": 0
+    },
+    "bbd40366-2b0d-49ea-9dec-c3d1b9b2d3ef": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60850000,
+        62150000
+      ],
+      "end_nm": [
+        70200000,
+        62150000
+      ],
+      "layer": 0
+    },
+    "cd944da8-eb95-4f55-9645-d5dc2df9bc55": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60800000,
+        62100000
+      ],
+      "end_nm": [
+        60850000,
+        62150000
+      ],
+      "layer": 0
+    },
+    "e1ef2443-95f9-421f-b413-a4e7787d67ff": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        73150000,
+        61350000
+      ],
+      "end_nm": [
+        73350000,
+        61350000
+      ],
+      "layer": 0
+    },
+    "ea1c5706-3606-4cce-8598-d7c98fe42ed9": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72950000,
+        61400000
+      ],
+      "end_nm": [
+        73100000,
+        61400000
+      ],
+      "layer": 0
+    },
+    "ea44c69e-4dcf-45bd-b8bd-d57f3543df35": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        73400000,
+        61300000
+      ],
+      "end_nm": [
+        73421100,
+        61275900
+      ],
+      "layer": 0
+    },
+    "f5a6ca11-b5e4-4ed7-8ed0-95a500f0c90f": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60550000,
+        61900000
+      ],
+      "end_nm": [
+        60750000,
+        62100000
+      ],
+      "layer": 0
+    },
+    "140bc211-4eab-4705-baf1-7f93945bfa90": {
+      "net": "FRAM_MISO",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        72750000,
+        61550000
+      ],
+      "drill_nm": 300000
+    },
+    "360e72a3-e7ca-44d7-9dbf-6fc5c9824ec7": {
+      "net": "FRAM_MISO",
+      "width_nm": 600000,
+      "locked": false,
+      "kind": "via",
+      "position_nm": [
+        70200000,
+        62150000
+      ],
+      "drill_nm": 300000
+    },
+    "086fb419-ca62-4faf-902b-233432333570": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72000000,
+        61700000
+      ],
+      "end_nm": [
+        72050000,
+        61650000
+      ],
+      "layer": 31
+    },
+    "2a94863b-66c5-4162-82d5-cd9145280b91": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71850000,
+        61700000
+      ],
+      "end_nm": [
+        72000000,
+        61700000
+      ],
+      "layer": 31
+    },
+    "37b3fee7-51bd-4d89-9573-160fa74c7a29": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70500000,
+        62100000
+      ],
+      "end_nm": [
+        70550000,
+        62050000
+      ],
+      "layer": 31
+    },
+    "3faf6fe3-8d86-4886-b3ee-f02f28526f90": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70650000,
+        62050000
+      ],
+      "end_nm": [
+        70700000,
+        62000000
+      ],
+      "layer": 31
+    },
+    "4df0f870-5e5a-4aa2-b485-ea0b1f4853a5": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71400000,
+        61850000
+      ],
+      "end_nm": [
+        71450000,
+        61800000
+      ],
+      "layer": 31
+    },
+    "657709bc-f2ec-4fb7-8dc4-7d95b7fa3acb": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71650000,
+        61750000
+      ],
+      "end_nm": [
+        71800000,
+        61750000
+      ],
+      "layer": 31
+    },
+    "72f49875-ea55-4e2e-9e19-f1ca6d94db60": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70300000,
+        62150000
+      ],
+      "end_nm": [
+        70350000,
+        62100000
+      ],
+      "layer": 31
+    },
+    "955478eb-c4d4-4d95-aed4-dde6af79df39": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72350000,
+        61600000
+      ],
+      "end_nm": [
+        72400000,
+        61550000
+      ],
+      "layer": 31
+    },
+    "97cde123-25df-49c2-a0bf-2e7947c6fb51": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70700000,
+        62000000
+      ],
+      "end_nm": [
+        70850000,
+        62000000
+      ],
+      "layer": 31
+    },
+    "9906064e-ab33-4bd0-bb5a-c9b59fe22fd5": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71050000,
+        61950000
+      ],
+      "end_nm": [
+        71100000,
+        61900000
+      ],
+      "layer": 31
+    },
+    "9b9d510f-61bf-4376-93d5-e7d41d189e09": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72150000,
+        61650000
+      ],
+      "end_nm": [
+        72200000,
+        61600000
+      ],
+      "layer": 31
+    },
+    "a6f50f73-5c9f-4d5b-8f71-4f923aa69c8d": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71250000,
+        61900000
+      ],
+      "end_nm": [
+        71300000,
+        61850000
+      ],
+      "layer": 31
+    },
+    "ac655ed4-1086-4fc8-a7fc-02224ceb9196": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70350000,
+        62100000
+      ],
+      "end_nm": [
+        70500000,
+        62100000
+      ],
+      "layer": 31
+    },
+    "b8df6c10-3da6-489d-9e37-33bf412e74a0": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71800000,
+        61750000
+      ],
+      "end_nm": [
+        71850000,
+        61700000
+      ],
+      "layer": 31
+    },
+    "bd37f3e8-af11-46ff-8c6d-b23f936ac21a": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72200000,
+        61600000
+      ],
+      "end_nm": [
+        72350000,
+        61600000
+      ],
+      "layer": 31
+    },
+    "c4e598a9-ca39-493d-8baf-1d39054ce57c": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70200000,
+        62150000
+      ],
+      "end_nm": [
+        70300000,
+        62150000
+      ],
+      "layer": 31
+    },
+    "c8948b3e-2671-4097-9a74-1c146db80f43": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71600000,
+        61800000
+      ],
+      "end_nm": [
+        71650000,
+        61750000
+      ],
+      "layer": 31
+    },
+    "cc76b97d-dc9b-4500-ac8b-ed19182bbd76": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71100000,
+        61900000
+      ],
+      "end_nm": [
+        71250000,
+        61900000
+      ],
+      "layer": 31
+    },
+    "d520e302-ee55-4748-8533-6ddeac1ee80a": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71300000,
+        61850000
+      ],
+      "end_nm": [
+        71400000,
+        61850000
+      ],
+      "layer": 31
+    },
+    "d6aaefb2-477f-4daf-8109-f1a054597296": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70550000,
+        62050000
+      ],
+      "end_nm": [
+        70650000,
+        62050000
+      ],
+      "layer": 31
+    },
+    "d887cd9c-a3eb-4647-aaaa-c69e461f5773": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        71450000,
+        61800000
+      ],
+      "end_nm": [
+        71600000,
+        61800000
+      ],
+      "layer": 31
+    },
+    "e188c2d5-7558-4ab8-a881-6ca5fde75bba": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72050000,
+        61650000
+      ],
+      "end_nm": [
+        72150000,
+        61650000
+      ],
+      "layer": 31
+    },
+    "e50d5b61-ac64-4de1-a318-3859f1beb50f": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70900000,
+        61950000
+      ],
+      "end_nm": [
+        71050000,
+        61950000
+      ],
+      "layer": 31
+    },
+    "ea57db94-31e6-44fc-9c4b-a6b5c71b76c7": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        72400000,
+        61550000
+      ],
+      "end_nm": [
+        72750000,
+        61550000
+      ],
+      "layer": 31
+    },
+    "f99ea764-cf03-4475-ab65-dc5d498d9ea7": {
+      "net": "FRAM_MISO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70850000,
+        62000000
+      ],
+      "end_nm": [
+        70900000,
+        61950000
+      ],
+      "layer": 31
+    },
+    "1224e1c9-d748-44cf-becc-ae5b042e8e11": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        59950000,
+        61750000
+      ],
+      "end_nm": [
+        60100000,
+        61900000
+      ],
+      "layer": 0
+    },
+    "1cbf6459-33f3-4889-bc1e-03b3797563b4": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60100000,
+        62000000
+      ],
+      "end_nm": [
+        60150000,
+        62050000
+      ],
+      "layer": 0
+    },
+    "1d93a539-5226-4656-98a5-5ff8ea1df2f2": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70750000,
+        62450000
+      ],
+      "end_nm": [
+        70750000,
+        62350000
+      ],
+      "layer": 0
+    },
+    "1fe2e594-79a3-421f-a0fd-c6b4828541e7": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70800000,
+        61950000
+      ],
+      "end_nm": [
+        70750000,
+        61900000
+      ],
+      "layer": 0
+    },
+    "37660910-606d-499b-9405-758c1d1e7b72": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70000000,
+        62750000
+      ],
+      "end_nm": [
+        70350000,
+        62750000
+      ],
+      "layer": 0
+    },
+    "519ba945-c994-46e1-ad12-e05ff00c62d8": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60600000,
+        62500000
+      ],
+      "end_nm": [
+        69650000,
+        62500000
+      ],
+      "layer": 0
+    },
+    "5e8ab1a3-2621-4639-8c77-7da860b63b19": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70750000,
+        61900000
+      ],
+      "end_nm": [
+        70750000,
+        61800000
+      ],
+      "layer": 0
+    },
+    "60e528b6-8e29-4529-9e5a-6549af00f45c": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        59950000,
+        61650000
+      ],
+      "end_nm": [
+        59950000,
+        61750000
+      ],
+      "layer": 0
+    },
+    "7dea242e-a224-4dce-be52-eedf89c621ab": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60500000,
+        62450000
+      ],
+      "end_nm": [
+        60550000,
+        62450000
+      ],
+      "layer": 0
+    },
+    "911076a2-894d-4209-96bc-42b3611ebad0": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60550000,
+        62450000
+      ],
+      "end_nm": [
+        60600000,
+        62500000
+      ],
+      "layer": 0
+    },
+    "91d2166d-3b70-44ff-a5d0-bba80cc13876": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60100000,
+        61900000
+      ],
+      "end_nm": [
+        60100000,
+        62000000
+      ],
+      "layer": 0
+    },
+    "934a5416-c764-4b7f-a78b-58ddc84786c0": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70500000,
+        62700000
+      ],
+      "end_nm": [
+        70750000,
+        62450000
+      ],
+      "layer": 0
+    },
+    "97d49791-c680-48a7-ac8a-c975c8ee841d": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70350000,
+        62750000
+      ],
+      "end_nm": [
+        70400000,
+        62700000
+      ],
+      "layer": 0
+    },
+    "9864e4ac-3f1b-401f-9c6d-94f761130e38": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70750000,
+        62350000
+      ],
+      "end_nm": [
+        70800000,
+        62300000
+      ],
+      "layer": 0
+    },
+    "abd2bed3-c26a-4e53-abd8-f687a04c0236": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70800000,
+        62300000
+      ],
+      "end_nm": [
+        70800000,
+        61950000
+      ],
+      "layer": 0
+    },
+    "b77fc2c7-e34f-47f6-9001-cb11f0241a40": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        69850000,
+        62700000
+      ],
+      "end_nm": [
+        69950000,
+        62700000
+      ],
+      "layer": 0
+    },
+    "bc70d71e-f90a-460c-bedc-1ce5cc7b7fb0": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        69950000,
+        62700000
+      ],
+      "end_nm": [
+        70000000,
+        62750000
+      ],
+      "layer": 0
+    },
+    "e0a42dd0-1014-40ac-87f1-f60b63f71163": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70750000,
+        61800000
+      ],
+      "end_nm": [
+        70600000,
+        61650000
+      ],
+      "layer": 0
+    },
+    "e3362914-a7a1-45db-a5ff-2845018b9c5b": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60150000,
+        62100000
+      ],
+      "end_nm": [
+        60500000,
+        62450000
+      ],
+      "layer": 0
+    },
+    "ef1a7c46-ccf8-429b-953a-0ba31299bc07": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        69650000,
+        62500000
+      ],
+      "end_nm": [
+        69850000,
+        62700000
+      ],
+      "layer": 0
+    },
+    "f7753ad7-6fb4-41e9-92be-39407ce8c2de": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60150000,
+        62050000
+      ],
+      "end_nm": [
+        60150000,
+        62100000
+      ],
+      "layer": 0
+    },
+    "fcf941d1-4658-41a2-8161-c6cc024a476c": {
+      "net": "PPS_GPIO",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        70400000,
+        62700000
+      ],
+      "end_nm": [
+        70500000,
+        62700000
+      ],
+      "layer": 0
+    },
+    "0585481f-c694-421d-a9ee-eb1e211ac34a": {
+      "net": "+1V8",
+      "width_nm": 500000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        59811600,
+        45720800
+      ],
+      "end_nm": [
+        60641600,
+        45462700
+      ],
+      "layer": 2
+    },
+    "1437993b-cfc6-42d9-b049-8787ff7149d4": {
+      "net": "+1V8",
+      "width_nm": 500000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        60641600,
+        45462700
+      ],
+      "end_nm": [
+        62301600,
+        45462700
+      ],
+      "layer": 2
+    },
+    "14c3eb82-b0bf-484d-a7e8-3a2a3fa0e26c": {
+      "net": "+1V8",
+      "width_nm": 500000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        56988800,
+        45720800
+      ],
+      "end_nm": [
+        59811600,
+        45720800
+      ],
+      "layer": 2
+    },
+    "333a087f-47b7-46a7-b393-0b8c1ad07816": {
+      "net": "+1V8",
+      "width_nm": 250000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        76643800,
+        38846000
+      ],
+      "end_nm": [
+        76643800,
+        36026000
+      ],
+      "layer": 2
+    },
+    "5c2bddef-7950-4ffe-90fa-f5146c36d35a": {
+      "net": "+1V8",
+      "width_nm": 250000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        78410900,
+        39284000
+      ],
+      "end_nm": [
+        76643800,
+        38846000
+      ],
+      "layer": 2
+    },
+    "e1573104-fc49-4bd6-9dc4-aa507b690395": {
+      "net": "+1V8",
+      "width_nm": 250000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        76643800,
+        36026000
+      ],
+      "end_nm": [
+        78410900,
+        34616000
+      ],
+      "layer": 2
+    },
+    "eec51b52-534e-4bf6-916a-380973f1df69": {
+      "net": "+1V8",
+      "width_nm": 250000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        78410900,
+        34616000
+      ],
+      "end_nm": [
+        78410900,
+        30973900
+      ],
+      "layer": 2
+    },
+    "fe4ed6fd-033a-422c-89e9-cf36fd2f15ed": {
+      "net": "+1V8",
+      "width_nm": 500000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        62301600,
+        45462700
+      ],
+      "end_nm": [
+        62850900,
+        45720800
+      ],
+      "layer": 2
+    },
+    "0c2458d2-c338-45cd-8d74-fe5b0e7e32d1": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        58850000,
+        58950000
+      ],
+      "end_nm": [
+        58900000,
+        58900000
+      ],
+      "layer": 31
+    },
+    "0cf19f0e-6bcf-4765-bf2c-94ffba0790f2": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61700000,
+        55450000
+      ],
+      "end_nm": [
+        61700000,
+        55300000
+      ],
+      "layer": 31
+    },
+    "19c948ee-0348-4415-8db6-55e6200d2a5a": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61400000,
+        56450000
+      ],
+      "end_nm": [
+        61400000,
+        56400000
+      ],
+      "layer": 31
+    },
+    "2b466d2b-504a-4bbf-b348-f0e594dbb9fe": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61650000,
+        55500000
+      ],
+      "end_nm": [
+        61700000,
+        55450000
+      ],
+      "layer": 31
+    },
+    "2d8dec4d-202b-4061-8ac8-6613951d5c08": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        58950000,
+        58900000
+      ],
+      "end_nm": [
+        61400000,
+        56450000
+      ],
+      "layer": 31
+    },
+    "3dd7d9ac-7595-41bd-9930-fca535620942": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61550000,
+        55850000
+      ],
+      "end_nm": [
+        61600000,
+        55800000
+      ],
+      "layer": 31
+    },
+    "40235947-7ec6-4495-abc4-1c0953707a37": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        55150000,
+        61500000
+      ],
+      "end_nm": [
+        57700000,
+        58950000
+      ],
+      "layer": 31
+    },
+    "456667d8-be8d-4b0e-9077-37e553bfe743": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61700000,
+        55300000
+      ],
+      "end_nm": [
+        61750000,
+        55250000
+      ],
+      "layer": 31
+    },
+    "45be1ea8-681a-4a9f-8598-39d6468fc38c": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61750000,
+        55250000
+      ],
+      "end_nm": [
+        61750000,
+        55100000
+      ],
+      "layer": 31
+    },
+    "4c2e2b43-d51b-42e7-b65b-c98603d7928a": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        57700000,
+        58950000
+      ],
+      "end_nm": [
+        58850000,
+        58950000
+      ],
+      "layer": 31
+    },
+    "4fec152a-73db-4931-a583-b45e9b5362a6": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61800000,
+        54900000
+      ],
+      "end_nm": [
+        61850000,
+        54850000
+      ],
+      "layer": 31
+    },
+    "5bf9c55b-8cdc-48a8-b41c-3cc7e9f3796b": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61450000,
+        56200000
+      ],
+      "end_nm": [
+        61500000,
+        56150000
+      ],
+      "layer": 31
+    },
+    "67658a66-6dd7-4004-858b-77a7e2ed8a4f": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61850000,
+        54850000
+      ],
+      "end_nm": [
+        61850000,
+        54800000
+      ],
+      "layer": 31
+    },
+    "698b19ab-d7d2-4454-9665-5442a8a483b6": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61400000,
+        56400000
+      ],
+      "end_nm": [
+        61450000,
+        56350000
+      ],
+      "layer": 31
+    },
+    "6c9012aa-8923-4712-977b-9de09a99f986": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61600000,
+        55650000
+      ],
+      "end_nm": [
+        61650000,
+        55600000
+      ],
+      "layer": 31
+    },
+    "961d30e8-618a-4831-a166-cfa5acadf382": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61600000,
+        55800000
+      ],
+      "end_nm": [
+        61600000,
+        55650000
+      ],
+      "layer": 31
+    },
+    "a3b2cef0-019d-449f-888c-1664551821c8": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61450000,
+        56350000
+      ],
+      "end_nm": [
+        61450000,
+        56200000
+      ],
+      "layer": 31
+    },
+    "a7366814-1c7f-43e3-9be6-3bfeadaa20d2": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61750000,
+        55100000
+      ],
+      "end_nm": [
+        61800000,
+        55050000
+      ],
+      "layer": 31
+    },
+    "b6118ed0-f1fa-47fb-8ebe-6e6db1d90e2f": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        55170600,
+        61502000
+      ],
+      "end_nm": [
+        55150000,
+        61500000
+      ],
+      "layer": 31
+    },
+    "bf1a5a38-afeb-461b-8754-bda02b6ba685": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61500000,
+        56150000
+      ],
+      "end_nm": [
+        61500000,
+        56050000
+      ],
+      "layer": 31
+    },
+    "dbf323bf-ce00-4d71-b85b-e0351e43bdc9": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61850000,
+        54800000
+      ],
+      "end_nm": [
+        61848200,
+        54824400
+      ],
+      "layer": 31
+    },
+    "debcbb4d-ab1c-4d78-9f06-ef21492b53e7": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61500000,
+        56050000
+      ],
+      "end_nm": [
+        61550000,
+        56000000
+      ],
+      "layer": 31
+    },
+    "e7e2654c-0fa8-4303-8f77-667d682fc29f": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        58900000,
+        58900000
+      ],
+      "end_nm": [
+        58950000,
+        58900000
+      ],
+      "layer": 31
+    },
+    "ead3dd0c-36ab-4693-9abc-087710feb2dc": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61800000,
+        55050000
+      ],
+      "end_nm": [
+        61800000,
+        54900000
+      ],
+      "layer": 31
+    },
+    "eb92a74d-9ff4-4242-9c21-3b77b2e6aa10": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61550000,
+        56000000
+      ],
+      "end_nm": [
+        61550000,
+        55850000
+      ],
+      "layer": 31
+    },
+    "ee5fbeae-7eed-4ae9-aa62-a0e304a8117d": {
+      "net": "PPS_QOS",
+      "width_nm": 150000,
+      "locked": false,
+      "kind": "track",
+      "start_nm": [
+        61650000,
+        55600000
+      ],
+      "end_nm": [
+        61650000,
+        55500000
+      ],
+      "layer": 31
+    }
+  },
+  "proof_to_output_uuid": {
+    "048d9640-9cd5-41ee-882a-1d9e00e51462": "7c482249-abdc-477d-aec9-0167efe4aa4f",
+    "8f134be4-46f6-4e1a-822b-4d6b23f0b398": "8cbefeee-d385-4fb2-92e0-b1a9dd77f491",
+    "0e1a18e7-9a13-497d-8cf3-054c4779a7a3": "17470d7f-cab2-4671-9dc6-1899b105c3d9",
+    "11a69a48-8c86-4e39-a572-54fda88fba38": "61774436-18a8-456c-aa9c-20aa18ee8e69",
+    "1deb8839-46b7-47da-a585-58d6228c65db": "e8cc18d5-0fa9-4fcd-9997-99ecf585bbd5",
+    "2a5530b5-4a01-4894-9975-fa79922eb185": "c1bc1dde-f856-4184-85e0-e5d5532b1da7",
+    "35068724-fb4b-4d1b-b995-0eb9f5563f8e": "a6b55e25-efa9-4bc9-9e31-621d4446829a",
+    "7b86d9cf-2960-41fe-9eea-fab3405b85c9": "a18b1d62-1afe-41f0-a55e-72ec16c1a22d",
+    "7e65a42a-fca0-4d20-a7b1-25746437f5ab": "85dbbb45-aae9-49fb-bf6a-b8ef79879d9e",
+    "83f0ccf4-d18e-4235-b85b-bc6125c5069b": "f0100419-cfe3-4389-b189-a8cc53f60551",
+    "873768c7-1c85-45dd-8a64-fe4ff611c16f": "873151f9-1b01-40d2-840e-679d8ba16601",
+    "9290843d-8392-4ff0-8d8a-c01a0ebf8b3f": "2ba2ccbb-3846-4e41-b785-1e026ded471f",
+    "c8977bda-47eb-4b69-bc72-045ba3981fa2": "ca31214b-f4ee-4467-b070-feec6a3399ca",
+    "d01a3b97-141c-4173-a16d-85462297ed91": "66531bde-74ee-4f63-bbdf-af6c92fa0058",
+    "dba5d118-5c17-4aff-a4ad-09d2a54eb28f": "551aed77-ea47-4c50-9f72-d4b78ff4c634",
+    "e9aebc08-5fea-4e48-9af6-695a90e9b5ca": "95e49bfc-c470-4e4d-ae91-688483b51c5b",
+    "f40dcc04-8513-4c00-9aba-8b1df4f90a8b": "6f434cdd-36e6-4812-aa2a-858a7c180ade",
+    "ffa46a25-8437-436a-b31c-10a02f705e07": "560ed125-6657-4199-9922-155dd2e94e93",
+    "0104b151-2d94-4bc1-9ad1-0a4849cdc05a": "84c1f053-c758-4136-80a7-73ad69ee6fc8",
+    "067bb216-c677-4c1b-87c2-ac84e2c73c7c": "c0c0283f-eeac-45b6-8265-5b0d920de1de",
+    "0ce0c15e-165a-44e3-9de9-3b8df0a68a05": "9cce2f62-8089-4e46-a8c3-af68d35c3bc9",
+    "1e14292b-3b78-464a-be0f-576868d0bf4d": "6402f7e5-ee8c-42a3-9473-54f9d4dc48ec",
+    "237b7d41-744b-4ee7-a5ce-fe1ad7631769": "ad44463d-668f-4649-a24e-d7f2b8af66f0",
+    "4182e65a-d12d-41ac-88f4-fc93c9b1cc0d": "0265b66a-7c58-4e1f-afa8-775c8d20f97b",
+    "53cb4d3a-b8d9-4017-adcd-6732a503caee": "066e3d98-ada2-492b-8f7c-130f7f5612a9",
+    "59fa4c2f-1dcd-4c08-b2cd-e00f83eacde6": "11a1b2cd-a6b9-4d64-95f7-0de82377f2ff",
+    "609bdaec-1ce8-4a67-80f6-d89df8956312": "352c02d8-f99a-43c0-9408-580c89557f1f",
+    "6f5dccca-fa92-4345-9c41-2ffefd7bbc28": "6083edbf-2c9f-4190-9c33-21b2407adfd0",
+    "72fa4253-19cb-47b1-b003-3b7281dbf002": "4f85cdd0-1cc6-4d17-a50f-4e0368c3be25",
+    "782b0932-90a0-4f23-bbd1-80414146c4de": "03ebc0c3-f079-45fc-9f9e-90542abd1dab",
+    "7ff77307-be85-406a-85af-fcfcb74e4efe": "6ce147fd-73d1-474b-b8c4-540c78ef5970",
+    "8021d901-f5e5-431a-8f26-6d1a46ed83df": "f0aba75c-ae24-4ab5-8fc3-d107ccea4b50",
+    "bbd40366-2b0d-49ea-9dec-c3d1b9b2d3ef": "2397c14d-3e5d-47e0-88e0-75e92c498fc8",
+    "cd944da8-eb95-4f55-9645-d5dc2df9bc55": "e48c9bb9-1ed9-4e77-b9dd-508e89c17887",
+    "e1ef2443-95f9-421f-b413-a4e7787d67ff": "e47711eb-ca55-4638-95be-4d180fc6588a",
+    "ea1c5706-3606-4cce-8598-d7c98fe42ed9": "2fef977a-69f9-4b9c-8cee-d3723f1251a5",
+    "ea44c69e-4dcf-45bd-b8bd-d57f3543df35": "af767bb9-a9bd-4a06-9b8f-f21de6ad9e38",
+    "f5a6ca11-b5e4-4ed7-8ed0-95a500f0c90f": "b61ae0b1-db52-4bcc-a34d-1734a68c1e09",
+    "140bc211-4eab-4705-baf1-7f93945bfa90": "e469031e-9876-4701-8002-c2c35338f9b7",
+    "360e72a3-e7ca-44d7-9dbf-6fc5c9824ec7": "79d24eab-c52b-4a6b-a379-e2104a4b2153",
+    "086fb419-ca62-4faf-902b-233432333570": "6441a7c1-f313-4534-a301-4b05b09aa150",
+    "2a94863b-66c5-4162-82d5-cd9145280b91": "93164d83-9caa-4101-ad03-a5cdfc4d568f",
+    "37b3fee7-51bd-4d89-9573-160fa74c7a29": "0c735d4a-6133-4471-b9e8-c09f87e64535",
+    "3faf6fe3-8d86-4886-b3ee-f02f28526f90": "9aa78521-108a-494d-b0b9-1e176f04b954",
+    "4df0f870-5e5a-4aa2-b485-ea0b1f4853a5": "61e039f8-0608-4274-a112-6af75bbef515",
+    "657709bc-f2ec-4fb7-8dc4-7d95b7fa3acb": "e42cca08-b786-4b4f-9be4-0360650abb71",
+    "72f49875-ea55-4e2e-9e19-f1ca6d94db60": "d4bc9d36-c2b1-4a1f-96e1-bba80b9f2df1",
+    "955478eb-c4d4-4d95-aed4-dde6af79df39": "11861027-7311-4040-b60c-9774741e30a5",
+    "97cde123-25df-49c2-a0bf-2e7947c6fb51": "1e4fcd6f-2743-4eb1-92be-9cd4cea60611",
+    "9906064e-ab33-4bd0-bb5a-c9b59fe22fd5": "fe778a4c-b3b4-443c-a1a1-594ecbd8bb31",
+    "9b9d510f-61bf-4376-93d5-e7d41d189e09": "02e9e6cf-af66-44c2-8680-4a09111382a1",
+    "a6f50f73-5c9f-4d5b-8f71-4f923aa69c8d": "a76d1487-c908-4ae7-9a36-109ccb7de5fd",
+    "ac655ed4-1086-4fc8-a7fc-02224ceb9196": "c23bd618-7c38-4ed1-8c2e-732736659329",
+    "b8df6c10-3da6-489d-9e37-33bf412e74a0": "f90d647c-2133-4ffa-8af4-91f4d7d72596",
+    "bd37f3e8-af11-46ff-8c6d-b23f936ac21a": "a730b65d-70b5-4a7c-974a-bd96eb080b68",
+    "c4e598a9-ca39-493d-8baf-1d39054ce57c": "8b995ef7-122e-4de5-812a-e81b1c7c89f3",
+    "c8948b3e-2671-4097-9a74-1c146db80f43": "82b2c0e3-dbd1-4866-9200-dede1e21f9eb",
+    "cc76b97d-dc9b-4500-ac8b-ed19182bbd76": "ac9a8912-4101-43a6-b6fc-a2b081897160",
+    "d520e302-ee55-4748-8533-6ddeac1ee80a": "817c76a8-c85f-4174-96da-31a2c3cb8789",
+    "d6aaefb2-477f-4daf-8109-f1a054597296": "1828c3c1-e494-4c66-9905-5bfd335575be",
+    "d887cd9c-a3eb-4647-aaaa-c69e461f5773": "03dc7f61-3c88-4a78-bd2c-a81737c9d9b6",
+    "e188c2d5-7558-4ab8-a881-6ca5fde75bba": "35a5012b-5a67-4631-986b-20c9e4739ce2",
+    "e50d5b61-ac64-4de1-a318-3859f1beb50f": "fae67ac1-385f-40db-a460-662189c2ae70",
+    "ea57db94-31e6-44fc-9c4b-a6b5c71b76c7": "9ee36154-b2e0-44d3-b241-1075fb71a64b",
+    "f99ea764-cf03-4475-ab65-dc5d498d9ea7": "370a07cb-6c1c-4c20-b9e8-d8a14102e58f",
+    "1224e1c9-d748-44cf-becc-ae5b042e8e11": "e2a6eb54-7806-4f4b-a5d7-7d8833ddf4c8",
+    "1cbf6459-33f3-4889-bc1e-03b3797563b4": "d16974e6-0c65-4074-bbde-f5885832d234",
+    "1d93a539-5226-4656-98a5-5ff8ea1df2f2": "c52b599a-4946-4ffa-acb4-ed67e59d63c6",
+    "1fe2e594-79a3-421f-a0fd-c6b4828541e7": "1184c556-57ba-4728-a371-1ae9f57e1dbe",
+    "37660910-606d-499b-9405-758c1d1e7b72": "600e91be-54b3-47a9-9d6f-af39ec0bc434",
+    "519ba945-c994-46e1-ad12-e05ff00c62d8": "7eb275b5-327a-4e1e-a123-9dc813b16cb4",
+    "5e8ab1a3-2621-4639-8c77-7da860b63b19": "0383b2b9-1875-4dcd-abe7-cd37958024af",
+    "60e528b6-8e29-4529-9e5a-6549af00f45c": "7d955508-5418-4102-a4ee-3e5c3f75fef7",
+    "7dea242e-a224-4dce-be52-eedf89c621ab": "22057c29-ff24-4124-b9cf-46915864c982",
+    "911076a2-894d-4209-96bc-42b3611ebad0": "50297c9a-d347-4ad4-9ff1-23290e085008",
+    "91d2166d-3b70-44ff-a5d0-bba80cc13876": "1eb60310-1c9b-4c6c-8092-0ca2d07780a0",
+    "934a5416-c764-4b7f-a78b-58ddc84786c0": "f8c1d073-04e1-4c58-b54c-24d5ee5ef661",
+    "97d49791-c680-48a7-ac8a-c975c8ee841d": "2b804a68-77dd-4ce8-9981-22c812bc0e35",
+    "9864e4ac-3f1b-401f-9c6d-94f761130e38": "a8dec961-ed8c-4314-80da-391a6f4dd34f",
+    "abd2bed3-c26a-4e53-abd8-f687a04c0236": "283a6740-2941-4153-80b5-9804faa30dfc",
+    "b77fc2c7-e34f-47f6-9001-cb11f0241a40": "938f7b42-6b10-4208-9f8c-ad94e2b38b56",
+    "bc70d71e-f90a-460c-bedc-1ce5cc7b7fb0": "e361bc12-0c59-4b5b-a300-f3b96b24d3bb",
+    "e0a42dd0-1014-40ac-87f1-f60b63f71163": "33b7933c-380b-48ec-a91d-416ee82383ed",
+    "e3362914-a7a1-45db-a5ff-2845018b9c5b": "fdf56ac5-d609-4a11-942c-6c595879045e",
+    "ef1a7c46-ccf8-429b-953a-0ba31299bc07": "ae4cf391-1a67-4e69-b56c-7dba9cdf4640",
+    "f7753ad7-6fb4-41e9-92be-39407ce8c2de": "7a0d038f-8079-4760-a7cd-602de92d06fd",
+    "fcf941d1-4658-41a2-8161-c6cc024a476c": "fc3abc71-60d0-43e4-a7c8-3c77f8b2f0ee",
+    "0585481f-c694-421d-a9ee-eb1e211ac34a": "b026988e-a2a5-429e-8bd6-91809252c9be",
+    "1437993b-cfc6-42d9-b049-8787ff7149d4": "2f0ced11-b843-4c93-aeee-5fa02854a3a9",
+    "14c3eb82-b0bf-484d-a7e8-3a2a3fa0e26c": "938ade8d-c713-4704-963d-2203941b612e",
+    "333a087f-47b7-46a7-b393-0b8c1ad07816": "d8074604-bfa5-4ea4-a119-94d97d9d87a4",
+    "5c2bddef-7950-4ffe-90fa-f5146c36d35a": "34323991-ee0d-48c7-a9ce-0c2a05298fc6",
+    "e1573104-fc49-4bd6-9dc4-aa507b690395": "c047fb06-07e1-4592-8536-f967df00fdf7",
+    "eec51b52-534e-4bf6-916a-380973f1df69": "065b3739-38c4-4c9f-a888-6115008744ef",
+    "fe4ed6fd-033a-422c-89e9-cf36fd2f15ed": "9e462581-f880-4308-8818-9aa438355a54",
+    "0c2458d2-c338-45cd-8d74-fe5b0e7e32d1": "3a9eec5e-6b83-4c38-9cba-20c46c5b8a15",
+    "0cf19f0e-6bcf-4765-bf2c-94ffba0790f2": "e895731f-16a2-43b2-bbdb-0192824fca02",
+    "19c948ee-0348-4415-8db6-55e6200d2a5a": "a1b49874-a198-40e8-932b-b02f408ba906",
+    "2b466d2b-504a-4bbf-b348-f0e594dbb9fe": "664d96d9-44a8-4313-8b2b-128b967b24f8",
+    "2d8dec4d-202b-4061-8ac8-6613951d5c08": "f6052db4-f09b-4f47-8ed7-d9ff9a6206dc",
+    "3dd7d9ac-7595-41bd-9930-fca535620942": "7a5ea55f-f95a-4ccb-9d0f-6824cebbb80b",
+    "40235947-7ec6-4495-abc4-1c0953707a37": "c5836b39-23bd-48fc-8359-5daba0b2efac",
+    "456667d8-be8d-4b0e-9077-37e553bfe743": "f37c2427-5860-4173-9ad6-cc7ada166a3b",
+    "45be1ea8-681a-4a9f-8598-39d6468fc38c": "1ee7f59f-a92f-4bfc-a336-2d9bf087dc8b",
+    "4c2e2b43-d51b-42e7-b65b-c98603d7928a": "e3647228-32bd-449c-83ca-3321d75594ab",
+    "4fec152a-73db-4931-a583-b45e9b5362a6": "97d428af-8be1-4e8e-b7e5-d599f7e2e238",
+    "5bf9c55b-8cdc-48a8-b41c-3cc7e9f3796b": "f6f583c3-6e02-4c91-895c-f43fdec1972b",
+    "67658a66-6dd7-4004-858b-77a7e2ed8a4f": "3b031481-6329-469f-90a8-1a75190f91ee",
+    "698b19ab-d7d2-4454-9665-5442a8a483b6": "de566e33-3a1d-4175-bc11-9f2346fc2842",
+    "6c9012aa-8923-4712-977b-9de09a99f986": "c96c9b12-c58b-4c6f-bff7-4f9c9676b799",
+    "961d30e8-618a-4831-a166-cfa5acadf382": "585c7fd8-9e26-403c-8307-30d65c20f765",
+    "a3b2cef0-019d-449f-888c-1664551821c8": "28925c91-4671-45c3-acb6-0f1aa0ff92b4",
+    "a7366814-1c7f-43e3-9be6-3bfeadaa20d2": "f71576f6-22cd-4e61-836a-b23b6977f08c",
+    "b6118ed0-f1fa-47fb-8ebe-6e6db1d90e2f": "022a6327-951f-4bb3-b3d5-d3c82c787be2",
+    "bf1a5a38-afeb-461b-8754-bda02b6ba685": "8104c01b-8cfa-485e-87e7-c119cd7bb4b8",
+    "dbf323bf-ce00-4d71-b85b-e0351e43bdc9": "81897b22-2c74-4b14-bdec-9886a40222dc",
+    "debcbb4d-ab1c-4d78-9f06-ef21492b53e7": "10b1346b-40a4-438d-9197-e46dbe7d1285",
+    "e7e2654c-0fa8-4303-8f77-667d682fc29f": "9d2f1089-9b82-4b2a-98df-cd79459112bc",
+    "ead3dd0c-36ab-4693-9abc-087710feb2dc": "0ca4e9b5-cf5e-4723-80e2-67de7e690f25",
+    "eb92a74d-9ff4-4242-9c21-3b77b2e6aa10": "8a2e3f27-1424-4008-aba1-d3671aca8a64",
+    "ee5fbeae-7eed-4ae9-aa62-a0e304a8117d": "9943847b-1633-482e-ae3d-ee56bcc6ed9e"
+  },
+  "before_counts": {
+    "DRC violations": 107,
+    "unconnected pads": 50,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 114,
+    "unconnected pads": 36,
+    "Footprint errors": 0
+  },
+  "new_non_connectivity_findings": [
+    {
+      "category": "clearance",
+      "message": "Clearance violation (zone clearance 0.2000 mm; actual 0.1051 mm)",
+      "objects": "Local override; Severity: error\n    @(29.9542 mm, 49.8802 mm): Via [PCIE_CLK_P] on F.Cu - B.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on F.Cu",
+      "fingerprint": "8e2839767110182670d87507bd4f3b91fa7850fd32ac045637c52994c78c3669",
+      "section": "DRC violations"
+    },
+    {
+      "category": "clearance",
+      "message": "Clearance violation (zone clearance 0.2000 mm; actual 0.1051 mm)",
+      "objects": "Local override; Severity: error\n    @(29.9542 mm, 49.8802 mm): Via [PCIE_CLK_P] on F.Cu - B.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on In1.Cu",
+      "fingerprint": "f64f77a8fc177ffbb7e507493a97b8e7ffada9f869d4a134edd36b6e7cbefa82",
+      "section": "DRC violations"
+    },
+    {
+      "category": "clearance",
+      "message": "Clearance violation (zone clearance 0.2000 mm; actual 0.1051 mm)",
+      "objects": "Local override; Severity: error\n    @(29.9542 mm, 49.8802 mm): Via [PCIE_CLK_P] on F.Cu - B.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on In2.Cu",
+      "fingerprint": "587b4fcc4f99d7abb231f70bc8555b0f2d53510da4804ae40e8acec58a53c4b1",
+      "section": "DRC violations"
+    },
+    {
+      "category": "clearance",
+      "message": "Clearance violation (zone clearance 0.2000 mm; actual 0.1051 mm)",
+      "objects": "Local override; Severity: error\n    @(29.9542 mm, 49.8802 mm): Via [PCIE_CLK_P] on F.Cu - B.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on In3.Cu",
+      "fingerprint": "d0ecec621e8df399c1cb664e1d1e54ddf85f9b8dead62afb257e14f5d9d8d9ab",
+      "section": "DRC violations"
+    },
+    {
+      "category": "clearance",
+      "message": "Clearance violation (zone clearance 0.2000 mm; actual 0.1051 mm)",
+      "objects": "Local override; Severity: error\n    @(29.9542 mm, 49.8802 mm): Via [PCIE_CLK_P] on F.Cu - B.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on In4.Cu",
+      "fingerprint": "b29b4ea67a5e4390e28efc47514acff6f29b7825d068859230aa4e2ff9bb7abb",
+      "section": "DRC violations"
+    },
+    {
+      "category": "clearance",
+      "message": "Clearance violation (zone clearance 0.2000 mm; actual 0.1515 mm)",
+      "objects": "Local override; Severity: error\n    @(29.9542 mm, 49.8802 mm): Via [PCIE_CLK_P] on F.Cu - B.Cu\n    @(0.4000 mm, 0.4000 mm): Zone [GND] on B.Cu",
+      "fingerprint": "d7914416d022e0913e030084b756058b65b544bbcb618a4b99a7b8b0d59ee3fe",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_near_hole",
+      "message": "Drilled holes too close together (board setup constraints min 0.2495 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints; Severity: error\n    @(29.9542 mm, 49.8802 mm): Via [PCIE_CLK_P] on F.Cu - B.Cu\n    @(30.0500 mm, 49.9000 mm): Via [PCIE_CLK_P] on F.Cu - B.Cu",
+      "fingerprint": "650f1759c3b843dbc792c7e629d3bec0cab660298863257d060b237c40ac6d19",
+      "section": "DRC violations"
+    }
+  ],
+  "increased_net_open_counts": {},
+  "accepted_for_further_development": false,
+  "fabrication_approval": false,
+  "environment": {
+    "python": "3.11.2 (main, Oct  7 2026, 12:35:07) [GCC 12.2.0]",
+    "kicad": "7.0.11",
+    "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+    "KICAD7_FOOTPRINT_DIR": "/usr/share/kicad/footprints",
+    "command": [
+      "replay_copper_delta.py",
+      "/work/hardware/runs/route-electrical-13c-trimmed.kicad_pcb",
+      "/work/hardware/runs/route-verifier-19-inward-proof.kicad_pcb",
+      "/work/hardware/runs/route-electrical-14-pcie.kicad_pcb",
+      "/work/hardware/runs/route-combined-15-ground.kicad_pcb",
+      "--report-dir",
+      "/work/hardware/validation/ground-pcie-integration-01"
+    ]
+  }
+}

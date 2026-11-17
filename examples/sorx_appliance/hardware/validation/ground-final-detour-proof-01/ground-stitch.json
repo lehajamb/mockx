@@ -1,0 +1,328 @@
+{
+  "schema_version": 1,
+  "source_inputs_sha256": {
+    "/work/hardware/runs/route-verifier-16b-thermal-proof.kicad_pcb": "1a1e6fd5e32e3d71559aaaa40c57eeffb91364d11a3b47c790f18e899b945e6c",
+    "/work/hardware/runs/route-verifier-16b-thermal-proof.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/tools/ground_stitch.py": "944ed992d865e6dc428454b547959a7774e77d37ccb053391d76410e6606e12a",
+    "/work/hardware/tools/route_completion.py": "bc7d396d99c1dd4182b598bc17026cdc77ecd3429efb0606c2754ae052418923",
+    "/work/hardware/tools/proj.py": "ff52d56d41ec62ea47d282e4adf0618ec057c642114953b5858d273eeda7c704"
+  },
+  "sources_unchanged": true,
+  "tool_environment": {
+    "python": "3.11.2 (main, Oct  7 2026, 12:35:07) [GCC 12.2.0]",
+    "kicad": "7.0.11",
+    "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+    "command": [
+      "ground_stitch.py",
+      "/work/hardware/runs/route-verifier-16b-thermal-proof.kicad_pcb",
+      "/work/hardware/runs/route-verifier-18-ground-detour-proof.kicad_pcb",
+      "--report-dir",
+      "/work/hardware/validation/ground-final-detour-proof-01",
+      "--iterations",
+      "1",
+      "--detour-supply"
+    ]
+  },
+  "input": "/work/hardware/runs/route-verifier-16b-thermal-proof.kicad_pcb",
+  "input_sha256": "1a1e6fd5e32e3d71559aaaa40c57eeffb91364d11a3b47c790f18e899b945e6c",
+  "output": "/work/hardware/runs/route-verifier-18-ground-detour-proof.kicad_pcb",
+  "output_sha256": "9456e53ade81d8faed38fffea33c15c05cc6d7937d03bda08648e42cdca3d36f",
+  "initial_ground_groups": 20,
+  "remaining_ground_groups": 18,
+  "native_ground_open_items": 18,
+  "supply_detours": [
+    {
+      "old_uuid": "adc59167-b81a-4c81-96fb-b068c340c1df",
+      "net": "+1V8",
+      "layer": "In2.Cu",
+      "width_mm": 0.5,
+      "new_points_mm": [
+        [
+          56.9888,
+          45.7208
+        ],
+        [
+          59.8116,
+          45.7208
+        ],
+        [
+          60.6416,
+          45.4627
+        ],
+        [
+          62.3016,
+          45.4627
+        ],
+        [
+          62.8509,
+          45.7208
+        ]
+      ],
+      "new_uuids": [
+        "14c3eb82-b0bf-484d-a7e8-3a2a3fa0e26c",
+        "0585481f-c694-421d-a9ee-eb1e211ac34a",
+        "1437993b-cfc6-42d9-b049-8787ff7149d4",
+        "fe4ed6fd-033a-422c-89e9-cf36fd2f15ed"
+      ]
+    },
+    {
+      "old_uuid": "54e271aa-e582-494f-9446-6cd18f745fc2",
+      "net": "+1V8",
+      "layer": "In2.Cu",
+      "width_mm": 0.25,
+      "new_points_mm": [
+        [
+          78.4109,
+          39.284
+        ],
+        [
+          76.6438,
+          38.846
+        ],
+        [
+          76.6438,
+          36.026
+        ],
+        [
+          78.4109,
+          34.616
+        ],
+        [
+          78.4109,
+          30.9739
+        ]
+      ],
+      "new_uuids": [
+        "5c2bddef-7950-4ffe-90fa-f5146c36d35a",
+        "333a087f-47b7-46a7-b393-0b8c1ad07816",
+        "e1573104-fc49-4bd6-9dc4-aa507b690395",
+        "eec51b52-534e-4bf6-916a-380973f1df69"
+      ]
+    }
+  ],
+  "ground_escape_routes": [],
+  "vias_added": [
+    {
+      "position_mm": [
+        61.4716,
+        46.2927
+      ],
+      "layer_connected": "F.Cu",
+      "strategy": "overlap",
+      "target_pads": [
+        {
+          "reference": "C8",
+          "pad": "2",
+          "x_mm": 61.68,
+          "y_mm": 47.18
+        }
+      ],
+      "uuid": "35068724-fb4b-4d1b-b995-0eb9f5563f8e"
+    },
+    {
+      "position_mm": [
+        78.0538,
+        37.436
+      ],
+      "layer_connected": "F.Cu",
+      "strategy": "contained",
+      "target_pads": [
+        {
+          "reference": "C82",
+          "pad": "2",
+          "x_mm": 77.17,
+          "y_mm": 36.92
+        }
+      ],
+      "uuid": "873768c7-1c85-45dd-8a64-fe4ff611c16f"
+    }
+  ],
+  "unresolved_pads": [
+    [
+      {
+        "reference": "C88",
+        "pad": "2",
+        "x_mm": 68.77,
+        "y_mm": 46.11
+      }
+    ],
+    [
+      {
+        "reference": "C89",
+        "pad": "2",
+        "x_mm": 66.299999,
+        "y_mm": 46.1
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "11",
+        "x_mm": 108.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "179",
+        "x_mm": 64.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "195",
+        "x_mm": 60.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "204",
+        "x_mm": 58.6195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "209",
+        "x_mm": 57.3695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "229",
+        "x_mm": 52.3695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "242",
+        "x_mm": 49.1195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "243",
+        "x_mm": 48.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "C123",
+        "pad": "2",
+        "x_mm": 122.32,
+        "y_mm": 89.1
+      }
+    ],
+    [
+      {
+        "reference": "R20",
+        "pad": "2",
+        "x_mm": 16.96,
+        "y_mm": 35.76
+      }
+    ],
+    [
+      {
+        "reference": "U2",
+        "pad": "6",
+        "x_mm": 13.5375,
+        "y_mm": 14.25
+      },
+      {
+        "reference": "U2",
+        "pad": "10",
+        "x_mm": 15.75,
+        "y_mm": 14.9625
+      },
+      {
+        "reference": "U2",
+        "pad": "12",
+        "x_mm": 16.75,
+        "y_mm": 14.9625
+      },
+      {
+        "reference": "U2",
+        "pad": "13",
+        "x_mm": 17.4625,
+        "y_mm": 14.25
+      },
+      {
+        "reference": "U2",
+        "pad": "22",
+        "x_mm": 15.25,
+        "y_mm": 11.0375
+      },
+      {
+        "reference": "U2",
+        "pad": "25",
+        "x_mm": 15.5,
+        "y_mm": 13.0
+      }
+    ],
+    [
+      {
+        "reference": "C9",
+        "pad": "2",
+        "x_mm": 38.96,
+        "y_mm": 45.07
+      }
+    ],
+    [
+      {
+        "reference": "C87",
+        "pad": "2",
+        "x_mm": 64.06,
+        "y_mm": 42.03
+      }
+    ],
+    [
+      {
+        "reference": "C71",
+        "pad": "2",
+        "x_mm": 18.73,
+        "y_mm": 40.07
+      }
+    ],
+    [
+      {
+        "reference": "C67",
+        "pad": "2",
+        "x_mm": 22.94,
+        "y_mm": 35.91
+      }
+    ],
+    [
+      {
+        "reference": "U11",
+        "pad": "4",
+        "x_mm": 40.565,
+        "y_mm": 49.4
+      }
+    ]
+  ],
+  "before_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 42,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 40,
+    "Footprint errors": 0
+  },
+  "new_drc_findings": [],
+  "fabrication_approval": false
+}

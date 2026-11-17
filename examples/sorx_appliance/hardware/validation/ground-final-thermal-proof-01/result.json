@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "source_inputs_sha256": {
+    "/work/hardware/runs/route-verifier-15-ground-fanout-proof.kicad_pcb": "ac855757ec193249c91f337f699b696309c6226f2ec00523ed5191a209d4b5db",
+    "/work/hardware/runs/route-verifier-15-ground-fanout-proof.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/tools/thermal_ground_vias.py": "992777cd3c415230301b3ae7f4a6fb66f076eadde248a5bc3883823f132215e9",
+    "/work/hardware/tools/ground_stitch.py": "944ed992d865e6dc428454b547959a7774e77d37ccb053391d76410e6606e12a"
+  },
+  "sources_unchanged": true,
+  "output": "/work/hardware/runs/route-verifier-16-thermal-proof.kicad_pcb",
+  "output_sha256": "ac855757ec193249c91f337f699b696309c6226f2ec00523ed5191a209d4b5db",
+  "before_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 43,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 43,
+    "Footprint errors": 0
+  },
+  "new_non_connectivity_findings": [],
+  "thermal_vias": [
+    {
+      "reference": "U13",
+      "pad": "49",
+      "policy": {
+        "pad": "49",
+        "value": "KSZ9131RNX",
+        "offsets": [
+          -2,
+          -1,
+          0,
+          1,
+          2
+        ],
+        "basis": "Microchip DS00002841D Fig7-3 p145: 5x5, diameter0.30mm,pitch1.00mm; filled or tented against solder loss",
+        "reference": "https://ww1.microchip.com/downloads/en/DeviceDoc/00002841D.pdf"
+      },
+      "added": [],
+      "blocked_sites": [
+        [
+          72.6,
+          37.5
+        ],
+        [
+          71.6,
+          37.5
+        ],
+        [
+          70.6,
+          37.5
+        ],
+        [
+          69.6,
+          37.5
+        ],
+        [
+          68.6,
+          37.5
+        ],
+        [
+          72.6,
+          38.5
+        ],
+        [
+          71.6,
+          38.5
+        ],
+        [
+          70.6,
+          38.5
+        ],
+        [
+          69.6,
+          38.5
+        ],
+        [
+          68.6,
+          38.5
+        ],
+        [
+          72.6,
+          39.5
+        ],
+        [
+          71.6,
+          39.5
+        ],
+        [
+          70.6,
+          39.5
+        ],
+        [
+          69.6,
+          39.5
+        ],
+        [
+          68.6,
+          39.5
+        ],
+        [
+          72.6,
+          40.5
+        ],
+        [
+          71.6,
+          40.5
+        ],
+        [
+          70.6,
+          40.5
+        ],
+        [
+          69.6,
+          40.5
+        ],
+        [
+          68.6,
+          40.5
+        ],
+        [
+          72.6,
+          41.5
+        ],
+        [
+          71.6,
+          41.5
+        ],
+        [
+          70.6,
+          41.5
+        ],
+        [
+          69.6,
+          41.5
+        ],
+        [
+          68.6,
+          41.5
+        ]
+      ],
+      "complete_requested_pattern": false
+    },
+    {
+      "reference": "U2",
+      "pad": "25",
+      "policy": {
+        "pad": "25",
+        "value": "STUSB4500",
+        "offsets": [
+          -0.5,
+          0.5
+        ],
+        "basis": "STUSB4500 Rev8 Table1 requires EP to GND; 2x2 via pattern is an engineering assumption, not an ST specification",
+        "reference": "https://www.st.com/resource/en/datasheet/stusb4500.pdf"
+      },
+      "added": [],
+      "blocked_sites": [
+        [
+          15.0,
+          12.5
+        ],
+        [
+          15.0,
+          13.5
+        ],
+        [
+          16.0,
+          12.5
+        ],
+        [
+          16.0,
+          13.5
+        ]
+      ],
+      "complete_requested_pattern": false
+    }
+  ],
+  "accepted_for_further_development": false,
+  "fabrication_approval": false,
+  "required_fabrication_process": "filled and copper-capped via-in-pad, assembler/fabricator qualification still open",
+  "thermal_performance_qualified": false,
+  "environment": {
+    "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+    "KICAD7_FOOTPRINT_DIR": "/usr/share/kicad/footprints",
+    "kicad": "7.0.11",
+    "command": [
+      "thermal_ground_vias.py",
+      "/work/hardware/runs/route-verifier-15-ground-fanout-proof.kicad_pcb",
+      "/work/hardware/runs/route-verifier-16-thermal-proof.kicad_pcb",
+      "--report-dir",
+      "/work/hardware/validation/ground-final-thermal-proof-01"
+    ]
+  }
+}

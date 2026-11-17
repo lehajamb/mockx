@@ -1,0 +1,8 @@
+test_opposite_side_foreign_track_still_blocks (test_thermal_ground_vias.ThermalViaTests.test_opposite_side_foreign_track_still_blocks) ... ok
+test_other_copper_pads_still_block (test_thermal_ground_vias.ThermalViaTests.test_other_copper_pads_still_block) ... ok
+test_own_ep_paste_window_is_not_foreign_copper (test_thermal_ground_vias.ThermalViaTests.test_own_ep_paste_window_is_not_foreign_copper) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.017s
+
+OK

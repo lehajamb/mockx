@@ -1,0 +1,1 @@
+Detached-wrapper retention resolved the prior Remove/GetNetsByName failure. Native insertion then failed because KiCad7 exposes m_Uuid as read-only. No candidate output was produced.

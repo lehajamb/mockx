@@ -1,0 +1,16 @@
+test_opposite_side_foreign_track_still_blocks (test_thermal_ground_vias.ThermalViaTests.test_opposite_side_foreign_track_still_blocks) ... ok
+test_other_copper_pads_still_block (test_thermal_ground_vias.ThermalViaTests.test_other_copper_pads_still_block) ... ok
+test_own_ep_paste_window_is_not_foreign_copper (test_thermal_ground_vias.ThermalViaTests.test_own_ep_paste_window_is_not_foreign_copper) ... FAIL
+
+======================================================================
+FAIL: test_own_ep_paste_window_is_not_foreign_copper (test_thermal_ground_vias.ThermalViaTests.test_own_ep_paste_window_is_not_foreign_copper)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_thermal_ground_vias.py", line 22, in test_own_ep_paste_window_is_not_foreign_copper
+    self.assertFalse(forbidden_sites(b,p).intersects(Point(10,10)))
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.038s
+
+FAILED (failures=1)

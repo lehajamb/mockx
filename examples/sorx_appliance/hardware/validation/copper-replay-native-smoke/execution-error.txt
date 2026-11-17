@@ -1,0 +1,1 @@
+Native preflight failed before candidate output. KiCad7 SWIG with concurrent board lifetimes: GetNetsByName -> GetNetInfo returned SwigPyObject without NetsByName after track removal. Exact traceback retained in tool transcript; source board files were not modified.

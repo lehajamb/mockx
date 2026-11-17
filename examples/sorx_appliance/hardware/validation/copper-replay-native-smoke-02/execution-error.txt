@@ -1,0 +1,1 @@
+Board-lifetime isolation alone did not resolve the native SWIG failure. GetNetsByName again failed after removed track wrappers went out of scope; no candidate output was produced.

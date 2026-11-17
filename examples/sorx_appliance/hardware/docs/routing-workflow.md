@@ -140,3 +140,30 @@ decoupling connections (C14/C15). They must remain short local loops and
 are excluded from the generic signal router; the ordinary-net classifier
 previously admitted them. Their placement and thermal-via interaction require
 a coordinated electrical layout correction.
+
+## Integrating independent copper proofs
+
+`replay_copper_delta.py BASE PROOF CURRENT OUTPUT --report-dir NEW_DIR`
+replays only the exact difference between a base board and a reviewed proof.
+It requires the proof to leave footprint/pad identities, geometry and net
+assignments unchanged. Each removed UUID must still have its exact original
+geometry in CURRENT; any conflict aborts. Every newly created copper object
+is compared with the proof geometry, while unrelated current copper must
+remain unchanged. KiCad assigns new UUIDs, and the report records the full
+proof-to-output mapping. Existing CURRENT project rules are retained.
+
+Fresh native DRC before and after must show fewer required opens, no increased
+open count on any net, and no new other finding. This is a development
+acceptance check; it does not approve fabrication or substitute for high-speed,
+stackup, thermal or mechanical qualification. The layer count is checked;
+engineering review still owns the full stackup. All input hashes must stay
+unchanged during the run.
+
+The native smoke reproduced a known12-open improvement exactly, with no new
+DRC findings. Three rejected native executions are retained: source inventory
+process isolation alone did not fix a KiCad7 ownership error; detached track
+wrappers also had to stay alive during native work. The next run revealed
+that KiCad7's UUID property is read-only, so replay now records newly assigned
+UUIDs instead of attempting to set them. The accepted evidence is in
+`validation/copper-replay-native-smoke-04/`; earlier smoke directories are
+failed executions, not accepted candidates.
