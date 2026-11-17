@@ -1,0 +1,37 @@
+{
+  "fabrication_ready": false,
+  "source_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "tool_sha256": "89ca6041bfa3ecf64f2654a1471263f5ec13ad850a66f0f8073eaa4ea55b1cca",
+  "command": [
+    "/usr/bin/python3",
+    "/work/tools/correct_pcie.py",
+    "validation/high-speed/pcie-11/filtered.kicad_pcb",
+    "runs/pcie-trial-11.kicad_pcb",
+    "--evidence",
+    "validation/high-speed/pcie-11",
+    "--worker"
+  ],
+  "returncode": 0,
+  "complete_paths": true,
+  "native_pcie_errors": [],
+  "planar_matching_pass": true,
+  "pair_summary": [
+    {
+      "name": "PCIE_TX",
+      "errors": [],
+      "planar_skew_mm": 0.032426078107551604,
+      "via_symmetry_pass": true,
+      "via_budget_pass": true,
+      "layer_sequence_symmetry_pass": true
+    },
+    {
+      "name": "PCIE_CLK",
+      "errors": [],
+      "planar_skew_mm": 0.047993024362362746,
+      "via_symmetry_pass": true,
+      "via_budget_pass": true,
+      "layer_sequence_symmetry_pass": true
+    }
+  ],
+  "output_sha256": "be0e7b2efc6d55d5b02c0e0923cbbab927f18c36e189ecd4d92fb11a7ceba647"
+}

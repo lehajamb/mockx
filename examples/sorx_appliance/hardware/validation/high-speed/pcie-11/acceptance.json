@@ -1,0 +1,80 @@
+{
+  "source": "examples\\sorx_appliance\\hardware\\runs\\route-electrical-13c-trimmed.kicad_pcb",
+  "output": "examples\\sorx_appliance\\hardware\\runs\\route-electrical-14-pcie.kicad_pcb",
+  "source_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "output_sha256": "be0e7b2efc6d55d5b02c0e0923cbbab927f18c36e189ecd4d92fb11a7ceba647",
+  "before_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 107,
+    "unconnected pads": 50,
+    "Footprint errors": 0
+  },
+  "new_nonopen_findings": [],
+  "net_open_counts_before": {
+    "GND": 32,
+    "USB1_OC#": 1,
+    "USB1_VBUS_DET": 1,
+    "FRAM_MOSI": 1,
+    "+1V8": 2,
+    "MG_TXD0": 1,
+    "PD_ALERT#": 1,
+    "PCIE_CLK_N": 1,
+    "PCIE_TX_N": 2,
+    "PCIE_RST#_1V8": 1,
+    "VBUS_IN": 1,
+    "PD_ATTACH#": 2,
+    "PD_EN_SNK#": 1,
+    "+1V2_PHY": 1,
+    "PCIE_RST#_3V3": 1,
+    "OE_JTAG_PU": 1,
+    "MG_LED2": 2,
+    "VBUS_DBG_RAW": 2
+  },
+  "net_open_counts_after": {
+    "GND": 31,
+    "USB1_OC#": 1,
+    "USB1_VBUS_DET": 1,
+    "FRAM_MOSI": 1,
+    "+1V8": 2,
+    "MG_TXD0": 1,
+    "PD_ALERT#": 1,
+    "PCIE_RST#_1V8": 1,
+    "VBUS_IN": 1,
+    "PD_ATTACH#": 2,
+    "PD_EN_SNK#": 1,
+    "+1V2_PHY": 1,
+    "PCIE_RST#_3V3": 1,
+    "OE_JTAG_PU": 1,
+    "MG_LED2": 2,
+    "VBUS_DBG_RAW": 2
+  },
+  "checks": {
+    "targeted_geometric_checks_pass": true,
+    "fabrication_ready": false,
+    "failures": [],
+    "native_pcie_errors": [],
+    "native_counts": {
+      "DRC violations": 107,
+      "unconnected pads": 50,
+      "Footprint errors": 0
+    },
+    "not_qualified": [
+      "layer-specific impedance and delay",
+      "escape/coupling discontinuities",
+      "reference transitions and return inductance",
+      "whole-board electrical and mechanical release gates"
+    ]
+  },
+  "tool_hashes": {
+    "correct_pcie.py": "1fbe566fb2006ccec1bd4ae8427613bce68a91f285e75c3c7182103c268acacf",
+    "pcie_candidate_checks.py": "5c1038c5a1204433338ab855c2c44a0eab900f9edc12126ef42d4dd307d4f464",
+    "high_speed_audit.py": "60625a45ec78d7f8960ad164629d9a82af111b118c3ad3255b079afae73c171f",
+    "verification_core.py": "c786006d083231cda6adc11628df176661e14214cfd2d5544b7fb422dd6250b0",
+    "route_completion.py": "bc7d396d99c1dd4182b598bc17026cdc77ecd3429efb0606c2754ae052418923",
+    "proj.py": "ff52d56d41ec62ea47d282e4adf0618ec057c642114953b5858d273eeda7c704"
+  }
+}
