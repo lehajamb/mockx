@@ -60,6 +60,17 @@ class MechanicalRegressions(unittest.TestCase):
             gen_mech.P["U_TEST"]["side"]="B"
             self.assertTrue(gen_mech.module_keepout_findings()["pass"])
 
+    def test_component_pair_screen_samples_bounds_only_linearly(self):
+        # Supplier solids make BoundingBox expensive; an O(N^2) CAD call loop
+        # exceeded six minutes before even reaching the exact intersections.
+        from types import SimpleNamespace
+        pcb, parts = gen_mech.board_assembly()
+        base, lid = gen_mech.enclosure(gen_mech.openings())
+        bounds=SimpleNamespace(xmin=0,xmax=1,ymin=0,ymax=1,zmin=0,zmax=1)
+        with patch.object(gen_mech.cq.Shape,"BoundingBox",return_value=bounds) as sample, patch.object(gen_mech,"intersection_volume",return_value=0):
+            gen_mech.evaluate_fit(pcb,parts,base,lid,gen_mech.fan_body(),gen_mech.openings())
+        self.assertLessEqual(sample.call_count,8*len(parts))
+
     def test_fan_has_vertical_tolerance_allowance(self):
         self.assertGreaterEqual(gen_mech.ZC - gen_mech.ZF - gen_mech.FAN["size"], 1.0)
 

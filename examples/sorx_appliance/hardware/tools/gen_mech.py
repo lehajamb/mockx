@@ -8,6 +8,7 @@ Writes mech/*.step, *.stl, *.3mf, fit-check SVGs and mech/fit-check.json.
 import argparse, hashlib, json, math, os, sys
 from pathlib import Path
 import cadquery as cq
+import vendor_geometry
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MECH = os.path.join(HERE, '..', 'mech'); BUILD = os.path.join(HERE, '..', 'hw', 'build')
@@ -27,7 +28,6 @@ PARTS_PATH = Path(BUILD) / 'mech_parts.json'
 PCB_PATH = Path(HERE).parent / 'hw' / 'sorx.kicad_pcb'
 P = {}  # Loaded explicitly after CLI paths are known; failures must write a fresh report.
 HEATSINK_MPN = '23111101'
-HEATSINK_TOP = 21.27  # conservative upper bound: 7 mm support + full 14.27 mm supplier height
 MOUNT_LOCAL = {'H5': (-32.6055, 23.074, 2.5), 'H6': (32.5945, 23.074, 2.5),
                'H7': (-40.0055, -7.926, 7.0), 'H8': (39.9945, -7.926, 7.0)}
 NONPHYSICAL_PREFIXES = ('MountingHole_3.2mm_M3', 'Fiducial_', 'TestPoint_Pad_')
@@ -65,13 +65,8 @@ def board_assembly():
         if p['fp'].startswith('SODIMM'):
             parts['J1'] = box(x1, -P[r]['y'] + 2.2 - 8.4, x2, -P[r]['y'] + 14.2, 0, 5.2)        # socket body
             xs, ys = p['x'], -p['y']
-            parts['M1'] = box(xs - 34.8, ys - 26.5, xs + 34.8, ys + 8.5, 2.5, 2.5 + 1.2).union(box(xs - 30, ys - 24, xs + 30, ys + 2, 3.7, 6.7))  # module PCB + parts
-            # Manufacturer-specific conservative envelope, not a claim of supplier STEP equivalence.
-            # The physical Type 1 has stepped feet; a full upper envelope conservatively bounds its fins.
-            parts['HS1'] = box(xs - 42.8055, ys - 27.074, xs + 42.7945, ys + 10.926, 7.0, HEATSINK_TOP)
-            for mr in ('H5', 'H6'):
-                dx, dy, _ = MOUNT_LOCAL[mr]
-                parts['M1'] = parts['M1'].cut(cq.Workplane('XY').circle(1.1).extrude(8).translate((xs + dx, ys - dy, 0)))
+            supplier, _tim_reference = vendor_geometry.supplier_parts(p['x'], p['y'])
+            parts.update(supplier)
             continue
         if p['fp'].startswith('SMA'):
             parts[r] = box(p['x'] - 3.2, 0, p['x'] + 3.2, 11.5, -T / 2 - 3.2, -T / 2 + 3.2); continue
@@ -210,7 +205,7 @@ def drawings(op, parts):
         a.add_patch(Rectangle((bx[0], bx[1]), bx[2] - bx[0], bx[3] - bx[1], fill=big_, color='#90a4ae' if big_ else '#555555', alpha=0.9 if big_ else 0.5, lw=0.4))
         if big_: a.text((bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2, r, ha='center', va='center', fontsize=6)
     xs, ys = P['J1']['x'], -P['J1']['y']
-    a.add_patch(Rectangle((xs - 34.8, ys - 26.5), 69.6, 35, fill=False, ec='#1565c0', lw=1.2)); a.text(xs, ys - 12, 'Verdin SoM + heatsink', ha='center', color='#1565c0', fontsize=8)
+    a.add_patch(Rectangle((xs - 34.8055, ys - 27.074), 69.6, 35, fill=False, ec='#1565c0', lw=1.2)); a.text(xs, ys - 12, 'Verdin SoM + heatsink', ha='center', color='#1565c0', fontsize=8)
     a.add_patch(Rectangle((X1 - FAN['thick'], FAN['yc'] - 20), FAN['thick'], 40, color='#212121', alpha=0.8)); a.text(X1 - 18, FAN['yc'], '40 mm fan', ha='right', va='center', fontsize=8)
     for (x, y) in HOLES: a.add_patch(Circle((x, -y), 3.5, fill=False, ec='#c62828'))
     for name, (w, x1, x2, z1, z2) in op.items():
@@ -238,9 +233,8 @@ def intersection_volume(shell, component, label):
         raise RuntimeError(f"{label}: intersection failed: {error}") from error
 
 
-def envelope_overlap(a, b):
+def envelope_overlap(x, y):
     """Only discard separated bounding boxes; never use boxes to declare a collision."""
-    x, y = a.val().BoundingBox(), b.val().BoundingBox()
     return all(min(getattr(x, axis+'max'), getattr(y, axis+'max')) -
                max(getattr(x, axis+'min'), getattr(y, axis+'min')) > 1e-7 for axis in ('x','y','z'))
 
@@ -266,7 +260,7 @@ def source_binding_valid(parts_path, pcb_path, footprint_count):
 
 def module_keepout_findings():
     """Conservative full module underbody screen; edge-zone exceptions need exact vendor qualification."""
-    j = P['J1']; bounds = [j['x']-34.8,j['y']-8.5,j['x']+34.8,j['y']+26.5]
+    j = P['J1']; bounds = [j['x']-34.8055,j['y']-7.926,j['x']+34.7945,j['y']+27.074]
     overlaps = []
     for ref,part in P.items():
         if part['side'] != 'F' or ref in ('J1','H5','H6') or part['fp'].startswith(NONPHYSICAL_PREFIXES):
@@ -284,6 +278,9 @@ def evaluate_fit(pcb, parts, base, lid, fan, op):
            'source_pcb_sha256': sha256(PCB_PATH),
            'model_inputs_sha256': {'mech_parts.json': sha256(PARTS_PATH),
                                   'gen_mech.py': sha256(__file__)}, 'blockers': []}
+    res['supplier_geometry_sha256'] = vendor_geometry.provenance()
+    res['thermal_interface'] = {'modeled_as_rigid_component': False, 'nominal_uncompressed_thickness_mm': 3.175,
+        'status': 'BLOCKED: exact module revision, CPU height, TIM compression/load and V1.1B material require qualification.'}
     res['source_binding_valid'] = source_binding_valid(PARTS_PATH, PCB_PATH, len(P))
     if not res['source_binding_valid']:
         res['blockers'].append('Placement data lacks a matching PCB/hash provenance sidecar; rerun mech_export.py.')
@@ -303,10 +300,11 @@ def evaluate_fit(pcb, parts, base, lid, fan, op):
     # This explicit pair is supported by the Toradex carrier guide, not a category-wide waiver.
     intended_contacts = {frozenset(('J1','M1')): 'SoM edge connector insertion; Toradex carrier guide section 4'}
     refs = list(parts)
+    bounds = {ref: solid.val().BoundingBox() for ref, solid in parts.items()}
     enclosure_maximum = maximum
     for i, ref in enumerate(refs):
         for other in refs[i+1:]:
-            if frozenset((ref, other)) in intended_contacts or not envelope_overlap(parts[ref], parts[other]):
+            if frozenset((ref, other)) in intended_contacts or not envelope_overlap(bounds[ref], bounds[other]):
                 continue
             try:
                 volume = intersection_volume(parts[ref], parts[other], ref+':'+other)
@@ -330,11 +328,12 @@ def evaluate_fit(pcb, parts, base, lid, fan, op):
         res['ports'].append({'port':name,'wall':wall,'ref':ref or 'D4-D10','opening_x':[x1,x2],
                              'opening_z':[z1,z2],'margins':margins,'ok':min(margins.values())>=0.25})
     bottom = max((-(s.val().BoundingBox().zmin+T) for r,s in parts.items() if r in P and P[r]['side']=='B'),default=0)
-    res['clearances']={'heatsink_top_to_lid_mm':round(ZC-HEATSINK_TOP,3),'magjack_top_to_lid_mm':round(ZC-13.6,3),
+    heatsink_top=parts['HS1'].val().BoundingBox().zmax
+    res['clearances']={'heatsink_top_to_lid_mm':round(ZC-heatsink_top,3),'magjack_top_to_lid_mm':round(ZC-13.6,3),
         'internal_height_mm':round(ZC-ZF,3),'fan_height_mm':FAN['size'],'fan_vertical_allowance_mm':round(ZC-ZF-FAN['size'],3),
         'bottom_parts_to_floor_mm':round(STANDOFF-bottom,3),'outer_mm':[OUT_W,round(Y1-Y0+2*WALL,3),OUT_H]}
     for name,actual,required in [('fan_top_mm',(ZC-ZF-FAN['size'])/2,0.5),('fan_bottom_mm',(ZC-ZF-FAN['size'])/2,0.5),
-                               ('bottom_parts_to_floor_mm',STANDOFF-bottom,1.0),('heatsink_to_lid_mm',ZC-HEATSINK_TOP,1.0)]:
+                               ('bottom_parts_to_floor_mm',STANDOFF-bottom,1.0),('heatsink_to_lid_mm',ZC-heatsink_top,1.0)]:
         res['clearance_checks'][name]={'actual_mm':round(actual,4),'required_mm':required,'ok':actual>=required}
     res['module_keepout']=module_keepout_findings()
     if not res['module_keepout']['pass']:
@@ -354,7 +353,7 @@ def evaluate_fit(pcb, parts, base, lid, fan, op):
                      'height_records_requiring_vendor_qualification':sorted(unqualified),
                      'component_to_component_checked':True,'intended_contact_pairs':[{'refs':sorted(k),'basis':v} for k,v in intended_contacts.items()]}
     res['blockers'] += ['Envelope heights from the prior design and inferred package bounds require exact-MPN maximum-height qualification.',
-                       'Heatsink envelope bounds Type 1 23111101; supplier geometry/TIM compression and assembly access require qualification.',
+                       'Supplier Type 1 metal and screw geometry are placed; exact module revision, V1.1B TIM compression/load and assembly access remain unqualified.',
                        '1.5 mm floor/lid and fan nominal dimensions require enclosure-process and supplier tolerance/strength sign-off.',
                        'Cable plug/latch and microSD removal access envelopes have not been qualified.']
     res['physical_validation_pending']=['Thermal soak, airflow, connector insertion and assembly measurements on physical hardware.']

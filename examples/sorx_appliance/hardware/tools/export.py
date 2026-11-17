@@ -9,6 +9,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from kicad_environment import kicad_environment
 from verification_core import (digest, run_tool, source_hashes, source_identity,
                                utc_now, validate_release_report)
 
@@ -25,6 +26,7 @@ def load_report(root):
 
 def export(root=ROOT, development=False):
     root = Path(root).resolve()
+    tool_env = kicad_environment()
     inputs = source_hashes(root)
     report_path = report = None
     if development:
@@ -39,6 +41,8 @@ def export(root=ROOT, development=False):
         validate_release_report(report, root)
         if report["environment"]["container_image"] != os.environ.get("SORX_IMAGE_ID"):
             raise ValueError("Export must use the immutable tool image recorded by verification")
+        if report["environment"].get("KICAD7_FOOTPRINT_DIR") != tool_env["KICAD7_FOOTPRINT_DIR"]:
+            raise ValueError("Export must use the footprint environment recorded by verification")
     import pcbnew
     board = pcbnew.LoadBoard(str(root / "hw/sorx.kicad_pcb"))
     copper = ["F.Cu"] + [f"In{i}.Cu" for i in range(1, board.GetCopperLayerCount() - 1)] + ["B.Cu"]
@@ -52,13 +56,14 @@ def export(root=ROOT, development=False):
     result = {"schema_version": 1, "started_utc": utc_now(), "source_hashes": inputs,
               "source_identity": source_identity(inputs), "development": development,
               "fabrication_approval": False, "commands": [], "complete": False,
-              "environment": {"python": sys.version, "container_image": os.environ.get("SORX_IMAGE_ID", "UNRECORDED")}}
+              "environment": {"python": sys.version, "container_image": os.environ.get("SORX_IMAGE_ID", "UNRECORDED"),
+                              "KICAD7_FOOTPRINT_DIR": tool_env["KICAD7_FOOTPRINT_DIR"]}}
     status = "NOT READY FOR FABRICATION — DEVELOPMENT EXPORT" if development else "FABRICATION CANDIDATE — PHYSICAL BRING-UP PENDING"
     (package / "STATUS.txt").write_text(status + "\n", encoding="utf-8")
 
     def run(name, arguments, expected=()):
         record = run_tool(name, ["kicad-cli"] + [str(x) for x in arguments], root / "hw",
-                          target / "logs", expected)
+                          target / "logs", expected, env=tool_env)
         result["commands"].append(record)
         if not record["success"]:
             raise RuntimeError(f"{name} failed; incomplete outputs retained, no archive created")

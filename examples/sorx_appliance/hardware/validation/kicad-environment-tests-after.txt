@@ -1,0 +1,9 @@
+test_invalid_explicit_library_is_not_silently_replaced (test_kicad_environment.KiCadEnvironmentTests.test_invalid_explicit_library_is_not_silently_replaced) ... ok
+test_missing_variable_uses_verified_installed_library (test_kicad_environment.KiCadEnvironmentTests.test_missing_variable_uses_verified_installed_library) ... ok
+test_partial_library_is_rejected (test_kicad_environment.KiCadEnvironmentTests.test_partial_library_is_rejected) ... ok
+test_subprocess_receives_and_records_explicit_library_variable (test_kicad_environment.KiCadEnvironmentTests.test_subprocess_receives_and_records_explicit_library_variable) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.120s
+
+OK

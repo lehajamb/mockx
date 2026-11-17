@@ -12,6 +12,7 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from kicad_environment import kicad_environment
 from verification_core import (apply_waivers, digest, engineering_failures, mechanical_failures,
                                parse_drc, parse_erc, run_tool, scratch_project, source_hashes,
                                source_identity, utc_now)
@@ -21,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def verify(root=ROOT, run_id=None, cadquery_python="/opt/cq/bin/python"):
     root = Path(root).resolve()
+    tool_env = kicad_environment()
     run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     if Path(run_id).name != run_id or run_id in (".", ".."):
         raise ValueError("run-id must be a single directory name")
@@ -36,7 +38,8 @@ def verify(root=ROOT, run_id=None, cadquery_python="/opt/cq/bin/python"):
         result["git_revision"] = git.stdout.strip() if git.returncode == 0 else None
     except OSError:
         result["git_revision"] = None
-    result["environment"] = {"python": sys.version, "container_image": os.environ.get("SORX_IMAGE_ID", "UNRECORDED")}
+    result["environment"] = {"python": sys.version, "container_image": os.environ.get("SORX_IMAGE_ID", "UNRECORDED"),
+                             "KICAD7_FOOTPRINT_DIR": tool_env["KICAD7_FOOTPRINT_DIR"]}
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", result["environment"]["container_image"]):
         errors.append("Immutable tool image identity not recorded; set SORX_IMAGE_ID through the dedicated launcher")
     with tempfile.TemporaryDirectory(prefix="sorx-verify-") as temp:
@@ -52,7 +55,7 @@ def verify(root=ROOT, run_id=None, cadquery_python="/opt/cq/bin/python"):
             shutil.copy2(capture, archived)
 
         def execute(name, command, outputs=(), timeout=600):
-            record = run_tool(name, command, tools, run_dir, outputs, timeout)
+            record = run_tool(name, command, tools, run_dir, outputs, timeout, env=tool_env)
             result["commands"].append(record)
             if not record["success"]:
                 errors.append(f"{name}: subprocess failed or required output missing")
@@ -67,7 +70,7 @@ def verify(root=ROOT, run_id=None, cadquery_python="/opt/cq/bin/python"):
                 errors.append(f"{name}: {type(error).__name__}: {error}")
                 result["checks"][name] = {"status": "ERROR", "error": str(error)}
 
-        version = run_tool("kicad-version", ["kicad-cli", "version"], tools, run_dir)
+        version = run_tool("kicad-version", ["kicad-cli", "version"], tools, run_dir, env=tool_env)
         result["commands"].append(version)
         if not version["success"]:
             errors.append("KiCad version could not be recorded")

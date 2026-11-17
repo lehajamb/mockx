@@ -1,0 +1,7 @@
+test_scratch_contains_vendor_inputs_without_old_reports (test_vendor_binding.VendorBindingTests.test_scratch_contains_vendor_inputs_without_old_reports) ... ok
+test_vendor_asset_change_changes_source_identity (test_vendor_binding.VendorBindingTests.test_vendor_asset_change_changes_source_identity) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.055s
+
+OK

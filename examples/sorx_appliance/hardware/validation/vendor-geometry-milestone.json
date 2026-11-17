@@ -1,0 +1,27 @@
+{
+  "status": "CHECKER VALIDATED; DESIGN STILL BLOCKED",
+  "regression_counts": {
+    "mechanical": 9,
+    "supplier_geometry": 3,
+    "vendor_source_binding": 2,
+    "verification_core": 27
+  },
+  "before": {
+    "bounds_calls": 106643,
+    "supplier_source_binding_tests_failed": 2,
+    "long_mechanical_test": "Stopped own container after more than six minutes; not a passing result"
+  },
+  "after": {
+    "mechanical_suite_seconds": 30.317,
+    "mechanical_suite_returncode": 0,
+    "source_bound_current_fit_returncode": 1
+  },
+  "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "pcb": "runs/route-electrical-09-branches.kicad_pcb",
+  "pcb_sha256": "e59b8ff8c62ef4b0a7e5d2aacf1f91423f1c1674f42faf68698a1e30af80653c",
+  "limits": [
+    "J1 is still an approximate body envelope; supplier socket download blocked HTTP403.",
+    "Supplier native screw/metal overlaps need review; no waiver applied.",
+    "Physical TIM, tolerances, access and thermal requirements remain open."
+  ]
+}

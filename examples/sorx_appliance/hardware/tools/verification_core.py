@@ -27,6 +27,7 @@ def source_hashes(root):
         for pattern in patterns:
             candidates.update((root / folder).glob(pattern))
     candidates.update((root / "hw/sorx.pretty").glob("*.kicad_mod"))
+    candidates.update((root / "mech/vendor").rglob("*"))
     candidates.update(p for p in (root / "tools/env").glob("*")
                       if p.suffix in (".py", ".sh", ".ps1", ".json", ".txt", ".lock") or p.name.startswith("Dockerfile"))
     for name in ("validation/drc-waivers.json",):
@@ -42,6 +43,8 @@ def scratch_project(root, dest):
     root, dest = Path(root), Path(dest)
     (dest / "hw/build").mkdir(parents=True)
     (dest / "mech").mkdir()
+    if (root / "mech/vendor").is_dir():
+        shutil.copytree(root / "mech/vendor", dest / "mech/vendor")
     (dest / "docs/reports").mkdir(parents=True)
     shutil.copytree(root / "tools", dest / "tools", ignore=shutil.ignore_patterns("__pycache__", "env", "tests"))
     shutil.copytree(root / "bom", dest / "bom")
@@ -51,7 +54,7 @@ def scratch_project(root, dest):
     shutil.copytree(root / "hw/sorx.pretty", dest / "hw/sorx.pretty")
     return dest
 
-def run_tool(name, command, cwd, run_dir, outputs=(), timeout=600):
+def run_tool(name, command, cwd, run_dir, outputs=(), timeout=600, env=None):
     """Delete declared scratch outputs, capture status, and never accept output after a failure."""
     run_dir = Path(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -63,9 +66,11 @@ def run_tool(name, command, cwd, run_dir, outputs=(), timeout=600):
             p.unlink()
         p.parent.mkdir(parents=True, exist_ok=True)
     record = {"name": name, "command": [str(x) for x in command], "started_utc": utc_now()}
+    if env is not None:
+        record["environment"] = {key: env[key] for key in ("KICAD7_FOOTPRINT_DIR",) if key in env}
     start = time.monotonic()
     try:
-        completed = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        completed = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=env)
         record.update(returncode=completed.returncode, stdout=completed.stdout, stderr=completed.stderr)
     except (OSError, subprocess.TimeoutExpired) as error:
         record.update(returncode=None, stdout="", stderr=str(error))

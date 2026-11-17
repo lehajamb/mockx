@@ -128,3 +128,26 @@ malformed reports, exact waiver matching, mechanical failures, source/evidence
 binding, safe imports and refusal to approve incomplete exports. They require
 only the Python standard library; KiCad and CadQuery integration is checked
 separately in the locked tool environment.
+
+## Headless KiCad library resolution
+
+The dedicated launcher sets `KICAD7_FOOTPRINT_DIR=/usr/share/kicad/footprints`.
+The pinned image's global footprint table references this variable, but the
+headless Python entry point did not initialize it. Consequently a valid
+standard footprint appeared absent. Merely copying the local project table
+did not resolve the problem. This was an environment defect, not a waiver.
+
+The [isolated comparison](../validation/library-resolution-01/result.json)
+used one byte-identical checkpoint and three fresh directories. Supplying
+the variable removed exactly 199 `lib_footprint_issues` findings (319 to 120
+other findings); all 72 required opens and every other category stayed the
+same. Earlier raw reports remain unchanged. Counts from different tool
+environments must not be presented as PCB improvements.
+
+`kicad_environment.py` validates the installed library before each verifier
+or exporter starts. An explicitly configured missing or partial library
+fails instead of silently falling back. Subprocess records capture this
+allowlisted variable, and release export requires the verified value. The
+fixture regressions prove missing/invalid paths and propagation to a child
+process; the dedicated launcher smoke records the installed path, image
+identity and an actual standard footprint loaded through pcbnew.

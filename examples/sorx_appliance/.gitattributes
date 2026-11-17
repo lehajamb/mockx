@@ -2,3 +2,7 @@
 baseline/** -text
 hardware/** -text
 reference_images/** -text
+
+# Supplier STEP and license artifacts are immutable, hash-bound upstream bytes.
+hardware/mech/vendor/**/*.step -diff
+hardware/mech/vendor/**/*-README.txt -diff
