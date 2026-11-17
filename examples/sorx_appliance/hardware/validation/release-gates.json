@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "source_identity": null,
+  "gates": {
+    "R01": {
+      "status": "OPEN",
+      "reason": "Independent engineering implementation and closure evidence pending",
+      "reviewer": null,
+      "evidence": []
+    },
+    "R02": {
+      "status": "OPEN",
+      "reason": "Independent engineering implementation and closure evidence pending",
+      "reviewer": null,
+      "evidence": []
+    },
+    "R03": {
+      "status": "OPEN",
+      "reason": "Independent engineering implementation and closure evidence pending",
+      "reviewer": null,
+      "evidence": []
+    },
+    "R04": {
+      "status": "OPEN",
+      "reason": "Independent engineering implementation and closure evidence pending",
+      "reviewer": null,
+      "evidence": []
+    },
+    "R05": {
+      "status": "OPEN",
+      "reason": "Independent engineering implementation and closure evidence pending",
+      "reviewer": null,
+      "evidence": []
+    },
+    "R06": {
+      "status": "OPEN",
+      "reason": "Independent engineering implementation and closure evidence pending",
+      "reviewer": null,
+      "evidence": []
+    },
+    "R07": {
+      "status": "OPEN",
+      "reason": "Independent engineering implementation and closure evidence pending",
+      "reviewer": null,
+      "evidence": []
+    },
+    "R08": {
+      "status": "OPEN",
+      "reason": "Independent engineering implementation and closure evidence pending",
+      "reviewer": null,
+      "evidence": []
+    },
+    "R09": {
+      "status": "OPEN",
+      "reason": "Independent engineering implementation and closure evidence pending",
+      "reviewer": null,
+      "evidence": []
+    }
+  }
+}

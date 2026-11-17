@@ -1,0 +1,30 @@
+Baseline failure reproduction: original helpers extracted without executing generators. Expected regressions below.
+test_failed_export_cannot_return_success (__main__.Before.test_failed_export_cannot_return_success) ... FAIL
+test_mechanical_interference_blocks_release (__main__.Before.test_mechanical_interference_blocks_release) ... FAIL
+test_unreviewed_duplicate_vias_are_not_waived (__main__.Before.test_unreviewed_duplicate_vias_are_not_waived) ... FAIL
+
+======================================================================
+FAIL: test_failed_export_cannot_return_success (__main__.Before.test_failed_export_cannot_return_success)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<stdin>", line 15, in test_failed_export_cannot_return_success
+AssertionError: Exception not raised
+
+======================================================================
+FAIL: test_mechanical_interference_blocks_release (__main__.Before.test_mechanical_interference_blocks_release)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<stdin>", line 21, in test_mechanical_interference_blocks_release
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_unreviewed_duplicate_vias_are_not_waived (__main__.Before.test_unreviewed_duplicate_vias_are_not_waived)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<stdin>", line 17, in test_unreviewed_duplicate_vias_are_not_waived
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.002s
+
+FAILED (failures=3)
