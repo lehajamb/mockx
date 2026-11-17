@@ -3,9 +3,9 @@
   (generator sorx_gen_sch)
   (uuid "1f89f89b-24dc-5538-8d47-065880977055")
   (paper "A4")
-  (title_block (title "SORX carrier board") (date "2026-11-16") (rev "A") (company "SORX"))
+  (title_block (title "SORX carrier board") (date "2026-11-17") (rev "CODEX-B") (company "SORX"))
   (lib_symbols)
-  (text "SORX single-board smart order router  -  carrier board rev A"
+  (text "SORX smart order router - CODEX-B - NOT READY FOR FABRICATION"
     (at 20 20 0)
     (effects (font (size 4 4)) (justify left))
   )

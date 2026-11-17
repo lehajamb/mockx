@@ -1,0 +1,194 @@
+{
+  "status": "Source provenance only; not a complete component qualification",
+  "sources": [
+    {
+      "title": "Toradex Verdin carrier guide",
+      "url": "https://docs.toradex.com/108140-verdin-carrier-board-design-guide.pdf",
+      "revision": "V1.2",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": "examples\\sorx_appliance\\runs\\electrical-sources\\toradex-carrier.pdf",
+      "sha256": "2a39087a01060f7c86cd1c1043b973c0284d31849c620adc3d4104714cf47967",
+      "inspection": "Downloaded and inspected, including rendered Fig114"
+    },
+    {
+      "title": "TI TL431",
+      "url": "https://www.ti.com/lit/ds/symlink/tl431.pdf",
+      "revision": "SLVS543S, May2024",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": "examples\\sorx_appliance\\runs\\electrical-sources\\tl431.pdf",
+      "sha256": "ed2e90697de4e2c553195514adf1ee59cda42863716b6ef702b8304a5b921d22",
+      "inspection": "Downloaded and inspected"
+    },
+    {
+      "title": "TI TPS7A16 rejected alternative",
+      "url": "https://www.ti.com/lit/ds/symlink/tps7a16.pdf",
+      "revision": "Downloaded current PDF",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": "examples\\sorx_appliance\\runs\\electrical-sources\\tps7a16.pdf",
+      "sha256": "4e05cfdef8f64684f9f24b7d1f86e83badb7784c09c96f2ddbcbdbc0a3b48f80",
+      "inspection": "Rejected: OUT-IN absolute maximum incompatible with unprotected normal detach"
+    },
+    {
+      "title": "Infineon CY15B104QN/CY15V104QN",
+      "url": "https://www.infineon.com/assets/row/public/documents/10/49/infineon-cy15b104qn-cy15v104qn-4-mb-excelon-lp-ferroelectric-ram-f-ram-serial-spi-512k-8-industrial-datasheet-en.pdf",
+      "revision": "002-19436 Rev*O, 2023-06-05",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web document inspected; binary not retained"
+    },
+    {
+      "title": "Microchip KSZ9131RNX",
+      "url": "https://ww1.microchip.com/downloads/en/DeviceDoc/00002841C.pdf",
+      "revision": "DS00002841C",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web document inspected; ISET 6.04k1%"
+    },
+    {
+      "title": "ST STUSB4500",
+      "url": "https://www.st.com/resource/en/datasheet/stusb4500.pdf",
+      "revision": "DS12499 Rev8",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web PDF inspected successfully, including sections2.2.12/6.1.1 and Table22 power/monitoring conditions; binary not retained"
+    },
+    {
+      "title": "Analog Devices LT3010/LT3010-5",
+      "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/lt3010-3010-5.pdf",
+      "revision": "RevJ, January2026; MS8E drawing05-08-1662 RevK",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Official product-page link exposed RevJ in web tool; binary download reset. Pinout, electrical limits and revision history inspected"
+    },
+    {
+      "title": "TI SN74LVC1G08",
+      "url": "https://www.ti.com/lit/ds/symlink/sn74lvc1g08.pdf",
+      "revision": "SCES217AA, August2026",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web document inspected; thresholds, pinout, Ioff and drive limits"
+    },
+    {
+      "title": "TI SN74LV1T34",
+      "url": "https://www.ti.com/lit/ds/symlink/sn74lv1t34.pdf",
+      "revision": "SCLS743E, February2024",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web document inspected; full-temperature logic thresholds and input leakage"
+    },
+    {
+      "title": "TI TPS2663",
+      "url": "https://www.ti.com/lit/ds/symlink/tps2663.pdf",
+      "revision": "SLVSE94G, 2024",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": "examples\\sorx_appliance\\runs\\electrical-sources\\tps2663.pdf",
+      "sha256": "bb61314ace65ed37684bd07f541fc676081d7cf81cb24020e7c5c2065bfe16b2",
+      "inspection": "Primary PDF downloaded; exact min/max SHDN table columns inspected with pdftotext -layout"
+    },
+    {
+      "title": "onsemi BSS138LT1",
+      "url": "https://www.onsemi.com/download/data-sheet/pdf/bss138lt1-d.pdf",
+      "revision": "Rev15, September2026",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web document inspected; pinout and device limits"
+    },
+    {
+      "title": "Toradex Verdin iMX8M Plus",
+      "url": "https://docs1.toradex.com/110977-verdin_imx8m_plus_v1.1_datasheet.pdf?v=2",
+      "revision": "V1.1 module datasheet",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web document inspected; 1.8V output current250mA and recovery pins. Rail tolerance guarantee not located"
+    },
+    {
+      "title": "Intel I210/I211 FAQ",
+      "url": "https://cdrdv2-public.intel.com/334026/ethernet-controller-i210-i211-faq.pdf",
+      "revision": "Document334026",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web FAQ inspected; image/tool package IDs only; no NVM/tool assets downloaded"
+    },
+    {
+      "title": "TE 2309409-2 exact customer drawing",
+      "url": "https://www.te.com/commerce/DocumentDelivery/DDEController?Action=srchrtrv&DocFormat=pdf&DocLang=English&DocNm=2309409&DocType=Customer+Drawing&PartCntxt=2309409-2",
+      "revision": "ENG_CD_2309409_6.pdf",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Located via official product page. Web exposes a3-page PDF without readable image/text; direct download403. Geometry NOT independently inspected"
+    },
+    {
+      "title": "Murata capacitor model list",
+      "url": "https://www.murata.com/-/media/webrenewal/tool/library/common-pdf/static-model/component-list-s-mlcc-2608.ashx?cvid=20260827010000000000&la=en",
+      "revision": "2026-08",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary list confirms GRM21BR71H105KA12 family. Exact10uF50V part remains unqualified; no stock check"
+    },
+    {
+      "title": "TI LMR33630",
+      "url": "https://www.ti.com/lit/ds/symlink/lmr33630.pdf",
+      "revision": "SNVSAN3F",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web PDF inspected for power pin and operating requirements; binary not retained"
+    },
+    {
+      "title": "Diodes AZ1117C",
+      "url": "https://www.diodes.com/assets/Datasheets/AZ1117C.pdf",
+      "revision": "DS36676 Rev5-2",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web PDF inspected for power pin and operating requirements; binary not retained"
+    },
+    {
+      "title": "TI TPS2065C",
+      "url": "https://www.ti.com/lit/ds/symlink/tps2065c.pdf",
+      "revision": "SLVSAU6I May2026",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web PDF inspected for power pin and operating requirements; binary not retained"
+    },
+    {
+      "title": "TI TLA2024",
+      "url": "https://www.ti.com/lit/ds/symlink/tla2024.pdf",
+      "revision": "SBAS846",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web PDF inspected for power pin and operating requirements; binary not retained"
+    },
+    {
+      "title": "TI TPD4E05U06",
+      "url": "https://www.ti.com/lit/ds/symlink/tpd4e05u06.pdf",
+      "revision": "SLVSBO7O, August2024",
+      "local_path": null,
+      "sha256": null,
+      "reviewed_utc_date": "2026-11-17",
+      "inspection": "Primary Table4-2 independently inspected; NC6/7/9/10 explicitly permitted for optional straight-through PCB routing"
+    },
+    {
+      "title": "Nexperia PMV65XP",
+      "url": "https://assets.nexperia.com/documents/data-sheet/PMV65XP.pdf",
+      "revision": "12February2013, copyright2017",
+      "reviewed_utc_date": "2026-11-17",
+      "local_path": null,
+      "sha256": null,
+      "inspection": "Primary web PDF inspected: pinout,150C leakage and temperature-specific on-resistance limits"
+    }
+  ]
+}

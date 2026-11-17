@@ -1,0 +1,43 @@
+test_fram_ordering_code_matches_voltage_and_package (test_electrical_model.ElectricalRequirements.test_fram_ordering_code_matches_voltage_and_package) ... ok
+test_ksz9131_bias_resistor_is_6040_ohms (test_electrical_model.ElectricalRequirements.test_ksz9131_bias_resistor_is_6040_ohms) ... ok
+test_pd_controller_has_protected_auxiliary_supply (test_electrical_model.ElectricalRequirements.test_pd_controller_has_protected_auxiliary_supply) ... FAIL
+test_pd_enable_actually_controls_efuse (test_electrical_model.ElectricalRequirements.test_pd_enable_actually_controls_efuse) ... FAIL
+test_pd_sense_has_precision_clamp_and_rated_series_resistor (test_electrical_model.ElectricalRequirements.test_pd_sense_has_precision_clamp_and_rated_series_resistor) ... FAIL
+test_te_socket_hold_down_land_pattern (test_electrical_model.ElectricalRequirements.test_te_socket_hold_down_land_pattern) ... ok
+test_te_socket_locating_holes (test_electrical_model.ElectricalRequirements.test_te_socket_locating_holes) ... ok
+test_verdin_uart_handshake_pin_numbers (test_electrical_model.ElectricalRequirements.test_verdin_uart_handshake_pin_numbers) ... ok
+
+======================================================================
+FAIL: test_pd_controller_has_protected_auxiliary_supply (test_electrical_model.ElectricalRequirements.test_pd_controller_has_protected_auxiliary_supply)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 33, in test_pd_controller_has_protected_auxiliary_supply
+    self.assertEqual(model.DESIGN.parts["U2"].pins["24"], "+5V_PD")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'VBUS_IN' != '+5V_PD'
+- VBUS_IN
++ +5V_PD
+
+
+======================================================================
+FAIL: test_pd_enable_actually_controls_efuse (test_electrical_model.ElectricalRequirements.test_pd_enable_actually_controls_efuse)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 43, in test_pd_enable_actually_controls_efuse
+    self.assertEqual(len(gates), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_pd_sense_has_precision_clamp_and_rated_series_resistor (test_electrical_model.ElectricalRequirements.test_pd_sense_has_precision_clamp_and_rated_series_resistor)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 51, in test_pd_sense_has_precision_clamp_and_rated_series_resistor
+    self.assertEqual(len(clamps), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.019s
+
+FAILED (failures=3)

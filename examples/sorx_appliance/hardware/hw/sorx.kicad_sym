@@ -336,6 +336,446 @@
       (text "System on module (plugs into J1)" (at 0 0 0) (effects (font (size 1.27 1.27))))
     )
   )
+  (symbol "MECHANICAL_ITEM"
+    (in_bom yes)
+    (on_board no)
+    (property "Reference" "HS" (at 0 5.08 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "MECHANICAL_ITEM" (at 0 -5.08 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (symbol "MECHANICAL_ITEM_0_1"
+      (rectangle
+        (start -17.78 -3.81)
+        (end 17.78 3.81)
+        (stroke (width 0.254) (type default))
+        (fill (type background))
+      )
+      (text "Assembly component; see mechanical BOM" (at 0 0 0) (effects (font (size 1 1))))
+    )
+  )
+  (symbol "TPD4E05U06_FLOWTHROUGH"
+    (pin_names (offset 0))
+    (in_bom yes)
+    (on_board yes)
+    (property "Reference" "U" (at -0.635 8.89 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "TPD4E05U06DQA"
+      (at 1.905 -10.16 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "Package_SON:USON-10_2.5x1.0mm_P0.5mm"
+      (at 1.905 -12.065 0)
+      (effects (font (size 1.27 1.27) italic) (justify left) hide)
+    )
+    (property "Datasheet" "https://www.ti.com/lit/ds/symlink/tpd4e05u06.pdf"
+      (at 1.905 -13.97 0)
+      (effects (font (size 1.27 1.27)) (justify left) hide)
+    )
+    (property "ki_keywords" "ESD protection USB 3.0" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (property "ki_description" "4-Channel ESD Protection for Super-Speed USB 3.0 Interface, USON-10"
+      (at 0 0 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "ki_fp_filters" "USON*2.5x1.0mm*P0.5mm*"
+      (at 0 0 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (symbol "TPD4E05U06_FLOWTHROUGH_0_0"
+      (rectangle
+        (start -5.715 6.477)
+        (end 5.715 -6.604)
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -3.175 -6.604) (xy -3.175 6.477))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline (pts (xy 0 6.477) (xy 0 -6.604)) (stroke (width 0) (type default)) (fill (type none)))
+      (polyline
+        (pts (xy 3.175 6.477) (xy 3.175 -6.604))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+    )
+    (symbol "TPD4E05U06_FLOWTHROUGH_0_1"
+      (rectangle
+        (start -7.62 7.62)
+        (end 7.62 -7.62)
+        (stroke (width 0.254) (type default))
+        (fill (type background))
+      )
+      (circle
+        (center -5.715 -2.54)
+        (radius 0.2794)
+        (stroke (width 0) (type default))
+        (fill (type outline))
+      )
+      (circle
+        (center -3.175 -6.604)
+        (radius 0.2794)
+        (stroke (width 0) (type default))
+        (fill (type outline))
+      )
+      (circle
+        (center -3.175 2.54)
+        (radius 0.2794)
+        (stroke (width 0) (type default))
+        (fill (type outline))
+      )
+      (circle
+        (center -3.175 6.477)
+        (radius 0.2794)
+        (stroke (width 0) (type default))
+        (fill (type outline))
+      )
+      (circle (center 0 -6.604) (radius 0.2794) (stroke (width 0) (type default)) (fill (type outline)))
+      (polyline
+        (pts (xy -7.747 2.54) (xy -3.175 2.54))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -7.62 -2.54) (xy -5.715 -2.54))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -5.08 -3.81) (xy -6.35 -3.81))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -5.08 5.08) (xy -6.35 5.08))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -2.54 -3.81) (xy -3.81 -3.81))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -2.54 5.08) (xy -3.81 5.08))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -0.635 0.889) (xy -1.016 0.635))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline (pts (xy 0 -6.604) (xy 0 -7.62)) (stroke (width 0) (type default)) (fill (type none)))
+      (polyline
+        (pts (xy 0.635 0.889) (xy -0.635 0.889))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy 0.635 0.889) (xy 1.016 1.143))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy 3.81 -3.81) (xy 2.54 -3.81))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline (pts (xy 3.81 5.08) (xy 2.54 5.08)) (stroke (width 0) (type default)) (fill (type none)))
+      (polyline
+        (pts (xy 6.35 -3.81) (xy 5.08 -3.81))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline (pts (xy 6.35 5.08) (xy 5.08 5.08)) (stroke (width 0) (type default)) (fill (type none)))
+      (polyline
+        (pts (xy 7.62 -2.54) (xy 3.175 -2.54))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy 7.62 2.54) (xy 5.715 2.54))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -5.08 -5.08) (xy -6.35 -5.08) (xy -5.715 -3.81) (xy -5.08 -5.08))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -5.08 3.81) (xy -6.35 3.81) (xy -5.715 5.08) (xy -5.08 3.81))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -2.54 -5.08) (xy -3.81 -5.08) (xy -3.175 -3.81) (xy -2.54 -5.08))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy -2.54 3.81) (xy -3.81 3.81) (xy -3.175 5.08) (xy -2.54 3.81))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy 0.635 -0.381) (xy -0.635 -0.381) (xy 0 0.889) (xy 0.635 -0.381))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy 3.81 -5.08) (xy 2.54 -5.08) (xy 3.175 -3.81) (xy 3.81 -5.08))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy 3.81 3.81) (xy 2.54 3.81) (xy 3.175 5.08) (xy 3.81 3.81))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy 6.35 -5.08) (xy 5.08 -5.08) (xy 5.715 -3.81) (xy 6.35 -5.08))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (polyline
+        (pts (xy 6.35 3.81) (xy 5.08 3.81) (xy 5.715 5.08) (xy 6.35 3.81))
+        (stroke (width 0) (type default))
+        (fill (type none))
+      )
+      (circle (center 0 6.477) (radius 0.2794) (stroke (width 0) (type default)) (fill (type outline)))
+      (circle
+        (center 3.175 -6.604)
+        (radius 0.2794)
+        (stroke (width 0) (type default))
+        (fill (type outline))
+      )
+      (circle
+        (center 3.175 -2.54)
+        (radius 0.2794)
+        (stroke (width 0) (type default))
+        (fill (type outline))
+      )
+      (circle
+        (center 3.175 6.477)
+        (radius 0.2794)
+        (stroke (width 0) (type default))
+        (fill (type outline))
+      )
+      (circle
+        (center 5.715 2.54)
+        (radius 0.2794)
+        (stroke (width 0) (type default))
+        (fill (type outline))
+      )
+    )
+    (symbol "TPD4E05U06_FLOWTHROUGH_1_1"
+      (pin passive line
+        (at -12.7 2.54 0)
+        (length 5.08)
+        (name "D1+" (effects (font (size 1.27 1.27))))
+        (number "1" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at -12.7 7.62 0)
+        (length 5.08)
+        (name "NC_PCB" (effects (font (size 1.27 1.27))))
+        (number "10" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at -12.7 -2.54 0)
+        (length 5.08)
+        (name "D1-" (effects (font (size 1.27 1.27))))
+        (number "2" (effects (font (size 1.27 1.27))))
+      )
+      (pin power_in line
+        (at 0 -12.7 90)
+        (length 5.08)
+        (name "GND" (effects (font (size 1.27 1.27))))
+        (number "3" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 12.7 2.54 180)
+        (length 5.08)
+        (name "D2+" (effects (font (size 1.27 1.27))))
+        (number "4" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 12.7 -2.54 180)
+        (length 5.08)
+        (name "D2-" (effects (font (size 1.27 1.27))))
+        (number "5" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 12.7 -7.62 180)
+        (length 5.08)
+        (name "NC_PCB" (effects (font (size 1.27 1.27))))
+        (number "6" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 12.7 7.62 180)
+        (length 5.08)
+        (name "NC_PCB" (effects (font (size 1.27 1.27))))
+        (number "7" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at 0 -12.7 90)
+        (length 5.08)
+        hide
+        (name "GND" (effects (font (size 1.27 1.27))))
+        (number "8" (effects (font (size 1.27 1.27))))
+      )
+      (pin passive line
+        (at -12.7 -7.62 0)
+        (length 5.08)
+        (name "NC_PCB" (effects (font (size 1.27 1.27))))
+        (number "9" (effects (font (size 1.27 1.27))))
+      )
+    )
+  )
+  (symbol "CY15V104QN"
+    (pin_names (offset 0.5))
+    (in_bom yes)
+    (on_board yes)
+    (property "Reference" "U" (at 0 10.16 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "CY15V104QN" (at 0 -10.16 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (symbol "CY15V104QN_0_1"
+      (rectangle
+        (start -7.62 -8.89)
+        (end 7.62 8.89)
+        (stroke (width 0.254) (type default))
+        (fill (type background))
+      )
+    )
+    (symbol "CY15V104QN_1_1"
+      (pin input line
+        (at -10.16 5.08 0)
+        (length 2.54)
+        (name "~{CS}" (effects (font (size 1 1))))
+        (number "1" (effects (font (size 1 1))))
+      )
+      (pin tri_state line
+        (at 10.16 5.08 180)
+        (length 2.54)
+        (name "SO" (effects (font (size 1 1))))
+        (number "2" (effects (font (size 1 1))))
+      )
+      (pin input line
+        (at -10.16 0 0)
+        (length 2.54)
+        (name "~{WP}" (effects (font (size 1 1))))
+        (number "3" (effects (font (size 1 1))))
+      )
+      (pin power_in line
+        (at -10.16 -5.08 0)
+        (length 2.54)
+        (name "VSS" (effects (font (size 1 1))))
+        (number "4" (effects (font (size 1 1))))
+      )
+      (pin input line
+        (at -10.16 2.54 0)
+        (length 2.54)
+        (name "SI" (effects (font (size 1 1))))
+        (number "5" (effects (font (size 1 1))))
+      )
+      (pin input line
+        (at -10.16 -2.54 0)
+        (length 2.54)
+        (name "SCK" (effects (font (size 1 1))))
+        (number "6" (effects (font (size 1 1))))
+      )
+      (pin passive line
+        (at 10.16 -2.54 180)
+        (length 2.54)
+        (name "DNU" (effects (font (size 1 1))))
+        (number "7" (effects (font (size 1 1))))
+      )
+      (pin power_in line
+        (at 10.16 7.62 180)
+        (length 2.54)
+        (name "VDD" (effects (font (size 1 1))))
+        (number "8" (effects (font (size 1 1))))
+      )
+    )
+  )
+  (symbol "LT3010_ADJ"
+    (pin_names (offset 0.5))
+    (in_bom yes)
+    (on_board yes)
+    (property "Reference" "U" (at 0 11.43 0) (effects (font (size 1.27 1.27))))
+    (property "Value" "LT3010" (at 0 -11.43 0) (effects (font (size 1.27 1.27))))
+    (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Datasheet" "https://www.analog.com/media/en/technical-documentation/data-sheets/lt3010-3010-5.pdf"
+      (at 0 0 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (symbol "LT3010_ADJ_0_1"
+      (rectangle
+        (start -7.62 -10.16)
+        (end 7.62 10.16)
+        (stroke (width 0.254) (type default))
+        (fill (type background))
+      )
+    )
+    (symbol "LT3010_ADJ_1_1"
+      (pin power_out line
+        (at 10.16 7.62 180)
+        (length 2.54)
+        (name "OUT" (effects (font (size 1 1))))
+        (number "1" (effects (font (size 1 1))))
+      )
+      (pin input line
+        (at 10.16 5.08 180)
+        (length 2.54)
+        (name "ADJ" (effects (font (size 1 1))))
+        (number "2" (effects (font (size 1 1))))
+      )
+      (pin no_connect line
+        (at 10.16 2.54 180)
+        (length 2.54)
+        (name "NC" (effects (font (size 1 1))))
+        (number "3" (effects (font (size 1 1))))
+      )
+      (pin power_in line
+        (at -10.16 -5.08 0)
+        (length 2.54)
+        (name "GND" (effects (font (size 1 1))))
+        (number "4" (effects (font (size 1 1))))
+      )
+      (pin input line
+        (at -10.16 5.08 0)
+        (length 2.54)
+        (name "SHDN" (effects (font (size 1 1))))
+        (number "5" (effects (font (size 1 1))))
+      )
+      (pin no_connect line
+        (at 10.16 -2.54 180)
+        (length 2.54)
+        (name "NC" (effects (font (size 1 1))))
+        (number "6" (effects (font (size 1 1))))
+      )
+      (pin no_connect line
+        (at 10.16 0 180)
+        (length 2.54)
+        (name "NC" (effects (font (size 1 1))))
+        (number "7" (effects (font (size 1 1))))
+      )
+      (pin power_in line
+        (at -10.16 7.62 0)
+        (length 2.54)
+        (name "IN" (effects (font (size 1 1))))
+        (number "8" (effects (font (size 1 1))))
+      )
+      (pin power_in line
+        (at -10.16 -7.62 0)
+        (length 2.54)
+        (name "EP" (effects (font (size 1 1))))
+        (number "9" (effects (font (size 1 1))))
+      )
+    )
+  )
   (symbol "NMOS_SO8"
     (pin_names (offset 0.5))
     (in_bom yes)
@@ -1229,7 +1669,7 @@
       (pin bidirectional line
         (at -27.94 40.64 0)
         (length 2.54)
-        (name "UART_1_CTS" (effects (font (size 1 1))))
+        (name "UART_1_RTS" (effects (font (size 1 1))))
         (number "133" (effects (font (size 1 1))))
       )
       (pin power_in line
@@ -1241,7 +1681,7 @@
       (pin bidirectional line
         (at -27.94 38.1 0)
         (length 2.54)
-        (name "UART_1_RTS" (effects (font (size 1 1))))
+        (name "UART_1_CTS" (effects (font (size 1 1))))
         (number "135" (effects (font (size 1 1))))
       )
       (pin bidirectional line
@@ -1277,7 +1717,7 @@
       (pin bidirectional line
         (at -27.94 30.48 0)
         (length 2.54)
-        (name "UART_2_CTS" (effects (font (size 1 1))))
+        (name "UART_2_RTS" (effects (font (size 1 1))))
         (number "141" (effects (font (size 1 1))))
       )
       (pin bidirectional line
@@ -1289,7 +1729,7 @@
       (pin bidirectional line
         (at -27.94 27.94 0)
         (length 2.54)
-        (name "UART_2_RTS" (effects (font (size 1 1))))
+        (name "UART_2_CTS" (effects (font (size 1 1))))
         (number "143" (effects (font (size 1 1))))
       )
       (pin bidirectional line

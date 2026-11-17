@@ -1,0 +1,35 @@
+test_bom_keeps_off_board_heatsink_and_screws (test_electrical_model.ElectricalRequirements.test_bom_keeps_off_board_heatsink_and_screws) ... ok
+test_fram_ordering_code_matches_voltage_and_package (test_electrical_model.ElectricalRequirements.test_fram_ordering_code_matches_voltage_and_package) ... ok
+test_ksz9131_bias_resistor_is_6040_ohms (test_electrical_model.ElectricalRequirements.test_ksz9131_bias_resistor_is_6040_ohms) ... ok
+test_pd_controller_has_protected_auxiliary_supply (test_electrical_model.ElectricalRequirements.test_pd_controller_has_protected_auxiliary_supply) ... FAIL
+test_pd_enable_actually_controls_efuse (test_electrical_model.ElectricalRequirements.test_pd_enable_actually_controls_efuse) ... ok
+test_pd_sense_has_precision_clamp_and_rated_series_resistor (test_electrical_model.ElectricalRequirements.test_pd_sense_has_precision_clamp_and_rated_series_resistor) ... ok
+test_power_budget_matches_three_independent_three_amp_bucks (test_electrical_model.ElectricalRequirements.test_power_budget_matches_three_independent_three_amp_bucks) ... ok
+test_recovery_inhibits_host_power_and_isolates_sense (test_electrical_model.ElectricalRequirements.test_recovery_inhibits_host_power_and_isolates_sense) ... FAIL
+test_te_socket_hold_down_land_pattern (test_electrical_model.ElectricalRequirements.test_te_socket_hold_down_land_pattern) ... ok
+test_te_socket_locating_holes (test_electrical_model.ElectricalRequirements.test_te_socket_locating_holes) ... ok
+test_unquoted_bom_parts_remain_explicitly_unknown (test_electrical_model.ElectricalRequirements.test_unquoted_bom_parts_remain_explicitly_unknown) ... ok
+test_verdin_uart_handshake_pin_numbers (test_electrical_model.ElectricalRequirements.test_verdin_uart_handshake_pin_numbers) ... ok
+
+======================================================================
+FAIL: test_pd_controller_has_protected_auxiliary_supply (test_electrical_model.ElectricalRequirements.test_pd_controller_has_protected_auxiliary_supply)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 35, in test_pd_controller_has_protected_auxiliary_supply
+    self.assertEqual(len(aux), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_recovery_inhibits_host_power_and_isolates_sense (test_electrical_model.ElectricalRequirements.test_recovery_inhibits_host_power_and_isolates_sense)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 81, in test_recovery_inhibits_host_power_and_isolates_sense
+    self.assertEqual(len(gates),1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.121s
+
+FAILED (failures=2)

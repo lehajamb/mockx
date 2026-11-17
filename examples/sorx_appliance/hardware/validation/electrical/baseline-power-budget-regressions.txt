@@ -1,0 +1,25 @@
+test_bom_keeps_off_board_heatsink_and_screws (test_electrical_model.ElectricalRequirements.test_bom_keeps_off_board_heatsink_and_screws) ... ok
+test_fram_ordering_code_matches_voltage_and_package (test_electrical_model.ElectricalRequirements.test_fram_ordering_code_matches_voltage_and_package) ... ok
+test_ksz9131_bias_resistor_is_6040_ohms (test_electrical_model.ElectricalRequirements.test_ksz9131_bias_resistor_is_6040_ohms) ... ok
+test_pd_controller_has_protected_auxiliary_supply (test_electrical_model.ElectricalRequirements.test_pd_controller_has_protected_auxiliary_supply) ... ok
+test_pd_enable_actually_controls_efuse (test_electrical_model.ElectricalRequirements.test_pd_enable_actually_controls_efuse) ... ok
+test_pd_sense_has_precision_clamp_and_rated_series_resistor (test_electrical_model.ElectricalRequirements.test_pd_sense_has_precision_clamp_and_rated_series_resistor) ... ok
+test_power_budget_matches_three_independent_three_amp_bucks (test_electrical_model.ElectricalRequirements.test_power_budget_matches_three_independent_three_amp_bucks) ... FAIL
+test_te_socket_hold_down_land_pattern (test_electrical_model.ElectricalRequirements.test_te_socket_hold_down_land_pattern) ... ok
+test_te_socket_locating_holes (test_electrical_model.ElectricalRequirements.test_te_socket_locating_holes) ... ok
+test_unquoted_bom_parts_remain_explicitly_unknown (test_electrical_model.ElectricalRequirements.test_unquoted_bom_parts_remain_explicitly_unknown) ... ok
+test_verdin_uart_handshake_pin_numbers (test_electrical_model.ElectricalRequirements.test_verdin_uart_handshake_pin_numbers) ... ok
+
+======================================================================
+FAIL: test_power_budget_matches_three_independent_three_amp_bucks (test_electrical_model.ElectricalRequirements.test_power_budget_matches_three_independent_three_amp_bucks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 72, in test_power_budget_matches_three_independent_three_amp_bucks
+    self.assertNotIn("USB 3 hub", proc.stdout)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'USB 3 hub' unexpectedly found in '### 3.3 V rail (5 V -> 3.3 V buck, gated by SoM CTRL_PWR_EN_MOCI)\n\n| Load | Typ W | Max W | Basis |\n|---|---:|---:|---|\n| Intel I210-AT (order-entry NIC, 1000BASE-T active) | 0.60 | 0.80 | allowance |\n| KSZ9131RNX mgmt PHY incl. 1.2 V core + 1.8 V RGMII I/O | 0.50 | 0.75 | allowance |\n| USB 3 hub, 2 downstream ports | 0.40 | 0.60 | allowance |\n| microSD card (boot) | 0.20 | 0.66 | 200 mA card peak |\n| Front-panel LEDs x7 @ 5 mA | 0.08 | 0.15 | allowance |\n| RS-232 xcvr, console mux, PPS buffer, watchdog, temp sensor, I210 flash | 0.10 | 0.20 | allowance |\n| **3.3 V total** | **1.88** | **3.16** | 0.96 A max -> 3 A converter |\n\n### 5 V rail (VSYS 15/20 V -> 5 V buck)\n\n| Load | Typ W | Max W | Basis |\n|---|---:|---:|---|\n| SoM VCC - Verdin iMX8M Plus (measured 4.43 mean / 5.26 peak; datasheet max 6.3) | 4.43 | 6.30 | Toradex |\n| USB-A port 1 VBUS @ 900 mA | 0.00 | 4.50 | USB 3.x 900 mA |\n| USB-A port 2 VBUS @ 900 mA | 0.00 | 4.50 | USB 3.x 900 mA |\n| Fan, 40 mm 5 V PWM | 0.50 | 1.00 | allowance |\n| 3.3 V buck input (90% eff.) | 2.09 | 3.51 | from table above |\n| **5 V total** | **7.02** | **19.81** | 3.96 A max |\n\n### Input power vs. USB-C PD contract\n\n| Case | 5 V rail W | 5 V rail A | Input W | 15 V / 2 A (30 W) | 15 V / 3 A (45 W) | 20 V / 2.25 A (45 W) | 20 V / 3 A (60 W) |\n|---|---:|---:|---:|---:|---:|---:|---:|\n| Typical: SoM stress mean, no USB devices | 7.02 | 1.40 | 8.23 | 27% | 18% | 18% | 14% |\n| Max, Verdin iMX8M Plus: SoM 6.3 W, both USB-A at 900 mA | 19.81 | 3.96 | 22.13 | 74% | 49% | 49% | 37% |\n| Max, any Verdin SoM sustained (8.25 W) | 21.76 | 4.35 | 24.25 | 81% | 54% | 54% | 40% |\n| Peak, any Verdin SoM (12.5 W transient) | 26.01 | 5.20 | 28.87 | 96% | 64% | 64% | 48% |\n\nInput current at worst case: 1.92 A @ 15 V, 1.44 A @ 20 V. 5 V converter sized for 5.20 A -> 6 A part.\nHeat dissipated inside the enclosure at the iMX8M Plus max case (input minus the 9 W exported on USB-A): 13.13 W.\n'
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.173s
+
+FAILED (failures=1)

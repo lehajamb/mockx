@@ -1,64 +1,58 @@
 #!/usr/bin/env python3
-"""SORX carrier power budget. Run: python3 tools/power_budget.py > docs/power-budget-table.md
-All figures are design allowances (W) unless a source is given in docs/power-budget.md."""
-EFF_5V0 = 0.92   # 15-20 V -> 5 V synchronous buck, allowance
-EFF_3V3 = 0.90   # 5 V -> 3.3 V buck (incl. 1.8 V LDO loss), allowance
-PATH_LOSS_W = 0.6  # TVS leakage + eFuse/blocking FET I2R + PD controller quiescent, allowance
+"""Codex B rail allocation estimates; not measured or manufacturer maxima."""
+from design import DESIGN
 
-# (load, typical W, max W, note)
-RAIL_3V3 = [
-    ("Intel I210-AT (order-entry NIC, 1000BASE-T active)", 0.60, 0.80, "allowance"),
-    ("KSZ9131RNX mgmt PHY incl. 1.2 V core + 1.8 V RGMII I/O", 0.50, 0.75, "allowance"),
-    ("USB 3 hub, 2 downstream ports", 0.40, 0.60, "allowance"),
-    ("microSD card (boot)", 0.20, 0.66, "200 mA card peak"),
-    ("Front-panel LEDs x7 @ 5 mA", 0.08, 0.15, "allowance"),
-    ("RS-232 xcvr, console mux, PPS buffer, watchdog, temp sensor, I210 flash", 0.10, 0.20, "allowance"),
-]
-RAIL_5V0_DIRECT = [
-    ("SoM VCC - Verdin iMX8M Plus (measured 4.43 mean / 5.26 peak; datasheet max 6.3)", 4.43, 6.30, "Toradex"),
-    ("USB-A port 1 VBUS @ 900 mA", 0.00, 4.50, "USB 3.x 900 mA"),
-    ("USB-A port 2 VBUS @ 900 mA", 0.00, 4.50, "USB 3.x 900 mA"),
-    ("Fan, 40 mm 5 V PWM", 0.50, 1.00, "allowance"),
-]
-VERDIN_FAMILY_SUSTAINED = 8.25
-VERDIN_FAMILY_PEAK = 12.5
+EFF_5V = .92
+EFF_3V3 = .90
+PATH_ALLOWANCE_W = .60
+# Conservative allocation, not proof of the SoM's external1.8V output budget.
+EXTERNAL_1V8_ALLOWANCE_W = .45
+USB_AND_FAN_W = 10.0
+CARRIER_3V3_W = 2.56
 
-def total(rows, col): return sum(r[col] for r in rows)
 
-def chain(som_w, usb_w, fan_w, r3v3_w):
-    p5 = som_w + usb_w + fan_w + r3v3_w / EFF_3V3
-    pin = p5 / EFF_5V0 + PATH_LOSS_W
-    return p5, pin
+def calculate(som_w=8.25):
+    rail5 = som_w + EXTERNAL_1V8_ALLOWANCE_W
+    return {
+        '+5V': (rail5, rail5 / 5),
+        '+5V_USB': (USB_AND_FAN_W, USB_AND_FAN_W / 5),
+        '+3V3': (CARRIER_3V3_W, CARRIER_3V3_W / 3.3),
+        'input_w': rail5 / EFF_5V + USB_AND_FAN_W / EFF_5V + CARRIER_3V3_W / EFF_3V3 + PATH_ALLOWANCE_W,
+    }
 
-print("### 3.3 V rail (5 V -> 3.3 V buck, gated by SoM CTRL_PWR_EN_MOCI)\n")
-print("| Load | Typ W | Max W | Basis |\n|---|---:|---:|---|")
-for n,t,m,b in RAIL_3V3: print(f"| {n} | {t:.2f} | {m:.2f} | {b} |")
-t33, m33 = total(RAIL_3V3,1), total(RAIL_3V3,2)
-print(f"| **3.3 V total** | **{t33:.2f}** | **{m33:.2f}** | {m33/3.3:.2f} A max -> 3 A converter |")
 
-print("\n### 5 V rail (VSYS 15/20 V -> 5 V buck)\n")
-print("| Load | Typ W | Max W | Basis |\n|---|---:|---:|---|")
-for n,t,m,b in RAIL_5V0_DIRECT: print(f"| {n} | {t:.2f} | {m:.2f} | {b} |")
-print(f"| 3.3 V buck input ({EFF_3V3:.0%} eff.) | {t33/EFF_3V3:.2f} | {m33/EFF_3V3:.2f} | from table above |")
-t5 = total(RAIL_5V0_DIRECT,1) + t33/EFF_3V3
-m5 = total(RAIL_5V0_DIRECT,2) + m33/EFF_3V3
-print(f"| **5 V total** | **{t5:.2f}** | **{m5:.2f}** | {m5/5:.2f} A max |")
+def main():
+    bucks = [p for p in DESIGN.parts.values() if p.mpn == 'LMR33630ADDAR']
+    assert len(bucks) == 3 and all(p.pins['2'] == 'VSYS' for p in bucks)
+    print('# Power budget - Codex B estimates\n')
+    print('**NOT READY FOR FABRICATION.** Allocation arithmetic only; load, thermal and transient qualification remain open.\n')
+    print('There are three independent 3 A LMR33630 converters supplied directly by VSYS. '+
+          '+5V is always enabled after the eFuse; +5V_USB and +3V3 use PWR_EN. '+
+          '+1V8 comes from the SoM. Debug USB power supplies only its UART island.\n')
+    print('| Rail | Sustained allocation W | Current A | Converter rating A |')
+    print('|---|---:|---:|---:|')
+    result = calculate()
+    for rail in ('+5V', '+5V_USB', '+3V3'):
+        watts, amps = result[rail]
+        print(f'| {rail} | {watts:.2f} | {amps:.2f} | 3 |')
+    print('\nAssumptions: SoM8.25W sustained /12.5W transient planning envelopes; '+
+          '0.45W for carrier1.8V loads; two900mA USB load envelopes plus1Wfan; '+
+          '2.56Wcarrier3.3V load allocation;92%5V and90%3.3V efficiency;0.6Winput-path allowance. '+
+          'These are not guaranteed component maxima. USB2.0 protocol limits remain applicable.\n')
+    print('| Case | Estimated input W | Input A at 15V | Input A at 20V |')
+    print('|---|---:|---:|---:|')
+    for label, som in [('Planning sustained',8.25), ('Planning transient',12.5)]:
+        watts=calculate(som)['input_w']
+        print(f'| {label} | {watts:.2f} | {watts/15:.2f} | {watts/20:.2f} |')
+    print('\nRequire a qualified 15V/3A or 20V/3A PD source, prefer 20V. '+
+          'The eFuse nominal 2.2A setting and pulse-current behavior must be verified against the source contract. '+
+          'Its current-limit tolerance, startup inrush and fault pulses are not included in this arithmetic. '+
+          'See [electrical corrections](electrical-corrections.md) and [programming requirements](programming-and-recovery.md).\n')
+    print('The former model included nonexistent hubs, a cascaded3.3V converter and a 6A 5V converter; '+
+          'those assumptions were removed. Blank 5V-only input does not light a powered-system LED. '+
+          'All rail-load maxima,1.8V tolerance/current, capacitor bias, efficiency curves and temperature margins '+
+          'must be independently established before approving R05.')
 
-print("\n### Input power vs. USB-C PD contract\n")
-cases = [
- ("Typical: SoM stress mean, no USB devices", 4.43, 0.0, 0.5, t33),
- ("Max, Verdin iMX8M Plus: SoM 6.3 W, both USB-A at 900 mA", 6.30, 9.0, 1.0, m33),
- ("Max, any Verdin SoM sustained (8.25 W)", VERDIN_FAMILY_SUSTAINED, 9.0, 1.0, m33),
- ("Peak, any Verdin SoM (12.5 W transient)", VERDIN_FAMILY_PEAK, 9.0, 1.0, m33),
-]
-contracts = [("15 V / 2 A", 30.0), ("15 V / 3 A", 45.0), ("20 V / 2.25 A", 45.0), ("20 V / 3 A", 60.0)]
-print("| Case | 5 V rail W | 5 V rail A | Input W | " + " | ".join(f"{n} ({w:.0f} W)" for n,w in contracts) + " |")
-print("|---|---:|---:|---:|" + "---:|"*len(contracts))
-for name, som, usb, fan, r33 in cases:
-    p5, pin = chain(som, usb, fan, r33)
-    cells = " | ".join(f"{pin/w:.0%}" for _,w in contracts)
-    print(f"| {name} | {p5:.2f} | {p5/5:.2f} | {pin:.2f} | {cells} |")
-p5, pin = chain(VERDIN_FAMILY_PEAK, 9.0, 1.0, m33)
-print(f"\nInput current at worst case: {pin/15:.2f} A @ 15 V, {pin/20:.2f} A @ 20 V. 5 V converter sized for {p5/5:.2f} A -> 6 A part.")
-p5d, pind = chain(6.30, 9.0, 1.0, m33)
-print(f"Heat dissipated inside the enclosure at the iMX8M Plus max case (input minus the 9 W exported on USB-A): {pind-9.0:.2f} W.")
+
+if __name__ == '__main__':
+    main()

@@ -3,7 +3,8 @@
 import csv, json, os, re, collections
 from design import DESIGN
 HERE = os.path.dirname(os.path.abspath(__file__)); BOM = os.path.join(HERE, '..', 'bom')
-NOTES = json.load(open(os.path.join(BOM, 'stock_notes.json')))
+with open(os.path.join(BOM, 'stock_notes.json'), encoding='utf-8') as notes_file:
+    NOTES = json.load(notes_file)
 CHECKED = NOTES['_checked']
 MOUSER_PREFIX = {'Yageo': '603-', 'Murata': '81-', 'Panasonic': '667-', 'Texas Instruments': '595-', 'Coilcraft': '994-', 'Diodes Inc.': '621-', 'TE Connectivity': '571-',
                  'Infineon': '727-', 'Keystone': '534-', 'Alps Alpine': '688-', 'Wurth Elektronik': '710-', 'GCT': '640-', 'Littelfuse': '576-', 'Pulse Electronics': '673-',
@@ -28,62 +29,91 @@ def est(p):
         if v == '22uF': return (0.25, 0.15, 0.09)
         if v == '10uF': return (0.12, 0.06, 0.035)
         if v in ('4.7uF', '1uF'): return (0.07, 0.035, 0.018)
+        if v in ('1uF/50V', '10uF/50V'): return (None, None, None)
         if '50V' in v: return (0.04, 0.02, 0.01)
         return (0.025, 0.011, 0.006)
-    raise KeyError(p.mpn)
+    return (None, None, None)  # no fabricated price for a new or unquoted component
 # items that are not on the PCB BOM but belong to a built unit
 EXTRA = [  # (description, mfr, mpn, qty, p10, p100, p1k, note)
-    ('PCB, 4-layer 172 x 118 mm, 1.6 mm, ENIG, impedance controlled', 'PCB fab', 'SORX-CARRIER-A', 1, 38.0, 14.0, 8.0, 'estimate; quote with hw/fab/'),
+    ('PCB, 6-layer 172 x 118 mm, 1.6 mm candidate, ENIG, impedance controlled', 'PCB fab', 'SORX-CARRIER-CODEX-B', 1, None, None, None, 'NOT QUOTED; fabricator stackup approval required'),
     ('Assembly, double-sided SMT + through-hole connectors', 'EMS', '-', 1, 45.0, 18.0, 9.0, 'estimate'),
     ('Fan 40 x 40 x 10 mm, 5 V, 4-pin PWM', 'Noctua', 'NF-A4x10 5V PWM', 1, 15.0, 13.0, 11.0, 'estimate; any 5 V 4-pin PWM 40 mm fan >= 8 m3/h'),
-    ('Heatsink 40 x 28 x 10 mm class with thermal tape, on the SoC', '-', 'select at build', 1, 3.5, 2.5, 1.8, 'estimate; Toradex Verdin heatsink needs the optional standoffs'),
     ('Coin cell CR2032', 'Panasonic', 'CR2032', 1, 0.45, 0.35, 0.28, 'estimate'),
     ('Enclosure base + lid + LED window, printed (PETG/ABS)', 'print shop', 'mech/*.stl', 1, 28.0, 20.0, 14.0, 'estimate; injection moulding would replace this at volume'),
     ('Hardware: 4x M3x40 screw, 8x M3 heat-set insert', '-', '-', 1, 1.2, 0.9, 0.6, 'estimate'),
 ]
+def include_part(part):
+    """Keep procurement-only mechanical items as well as placed electronics."""
+    return part.inbom
+
+
+def money(value, places=4):
+    return '' if value is None else ('%.*f' % (places, value))
+
+
 def main():
     groups = collections.OrderedDict()
-    for p in DESIGN.parts.values():
-        if not p.inbom or not (p.fp or p.sym == 'SORX:SOM'): continue
-        groups.setdefault((p.mpn, p.fp, p.dnp), []).append(p)
-    def refkey(r): m = re.match(r'([A-Z#]+)(\d+)', r); return (m.group(1), int(m.group(2)))
-    rows = []; tot = {10: 0.0, 100: 0.0, 1000: 0.0}; stock_rows = []
-    for i, ((mpn, fp, dnp), ps) in enumerate(groups.items(), 1):
-        p = ps[0]; vals = list(collections.OrderedDict.fromkeys(q.value for q in ps)); value = vals[0] if len(vals) == 1 else ' / '.join(vals)
-        refs = sorted((q.ref for q in ps), key=refkey); n = NOTES.get(mpn)
-        if n: p10, p100, p1k = n['p10'], n['p100'], n['p1k']; basis = 'distributor listing %s' % CHECKED
-        else: p10, p100, p1k = est(p); basis = 'estimate'
-        qty = 0 if dnp else len(ps)
-        for k, v in ((10, p10), (100, p100), (1000, p1k)): tot[k] += qty * v
-        mouser = (n['mouser'] if n else MOUSER_PREFIX.get(p.mfr, '') + mpn) if mpn else ''
-        dk = n['dk'] if n else ''
-        single = p.alt.lower().startswith('none')
-        rows.append([i, len(ps), ' '.join(refs), value, p.desc, p.mfr, mpn, dk or 'look up by MPN', mouser, 'verified %s' % CHECKED if n else 'Mouser PN built from prefix + MPN, not verified',
-                     p.alt, 'yes' if single else 'no', 'DNP' if dnp else '', fp.split(':')[-1], '%.4f' % p10, '%.4f' % p100, '%.4f' % p1k, '%.2f' % (qty * p10), '%.2f' % (qty * p100), '%.2f' % (qty * p1k), basis])
-        if n or p.ref[0] in 'UJYLQM' or p.sym in ('SORX:CP',):
-            need = qty * 1000
-            flag = ''
-            if n:
-                sn = n['stock_n']
-                flag = 'UNKNOWN' if sn is None else ('UNDER 1k' if sn < 1000 else ('below 1k-unit build need (%d)' % need if sn < need else 'ok'))
-            stock_rows.append([mpn, p.mfr, qty, n['stock'] if n else 'not checked', n['lead'] if n else '', flag if n else 'NOT CHECKED', n['src'] if n else '', CHECKED if n else ''])
-    hdr = ['Item', 'Qty', 'References', 'Value', 'Description', 'Manufacturer', 'MPN', 'Digi-Key PN', 'Mouser PN', 'Distributor PN status', 'Second source / alternates', 'Single-sourced',
-           'DNP', 'Footprint', 'Unit $ @10', 'Unit $ @100', 'Unit $ @1k', 'Ext $ @10', 'Ext $ @100', 'Ext $ @1k', 'Price basis']
-    with open(os.path.join(BOM, 'sorx-bom.csv'), 'w', newline='') as f:
-        w = csv.writer(f); w.writerow(hdr); w.writerows(rows)
-    with open(os.path.join(BOM, 'stock-check.csv'), 'w', newline='') as f:
-        w = csv.writer(f); w.writerow(['MPN', 'Manufacturer', 'Qty per board', 'Stock seen', 'Factory lead time', 'Flag', 'Source', 'Date checked']); w.writerows(stock_rows)
-    som = {10: NOTES['0063']['p10'], 100: NOTES['0063']['p100'], 1000: NOTES['0063']['p1k']}
-    ex = {10: sum(e[3] * e[4] for e in EXTRA), 100: sum(e[3] * e[5] for e in EXTRA), 1000: sum(e[3] * e[6] for e in EXTRA)}
-    with open(os.path.join(BOM, 'cost-rollup.csv'), 'w', newline='') as f:
-        w = csv.writer(f); w.writerow(['Line', 'Per unit @10', 'Per unit @100', 'Per unit @1k', 'Basis'])
-        w.writerow(['Carrier BOM without SoM', '%.2f' % (tot[10] - som[10]), '%.2f' % (tot[100] - som[100]), '%.2f' % (tot[1000] - som[1000]), 'sum of sorx-bom.csv minus M1'])
-        w.writerow(['SoM (Toradex 0063)', '%.2f' % som[10], '%.2f' % som[100], '%.2f' % som[1000], NOTES['0063']['src']])
-        for e in EXTRA: w.writerow([e[0] + ' (' + e[2] + ')', '%.2f' % (e[3] * e[4]), '%.2f' % (e[3] * e[5]), '%.2f' % (e[3] * e[6]), e[7]])
-        w.writerow(['TOTAL per unit', '%.2f' % (tot[10] + ex[10]), '%.2f' % (tot[100] + ex[100]), '%.2f' % (tot[1000] + ex[1000]), 'excludes NRE, test fixture, freight, tariffs'])
-    print('BOM lines', len(rows), '| placed parts', sum(r[1] for r in rows if not r[12]), '| carrier BOM $ @10/100/1k: %.2f %.2f %.2f' % tuple(tot[k] - som[k] for k in (10, 100, 1000)),
-          '| total $: %.2f %.2f %.2f' % tuple(tot[k] + ex[k] for k in (10, 100, 1000)))
-    print('single-sourced:', [r[6] for r in rows if r[11] == 'yes'])
-    print('stock flags:', [(r[0], r[5]) for r in stock_rows if r[5] not in ('ok', 'NOT CHECKED')], '| not checked:', sum(1 for r in stock_rows if r[5] == 'NOT CHECKED'))
+    for part in DESIGN.parts.values():
+        if include_part(part):
+            # Missing MPNs cannot collapse different unspecified mechanical items.
+            key = (part.mpn or part.value, part.fp, part.dnp)
+            groups.setdefault(key, []).append(part)
+    def refkey(ref):
+        match = re.match(r'([A-Z#]+)(\d+)', ref)
+        return match.group(1), int(match.group(2))
+    rows, stock_rows, unquoted = [], [], []
+    totals = {10: 0.0, 100: 0.0, 1000: 0.0}
+    for index, (_, parts) in enumerate(groups.items(), 1):
+        part = parts[0]
+        mpn, fp, dnp = part.mpn, part.fp, part.dnp
+        refs = sorted((q.ref for q in parts), key=refkey)
+        values = list(dict.fromkeys(q.value for q in parts))
+        note = NOTES.get(mpn)
+        if note:
+            prices = note['p10'], note['p100'], note['p1k']
+            basis = 'historical supplied distributor listing %s; not rechecked' % CHECKED
+        else:
+            prices = est(part)
+            basis = 'inherited estimate; not a quote' if all(v is not None for v in prices) else 'NOT QUOTED'
+        qty = 0 if dnp else len(parts)
+        extended = [None if price is None else qty * price for price in prices]
+        for k, price in zip((10, 100, 1000), extended):
+            if price is not None:
+                totals[k] += price
+        if qty and any(price is None for price in prices):
+            unquoted.append(' '.join(refs))
+        rows.append([index, len(parts), ' '.join(refs), ' / '.join(values), part.desc, part.mfr, mpn,
+                     note.get('dk', '') if note else '', note.get('mouser', '') if note else '',
+                     'historical supplied evidence %s; not rechecked' % CHECKED if note else 'NOT CHECKED',
+                     part.alt, 'yes' if part.alt.lower().startswith('none') else 'not qualified',
+                     'DNP' if dnp else '', fp.split(':')[-1],
+                     *[money(v) for v in prices], *[money(v, 2) for v in extended], basis])
+        if note or part.ref[0] in 'UJYLQMH' or part.sym in ('SORX:CP', 'SORX:MECHANICAL_ITEM'):
+            stock_rows.append([mpn, part.mfr, qty, note['stock'] if note else 'not checked',
+                               note['lead'] if note else '', 'HISTORICAL; RECHECK' if note else 'NOT CHECKED',
+                               note['src'] if note else '', CHECKED if note else ''])
+    hdr = ['Item', 'Qty', 'References', 'Value', 'Description', 'Manufacturer', 'MPN', 'Digi-Key PN', 'Mouser PN',
+           'Distributor PN status', 'Second source / alternates', 'Single-sourced', 'DNP', 'Footprint',
+           'Unit $ @10', 'Unit $ @100', 'Unit $ @1k', 'Ext $ @10', 'Ext $ @100', 'Ext $ @1k', 'Price basis']
+    with open(os.path.join(BOM, 'sorx-bom.csv'), 'w', newline='', encoding='utf-8') as output:
+        writer = csv.writer(output); writer.writerow(hdr); writer.writerows(rows)
+    with open(os.path.join(BOM, 'stock-check.csv'), 'w', newline='', encoding='utf-8') as output:
+        writer = csv.writer(output)
+        writer.writerow(['MPN', 'Manufacturer', 'Qty per board', 'Stock seen', 'Factory lead time', 'Flag', 'Source', 'Date checked'])
+        writer.writerows(stock_rows)
+    with open(os.path.join(BOM, 'cost-rollup.csv'), 'w', newline='', encoding='utf-8') as output:
+        writer = csv.writer(output)
+        writer.writerow(['Line', 'Per unit @10', 'Per unit @100', 'Per unit @1k', 'Basis'])
+        writer.writerow(['BOM known-price subtotal including SoM and specified mounting items',
+                         *[money(totals[k], 2) for k in (10, 100, 1000)],
+                         'INCOMPLETE: unquoted references ' + ', '.join(unquoted)])
+        for entry in EXTRA:
+            prices = [None if p is None else entry[3] * p for p in entry[4:7]]
+            writer.writerow([entry[0] + ' (' + entry[2] + ')', *[money(v, 2) for v in prices], entry[7]])
+        writer.writerow(['COMPLETE UNIT TOTAL', '', '', '', 'UNAVAILABLE until all PCB, mechanical and component quotes are complete'])
+    print('BOM lines', len(rows), '| unquoted references:', ', '.join(unquoted))
+    print('Stock rows', len(stock_rows), '| independently rechecked in this run: 0')
+
+
 if __name__ == '__main__':
     main()

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""SORX carrier board rev A -- single source of truth for schematic, PCB and BOM.
+"""SORX carrier board Codex B -- declarative source for schematic, PCB and BOM.
 
 Every part is declared once with its symbol, footprint, manufacturer part number and
 pin-to-net map.  gen_sch.py, gen_pcb.py and gen_bom.py all import DESIGN from here, so the
-schematic and the board cannot drift apart.
+generated outputs must be checked against this model before release.
 """
 import collections
 
@@ -20,8 +20,8 @@ VERDIN = """1=JTAG_1_TDI 2=ADC_1 3=JTAG_1_TRST# 4=ADC_2 5=JTAG_1_TDO 6=ADC_3 7=J
 101=CSI_1_D3_N 102=MSP_7 103=GND 104=MSP_8 105=CSI_1_D2_P 106=MSP_9 107=CSI_1_D2_N 108=MSP_10 109=GND 110=GND
 111=CSI_1_CLK_P 112=MSP_11 113=CSI_1_CLK_N 114=MSP_12 115=GND 116=MSP_13 117=CSI_1_D1_P 118=MSP_14 119=CSI_1_D1_N 120=MSP_15
 121=GND 122=GND 123=CSI_1_D0_P 124=MSP_16 125=CSI_1_D0_N 126=MSP_17 127=GND 128=MSP_18 129=UART_1_RXD 130=MSP_19
-131=UART_1_TXD 132=MSP_20 133=UART_1_CTS 134=GND 135=UART_1_RTS 136=MSP_21 137=UART_2_RXD 138=MSP_22 139=UART_2_TXD 140=MSP_23
-141=UART_2_CTS 142=MSP_24 143=UART_2_RTS 144=MSP_25 145=GND 146=GND 147=UART_3_RXD 148=MSP_26 149=UART_3_TXD 150=MSP_27
+131=UART_1_TXD 132=MSP_20 133=UART_1_RTS 134=GND 135=UART_1_CTS 136=MSP_21 137=UART_2_RXD 138=MSP_22 139=UART_2_TXD 140=MSP_23
+141=UART_2_RTS 142=MSP_24 143=UART_2_CTS 144=MSP_25 145=GND 146=GND 147=UART_3_RXD 148=MSP_26 149=UART_3_TXD 150=MSP_27
 151=UART_4_RXD 152=MSP_28 153=UART_4_TXD 154=MSP_29 155=USB_1_EN 156=MSP_30 157=USB_1_OC# 158=GND 159=USB_1_VBUS 160=MSP_31
 161=USB_1_ID 162=MSP_32 163=USB_1_D_N 164=MSP_33 165=USB_1_D_P 166=MSP_34 167=GND 168=MSP_35 169=USB_2_SSTX_N 170=GND
 171=USB_2_SSTX_P 172=MSP_36 173=GND 174=MSP_37 175=USB_2_SSRX_N 176=MSP_38 177=USB_2_SSRX_P 178=MSP_39 179=GND 180=MSP_40
@@ -106,10 +106,10 @@ FP_SIZE = {'0402': '0402_1005Metric', '0603': '0603_1608Metric', '0805': '0805_2
 
 
 def RES_MPN(value, size):
-    v = value.replace('Ω', '').strip()
+    v = value.replace('\u03a9', '').strip()
     code = {'0': '0R', '22': '22R', '27': '27R', '33': '33R', '49.9': '49R9', '100': '100R', '330': '330R', '470': '470R',
-            '1k': '1K', '1.5k': '1K5', '1.8k': '1K8', '4.7k': '4K7', '4.99k': '4K99', '5.1k': '5K1', '8.2k': '8K2', '10k': '10K', '11k': '11K',
-            '12.1k': '12K1', '24.9k': '24K9', '43.2k': '43K2', '46.4k': '46K4', '53.6k': '53K6', '91k': '91K', '100k': '100K', '909k': '909K'}[v]
+            '1k': '1K', '1.5k': '1K5', '1.8k': '1K8', '3.9k': '3K9', '4.7k': '4K7', '4.99k': '4K99', '5.1k': '5K1', '6.04k': '6K04', '8.2k': '8K2', '9.1k': '9K1', '10k': '10K', '11k': '11K',
+            '12.1k': '12K1', '22k': '22K', '24.9k': '24K9', '43.2k': '43K2', '46.4k': '46K4', '53.6k': '53K6', '82k': '82K', '91k': '91K', '100k': '100K', '909k': '909K'}[v]
     return 'RC%s%sR-07%sL' % (size, 'J' if v == '0' else 'F', code)
 
 
@@ -123,6 +123,8 @@ def CAP_SEL(value, size, volt):
         '39nF': ('0402', '25V', 'GRM155R71E393KA88D', 'Murata', 'X7R'),
         '100nF': ('0402', '16V', 'GRM155R71C104KA88D', 'Murata', 'X7R'),
         '100nF/50V': ('0603', '50V', 'GRM188R71H104KA93D', 'Murata', 'X7R'),
+        '1uF/50V': ('0805', '50V', 'GRM21BR71H105KA12L', 'Murata', 'X7R'),
+        '10uF/50V': ('1210', '50V', 'GRM32ER71H106KA12L', 'Murata', 'X7R'),
         '1uF': ('0603', '25V', 'GRM188R61E105KA12D', 'Murata', 'X5R'),
         '4.7uF': ('0603', '10V', 'GRM188R61A475KE15D', 'Murata', 'X5R'),
         '4.7uF/35V': ('0805', '35V', 'GRM21BR6YA475KA73L', 'Murata', 'X5R'),
@@ -165,10 +167,10 @@ P('SW', 'Switch:SW_Push', 'RECOVERY', 'Button_Switch_THT:SW_Tactile_SKHH_Angled'
   desc='Tactile switch, right angle, through hole', alt='C&K PTS645VL58-2 LFS')
 D.R('470', 'RECOVERY#', 'RECOVERY_SW')
 # FRAM journal head (populate option approved at checkpoint 1)
-P('U', 'Memory_EEPROM:25LCxxx', 'CY15B104QN', 'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm',
-  {'1': 'FRAM_CS#', '2': 'FRAM_MISO', '3': 'FRAM_WP#', '4': 'GND', '5': 'FRAM_MOSI', '6': 'FRAM_SCK', '7': 'FRAM_HOLD#', '8': '+1V8'},
-  mpn='CY15B104QN-50SXI', mfr='Infineon', desc='4 Mbit SPI F-RAM, 1.8-3.6 V, 50 MHz, SOIC-8', alt='Fujitsu MB85RS4MTY (1.8 V, SOP-8); Everspin MR25H40 needs 3.3 V level shift')
-D.R('10k', '+1V8', 'FRAM_CS#'); D.R('10k', '+1V8', 'FRAM_WP#'); D.R('10k', '+1V8', 'FRAM_HOLD#'); D.C('100nF', '+1V8')
+P('U', 'SORX:CY15V104QN', 'CY15V104QN', 'Package_SO:SOIC-8_5.23x5.23mm_P1.27mm',
+  {'1': 'FRAM_CS#', '2': 'FRAM_MISO', '3': 'FRAM_WP#', '4': 'GND', '5': 'FRAM_MOSI', '6': 'FRAM_SCK', '7': 'FRAM_DNU', '8': '+1V8'},
+  mpn='CY15V104QN-50SXI', mfr='Infineon', desc='4 Mbit SPI F-RAM, 1.71-1.89 V, 50 MHz, 208 mil SOIC-8; SoM rail tolerance requires qualification', alt='None qualified; verify exact package, pinout and supply range before substitution')
+D.R('10k', '+1V8', 'FRAM_CS#'); D.R('10k', '+1V8', 'FRAM_WP#'); D.R('0', '+1V8', 'FRAM_DNU'); D.C('100nF', '+1V8')
 # AUX header (bring-up)
 P('J', 'Connector_Generic:Conn_01x06', 'AUX 1V8', 'Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical',
   {'1': '+1V8', '2': 'AUX_TXD', '3': 'AUX_RXD', '4': 'I2C1_SDA', '5': 'I2C1_SCL', '6': 'GND'}, mpn='61300611121', mfr='Wurth Elektronik',
@@ -185,15 +187,16 @@ P('J', USBC['sym'], 'USB-C PWR', USBC['fp'], {'VBUS': 'VBUS_IN', 'GND': 'GND', '
   nc=['A6', 'A7', 'B6', 'B7', 'A8', 'B8'], mpn=USBC['mpn'], mfr=USBC['mfr'], desc=USBC['desc'], alt=USBC['alt'])
 P('D', 'SORX:TVS', 'SMAJ22A', 'Diode_SMD:D_SMA', {'A': 'GND', 'K': 'VBUS_IN'}, mpn='SMAJ22A', mfr='Littelfuse', desc='TVS 22 V standoff 400 W SMA, unidirectional',
   alt='Bourns SMAJ22A, Vishay SMAJ22A-E3/61')
-D.C('4.7uF/35V', 'VBUS_IN'); D.C('100nF/50V', 'VBUS_IN')
+D.C('1uF/50V', 'VBUS_IN'); D.C('100nF/50V', 'VBUS_IN')
 P('U', 'Interface_USB:STUSB4500QTR', 'STUSB4500', 'Package_DFN_QFN:QFN-24-1EP_4x4mm_P0.5mm_EP2.7x2.7mm',
   {'1': 'PD_CC1', '2': 'PD_CC1', '4': 'PD_CC2', '5': 'PD_CC2', '6': 'GND', '7': 'I2C1_SCL', '8': 'I2C1_SDA', '10': 'GND', '11': 'PD_ATTACH#',
-   '12': 'GND', '13': 'GND', '16': 'PD_EN_SNK#', '18': 'PD_VS', '19': 'PD_ALERT#', '21': 'PD_1V2', '22': 'GND', '23': 'PD_2V7', '24': 'VBUS_IN', '25': 'GND'},
+   '12': 'GND', '13': 'GND', '16': 'PD_EN_SNK#', '18': 'PD_VS', '19': 'PD_ALERT#', '21': 'PD_1V2', '22': 'GND', '23': 'PD_2V7', '24': '+4V5_PD', '25': 'GND'},
   nc=['9', '14', '15', '17', '20'], mpn='STUSB4500QTR', mfr='STMicroelectronics', desc='USB PD sink controller, NVM-configured, QFN-24',
   alt='None drop-in; TI TPS25730 or Infineon CYPD3177 need a layout change')
-D.R('1k', 'VBUS_IN', 'PD_VS'); D.C('1uF', 'PD_1V2'); D.C('1uF', 'PD_2V7'); D.C('100nF/50V', 'VBUS_IN')
-D.R('10k', '+1V8', 'PD_ALERT#'); D.R('100k', '+1V8', 'PD_ATTACH#'); D.R('100k', 'VBUS_IN', 'PD_EN_SNK#')
-# reverse-polarity FET + eFuse
+D.R('1k', 'VBUS_IN', 'PD_VS', size='1206'); D.C('1uF', 'PD_1V2'); D.C('1uF', 'PD_2V7'); D.C('100nF/50V', 'VBUS_IN')
+D.R('10k', '+1V8', 'PD_ALERT#'); D.R('100k', '+1V8', 'PD_ATTACH#'); D.R('100k', '+4V5_PD', 'PD_EN_SNK#')
+# eFuse external reverse-blocking FET: raw-port reverse polarity is NOT qualified
+# because the upstream unidirectional TVS conducts on a negative supply.
 P('Q', 'SORX:NMOS_SO8', 'DMT6009LSS', 'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm',
   {'S': 'VBUS_IN', 'G': 'EF_BGATE', 'D': 'VIN_PROT'}, mpn='DMT6009LSS-13', mfr='Diodes Inc.', desc='N-MOSFET 60 V, <15 mOhm, SO-8 (reverse-polarity blocking)',
   alt='Any 60 V SO-8 N-FET with standard pinout, e.g. Vishay SI4062DY, AOS AO4264E')
@@ -204,10 +207,10 @@ P('U', 'Power_Management:TPS26631PWP', 'TPS26631', 'Package_SO:HTSSOP-20-1EP_4.4
    'ILIM': 'EF_ILIM', 'MODE': 'EF_MODE', '~{SHDN}': 'EF_SHDN#', 'IMON': 'EF_IMON', '~{FLT}': 'PWR_FLT#', 'PGTH': 'EF_PGTH', 'PGOOD': 'EF_PGOOD', 'OUT': 'VSYS'},
   mpn='TPS26631PWPR', mfr='Texas Instruments', desc='eFuse 4.5-60 V 6 A, adjustable ILIM/UVLO/OVP, reverse-polarity FET driver, HTSSOP-20',
   alt='TPS26630PWPR (same footprint, different fault response)')
-D.C('100nF/50V', 'VBUS_IN'); D.C('10uF/35V', 'VIN_PROT')
+D.C('100nF/50V', 'VBUS_IN'); D.C('10uF/50V', 'VIN_PROT')
 D.R('909k', 'VBUS_IN', 'EF_UVLO'); D.R('46.4k', 'EF_UVLO', 'EF_OVP'); D.R('53.6k', 'EF_OVP', 'GND')
 D.C('22nF', 'EF_DVDT'); D.R('8.2k', 'EF_ILIM', 'GND'); D.R('0', 'EF_MODE', 'GND', dnp=True)
-D.R('24.9k', 'EF_IMON', 'GND'); D.R('1k', 'EF_IMON', 'IMON_ADC'); D.C('100nF', 'IMON_ADC')
+D.R('9.1k', 'EF_IMON', 'GND'); D.R('1k', 'EF_IMON', 'IMON_ADC'); D.C('100nF', 'IMON_ADC')
 D.R('100k', '+1V8', 'PWR_FLT#'); D.R('91k', 'VSYS', 'EF_PGTH'); D.R('11k', 'EF_PGTH', 'GND'); D.R('100k', '+5V', 'EF_PGOOD')
 D.C('10uF/35V', 'VSYS'); D.C('10uF/35V', 'VSYS')
 P('C', 'SORX:CP', '100uF/35V', 'Capacitor_SMD:CP_Elec_6.3x7.7', {'1': 'VSYS', '2': 'GND'}, mpn='EEE-FK1V101XP', mfr='Panasonic', desc='Al electrolytic 100 uF 35 V 6.3x7.7 mm',
@@ -332,7 +335,7 @@ D.C('100nF', 'MG_1V2_PLL'); D.C('10uF', 'MG_1V2_PLL')
 for n in ('MG_RXD0', 'MG_RXD1', 'MG_RXD2', 'MG_RXD3', 'MG_RXC', 'MG_LED1', 'MG_LED2', 'MG_LEDMODE'):
     D.R('10k', '+1V8', n)          # MODE=1111 (RGMII, all speeds), PHYAD=7, single-LED mode
 D.R('10k', 'MG_RX_CTL', 'GND')     # CLK125_EN = 0
-D.R('1.5k', '+1V8', 'MG_MDIO'); D.R('4.7k', '+1V8', 'MG_INT#'); D.R('12.1k', 'MG_ISET', 'GND')
+D.R('1.5k', '+1V8', 'MG_MDIO'); D.R('4.7k', '+1V8', 'MG_INT#'); D.R('6.04k', 'MG_ISET', 'GND')  # KSZ9131 DS00002841C: 6.04 kOhm, 1%
 P('Y', XTAL['sym'], '25MHz', XTAL['fp'], {'1': 'MG_XI', '3': 'MG_XO', '2': 'GND', '4': 'GND'}, mpn=XTAL['mpn'], mfr=XTAL['mfr'], desc=XTAL['desc'], alt=XTAL['alt'])
 D.C('27pF', 'MG_XI'); D.C('27pF', 'MG_XO')
 for i in (1, 2):
@@ -362,7 +365,7 @@ def usb_port(n, label, ss):
     else:
         nc = ['5', '6', '8', '9']
     P('J', USBA['sym'], label, USBA['fp'], pins, nc, mpn=USBA['mpn'], mfr=USBA['mfr'], desc=USBA['desc'], alt=USBA['alt'])
-    P('U', LVT['sym'], '74LV1T34', LVT['fp'], {'2': 'USB%d_EN' % n, '3': 'GND', '4': 'USB%d_EN_3V3' % n, '5': '+3V3'}, mpn=LVT['mpn'], mfr=LVT['mfr'], desc=LVT['desc'], alt=LVT['alt'])
+    P('U', LVT['sym'], '74LV1T34', LVT['fp'], {'2': 'USB1_EN_SAFE' if n == 1 else 'USB%d_EN' % n, '3': 'GND', '4': 'USB%d_EN_3V3' % n, '5': '+3V3'}, mpn=LVT['mpn'], mfr=LVT['mfr'], desc=LVT['desc'], alt=LVT['alt'])
     D.R('100k', 'USB%d_EN' % n, 'GND'); D.C('100nF', '+3V3')
     P('U', SWI['sym'], 'TPS2065C', SWI['fp'], {'1': v, '2': 'GND', '3': 'USB%d_OC#' % n, '4': 'USB%d_EN_3V3' % n, '5': '+5V_USB'}, mpn=SWI['mpn'], mfr=SWI['mfr'], desc=SWI['desc'], alt=SWI['alt'])
     D.R('10k', '+1V8', 'USB%d_OC#' % n); D.C('10uF', '+5V_USB'); D.C('100nF', v)
@@ -373,11 +376,12 @@ def usb_port(n, label, ss):
 
 
 usb_port(2, 'USB 1 (USB 3.0)', True)
-P('U', 'Power_Protection:TPD4E05U06DQA', 'TPD4E05U06', 'Package_SON:USON-10_2.5x1.0mm_P0.5mm',
-  {'1': 'USB2_SSTX_P', '2': 'USB2_SSTX_N', '4': 'USB2_SSRX_P', '5': 'USB2_SSRX_N', '3': 'GND', '8': 'GND'}, nc=['6', '7', '9', '10'], mpn='TPD4E05U06DQAR', mfr='Texas Instruments',
+P('U', 'SORX:TPD4E05U06_FLOWTHROUGH', 'TPD4E05U06', 'Package_SON:USON-10_2.5x1.0mm_P0.5mm',
+  {'1': 'USB2_SSTX_P', '2': 'USB2_SSTX_N', '4': 'USB2_SSRX_P', '5': 'USB2_SSRX_N', '3': 'GND', '8': 'GND',
+   '10': 'USB2_SSTX_P', '9': 'USB2_SSTX_N', '7': 'USB2_SSRX_P', '6': 'USB2_SSRX_N'}, mpn='TPD4E05U06DQAR', mfr='Texas Instruments',
   desc='4-channel ESD for SuperSpeed lines, USON-10 flow-through', alt='Nexperia PUSB3FR4 (footprint differs), Diodes DT1240-04LP-7')
 usb_port(1, 'USB 2 (USB 2.0 / RECOVERY)', False)
-D.R('10k', 'USB1_VBUS', 'USB1_VBUS_DET'); D.R('1k', 'USB1_ID', 'GND'); D.R('100k', '+1V8', 'USB1_ID', dnp=True)
+D.R('10k', 'USB1_DET_SOURCE', 'USB1_VBUS_DET'); D.R('1k', 'USB1_ID', 'USB1_ID_STRAP'); D.R('100k', '+1V8', 'USB1_ID', dnp=True)
 # debug console
 P('J', USBC['sym'], 'USB-C DEBUG', USBC['fp'], {'VBUS': 'VBUS_DBG_RAW', 'GND': 'GND', 'CC1': 'DBG_CC1', 'CC2': 'DBG_CC2', 'D+': 'DBG_D_P', 'D-': 'DBG_D_N', 'SHIELD': 'GND'},
   nc=['A8', 'B8'], mpn=USBC['mpn'], mfr=USBC['mfr'], desc=USBC['desc'], alt=USBC['alt'])
@@ -476,6 +480,63 @@ for i in range(1, 5):
     P('H', 'Mechanical:MountingHole', 'M3', 'MountingHole:MountingHole_3.2mm_M3', {}, desc='M3 mounting hole', inbom=False)
 for i in range(1, 4):
     P('FID', 'Mechanical:Fiducial', 'Fiducial', 'Fiducial:Fiducial_1mm_Mask2mm', {}, desc='Fiducial', inbom=False)
+
+# Independent Codex B corrections appended to preserve original reference designators.
+D.sheet = 'power'
+P('U', 'SORX:LT3010_ADJ', 'LT3010 4.5V', 'sorx:LT_MS8E',
+  {'1': '+4V5_PD', '2': 'PD_AUX_ADJ', '4': 'GND', '5': 'VBUS_IN', '8': 'VBUS_IN', '9': 'GND'}, nc=['3', '6', '7'],
+  mpn='LT3010EMS8E#PBF', mfr='Analog Devices',
+  desc='80 V input adjustable 4.5 V auxiliary LDO; reverse-input/output protection; conditional startup bounds documented')
+D.C('1uF/50V', 'VBUS_IN')
+D.C('10uF', '+4V5_PD')
+D.C('100nF', '+4V5_PD')
+P('U', 'Reference_Voltage:TL431PK', 'TL431B', 'Package_TO_SOT_SMD:SOT-89-3',
+  {'1': 'PD_CLAMP_REF', '2': 'GND', '3': 'PD_VS'}, mpn='TL431BIPK', mfr='Texas Instruments',
+  desc='Precision shunt for PD voltage-sense input, B grade -40 to85C; transient validation open')
+D.R('82k', 'PD_VS', 'PD_CLAMP_REF')
+D.R('10k', 'PD_CLAMP_REF', 'GND')
+P('Q', 'Device:Q_PMOS_GSD', 'PMV65XP', 'Package_TO_SOT_SMD:SOT-23',
+  {'1': 'PD_EN_SNK#', '2': '+4V5_PD', '3': 'EF_SHDN#'}, mpn='PMV65XP,215', mfr='Nexperia',
+  desc='Active-low PD enable connects auxiliary rail to eFuse SHDN; external pulldown defaults OFF')
+D.TP('+4V5_PD')
+
+D.sheet = 'som'
+for ref, height, mpn in [('H5', 2.5, '9774025243R'), ('H6', 2.5, '9774025243R'),
+                         ('H7', 7.0, '9774070243R'), ('H8', 7.0, '9774070243R')]:
+    P('H', 'Mechanical:MountingHole_Pad', 'M2 SMT %.1fmm' % height,
+      'sorx:Standoff_SMT_M2_WA-SMSI', {}, nc=['1'], mpn=mpn, mfr='Wurth Elektronik', ref=ref,
+      desc='WA-SMSI M2 SMT standoff; 3.0 mm NPTH, 5.3 mm solder land, 0.2 Nm max')
+P('HS', 'SORX:MECHANICAL_ITEM', 'Verdin heatsink Type1 V1.1B', '', {},
+  mpn='23111101', mfr='Toradex', desc='85.6x38x14.27 mm; confirm selected SoM/TIM and exact supplier STEP')
+for i in range(4):
+    P('SC', 'SORX:MECHANICAL_ITEM', 'M2x10 heatsink screw', '', {},
+      desc='M2x10 screw per Toradex guide; exact material/head procurement part and engagement pending')
+
+D.sheet = 'usb_console'
+P('U', '74xGxx:74LVC1G08', '74LVC1G08', G['fp'],
+  {'1': 'USB1_EN', '2': 'RECOVERY#', '3': 'GND', '4': 'USB1_EN_SAFE', '5': '+1V8'},
+  mpn='SN74LVC1G08DBVR', mfr='Texas Instruments',
+  desc='Recovery interlock: holding RECOVERY low inhibits USB1 host power enable')
+D.C('100nF', '+1V8')
+D.R('22k', 'USB1_EN_SAFE', 'GND')
+P('JP', 'Connector_Generic:Conn_01x03', 'USB1 VBUS SENSE: 1-2 HOST / 2-3 SERVICE',
+  'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical',
+  {'1': 'USB1_VBUS', '2': 'USB1_DET_SOURCE', '3': 'USB_REC_VBUS'},
+  desc='3-pin 2.54mm header and removable shunt; exact procurement MPN pending')
+P('JP', 'Connector_Generic:Conn_01x02', 'USB1 ID: FIT HOST / REMOVE SERVICE',
+  'Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical',
+  {'1': 'USB1_ID_STRAP', '2': 'GND'},
+  desc='2-pin 2.54mm header and removable shunt; exact procurement MPN pending')
+P('J', 'Connector_Generic:Conn_01x02', 'SERVICE HOST VBUS SENSE ONLY',
+  'Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical',
+  {'1': 'USB_REC_VBUS', '2': 'GND'},
+  desc='Service fixture1=host VBUS,2=GND; not a power input; exact procurement MPN pending')
+
+D.sheet = 'power'
+D.R('3.9k', '+4V5_PD', 'GND')  # R115: >=1mA at worst-case regulated lower bound
+D.R('4.7k', 'EF_SHDN#', 'GND')  # R116: includes PMV65XP leakage at150C, default OFF
+D.R('24.9k', '+4V5_PD', 'PD_AUX_ADJ')  # R117 upper feedback arm
+D.R('10k', 'PD_AUX_ADJ', 'GND')  # R118 lower feedback arm
 
 DESIGN = D
 

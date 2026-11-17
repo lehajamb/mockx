@@ -1,25 +1,25 @@
 MPN,Manufacturer,Qty per board,Stock seen,Factory lead time,Flag,Source,Date checked
-2309409-2,TE Connectivity,1,not shown in snapshot,7 wk,UNKNOWN,digikey.com listing (part number and lead time seen; prices estimated),2026-11-16
-0063,Toradex,1,0-1 (Mouser; two listings disagree),12-15 wk,UNDER 1k,mouser.com listing 145-0063; volume prices are placeholders pending a Toradex quote,2026-11-16
-CY15B104QN-50SXI,Infineon,1,not checked,,NOT CHECKED,,
+2309409-2,TE Connectivity,1,not shown in snapshot,7 wk,HISTORICAL; RECHECK,digikey.com listing (part number and lead time seen; prices estimated),2026-11-16
+0063,Toradex,1,0-1 (Mouser; two listings disagree),12-15 wk,HISTORICAL; RECHECK,mouser.com listing 145-0063; volume prices are placeholders pending a Toradex quote,2026-11-16
+CY15V104QN-50SXI,Infineon,1,not checked,,NOT CHECKED,,
 61300611121,Wurth Elektronik,0,not checked,,NOT CHECKED,,
 USB4105-GF-A,GCT,2,not checked,,NOT CHECKED,,
-STUSB4500QTR,STMicroelectronics,1,"4,532-20,561 (Digi-Key, varies by snapshot)",16-22 wk,ok,digikey.com,2026-11-16
+STUSB4500QTR,STMicroelectronics,1,"4,532-20,561 (Digi-Key, varies by snapshot)",16-22 wk,HISTORICAL; RECHECK,digikey.com,2026-11-16
 DMT6009LSS-13,Diodes Inc.,1,not checked,,NOT CHECKED,,
 2N7002-7-F,Diodes Inc.,1,not checked,,NOT CHECKED,,
-TPS26631PWPR,Texas Instruments,1,"1,753-3,292 (Digi-Key), 2,398 (Mouser)",6 wk,ok,digikey.com / mouser.com,2026-11-16
+TPS26631PWPR,Texas Instruments,1,"1,753-3,292 (Digi-Key), 2,398 (Mouser)",6 wk,HISTORICAL; RECHECK,digikey.com / mouser.com,2026-11-16
 EEE-FK1V101XP,Panasonic,1,not checked,,NOT CHECKED,,
 LMR33630ADDAR,Texas Instruments,3,not checked,,NOT CHECKED,,
 XAL5050-103MEC,Coilcraft,3,not checked,,NOT CHECKED,,
 AZ1117CH-1.2TRG1,Diodes Inc.,1,not checked,,NOT CHECKED,,
-JK0654219NL,Pulse Electronics,3,"1,334-1,607 (Digi-Key), 169 (Mouser), 860 (TTI)",8-12 wk,below 1k-unit build need (3000),digikey.com / mouser.com / findchips.com,2026-11-16
+JK0654219NL,Pulse Electronics,3,"1,334-1,607 (Digi-Key), 169 (Mouser), 860 (TTI)",8-12 wk,HISTORICAL; RECHECK,digikey.com / mouser.com / findchips.com,2026-11-16
 132289,Amphenol RF,1,not checked,,NOT CHECKED,,
 SN74LVC1G17DBVR,Texas Instruments,3,not checked,,NOT CHECKED,,
-WGI210AT S LJXR,Intel,1,"2,349 (Mouser tray)",n/a,ok,mouser.com Intel I210 listing (qty-1 price seen; breaks estimated),2026-11-16
+WGI210AT S LJXR,Intel,1,"2,349 (Mouser tray)",n/a,HISTORICAL; RECHECK,mouser.com Intel I210 listing (qty-1 price seen; breaks estimated),2026-11-16
 ABM8-25.000MHZ-B2-T,Abracon,2,not checked,,NOT CHECKED,,
 W25Q16JVSSIQ,Winbond,1,not checked,,NOT CHECKED,,
 SN74LVC1G07DBVR,Texas Instruments,6,not checked,,NOT CHECKED,,
-KSZ9131RNXI-TR,Microchip,1,"8,189-8,305 (Digi-Key)",7 wk,ok,digikey.com,2026-11-16
+KSZ9131RNXI-TR,Microchip,1,"8,189-8,305 (Digi-Key)",7 wk,HISTORICAL; RECHECK,digikey.com,2026-11-16
 692122030100,Wurth Elektronik,2,not checked,,NOT CHECKED,,
 SN74LV1T34DBVR,Texas Instruments,5,not checked,,NOT CHECKED,,
 TPS2065CDBVR,Texas Instruments,2,not checked,,NOT CHECKED,,
@@ -29,7 +29,7 @@ TPD4E05U06DQAR,Texas Instruments,1,not checked,,NOT CHECKED,,
 FT230XS-R,FTDI,1,not checked,,NOT CHECKED,,
 SN74LVC1G125DBVR,Texas Instruments,1,not checked,,NOT CHECKED,,
 TRS3232EIPWR,Texas Instruments,1,not checked,,NOT CHECKED,,
-SN74LVC1G08DBVR,Texas Instruments,1,not checked,,NOT CHECKED,,
+SN74LVC1G08DBVR,Texas Instruments,2,not checked,,NOT CHECKED,,
 54602-908LF,Amphenol ICC,1,not checked,,NOT CHECKED,,
 DM3AT-SF-PEJM5,Hirose,1,not checked,,NOT CHECKED,,
 BSS138LT1G,onsemi,1,not checked,,NOT CHECKED,,
@@ -38,3 +38,13 @@ TMP1075DR,Texas Instruments,1,not checked,,NOT CHECKED,,
 TCA9534PWR,Texas Instruments,1,not checked,,NOT CHECKED,,
 MAX6369KA+T,Analog Devices,1,not checked,,NOT CHECKED,,
 47053-1000,Molex,1,not checked,,NOT CHECKED,,
+LT3010EMS8E#PBF,Analog Devices,1,not checked,,NOT CHECKED,,
+TL431BIPK,Texas Instruments,1,not checked,,NOT CHECKED,,
+"PMV65XP,215",Nexperia,1,not checked,,NOT CHECKED,,
+9774025243R,Wurth Elektronik,2,not checked,,NOT CHECKED,,
+9774070243R,Wurth Elektronik,2,not checked,,NOT CHECKED,,
+23111101,Toradex,1,not checked,,NOT CHECKED,,
+,,4,not checked,,NOT CHECKED,,
+,,1,not checked,,NOT CHECKED,,
+,,1,not checked,,NOT CHECKED,,
+,,1,not checked,,NOT CHECKED,,

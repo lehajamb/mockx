@@ -1,11 +1,13 @@
-# Manufacturing test plan
+# Manufacturing test plan - Codex B
+
+**NOT READY FOR FABRICATION.** This is a proposed test plan, not executed evidence. Electrical, programming, recovery-fixture and mechanical blockers must close before its limits become acceptance criteria. See [programming and recovery](programming-and-recovery.md).
 
 Scope: functional test of assembled carriers with a known-good SoM fitted in the test fixture, then final test of built units. No in-circuit test fixture is assumed for rev A; test pads exist on every rail.
 
 ## Equipment
 
 - USB-C PD source, 45 W or more, with a current readout. Lab supply 0-25 V / 3 A for threshold tests.
-- Host PC with three GbE ports (one supports multicast and PTP), a USB A-to-A cable, USB-C cable, Cisco rollover cable.
+- Host PC with three GbE ports (one supports multicast and PTP), a qualified USB_1 recovery fixture (not yet designed), USB-C console cable, Cisco rollover cable.
 - 1 PPS source (GPS-disciplined or a PTP grandmaster PPS out), 3.3 V.
 - Two USB loads, 900 mA each. USB 3 flash drive. microSD card with the test image.
 - Golden Verdin iMX8M Plus with the test image (boots from microSD, runs the script over the console).
@@ -14,15 +16,15 @@ Scope: functional test of assembled carriers with a known-good SoM fitted in the
 
 | Step | Target | Method | Record |
 |---|---|---|---|
-| P1 | STUSB4500 NVM: 20 V / 15 V at 2 A, power only above 5 V | I2C from the SoM (0x28) | NVM readback |
-| P2 | I210 flash: NVM image and unique MAC address | `ethtool -E` or Intel EEUPDATE from the SoM | MAC, checksum |
+| P1 | Approved STUSB4500 NVM; proposed15V/3A,20V/3A, power only above5V | Qualified independent1.8V I2C fixture,0x28 | Image hash, version, readback, contract and shutdown waveforms |
+| P2 | Approved I210-AT external-flash binary and unique MAC | Validated Intel-supported tool on a supported host; AArch64 availability unresolved | Tool/image hashes, license, MAC allocation, readback, cold-boot identity |
 | P3 | Serial number label and record | Fixture | Serial, MACs, date |
 
 ## Test sequence and limits
 
 | # | Test | Method | Pass limit |
 |---|---|---|---|
-| 1 | Shorts | Resistance to GND on TP VBUS_IN, VSYS, +5V, +5V_USB, +3V3, +1V8, +1V2_PHY before power | > 100 ohm |
+| 1 | Shorts | Resistance to GND on TP VBUS_IN, VSYS, +5V, +5V_USB, +3V3, +1V8, +1V2_PHY before power | Reviewed per-net baseline; no arbitrary universal resistance threshold |
 | 2 | Input | PD source attached | VBUS_IN 19-21 V (or 14.25-15.75 V), idle input < 3 W without SoM |
 | 3 | UVLO / OVP | Lab supply sweep on TP VBUS_IN (sample basis, 1 in 20) | on 11.5-12.7 V, off 21.9-23.3 V |
 | 4 | Rails | DMM on test pads, SoM fitted | +5V, +5V_USB 4.85-5.15 V; +3V3 3.20-3.40 V; +1V8 1.71-1.89 V; +1V2_PHY 1.14-1.26 V |
@@ -33,7 +35,7 @@ Scope: functional test of assembled carriers with a known-good SoM fitted in the
 | 9 | OE | PCIe enumeration, then same link test | Device 8086:1533, > 900 Mb/s, 0 CRC |
 | 10 | PTP | Hardware timestamp capability on 3 ports; PPS captured on I210 SDP0 and SoM | 10 consecutive edges, period 1 s +/-100 ppm |
 | 11 | USB 1 | SuperSpeed enumeration, 900 mA load | 5 Gb/s, VBUS > 4.75 V |
-| 12 | USB 2 | High-speed enumeration, 900 mA load; recovery-mode enumeration (sample basis) | 480 Mb/s, VBUS > 4.75 V |
+| 12 | USB 2 | High-speed enumeration, 900 mA load; recovery-mode enumeration only after fixture qualification (sample basis) | 480 Mb/s, VBUS > 4.75 V |
 | 13 | USB over-current | Short VBUS on each port | OC flag within 1 s, recovers |
 | 14 | microSD | Detect, write/read 16 MB | No errors |
 | 15 | FRAM | Device ID, 1 kB pattern write/read | Match |
