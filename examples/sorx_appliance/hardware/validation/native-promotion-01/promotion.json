@@ -1,0 +1,11 @@
+{
+  "source": "runs/electrical-final17/power-bridge-proof01.kicad_pcb",
+  "source_sha256": "5188991db0633f32b6552605679a701606510d5833916cdc843b0ec5413cead1",
+  "previous_native_sha256": "4b0b5f18692eecd80ba4ca10c9bc060dbb6584ba1aa6668b223d5afe200c771a",
+  "status": "NOT READY FOR FABRICATION",
+  "required_opens_at_promotion": 30,
+  "normalized_other_findings_at_promotion": 93,
+  "explanation": "Promote accepted model, placement, power, USB, PCIe TX/clock, ground, service headers and SMA work. Later accepted routing changes will be revalidated and promoted separately.",
+  "native_sha256": "5188991db0633f32b6552605679a701606510d5833916cdc843b0ec5413cead1",
+  "project_matches_proof": false
+}
