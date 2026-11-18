@@ -1,0 +1,6 @@
+{
+  "report": "validation/verifier-smoke-20261117/verification.json",
+  "sha256": "d64bdbf218a6fd2d455cc24e54f04a5933a7fd73c7211ee4b2a30dcb2d980267",
+  "status": "HISTORICAL_STALE: retained full-verifier smoke result, not current qualification",
+  "current_native_checkpoint": "validation/native-promotion-01/promotion.json"
+}

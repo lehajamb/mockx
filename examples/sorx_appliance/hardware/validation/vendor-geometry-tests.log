@@ -1,0 +1,8 @@
+test_heatsink_and_screws_match_mount_drawing (test_vendor_geometry.SupplierGeometryTests.test_heatsink_and_screws_match_mount_drawing) ... ok
+test_module_maximum_envelope_and_holes (test_vendor_geometry.SupplierGeometryTests.test_module_maximum_envelope_and_holes) ... ok
+test_tampered_supplier_step_fails (test_vendor_geometry.SupplierGeometryTests.test_tampered_supplier_step_fails) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 3.836s
+
+OK

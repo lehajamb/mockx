@@ -1,0 +1,41 @@
+{
+  "source_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "output_sha256": "e23b5b6de6b6b891eea5d66c6e5ad668bab6159ecd23cb12e7139f03b04f257f",
+  "invariants_equal": true,
+  "before": {
+    "segment": {
+      "count": 9297,
+      "sha256": "fa4c4e2bbe85cb5d27aeac078ad9014ef5dc70f84e8bcf82034d5445cc248cac"
+    },
+    "via": {
+      "count": 1255,
+      "sha256": "2ea41e79a127c0f9b9aabe2c13f54cabe30e9e78ed643bbaead65474c1fa6cbe"
+    },
+    "footprint": {
+      "count": 371,
+      "sha256": "1f58582741ee58244a9efb720d28574fe889ca536100682d47e5e0c1e0a79637"
+    },
+    "net": {
+      "count": 270,
+      "sha256": "9f94ef85802e4651d2e5f02551722acfa02429096158578f43fac3a88bad7251"
+    }
+  },
+  "after": {
+    "segment": {
+      "count": 9297,
+      "sha256": "fa4c4e2bbe85cb5d27aeac078ad9014ef5dc70f84e8bcf82034d5445cc248cac"
+    },
+    "via": {
+      "count": 1255,
+      "sha256": "2ea41e79a127c0f9b9aabe2c13f54cabe30e9e78ed643bbaead65474c1fa6cbe"
+    },
+    "footprint": {
+      "count": 371,
+      "sha256": "1f58582741ee58244a9efb720d28574fe889ca536100682d47e5e0c1e0a79637"
+    },
+    "net": {
+      "count": 270,
+      "sha256": "9f94ef85802e4651d2e5f02551722acfa02429096158578f43fac3a88bad7251"
+    }
+  }
+}

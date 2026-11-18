@@ -1,0 +1,8 @@
+VBUS_IN ['Q1:1', 'Q1:2', 'Q1:3'] 0.064372 V 0.121834 W 7 shared sections
+VIN_PROT ['U3:1', 'U3:2', 'U3:3'] 0.008516 V 0.016118 W 1 shared sections
++5V ['J1:251', 'J1:253', 'J1:255', 'J1:257', 'J1:259'] 0.234686 V 0.607838 W 16 shared sections
++5V ['J1:251'] 0.245603 V 0.636113 W 28 shared sections
++5V ['J1:253'] 0.241858 V 0.626413 W 26 shared sections
++5V ['J1:255'] 0.239886 V 0.621304 W 23 shared sections
++5V ['J1:257'] 0.23792 V 0.616214 W 20 shared sections
++5V ['J1:259'] 0.234686 V 0.607838 W 16 shared sections

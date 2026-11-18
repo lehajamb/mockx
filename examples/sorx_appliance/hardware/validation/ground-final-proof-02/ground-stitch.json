@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "source_inputs_sha256": {
+    "/work/hardware/runs/route-verifier-16b-thermal-proof.kicad_pcb": "1a1e6fd5e32e3d71559aaaa40c57eeffb91364d11a3b47c790f18e899b945e6c",
+    "/work/hardware/runs/route-verifier-16b-thermal-proof.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/tools/ground_stitch.py": "944ed992d865e6dc428454b547959a7774e77d37ccb053391d76410e6606e12a",
+    "/work/hardware/tools/route_completion.py": "bc7d396d99c1dd4182b598bc17026cdc77ecd3429efb0606c2754ae052418923",
+    "/work/hardware/tools/proj.py": "7c30487187195199d0f6e198e1ba7c9d681202fb7bb122dd4a3d3e625bad7fdb"
+  },
+  "sources_unchanged": true,
+  "tool_environment": {
+    "python": "3.11.2 (main, Oct  7 2026, 12:35:07) [GCC 12.2.0]",
+    "kicad": "7.0.11",
+    "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+    "command": [
+      "ground_stitch.py",
+      "/work/hardware/runs/route-verifier-16b-thermal-proof.kicad_pcb",
+      "/work/hardware/runs/route-verifier-17-ground-proof.kicad_pcb",
+      "--report-dir",
+      "/work/hardware/validation/ground-final-proof-02",
+      "--iterations",
+      "2",
+      "--trace-escapes"
+    ]
+  },
+  "input": "/work/hardware/runs/route-verifier-16b-thermal-proof.kicad_pcb",
+  "input_sha256": "1a1e6fd5e32e3d71559aaaa40c57eeffb91364d11a3b47c790f18e899b945e6c",
+  "output": "/work/hardware/runs/route-verifier-17-ground-proof.kicad_pcb",
+  "output_sha256": "1a1e6fd5e32e3d71559aaaa40c57eeffb91364d11a3b47c790f18e899b945e6c",
+  "initial_ground_groups": 20,
+  "remaining_ground_groups": 20,
+  "native_ground_open_items": 20,
+  "supply_detours": [],
+  "ground_escape_routes": [],
+  "vias_added": [],
+  "unresolved_pads": [
+    [
+      {
+        "reference": "C88",
+        "pad": "2",
+        "x_mm": 68.77,
+        "y_mm": 46.11
+      }
+    ],
+    [
+      {
+        "reference": "C89",
+        "pad": "2",
+        "x_mm": 66.299999,
+        "y_mm": 46.1
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "11",
+        "x_mm": 108.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "179",
+        "x_mm": 64.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "195",
+        "x_mm": 60.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "204",
+        "x_mm": 58.6195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "209",
+        "x_mm": 57.3695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "229",
+        "x_mm": 52.3695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "242",
+        "x_mm": 49.1195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "243",
+        "x_mm": 48.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "C8",
+        "pad": "2",
+        "x_mm": 61.68,
+        "y_mm": 47.18
+      }
+    ],
+    [
+      {
+        "reference": "C82",
+        "pad": "2",
+        "x_mm": 77.17,
+        "y_mm": 36.92
+      }
+    ],
+    [
+      {
+        "reference": "C123",
+        "pad": "2",
+        "x_mm": 122.32,
+        "y_mm": 89.1
+      }
+    ],
+    [
+      {
+        "reference": "R20",
+        "pad": "2",
+        "x_mm": 16.96,
+        "y_mm": 35.76
+      }
+    ],
+    [
+      {
+        "reference": "U2",
+        "pad": "6",
+        "x_mm": 13.5375,
+        "y_mm": 14.25
+      },
+      {
+        "reference": "U2",
+        "pad": "10",
+        "x_mm": 15.75,
+        "y_mm": 14.9625
+      },
+      {
+        "reference": "U2",
+        "pad": "12",
+        "x_mm": 16.75,
+        "y_mm": 14.9625
+      },
+      {
+        "reference": "U2",
+        "pad": "13",
+        "x_mm": 17.4625,
+        "y_mm": 14.25
+      },
+      {
+        "reference": "U2",
+        "pad": "22",
+        "x_mm": 15.25,
+        "y_mm": 11.0375
+      },
+      {
+        "reference": "U2",
+        "pad": "25",
+        "x_mm": 15.5,
+        "y_mm": 13.0
+      }
+    ],
+    [
+      {
+        "reference": "C9",
+        "pad": "2",
+        "x_mm": 38.96,
+        "y_mm": 45.07
+      }
+    ],
+    [
+      {
+        "reference": "C87",
+        "pad": "2",
+        "x_mm": 64.06,
+        "y_mm": 42.03
+      }
+    ],
+    [
+      {
+        "reference": "C71",
+        "pad": "2",
+        "x_mm": 18.73,
+        "y_mm": 40.07
+      }
+    ],
+    [
+      {
+        "reference": "C67",
+        "pad": "2",
+        "x_mm": 22.94,
+        "y_mm": 35.91
+      }
+    ],
+    [
+      {
+        "reference": "U11",
+        "pad": "4",
+        "x_mm": 40.565,
+        "y_mm": 49.4
+      }
+    ]
+  ],
+  "before_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 42,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 42,
+    "Footprint errors": 0
+  },
+  "new_drc_findings": [],
+  "fabrication_approval": false
+}

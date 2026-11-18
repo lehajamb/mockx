@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-p",
+    "test_high_speed_audit.py",
+    "-v"
+  ],
+  "returncode": 0,
+  "source_hashes": {
+    "tools/high_speed_audit.py": "60625a45ec78d7f8960ad164629d9a82af111b118c3ad3255b079afae73c171f",
+    "tests/test_high_speed_audit.py": "e65f7ab73a6fd57cbb7ba98ac10564535a3e44988314f21bdc61fd3f0b5a5b89"
+  }
+}

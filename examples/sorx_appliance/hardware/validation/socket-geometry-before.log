@@ -1,0 +1,14 @@
+test_socket_body_clears_near_mounts_and_screws (test_vendor_geometry.SupplierGeometryTests.test_socket_body_clears_near_mounts_and_screws) ... FAIL
+
+======================================================================
+FAIL: test_socket_body_clears_near_mounts_and_screws (test_vendor_geometry.SupplierGeometryTests.test_socket_body_clears_near_mounts_and_screws)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_vendor_geometry.py", line 18, in test_socket_body_clears_near_mounts_and_screws
+    self.assertLessEqual(g.intersection_volume(parts["J1"],parts[ref],"J1:"+ref),.001,ref)
+AssertionError: 20.76020827298489 not less than or equal to 0.001 : H7
+
+----------------------------------------------------------------------
+Ran 1 test in 4.086s
+
+FAILED (failures=1)

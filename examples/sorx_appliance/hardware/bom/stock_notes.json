@@ -1,0 +1,11 @@
+{
+ "_checked": "2026-11-16",
+ "_method": "Distributor listings as returned by web search on the date above (Digi-Key regional pages, Mouser, aggregators). Snapshots disagree by region and age; treat as indicative, not a cart-level check.",
+ "0063": {"dk": "", "mouser": "145-0063", "stock": "0-1 (Mouser; two listings disagree)", "stock_n": 1, "p1": 332.75, "p10": 332.75, "p100": 300.0, "p1k": 280.0, "lead": "12-15 wk", "src": "mouser.com listing 145-0063; volume prices are placeholders pending a Toradex quote", "verified": true},
+ "WGI210AT S LJXR": {"dk": "", "mouser": "607-WGI210ATSLJXR", "stock": "2,349 (Mouser tray)", "stock_n": 2349, "p1": 10.19, "p10": 9.2, "p100": 7.9, "p1k": 6.9, "lead": "n/a", "src": "mouser.com Intel I210 listing (qty-1 price seen; breaks estimated)", "verified": true},
+ "2309409-2": {"dk": "A141326CT-ND", "mouser": "571-2309409-2", "stock": "not shown in snapshot", "stock_n": null, "p1": 3.9, "p10": 3.3, "p100": 2.7, "p1k": 2.2, "lead": "7 wk", "src": "digikey.com listing (part number and lead time seen; prices estimated)", "verified": true},
+ "JK0654219NL": {"dk": "553-JK0654219NL-ND", "mouser": "673-JK0654219NL", "stock": "1,334-1,607 (Digi-Key), 169 (Mouser), 860 (TTI)", "stock_n": 1607, "p1": 19.52, "p10": 16.59, "p100": 14.33, "p1k": 12.33, "lead": "8-12 wk", "src": "digikey.com / mouser.com / findchips.com", "verified": true},
+ "KSZ9131RNXI-TR": {"dk": "150-KSZ9131RNXI-CT-ND", "mouser": "579-KSZ9131RNXI-TR", "stock": "8,189-8,305 (Digi-Key)", "stock_n": 8189, "p1": 3.49, "p10": 3.49, "p100": 2.81, "p1k": 2.81, "lead": "7 wk", "src": "digikey.com", "verified": true},
+ "STUSB4500QTR": {"dk": "497-18060-1-ND", "mouser": "511-STUSB4500QTR", "stock": "4,532-20,561 (Digi-Key, varies by snapshot)", "stock_n": 4532, "p1": 1.96, "p10": 1.44, "p100": 1.17, "p1k": 1.03, "lead": "16-22 wk", "src": "digikey.com", "verified": true},
+ "TPS26631PWPR": {"dk": "296-TPS26631PWPRCT-ND", "mouser": "595-TPS26631PWPR", "stock": "1,753-3,292 (Digi-Key), 2,398 (Mouser)", "stock_n": 2398, "p1": 3.58, "p10": 2.48, "p100": 2.23, "p1k": 1.99, "lead": "6 wk", "src": "digikey.com / mouser.com", "verified": true}
+}

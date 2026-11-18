@@ -1,0 +1,6 @@
+test_obstacle_polygon_holes_remain_available (test_route_completion.RoutingGeometryTests.test_obstacle_polygon_holes_remain_available) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.006s
+
+OK

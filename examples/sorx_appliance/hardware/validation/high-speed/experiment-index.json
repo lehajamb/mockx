@@ -1,0 +1,408 @@
+[
+  {
+    "run": "mdi-topology-01",
+    "run.json_sha256": "3dcca23f9eae7e32721530e7b87f91114055f96b855bfaaa5f66cd0b607d2e23",
+    "returncode": 1,
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "mdi-topology-02",
+    "run.json_sha256": "55a8606814f1bf4397f30d35bfa25f40c994f1e7d45f8486f3cf79a750ffb080",
+    "returncode": 1,
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "mdi-topology-03",
+    "run.json_sha256": "88dce8e47eecd4f2597cd64d2d76b3c8a42e4517a6f3df971bd710fb8e547f60",
+    "returncode": 1,
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "mdi-topology-04",
+    "run.json_sha256": "7b6f3cd73f299a0b48f2c78b47bec5a89a62defb1321178384a657aa7242d9d3",
+    "returncode": 1,
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "mdi-topology-05",
+    "run.json_sha256": "553a538e1da5143d8d301c4aecc25b7915c10965e8c8d055c49855e4f51268f0",
+    "returncode": 1,
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "mdi-topology-06",
+    "run.json_sha256": "1cfdede2d5aacd1e0dacf868701ae2ce4e78d8003afea63a482b19046b42933d",
+    "returncode": 0,
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "mdi-topology-07",
+    "run.json_sha256": "579fb75c92809475e92dd4ecd5b3a4eb9b30142b2a1688c935f4bab9ef81fe3c",
+    "returncode": 1,
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "mdi-topology-08",
+    "run.json_sha256": "2b415e3bcb5ac613d593bd8046956f87d0e76c594488227692e184f3272f690f",
+    "returncode": 0,
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-combined-10",
+    "attempts.json_sha256": "c24b4202cc1cd8427dba269909fb48486fe49567322d3146648ffff1ceaa42c8",
+    "attempts": [
+      {
+        "setting": "66,96,90",
+        "returncode": 1,
+        "error": "Candidate has incomplete USB3 paths"
+      }
+    ],
+    "result.json_sha256": "0e8f96f819ed2efef99bf198a4eafb69c929b22ba8e2bc4210474cad53024eac",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-combined-11",
+    "attempts.json_sha256": "a3c0afd1bcd2a8a2dabddb45d1343f07d0232cf17125dbc6035f43415ad146bd",
+    "attempts": [
+      {
+        "setting": "66,96,90",
+        "returncode": 0,
+        "off_path_mm": 0,
+        "max_pair_mismatch_mm": 0.09061009943506093
+      }
+    ],
+    "result.json_sha256": "57661a6b5ba48543dc71485e75b950a149a418e62319cc0b13cfb005060b87ee",
+    "disposition": "accepted intermediate"
+  },
+  {
+    "run": "usb3-topology-01",
+    "attempts.json_sha256": "df709a317f809236868a70355444405aaf990b67d982d89d2989ced6dce7fcdf",
+    "attempts": [
+      {
+        "error": "'SwigPyObject' object has no attribute 'NetsByName'"
+      },
+      {
+        "error": "'SwigPyObject' object has no attribute 'GetFootprints'"
+      },
+      {
+        "error": "'SwigPyObject' object has no attribute 'GetFootprints'"
+      },
+      {
+        "error": "'SwigPyObject' object has no attribute 'GetFootprints'"
+      },
+      {
+        "error": "'SwigPyObject' object has no attribute 'GetFootprints'"
+      },
+      {
+        "error": "'SwigPyObject' object has no attribute 'GetFootprints'"
+      },
+      {
+        "error": "'SwigPyObject' object has no attribute 'GetFootprints'"
+      },
+      {
+        "error": "'SwigPyObject' object has no attribute 'GetFootprints'"
+      }
+    ],
+    "result.json_sha256": "eabcd9d214fc7619676b1516e6b9a818e6087df477731676063e504718f704ac",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-02",
+    "attempts.json_sha256": "3471a7a5b5eb0cdc59171dea9476817fe77dfebc75ea9aca846b83a85f16470f",
+    "attempts": [
+      {
+        "setting": "68,98,90",
+        "returncode": 1,
+        "error": "'SwigPyObject' object has no attribute 'NetsByName'"
+      },
+      {
+        "setting": "68,98,270",
+        "returncode": 1,
+        "error": "'SwigPyObject' object has no attribute 'NetsByName'"
+      },
+      {
+        "setting": "67,98,90",
+        "returncode": 1,
+        "error": "'SwigPyObject' object has no attribute 'NetsByName'"
+      },
+      {
+        "setting": "67,98,270",
+        "returncode": 1,
+        "error": "'SwigPyObject' object has no attribute 'NetsByName'"
+      },
+      {
+        "setting": "69,98,90",
+        "returncode": 1,
+        "error": "'SwigPyObject' object has no attribute 'NetsByName'"
+      },
+      {
+        "setting": "69,98,270",
+        "returncode": 1,
+        "error": "'SwigPyObject' object has no attribute 'NetsByName'"
+      },
+      {
+        "setting": "68,97,90",
+        "returncode": 1,
+        "error": "'SwigPyObject' object has no attribute 'NetsByName'"
+      },
+      {
+        "setting": "68,97,270",
+        "returncode": 1,
+        "error": "'SwigPyObject' object has no attribute 'NetsByName'"
+      }
+    ],
+    "result.json_sha256": "d6168ae6bc5de03b1c105aef6455f09891ac1c9c236369542d015e2caa701c15",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-03",
+    "attempts.json_sha256": "9fb41a1395b798057c53391ba39cb22909a817b63c6264d89d088f21227b0e39",
+    "attempts": [
+      {
+        "setting": "68,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.5, 98.385), (65.5, 101.725))"
+      },
+      {
+        "setting": "68,98,270",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ([67.8197, 94.1823], (68.5, 97.615))"
+      },
+      {
+        "setting": "67,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((66.5, 98.385), (65.5, 101.725))"
+      },
+      {
+        "setting": "67,98,270",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ([67.8197, 94.1823], (67.5, 97.615))"
+      },
+      {
+        "setting": "69,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((68.5, 98.385), (65.5, 101.725))"
+      },
+      {
+        "setting": "69,98,270",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ([67.8197, 94.1823], (69.5, 97.615))"
+      },
+      {
+        "setting": "68,97,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.5, 97.385), (65.5, 101.725))"
+      },
+      {
+        "setting": "68,97,270",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ([67.8197, 94.1823], (68.5, 96.615))"
+      }
+    ],
+    "result.json_sha256": "b3e820aba7972b1da278ff5161d84b5c517ab521897cb932d5a1b4b368d8f1f5",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-04",
+    "attempts.json_sha256": "786bd2cff2b7c54391ec7bf2fc141a68c0c8ec6472384890e628147f1bb24ee1",
+    "attempts": [
+      {
+        "setting": "68,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.5, 98.385), (65.5, 101.725))"
+      },
+      {
+        "setting": "67,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((66.5, 98.385), (65.5, 101.725))"
+      },
+      {
+        "setting": "69,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((68.5, 98.385), (65.5, 101.725))"
+      },
+      {
+        "setting": "68,97,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.5, 97.385), (65.5, 101.725))"
+      }
+    ],
+    "result.json_sha256": "2e2d50fe51a980d7f477fc6181848287d22731a89707cd25a9fa8a44931aecd4",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-05",
+    "attempts.json_sha256": "47e8a411c3f5ffdb7b56d5813d8150e2a629389b16ac6d15adb34e0ccd7659ad",
+    "attempts": [
+      {
+        "setting": "68,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.5, 99.185), (65.5, 101.725))"
+      },
+      {
+        "setting": "67.5,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.0, 99.185), (65.5, 101.725))"
+      }
+    ],
+    "result.json_sha256": "3bcbeb6378118360eca8acf9caf90d838d7db5761e971b9cbac54e3e75e2e863",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-06",
+    "attempts.json_sha256": "449ec8c328fbce0170da1f87b39164f4a04560ddee1daf2a20298353ba1fbea6",
+    "attempts": [
+      {
+        "setting": "68,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_P ([66.9493, 93.2811], (67.0, 96.815))"
+      },
+      {
+        "setting": "66,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_P ([66.9493, 93.2811], (65.0, 96.815))"
+      },
+      {
+        "setting": "65,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((64.5, 99.185), (65.5, 101.725))"
+      },
+      {
+        "setting": "64,98,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_P ([66.9493, 93.2811], (63.0, 96.815))"
+      }
+    ],
+    "result.json_sha256": "937fbc14401154efe2b70b33eb4a30abad382a3143d0cc02ecb834846c9d8146",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-07",
+    "attempts.json_sha256": "911bd53c9909d70d432f060739e57260b5fdc567a9219cc7377252309abb574a",
+    "attempts": [
+      {
+        "setting": "68,96.5,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.5, 97.685), (65.5, 101.725))"
+      },
+      {
+        "setting": "68,96,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.5, 97.185), (65.5, 101.725))"
+      },
+      {
+        "setting": "68,95.5,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.5, 96.685), (65.5, 101.725))"
+      },
+      {
+        "setting": "68,97,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_N ((67.5, 98.185), (65.5, 101.725))"
+      }
+    ],
+    "result.json_sha256": "dec3ee1be6da605fe957e4e78da3cc2fabbf7a4fa86b8a0ac9745843343ff469",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-08",
+    "attempts.json_sha256": "046a1756174cb154ca1a1cd6f98ab82c53f3db172f92f50bad5064d75335e4f1",
+    "attempts": [
+      {
+        "setting": "67,95,90",
+        "returncode": 1,
+        "error": "New U19 pad clearance conflicts with retained copper"
+      },
+      {
+        "setting": "66,95,90",
+        "returncode": 1,
+        "error": "New U19 pad clearance conflicts with retained copper"
+      },
+      {
+        "setting": "67,96,90",
+        "returncode": 0,
+        "off_path_mm": 27.518482,
+        "max_pair_mismatch_mm": 0.5410896533038709
+      },
+      {
+        "setting": "66,96,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_P ([66.9493, 93.2811], (65.0, 94.815))"
+      }
+    ],
+    "result.json_sha256": "1809b9f6eacb274821d284e75582f7716a34d751e14a310413c296e9f223e03a",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-09",
+    "attempts.json_sha256": "484c52c27e250ad9f3a06e2f41477d9de6065cb3277e9191f355bd4ea1bc4b61",
+    "attempts": [
+      {
+        "setting": "66,96,90",
+        "returncode": 0,
+        "off_path_mm": 2.1391999999999998,
+        "max_pair_mismatch_mm": 1.5226546953323634
+      },
+      {
+        "setting": "66.5,96,90",
+        "returncode": 0,
+        "off_path_mm": 2.1391999999999998,
+        "max_pair_mismatch_mm": 1.5226546953323634
+      },
+      {
+        "setting": "67,96,90",
+        "returncode": 0,
+        "off_path_mm": 2.1391999999999998,
+        "max_pair_mismatch_mm": 1.5226546953323563
+      }
+    ],
+    "result.json_sha256": "b20f72a4273ea2c56494ef5c174114d1da502166d6bc74c26eb9d3d2094a0759",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-10",
+    "attempts.json_sha256": "35886e5c8411fda4d0ce0f0d01b0b01b30ee7daa90e1eb4e2d281e92d98ff328",
+    "attempts": [
+      {
+        "setting": "66,96,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_P ((66.769, 90), (65.0, 94.41499999999999))"
+      },
+      {
+        "setting": "66.5,96,90",
+        "returncode": 1,
+        "error": "No top-layer ESD escape USB2_SSTX_P ((66.769, 90), (65.5, 94.41499999999999))"
+      }
+    ],
+    "result.json_sha256": "22fdd5d4a393aae3f6751bbfabb3597561f9c8fe3549a3709036f55db37da655",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-11",
+    "attempts.json_sha256": "705fb32530d9b25b5a76eeeae97f5f03f41982f90e1da13be16a22b69ed70c3d",
+    "attempts": [
+      {
+        "setting": "66,96,90",
+        "returncode": 0,
+        "off_path_mm": 0.0196,
+        "max_pair_mismatch_mm": 1.8622265553576298
+      }
+    ],
+    "result.json_sha256": "bd0a44ce5e90702406ebf0a8ad84f55e2fb3208bf1bef4211a0ff04c621b25cd",
+    "disposition": "rejected/not promoted"
+  },
+  {
+    "run": "usb3-topology-12",
+    "attempts.json_sha256": "f3cf087a8dc8fa6e6c03433f3c261a2a814d362a3175e33ed60b099adf63efc1",
+    "attempts": [
+      {
+        "setting": "66,96,90",
+        "returncode": 0,
+        "off_path_mm": 0,
+        "max_pair_mismatch_mm": 0.09061050297943751
+      }
+    ],
+    "result.json_sha256": "7f7d4a3135d4456afcd5d36b0a10a1a21cc8b516523d420120b5fd7ecce164e8",
+    "disposition": "isolated proof"
+  }
+]

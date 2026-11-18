@@ -1,0 +1,21 @@
+{
+  "returncode": 0,
+  "command": [
+    "/opt/cq/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "/work/tests",
+    "-p",
+    "test_mechanical.py",
+    "-v"
+  ],
+  "python": "3.11.2 (main, Oct  7 2026, 12:35:07) [GCC 12.2.0]",
+  "cadquery": "2.4.0",
+  "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "source_hashes": {
+    "tools/gen_mech.py": "589296ab6d5b90968df02b479af2f45dd3e8ac5617b05c6d439b374be6f1ec36",
+    "tests/test_mechanical.py": "4e458417c085a89803bc9c12c384d3748c815ff761f106f87c5a4fdd4da1b2a1"
+  }
+}

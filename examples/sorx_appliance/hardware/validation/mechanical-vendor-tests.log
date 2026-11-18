@@ -1,0 +1,12 @@
+test_duplicate_component_refs_fail (test_mechanical.MechanicalProvenanceRegressions.test_duplicate_component_refs_fail) ... ok
+test_stale_and_missing_placement_metadata_fail (test_mechanical.MechanicalProvenanceRegressions.test_stale_and_missing_placement_metadata_fail) ... ok
+test_bottom_component_height_is_not_clipped (test_mechanical.MechanicalRegressions.test_bottom_component_height_is_not_clipped) ... ok
+test_fan_has_vertical_tolerance_allowance (test_mechanical.MechanicalRegressions.test_fan_has_vertical_tolerance_allowance) ... ok
+test_geometry_failure_is_not_zero_interference (test_mechanical.MechanicalRegressions.test_geometry_failure_is_not_zero_interference) ... ok
+test_j9_has_no_enclosure_interference (test_mechanical.MechanicalRegressions.test_j9_has_no_enclosure_interference) ... /opt/cq/lib/python3.11/site-packages/cadquery/selectors.py:884: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+  parse_result = _expression_grammar.parseString(selectorString, parseAll=True)
+/opt/cq/lib/python3.11/site-packages/pyparsing/util.py:466: PyparsingDeprecationWarning: 'parseAll' argument is deprecated, use 'parse_all'
+  return fn(self, *args, **kwargs)
+ok
+test_module_keepout_rejects_top_part_but_not_carrier_bottom_part (test_mechanical.MechanicalRegressions.test_module_keepout_rejects_top_part_but_not_carrier_bottom_part) ... ok
+test_reporting_preserves_individual_component_geometry (test_mechanical.MechanicalRegressions.test_reporting_preserves_individual_component_geometry) ... 

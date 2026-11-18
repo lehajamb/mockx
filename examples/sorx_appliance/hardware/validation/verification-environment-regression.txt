@@ -1,0 +1,34 @@
+test_failed_command_new_output_not_accepted (test_verification.CommandTests.test_failed_command_new_output_not_accepted) ... ok
+test_failed_subprocess_never_passes (test_verification.CommandTests.test_failed_subprocess_never_passes) ... ok
+test_fresh_output_zero_exit_passes_and_is_hashed (test_verification.CommandTests.test_fresh_output_zero_exit_passes_and_is_hashed) ... ok
+test_missing_output_with_zero_exit_fails (test_verification.CommandTests.test_missing_output_with_zero_exit_fails) ... ok
+test_stale_output_removed_before_failed_command (test_verification.CommandTests.test_stale_output_removed_before_failed_command) ... ok
+test_timeout_is_execution_failure (test_verification.CommandTests.test_timeout_is_execution_failure) ... ok
+test_export_failure_does_not_create_archive (test_verification.GateTests.test_export_failure_does_not_create_archive) ... RuntimeError: kicad-version failed; incomplete outputs retained, no archive created
+ok
+test_importing_verifier_and_export_has_no_tool_side_effects (test_verification.GateTests.test_importing_verifier_and_export_has_no_tool_side_effects) ... ok
+test_missing_review_blocks_all_release (test_verification.GateTests.test_missing_review_blocks_all_release) ... ok
+test_pass_requires_current_sources_and_hashed_evidence (test_verification.GateTests.test_pass_requires_current_sources_and_hashed_evidence) ... ok
+test_passing_summary_without_raw_evidence_rejected (test_verification.GateTests.test_passing_summary_without_raw_evidence_rejected) ... ok
+test_release_cli_refuses_missing_verification (test_verification.GateTests.test_release_cli_refuses_missing_verification) ... Export refused: FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\lehaj\\AppData\\Local\\Temp\\tmpqm0r21k5\\validation\\latest.json'
+ok
+test_complete_geometric_success_passes (test_verification.MechanicalTests.test_complete_geometric_success_passes) ... ok
+test_geometry_exceptions_never_equal_zero (test_verification.MechanicalTests.test_geometry_exceptions_never_equal_zero) ... ok
+test_j9_collision_blocks_release (test_verification.MechanicalTests.test_j9_collision_blocks_release) ... ok
+test_legacy_report_cannot_claim_fresh_approval (test_verification.MechanicalTests.test_legacy_report_cannot_claim_fresh_approval) ... ok
+test_nan_infinity_and_missing_volume_rejected (test_verification.MechanicalTests.test_nan_infinity_and_missing_volume_rejected) ... ok
+test_stale_board_or_placement_rejected (test_verification.MechanicalTests.test_stale_board_or_placement_rejected) ... ok
+test_unqualified_ports_clearance_and_heights_block (test_verification.MechanicalTests.test_unqualified_ports_clearance_and_heights_block) ... ok
+test_category_only_waiver_rejected (test_verification.ReportTests.test_category_only_waiver_rejected) ... ok
+test_drc_counts_and_objects_are_preserved (test_verification.ReportTests.test_drc_counts_and_objects_are_preserved) ... ok
+test_drc_missing_sections_fail (test_verification.ReportTests.test_drc_missing_sections_fail) ... ok
+test_drc_unparsed_findings_fail (test_verification.ReportTests.test_drc_unparsed_findings_fail) ... ok
+test_duplicate_hole_cannot_be_waived_even_with_evidence (test_verification.ReportTests.test_duplicate_hole_cannot_be_waived_even_with_evidence) ... ok
+test_duplicate_vias_have_no_blanket_waiver (test_verification.ReportTests.test_duplicate_vias_have_no_blanket_waiver) ... ok
+test_erc_requires_consistent_counts (test_verification.ReportTests.test_erc_requires_consistent_counts) ... ok
+test_truncated_drc_report_fails (test_verification.ReportTests.test_truncated_drc_report_fails) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.718s
+
+OK

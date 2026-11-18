@@ -1,0 +1,1916 @@
+{
+  "USB2_SSTX_P": {
+    "route": {
+      "source": "J1:171",
+      "destination": "J8:9",
+      "planar_length_mm": 54.17824095403893,
+      "track_length_mm": 51.32827099321682,
+      "pad_copper_length_mm": 1.9500001428571199,
+      "via_radial_estimate_mm": 0.899969817964991,
+      "series_components": [],
+      "via_count": 2,
+      "via_ids": [
+        "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+        "55539429-0c1e-4c1f-914e-4c14e9adec61"
+      ],
+      "layer_sequence": [
+        "F.Cu",
+        "B.Cu",
+        "F.Cu"
+      ],
+      "via_barrel_length_mm": null,
+      "edges": [
+        {
+          "length_mm": 0.8750001428571312,
+          "kind": "pad_copper",
+          "object": "J1:171",
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            66.8695,
+            51.974
+          ],
+          "end": [
+            66.869,
+            51.099
+          ]
+        },
+        {
+          "length_mm": 0.19916972346010908,
+          "kind": "track",
+          "object": "ce27fcf5-d733-48d9-87cb-bffd0f07d56e",
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            66.869,
+            50.89983027653989
+          ],
+          "end": [
+            66.869,
+            51.099
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.2999880145939187,
+          "kind": "via_copper",
+          "object": "55539429-0c1e-4c1f-914e-4c14e9adec61",
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            66.769,
+            50.617
+          ],
+          "end": [
+            66.869,
+            50.89983
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "55539429-0c1e-4c1f-914e-4c14e9adec61",
+          "xy": [
+            66.769,
+            50.617
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "55539429-0c1e-4c1f-914e-4c14e9adec61",
+          "xy": [
+            66.769,
+            50.617
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "55539429-0c1e-4c1f-914e-4c14e9adec61",
+          "xy": [
+            66.769,
+            50.617
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "55539429-0c1e-4c1f-914e-4c14e9adec61",
+          "xy": [
+            66.769,
+            50.617
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "55539429-0c1e-4c1f-914e-4c14e9adec61",
+          "xy": [
+            66.769,
+            50.617
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.29999999999999716,
+          "kind": "track",
+          "object": "1c97139f-9155-466b-a369-62882325b410",
+          "net": "USB2_SSTX_P",
+          "layer": "B.Cu",
+          "start": [
+            66.769,
+            50.617
+          ],
+          "end": [
+            66.769,
+            50.916999999999994
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 42.12434764787664,
+          "kind": "track",
+          "object": "1c97139f-9155-466b-a369-62882325b410",
+          "net": "USB2_SSTX_P",
+          "layer": "B.Cu",
+          "start": [
+            66.769,
+            50.916999999999994
+          ],
+          "end": [
+            66.769,
+            93.04134764787663
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.2999818519577372,
+          "kind": "via_copper",
+          "object": "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+          "net": "USB2_SSTX_P",
+          "layer": "B.Cu",
+          "start": [
+            66.9493,
+            93.2811
+          ],
+          "end": [
+            66.769,
+            93.041348
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+          "xy": [
+            66.9493,
+            93.2811
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+          "xy": [
+            66.9493,
+            93.2811
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+          "xy": [
+            66.9493,
+            93.2811
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+          "xy": [
+            66.9493,
+            93.2811
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+          "xy": [
+            66.9493,
+            93.2811
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.299999951413335,
+          "kind": "via_copper",
+          "object": "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            66.9493,
+            93.2811
+          ],
+          "end": [
+            66.737168,
+            93.493232
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 5.285153621880071,
+          "kind": "track",
+          "object": "28e0608b-ecd9-41c3-a9a9-be4f4c1f8415",
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            63.0,
+            97.2304
+          ],
+          "end": [
+            66.73716796564403,
+            93.49323203435596
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 3.4196000000000026,
+          "kind": "track",
+          "object": "32876ef9-2bc6-483c-80f6-ee12eaf8d683",
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            63.0,
+            100.65
+          ],
+          "end": [
+            63.0,
+            97.2304
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 1.0749999999999886,
+          "kind": "pad_copper",
+          "object": "J8:9",
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            63.0,
+            101.725
+          ],
+          "end": [
+            63.0,
+            100.65
+          ]
+        }
+      ],
+      "off_path_track_length_mm": 28.095079,
+      "off_path_tracks": [
+        {
+          "object": "1fd04f40-3b80-45da-84da-f475a9491735",
+          "length_mm": 20.0001,
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            89.5667,
+            48.0155
+          ],
+          "end": [
+            69.5666,
+            48.0155
+          ]
+        },
+        {
+          "object": "86f74d51-b641-4727-a6ca-1453272e5e40",
+          "length_mm": 4.052429,
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            92.4322,
+            45.15
+          ],
+          "end": [
+            89.5667,
+            48.0155
+          ]
+        },
+        {
+          "object": "be919c1e-55da-4149-ab65-f578d98f3b7c",
+          "length_mm": 1.0278,
+          "net": "USB2_SSTX_P",
+          "layer": "F.Cu",
+          "start": [
+            93.46,
+            45.15
+          ],
+          "end": [
+            92.4322,
+            45.15
+          ]
+        },
+        {
+          "object": "3a07732c-4873-4947-8823-0508ff8762fe",
+          "length_mm": 3.01475,
+          "net": "USB2_SSTX_P",
+          "layer": "B.Cu",
+          "start": [
+            66.92271766218477,
+            50.35938233781524
+          ],
+          "end": [
+            69.05446796564404,
+            48.22763203435597
+          ]
+        }
+      ]
+    },
+    "port_via": {
+      "id": "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+      "net": "USB2_SSTX_P",
+      "xy": [
+        66.9493,
+        93.2811
+      ],
+      "layers": [
+        "F.Cu",
+        "In1.Cu",
+        "In2.Cu",
+        "In3.Cu",
+        "In4.Cu",
+        "B.Cu"
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    "vias": [
+      {
+        "id": "46bfe77f-17c5-49e3-9f13-ca6b85e1cfa4",
+        "net": "USB2_SSTX_P",
+        "xy": [
+          66.9493,
+          93.2811
+        ],
+        "layers": [
+          "F.Cu",
+          "In1.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "In4.Cu",
+          "B.Cu"
+        ],
+        "diameter_mm": 0.6,
+        "drill_mm": 0.3
+      },
+      {
+        "id": "55539429-0c1e-4c1f-914e-4c14e9adec61",
+        "net": "USB2_SSTX_P",
+        "xy": [
+          66.769,
+          50.617
+        ],
+        "layers": [
+          "F.Cu",
+          "In1.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "In4.Cu",
+          "B.Cu"
+        ],
+        "diameter_mm": 0.6,
+        "drill_mm": 0.3
+      }
+    ]
+  },
+  "USB2_SSTX_N": {
+    "route": {
+      "source": "J1:169",
+      "destination": "J8:8",
+      "planar_length_mm": 55.04195086660742,
+      "track_length_mm": 52.22376964751125,
+      "pad_copper_length_mm": 1.918199671791064,
+      "via_radial_estimate_mm": 0.8999815473051087,
+      "series_components": [],
+      "via_count": 2,
+      "via_ids": [
+        "67f553da-2f20-4c63-9e54-d66720dc89bb",
+        "ac05f52f-0b76-4c50-8fb3-e54aff3e1883"
+      ],
+      "layer_sequence": [
+        "F.Cu",
+        "B.Cu",
+        "F.Cu"
+      ],
+      "via_barrel_length_mm": null,
+      "edges": [
+        {
+          "length_mm": 0.8750001428571312,
+          "kind": "pad_copper",
+          "object": "J1:169",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            67.3695,
+            51.974
+          ],
+          "end": [
+            67.369,
+            51.099
+          ]
+        },
+        {
+          "length_mm": 0.3354315768614882,
+          "kind": "track",
+          "object": "b9f4af59-7367-42b8-a068-de4b308a63a9",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            67.369,
+            50.76356842313851
+          ],
+          "end": [
+            67.369,
+            51.099
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.2999816444784587,
+          "kind": "via_copper",
+          "object": "67f553da-2f20-4c63-9e54-d66720dc89bb",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            67.5634,
+            50.5351
+          ],
+          "end": [
+            67.369,
+            50.763568
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "67f553da-2f20-4c63-9e54-d66720dc89bb",
+          "xy": [
+            67.5634,
+            50.5351
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "67f553da-2f20-4c63-9e54-d66720dc89bb",
+          "xy": [
+            67.5634,
+            50.5351
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "67f553da-2f20-4c63-9e54-d66720dc89bb",
+          "xy": [
+            67.5634,
+            50.5351
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "67f553da-2f20-4c63-9e54-d66720dc89bb",
+          "xy": [
+            67.5634,
+            50.5351
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "67f553da-2f20-4c63-9e54-d66720dc89bb",
+          "xy": [
+            67.5634,
+            50.5351
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.299999951413325,
+          "kind": "via_copper",
+          "object": "67f553da-2f20-4c63-9e54-d66720dc89bb",
+          "net": "USB2_SSTX_N",
+          "layer": "B.Cu",
+          "start": [
+            67.5634,
+            50.5351
+          ],
+          "end": [
+            67.775532,
+            50.747232
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.062462936036224194,
+          "kind": "track",
+          "object": "762cac4b-9446-4ab4-99b7-489472989b52",
+          "net": "USB2_SSTX_N",
+          "layer": "B.Cu",
+          "start": [
+            67.8197,
+            50.7914
+          ],
+          "end": [
+            67.77553203435596,
+            50.74723203435597
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 43.0909,
+          "kind": "track",
+          "object": "45e68643-68b8-4919-9056-b91b7ee66cbc",
+          "net": "USB2_SSTX_N",
+          "layer": "B.Cu",
+          "start": [
+            67.8197,
+            93.8823
+          ],
+          "end": [
+            67.8197,
+            50.7914
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.2999999999999972,
+          "kind": "track",
+          "object": "45e68643-68b8-4919-9056-b91b7ee66cbc",
+          "net": "USB2_SSTX_N",
+          "layer": "B.Cu",
+          "start": [
+            67.8197,
+            94.1823
+          ],
+          "end": [
+            67.8197,
+            93.8823
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "ac05f52f-0b76-4c50-8fb3-e54aff3e1883",
+          "xy": [
+            67.8197,
+            94.1823
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "ac05f52f-0b76-4c50-8fb3-e54aff3e1883",
+          "xy": [
+            67.8197,
+            94.1823
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "ac05f52f-0b76-4c50-8fb3-e54aff3e1883",
+          "xy": [
+            67.8197,
+            94.1823
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "ac05f52f-0b76-4c50-8fb3-e54aff3e1883",
+          "xy": [
+            67.8197,
+            94.1823
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "ac05f52f-0b76-4c50-8fb3-e54aff3e1883",
+          "xy": [
+            67.8197,
+            94.1823
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.299999951413325,
+          "kind": "via_copper",
+          "object": "ac05f52f-0b76-4c50-8fb3-e54aff3e1883",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            67.8197,
+            94.1823
+          ],
+          "end": [
+            67.607568,
+            94.394432
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 5.17512780672744,
+          "kind": "track",
+          "object": "843b5449-be65-4417-8277-7840604bcd5b",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            63.9482,
+            98.0538
+          ],
+          "end": [
+            67.60756796564404,
+            94.39443203435596
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 1.7126999999999981,
+          "kind": "track",
+          "object": "56b35bdf-4b6a-40e7-a0a4-9862a67e7a53",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            63.9482,
+            99.7665
+          ],
+          "end": [
+            63.9482,
+            98.0538
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.8698827622156983,
+          "kind": "track",
+          "object": "60a44057-cf46-4117-a109-0bd61f997dc7",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            64.5633,
+            100.3816
+          ],
+          "end": [
+            63.9482,
+            99.7665
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.12760000000000105,
+          "kind": "track",
+          "object": "c8be3487-fbda-4ba4-b2a3-289958ee39b6",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            64.6909,
+            100.3816
+          ],
+          "end": [
+            64.5633,
+            100.3816
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.549664565670403,
+          "kind": "track",
+          "object": "5454aff6-b5d9-4aff-a2cc-822c02456c6f",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            65.0795715417635,
+            100.7702715417635
+          ],
+          "end": [
+            64.6909,
+            100.3816
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 1.0431995289339329,
+          "kind": "pad_copper",
+          "object": "J8:8",
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            65.5,
+            101.725
+          ],
+          "end": [
+            65.079572,
+            100.770272
+          ]
+        }
+      ],
+      "off_path_track_length_mm": 27.020075,
+      "off_path_tracks": [
+        {
+          "object": "6288abf8-ec5a-4961-ac82-3ca5a523a00c",
+          "length_mm": 0.6801,
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            92.7799,
+            45.65
+          ],
+          "end": [
+            93.46,
+            45.65
+          ]
+        },
+        {
+          "object": "b7b3e3b9-5201-4d1a-a70b-d835b0902175",
+          "length_mm": 19.7058,
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            69.6448,
+            49.0793
+          ],
+          "end": [
+            89.3506,
+            49.0793
+          ]
+        },
+        {
+          "object": "cc302411-ce74-4fa3-9495-46b5002f3957",
+          "length_mm": 4.849763,
+          "net": "USB2_SSTX_N",
+          "layer": "F.Cu",
+          "start": [
+            89.3506,
+            49.0793
+          ],
+          "end": [
+            92.7799,
+            45.65
+          ]
+        },
+        {
+          "object": "1df8dafa-9203-4c12-af83-fbc566bb6000",
+          "length_mm": 0.0256,
+          "net": "USB2_SSTX_N",
+          "layer": "B.Cu",
+          "start": [
+            67.8634,
+            50.5351
+          ],
+          "end": [
+            67.889,
+            50.5351
+          ]
+        },
+        {
+          "object": "96d16f18-7e32-49d2-bd78-a053fe5e338c",
+          "length_mm": 1.758812,
+          "net": "USB2_SSTX_N",
+          "layer": "B.Cu",
+          "start": [
+            67.889,
+            50.5351
+          ],
+          "end": [
+            69.13266796564405,
+            49.291432034355964
+          ]
+        }
+      ]
+    },
+    "port_via": {
+      "id": "ac05f52f-0b76-4c50-8fb3-e54aff3e1883",
+      "net": "USB2_SSTX_N",
+      "xy": [
+        67.8197,
+        94.1823
+      ],
+      "layers": [
+        "F.Cu",
+        "In1.Cu",
+        "In2.Cu",
+        "In3.Cu",
+        "In4.Cu",
+        "B.Cu"
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    "vias": [
+      {
+        "id": "67f553da-2f20-4c63-9e54-d66720dc89bb",
+        "net": "USB2_SSTX_N",
+        "xy": [
+          67.5634,
+          50.5351
+        ],
+        "layers": [
+          "F.Cu",
+          "In1.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "In4.Cu",
+          "B.Cu"
+        ],
+        "diameter_mm": 0.6,
+        "drill_mm": 0.3
+      },
+      {
+        "id": "ac05f52f-0b76-4c50-8fb3-e54aff3e1883",
+        "net": "USB2_SSTX_N",
+        "xy": [
+          67.8197,
+          94.1823
+        ],
+        "layers": [
+          "F.Cu",
+          "In1.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "In4.Cu",
+          "B.Cu"
+        ],
+        "diameter_mm": 0.6,
+        "drill_mm": 0.3
+      }
+    ]
+  },
+  "USB2_SSRX_P": {
+    "route": {
+      "source": "J8:6",
+      "destination": "J1:177",
+      "planar_length_mm": 52.29729028511077,
+      "track_length_mm": 49.74696366112625,
+      "pad_copper_length_mm": 1.9503267211578703,
+      "via_radial_estimate_mm": 0.59999990282665,
+      "series_components": [],
+      "via_count": 2,
+      "via_ids": [
+        "b362adec-5658-461c-a88f-fc72bce165ce",
+        "d02de5aa-43e0-4b4d-ac38-8b305fb44514"
+      ],
+      "layer_sequence": [
+        "F.Cu",
+        "B.Cu",
+        "F.Cu"
+      ],
+      "via_barrel_length_mm": null,
+      "edges": [
+        {
+          "length_mm": 1.075326578300739,
+          "kind": "pad_copper",
+          "object": "J8:6",
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            70.5,
+            101.725
+          ],
+          "end": [
+            70.5265,
+            100.65
+          ]
+        },
+        {
+          "length_mm": 0.3993286065935042,
+          "kind": "track",
+          "object": "3151645f-3132-4f46-96a4-13e93305ab76",
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            70.80886796564404,
+            100.36763203435596
+          ],
+          "end": [
+            70.5265,
+            100.65
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.299999951413325,
+          "kind": "via_copper",
+          "object": "b362adec-5658-461c-a88f-fc72bce165ce",
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            71.021,
+            100.1555
+          ],
+          "end": [
+            70.808868,
+            100.367632
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b362adec-5658-461c-a88f-fc72bce165ce",
+          "xy": [
+            71.021,
+            100.1555
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b362adec-5658-461c-a88f-fc72bce165ce",
+          "xy": [
+            71.021,
+            100.1555
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b362adec-5658-461c-a88f-fc72bce165ce",
+          "xy": [
+            71.021,
+            100.1555
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b362adec-5658-461c-a88f-fc72bce165ce",
+          "xy": [
+            71.021,
+            100.1555
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b362adec-5658-461c-a88f-fc72bce165ce",
+          "xy": [
+            71.021,
+            100.1555
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.299999951413325,
+          "kind": "via_copper",
+          "object": "b362adec-5658-461c-a88f-fc72bce165ce",
+          "net": "USB2_SSRX_P",
+          "layer": "B.Cu",
+          "start": [
+            71.021,
+            100.1555
+          ],
+          "end": [
+            70.808868,
+            99.943368
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 7.69313505453274,
+          "kind": "track",
+          "object": "18678ebb-0765-4d7d-807e-d4e504ddbe1c",
+          "net": "USB2_SSRX_P",
+          "layer": "B.Cu",
+          "start": [
+            70.80886796564404,
+            99.94336796564404
+          ],
+          "end": [
+            65.369,
+            94.5035
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 40.80010000000001,
+          "kind": "track",
+          "object": "7e11d9df-cdd0-42c7-a21f-830618ec4511",
+          "net": "USB2_SSRX_P",
+          "layer": "B.Cu",
+          "start": [
+            65.369,
+            94.5035
+          ],
+          "end": [
+            65.369,
+            53.703399999999995
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.29999999999999716,
+          "kind": "track",
+          "object": "7e11d9df-cdd0-42c7-a21f-830618ec4511",
+          "net": "USB2_SSRX_P",
+          "layer": "B.Cu",
+          "start": [
+            65.369,
+            53.703399999999995
+          ],
+          "end": [
+            65.369,
+            53.4034
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "d02de5aa-43e0-4b4d-ac38-8b305fb44514",
+          "xy": [
+            65.369,
+            53.4034
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "d02de5aa-43e0-4b4d-ac38-8b305fb44514",
+          "xy": [
+            65.369,
+            53.4034
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "d02de5aa-43e0-4b4d-ac38-8b305fb44514",
+          "xy": [
+            65.369,
+            53.4034
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "d02de5aa-43e0-4b4d-ac38-8b305fb44514",
+          "xy": [
+            65.369,
+            53.4034
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "d02de5aa-43e0-4b4d-ac38-8b305fb44514",
+          "xy": [
+            65.369,
+            53.4034
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.29999999999999716,
+          "kind": "track",
+          "object": "9bb33837-3a8c-428d-8704-c03a50f4d6ce",
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            65.369,
+            53.4034
+          ],
+          "end": [
+            65.369,
+            53.1034
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.25440000000000396,
+          "kind": "track",
+          "object": "9bb33837-3a8c-428d-8704-c03a50f4d6ce",
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            65.369,
+            53.1034
+          ],
+          "end": [
+            65.369,
+            52.849
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.8750001428571312,
+          "kind": "pad_copper",
+          "object": "J1:177",
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            65.3695,
+            51.974
+          ],
+          "end": [
+            65.369,
+            52.849
+          ]
+        }
+      ],
+      "off_path_track_length_mm": 30.085789,
+      "off_path_tracks": [
+        {
+          "object": "6ea6fd1d-ed08-4bb5-8de4-1baf09d2d5ec",
+          "length_mm": 0.2594,
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            65.369,
+            51.099
+          ],
+          "end": [
+            65.369,
+            50.8396
+          ]
+        },
+        {
+          "object": "8d7c3229-3ce0-4198-b9d7-d0d3a00c1133",
+          "length_mm": 0.9305,
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            92.5295,
+            46.65
+          ],
+          "end": [
+            93.46,
+            46.65
+          ]
+        },
+        {
+          "object": "9d9fe849-6eb5-4333-bf1c-87deae0d6d68",
+          "length_mm": 1.299521,
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            65.369,
+            50.8396
+          ],
+          "end": [
+            66.2879,
+            49.9207
+          ]
+        },
+        {
+          "object": "b2b952da-016c-427a-b6f2-a81cd4a8ba65",
+          "length_mm": 22.9709,
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            66.2879,
+            49.9207
+          ],
+          "end": [
+            89.2588,
+            49.9207
+          ]
+        },
+        {
+          "object": "cc70b280-b9b2-4811-8b7e-0d26e7f2d791",
+          "length_mm": 4.625468,
+          "net": "USB2_SSRX_P",
+          "layer": "F.Cu",
+          "start": [
+            89.2588,
+            49.9207
+          ],
+          "end": [
+            92.5295,
+            46.65
+          ]
+        }
+      ]
+    },
+    "port_via": {
+      "id": "b362adec-5658-461c-a88f-fc72bce165ce",
+      "net": "USB2_SSRX_P",
+      "xy": [
+        71.021,
+        100.1555
+      ],
+      "layers": [
+        "F.Cu",
+        "In1.Cu",
+        "In2.Cu",
+        "In3.Cu",
+        "In4.Cu",
+        "B.Cu"
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    "vias": [
+      {
+        "id": "b362adec-5658-461c-a88f-fc72bce165ce",
+        "net": "USB2_SSRX_P",
+        "xy": [
+          71.021,
+          100.1555
+        ],
+        "layers": [
+          "F.Cu",
+          "In1.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "In4.Cu",
+          "B.Cu"
+        ],
+        "diameter_mm": 0.6,
+        "drill_mm": 0.3
+      },
+      {
+        "id": "d02de5aa-43e0-4b4d-ac38-8b305fb44514",
+        "net": "USB2_SSRX_P",
+        "xy": [
+          65.369,
+          53.4034
+        ],
+        "layers": [
+          "F.Cu",
+          "In1.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "In4.Cu",
+          "B.Cu"
+        ],
+        "diameter_mm": 0.6,
+        "drill_mm": 0.3
+      }
+    ]
+  },
+  "USB2_SSRX_N": {
+    "route": {
+      "source": "J8:5",
+      "destination": "J1:175",
+      "planar_length_mm": 52.720045984988396,
+      "track_length_mm": 50.17004593930462,
+      "pad_copper_length_mm": 1.9500001428571199,
+      "via_radial_estimate_mm": 0.59999990282665,
+      "series_components": [],
+      "via_count": 2,
+      "via_ids": [
+        "5e5dc536-57c8-43c3-bae3-dc9d5c133b26",
+        "b5bffac5-28a3-4dda-a60c-5a73b48b7855"
+      ],
+      "layer_sequence": [
+        "F.Cu",
+        "B.Cu",
+        "F.Cu"
+      ],
+      "via_barrel_length_mm": null,
+      "edges": [
+        {
+          "length_mm": 1.0749999999999886,
+          "kind": "pad_copper",
+          "object": "J8:5",
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            73.0,
+            101.725
+          ],
+          "end": [
+            73.0,
+            100.65
+          ]
+        },
+        {
+          "length_mm": 0.19550000000000956,
+          "kind": "track",
+          "object": "9f13183f-2d56-48d0-a71b-7f8625dbf414",
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            73.0,
+            100.65
+          ],
+          "end": [
+            73.0,
+            100.4545
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.2999999999999974,
+          "kind": "track",
+          "object": "9f13183f-2d56-48d0-a71b-7f8625dbf414",
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            73.0,
+            100.4545
+          ],
+          "end": [
+            73.0,
+            100.1545
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "5e5dc536-57c8-43c3-bae3-dc9d5c133b26",
+          "xy": [
+            73.0,
+            100.1545
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "5e5dc536-57c8-43c3-bae3-dc9d5c133b26",
+          "xy": [
+            73.0,
+            100.1545
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "5e5dc536-57c8-43c3-bae3-dc9d5c133b26",
+          "xy": [
+            73.0,
+            100.1545
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "5e5dc536-57c8-43c3-bae3-dc9d5c133b26",
+          "xy": [
+            73.0,
+            100.1545
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "5e5dc536-57c8-43c3-bae3-dc9d5c133b26",
+          "xy": [
+            73.0,
+            100.1545
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.299999951413325,
+          "kind": "via_copper",
+          "object": "5e5dc536-57c8-43c3-bae3-dc9d5c133b26",
+          "net": "USB2_SSRX_N",
+          "layer": "B.Cu",
+          "start": [
+            73.0,
+            100.1545
+          ],
+          "end": [
+            72.787868,
+            99.942368
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 9.38029183444384,
+          "kind": "track",
+          "object": "25607afb-638d-4cf8-8356-0699d988f2fb",
+          "net": "USB2_SSRX_N",
+          "layer": "B.Cu",
+          "start": [
+            72.78786796564404,
+            99.94236796564404
+          ],
+          "end": [
+            66.155,
+            93.3095
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 39.641200000000005,
+          "kind": "track",
+          "object": "88abbd9c-a8e8-4302-a9bf-c13a762f6839",
+          "net": "USB2_SSRX_N",
+          "layer": "B.Cu",
+          "start": [
+            66.155,
+            93.3095
+          ],
+          "end": [
+            66.155,
+            53.668299999999995
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.29999999999999716,
+          "kind": "track",
+          "object": "88abbd9c-a8e8-4302-a9bf-c13a762f6839",
+          "net": "USB2_SSRX_N",
+          "layer": "B.Cu",
+          "start": [
+            66.155,
+            53.668299999999995
+          ],
+          "end": [
+            66.155,
+            53.3683
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b5bffac5-28a3-4dda-a60c-5a73b48b7855",
+          "xy": [
+            66.155,
+            53.3683
+          ],
+          "layers": [
+            "In4.Cu",
+            "B.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b5bffac5-28a3-4dda-a60c-5a73b48b7855",
+          "xy": [
+            66.155,
+            53.3683
+          ],
+          "layers": [
+            "In3.Cu",
+            "In4.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b5bffac5-28a3-4dda-a60c-5a73b48b7855",
+          "xy": [
+            66.155,
+            53.3683
+          ],
+          "layers": [
+            "In2.Cu",
+            "In3.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b5bffac5-28a3-4dda-a60c-5a73b48b7855",
+          "xy": [
+            66.155,
+            53.3683
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "b5bffac5-28a3-4dda-a60c-5a73b48b7855",
+          "xy": [
+            66.155,
+            53.3683
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null
+        },
+        {
+          "length_mm": 0.299999951413325,
+          "kind": "via_copper",
+          "object": "b5bffac5-28a3-4dda-a60c-5a73b48b7855",
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            66.155,
+            53.3683
+          ],
+          "end": [
+            65.942868,
+            53.156168
+          ],
+          "length_convention": "Radial pad-center geometric estimate; not barrel-current or propagation-delay extraction."
+        },
+        {
+          "length_mm": 0.06755410486077051,
+          "kind": "track",
+          "object": "e938d5f2-71ad-42f9-b32d-5516620ebd40",
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            65.94286796564404,
+            53.15616796564404
+          ],
+          "end": [
+            65.8951,
+            53.1084
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.026099999999999568,
+          "kind": "track",
+          "object": "e904cee9-76c8-4cdd-9f69-d64f9b2dbace",
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            65.8951,
+            53.1084
+          ],
+          "end": [
+            65.869,
+            53.1084
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.2594000000000065,
+          "kind": "track",
+          "object": "a9d131ed-0d66-40f4-b909-8f2f75642bfd",
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            65.869,
+            52.849
+          ],
+          "end": [
+            65.869,
+            53.1084
+          ],
+          "width_mm": 0.155
+        },
+        {
+          "length_mm": 0.8750001428571312,
+          "kind": "pad_copper",
+          "object": "J1:175",
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            65.8695,
+            51.974
+          ],
+          "end": [
+            65.869,
+            52.849
+          ]
+        }
+      ],
+      "off_path_track_length_mm": 30.572697999999995,
+      "off_path_tracks": [
+        {
+          "object": "3f8849d5-d693-459e-90d9-d361f434336b",
+          "length_mm": 1.403607,
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            74.62,
+            51.8321
+          ],
+          "end": [
+            75.6125,
+            50.8396
+          ]
+        },
+        {
+          "object": "62d60ab1-6249-41f8-9a5a-cd21f1ddde30",
+          "length_mm": 14.4329,
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            75.6125,
+            50.8396
+          ],
+          "end": [
+            90.0454,
+            50.8396
+          ]
+        },
+        {
+          "object": "74fc6345-fc0d-4f4c-af5e-aced90e89bed",
+          "length_mm": 5.4551,
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            67.0512,
+            54.2645
+          ],
+          "end": [
+            72.5063,
+            54.2645
+          ]
+        },
+        {
+          "object": "89eb3dda-7a11-4d11-9097-106fb03e1d0c",
+          "length_mm": 2.989223,
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            72.5063,
+            54.2645
+          ],
+          "end": [
+            74.62,
+            52.1508
+          ]
+        },
+        {
+          "object": "bf1d8103-5922-4982-99aa-96bee5624fb5",
+          "length_mm": 0.3187,
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            74.62,
+            52.1508
+          ],
+          "end": [
+            74.62,
+            51.8321
+          ]
+        },
+        {
+          "object": "ce307289-a41f-4784-8895-a30133b45e8a",
+          "length_mm": 0.967418,
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            66.36713203435596,
+            53.580432034355965
+          ],
+          "end": [
+            67.0512,
+            54.2645
+          ]
+        },
+        {
+          "object": "e35939f0-e325-4d38-9c0d-027b5f82dd1a",
+          "length_mm": 5.00575,
+          "net": "USB2_SSRX_N",
+          "layer": "F.Cu",
+          "start": [
+            90.0454,
+            50.8396
+          ],
+          "end": [
+            93.58500000000001,
+            47.3
+          ]
+        }
+      ]
+    },
+    "port_via": {
+      "id": "5e5dc536-57c8-43c3-bae3-dc9d5c133b26",
+      "net": "USB2_SSRX_N",
+      "xy": [
+        73.0,
+        100.1545
+      ],
+      "layers": [
+        "F.Cu",
+        "In1.Cu",
+        "In2.Cu",
+        "In3.Cu",
+        "In4.Cu",
+        "B.Cu"
+      ],
+      "diameter_mm": 0.6,
+      "drill_mm": 0.3
+    },
+    "vias": [
+      {
+        "id": "5e5dc536-57c8-43c3-bae3-dc9d5c133b26",
+        "net": "USB2_SSRX_N",
+        "xy": [
+          73.0,
+          100.1545
+        ],
+        "layers": [
+          "F.Cu",
+          "In1.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "In4.Cu",
+          "B.Cu"
+        ],
+        "diameter_mm": 0.6,
+        "drill_mm": 0.3
+      },
+      {
+        "id": "b5bffac5-28a3-4dda-a60c-5a73b48b7855",
+        "net": "USB2_SSRX_N",
+        "xy": [
+          66.155,
+          53.3683
+        ],
+        "layers": [
+          "F.Cu",
+          "In1.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "In4.Cu",
+          "B.Cu"
+        ],
+        "diameter_mm": 0.6,
+        "drill_mm": 0.3
+      }
+    ]
+  }
+}

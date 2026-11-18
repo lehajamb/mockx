@@ -1,0 +1,15 @@
+{
+  "baseline_zip_sha256": "2f51a36928e87cb51dcb15f3fa5f04b5b789473a67bb6b2b4529f671bc91addd",
+  "individual_interference_mm3": {
+    "J9": 0.0,
+    "H1": 1.2505676947884627,
+    "H2": 1.2505676947793016,
+    "H3": 1.2505676947910782,
+    "H4": 1.2505676947733186
+  },
+  "J9_objects_before": 1,
+  "J9_objects_after_original_add_loop": 350,
+  "reported_J9_interference_after_mutation_mm3": 5.002270779570564,
+  "cadquery": "2.4.0",
+  "finding": "The unused .add accumulator aliases and mutates J9; mounting holes were fictitious solid envelopes."
+}

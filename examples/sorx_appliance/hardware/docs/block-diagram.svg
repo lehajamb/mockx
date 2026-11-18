@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1350" height="650" viewBox="0 0 1350 650">
+<rect width="1350" height="650" fill="white"/>
+<g font-family="Arial,sans-serif" fill="#18212c">
+<text x="675" y="38" text-anchor="middle" font-size="23" font-weight="bold">SORX appliance - Codex B architecture</text>
+<text x="675" y="69" text-anchor="middle" font-size="18" fill="#a00000">NOT READY FOR FABRICATION - unqualified engineering candidate</text>
+<text x="235" y="115" text-anchor="middle" font-size="20" font-weight="bold">Network and timing</text>
+<rect x="25" y="137" width="420" height="69" rx="7" fill="#e8f5e9" stroke="#667788"/>
+<text x="235" y="162" text-anchor="middle" font-size="17" font-weight="bold">MD-IN / J4</text>
+<text x="235" y="186" text-anchor="middle" font-size="14">SoM ETH_1 onboard PHY to magjack</text>
+<rect x="25" y="221" width="420" height="69" rx="7" fill="#e8f5e9" stroke="#667788"/>
+<text x="235" y="246" text-anchor="middle" font-size="17" font-weight="bold">OE / J6</text>
+<text x="235" y="270" text-anchor="middle" font-size="14">PCIe to I210-AT to magjack</text>
+<rect x="25" y="305" width="420" height="69" rx="7" fill="#e8f5e9" stroke="#667788"/>
+<text x="235" y="330" text-anchor="middle" font-size="17" font-weight="bold">MGMT / J7</text>
+<text x="235" y="354" text-anchor="middle" font-size="14">RGMII to KSZ9131 to magjack</text>
+<rect x="25" y="389" width="420" height="69" rx="7" fill="#e8f5e9" stroke="#667788"/>
+<text x="235" y="414" text-anchor="middle" font-size="17" font-weight="bold">PPS / J5</text>
+<text x="235" y="438" text-anchor="middle" font-size="14">Buffered capture paths; firmware pending</text>
+<text x="675" y="115" text-anchor="middle" font-size="20" font-weight="bold">Compute and service</text>
+<rect x="465" y="137" width="420" height="69" rx="7" fill="#e3f2fd" stroke="#667788"/>
+<text x="675" y="162" text-anchor="middle" font-size="17" font-weight="bold">Verdin iMX8M Plus</text>
+<text x="675" y="186" text-anchor="middle" font-size="14">CPU, RAM, eMMC; TE 260-pin socket</text>
+<rect x="465" y="221" width="420" height="69" rx="7" fill="#e3f2fd" stroke="#667788"/>
+<text x="675" y="246" text-anchor="middle" font-size="17" font-weight="bold">USB host / J8 and J9</text>
+<text x="675" y="270" text-anchor="middle" font-size="14">One SuperSpeed and one USB 2.0 port</text>
+<rect x="465" y="305" width="420" height="69" rx="7" fill="#e3f2fd" stroke="#667788"/>
+<text x="675" y="330" text-anchor="middle" font-size="17" font-weight="bold">Recovery</text>
+<text x="675" y="354" text-anchor="middle" font-size="14">U40 interlock; JP1/JP2; isolated fixture</text>
+<rect x="465" y="389" width="420" height="69" rx="7" fill="#e3f2fd" stroke="#667788"/>
+<text x="675" y="414" text-anchor="middle" font-size="17" font-weight="bold">Console</text>
+<text x="675" y="438" text-anchor="middle" font-size="14">USB-C UART and RJ45 RS232</text>
+<rect x="465" y="473" width="420" height="69" rx="7" fill="#e3f2fd" stroke="#667788"/>
+<text x="675" y="498" text-anchor="middle" font-size="17" font-weight="bold">Storage and supervision</text>
+<text x="675" y="522" text-anchor="middle" font-size="14">FRAM, microSD, RTC, watchdog, LEDs, fan</text>
+<text x="1115" y="115" text-anchor="middle" font-size="20" font-weight="bold">Input and rails</text>
+<rect x="905" y="137" width="420" height="69" rx="7" fill="#fff3e0" stroke="#667788"/>
+<text x="1115" y="162" text-anchor="middle" font-size="17" font-weight="bold">USB-C PWR / J3</text>
+<text x="1115" y="186" text-anchor="middle" font-size="14">PD source: 15 V / 3 A or 20 V / 3 A</text>
+<rect x="905" y="221" width="420" height="69" rx="7" fill="#fff3e0" stroke="#667788"/>
+<text x="1115" y="246" text-anchor="middle" font-size="17" font-weight="bold">PD auxiliary</text>
+<text x="1115" y="270" text-anchor="middle" font-size="14">LT3010 4.5V; STUSB4500; sense clamp candidate</text>
+<rect x="905" y="305" width="420" height="69" rx="7" fill="#fff3e0" stroke="#667788"/>
+<text x="1115" y="330" text-anchor="middle" font-size="17" font-weight="bold">Contract-controlled load</text>
+<text x="1115" y="354" text-anchor="middle" font-size="14">Q5 inhibits TPS26631 eFuse before contract</text>
+<rect x="905" y="389" width="420" height="69" rx="7" fill="#fff3e0" stroke="#667788"/>
+<text x="1115" y="414" text-anchor="middle" font-size="17" font-weight="bold">Three independent 3 A bucks</text>
+<text x="1115" y="438" text-anchor="middle" font-size="14">+5V, +5V_USB and +3V3 from VSYS</text>
+<rect x="905" y="473" width="420" height="69" rx="7" fill="#fff3e0" stroke="#667788"/>
+<text x="1115" y="498" text-anchor="middle" font-size="17" font-weight="bold">Low voltage rails</text>
+<text x="1115" y="522" text-anchor="middle" font-size="14">+1V8 from module; PHY 1.2V from +3V3</text>
+<text x="675" y="610" text-anchor="middle" font-size="15">See electrical corrections, programming/recovery and fresh R01-R09 evidence. No hardware measurements claimed.</text>
+</g></svg>

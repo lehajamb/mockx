@@ -1,0 +1,7 @@
+test_ordinary_control_is_eligible (test_experimental_route_policy.ExperimentalRoutingPolicyTests.test_ordinary_control_is_eligible) ... ok
+test_protected_nets_never_enter_global_router (test_experimental_route_policy.ExperimentalRoutingPolicyTests.test_protected_nets_never_enter_global_router) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.035s
+
+OK

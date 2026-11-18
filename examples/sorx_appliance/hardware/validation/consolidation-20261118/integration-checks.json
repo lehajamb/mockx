@@ -1,0 +1,102 @@
+{
+  "scope": "Native regression of the routing comparison on two historical board pairs. No board promoted; not a fabrication gate. Paths in the examples are relative to hardware/ unless inside the container. Raw regenerated outputs are local, not required by the current-board workflow.",
+  "pinned_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "kicad": "7.0.11",
+  "tool_sources_sha256": {
+    "tools/routing_gate.py": "f6e55425c7bc3e4ac14e587e14cc84efdae0320a2608d987fce4a3e8b44c9b89",
+    "tools/verification_core.py": "c786006d083231cda6adc11628df176661e14214cfd2d5544b7fb422dd6250b0",
+    "tools/replay_copper_delta.py": "acbbb94c9c9bfbf30dad7540a13c275e54d87c9e4cd6c05efa6920a88a4ebfe8",
+    "tools/ground_stitch.py": "fdb20e6d3b0b4692143eeab851d06aee7b07cfb3265eff2c2108f1fe28f80760",
+    "tools/sx.py": "e5d1649d4418064c5a482e346e19507c1b033fb9b1d6b35b8abf45bf0b9ac640",
+    "tools/env/image-id.txt": "594a3f4d5b82e4a61d05075f969c8e7fa951e40ae877868a61ad389d67bcb01a",
+    "tools/env/run.ps1": "6ef712ff1dde4c00907a6743ce27bf102ce8792b7f68a23ebef7e21c3d5125d4"
+  },
+  "cases": [
+    {
+      "historical_case": "Accepted low-current supply bridges",
+      "launcher": "examples/sorx_appliance/hardware/tools/env/run.ps1 -ToolArgs",
+      "arguments": [
+        "python3",
+        "routing_gate.py",
+        "/work/hardware/runs/electrical-final17/debug-power-proof02.kicad_pcb",
+        "/work/hardware/runs/electrical-final17/power-bridge-proof01.kicad_pcb",
+        "--out",
+        "/work/hardware/runs/local-gate-qual-power-04",
+        "--parent-sha256",
+        "e849a676c5e91515ff0062ab52897d156b6bc2ee250b4ec288071f4b126e2204",
+        "--join",
+        "U31.5",
+        "C76.1",
+        "--join",
+        "U31.5",
+        "R13.1",
+        "--join",
+        "C17.1",
+        "R12.1"
+      ],
+      "input_sha256": {
+        "runs/electrical-final17/debug-power-proof02.kicad_pcb": "e849a676c5e91515ff0062ab52897d156b6bc2ee250b4ec288071f4b126e2204",
+        "runs/electrical-final17/debug-power-proof02.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+        "runs/electrical-final17/power-bridge-proof01.kicad_pcb": "5188991db0633f32b6552605679a701606510d5833916cdc843b0ec5413cead1",
+        "runs/electrical-final17/power-bridge-proof01.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782"
+      },
+      "exit_status": 0,
+      "console": "PASS_CONNECTIVITY_ONLY; no board promoted. Check interface/power constraints, then recheck promoted bytes.",
+      "checkpoints": {
+        "before": {
+          "required_opens": 33,
+          "other_findings": 95,
+          "drc_sha256": "6d53d58c4fc8092692bec7eb910b80af198fd6ee82b45748e81a92defcec2d3b",
+          "geometry_snapshot_sha256": "e2144f76858201ed9637a8f5a9ee58c769f85de135156a07e15acd1785411365"
+        },
+        "after": {
+          "required_opens": 30,
+          "other_findings": 93,
+          "drc_sha256": "4dff565eb48d0ae6f8c9e0b5262ddfb7ed059a38ee068bc9ee16faeee242ad17",
+          "geometry_snapshot_sha256": "684741c3adbf11df01ea7a3294142fb478fcec30c02fb6db5f459c0baab0ee79"
+        }
+      },
+      "observed_change": "Three named pad-group joins closed. Only +1V8 and VBUS_IN changed; native DRC, all net pad groups, copper identity and duplicate-drill checks passed."
+    },
+    {
+      "historical_case": "Rejected ordinary signals repair (C64.2 GND replacement failure)",
+      "launcher": "examples/sorx_appliance/hardware/tools/env/run.ps1 -ToolArgs",
+      "arguments": [
+        "python3",
+        "routing_gate.py",
+        "/work/hardware/runs/route-combined-15b-ground.kicad_pcb",
+        "/work/hardware/runs/route-verifier-21-ordinary-proof.kicad_pcb",
+        "--out",
+        "/work/hardware/runs/local-gate-qual-c64-04",
+        "--parent-sha256",
+        "0e825f295aac2fe7da0723bf85a7b8d2c6de2a09d00255e1a4cd65d6a5e986c6",
+        "--join",
+        "J1.200",
+        "U1.5"
+      ],
+      "input_sha256": {
+        "runs/route-combined-15b-ground.kicad_pcb": "0e825f295aac2fe7da0723bf85a7b8d2c6de2a09d00255e1a4cd65d6a5e986c6",
+        "runs/route-combined-15b-ground.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+        "runs/route-verifier-21-ordinary-proof.kicad_pcb": "9e4f04e0c5a1aacff22f042f629b0677f8b1434f5d74cbb7e14045035744ddb1",
+        "runs/route-verifier-21-ordinary-proof.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782"
+      },
+      "exit_status": 1,
+      "console": "CHECK FAILED: GND pad group split or reassigned: C64.2, BT1.2, C1.2, C10.2",
+      "checkpoints": {
+        "before": {
+          "required_opens": 36,
+          "other_findings": 101,
+          "drc_sha256": "4db51253cb183684f2f42597e99997d2962ccc2d8226873a8d41d949c5f401d0",
+          "geometry_snapshot_sha256": "be5e5cacaa66d2d4c9cb77fdd1a67b54e2e20d519f73bbe54a0470dea04ff4d3"
+        },
+        "after": {
+          "required_opens": 31,
+          "other_findings": 98,
+          "drc_sha256": "84297bc139c9439a2e1084475f3644ac85ede85fdc172c0e24131c71c67bc700",
+          "geometry_snapshot_sha256": "5a837927d4cf9da8b25b260f91b44a9c6496f0c7bf758eff4a4821d0278049a7"
+        }
+      },
+      "observed_change": "Five fewer total opens, but the previous GND pad group split at C64.2. Rejection is expected despite smaller counts."
+    }
+  ]
+}

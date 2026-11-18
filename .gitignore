@@ -3,3 +3,7 @@ __pycache__/
 /build/
 /build-*/
 /replay-runs/
+
+# Local agent notes and handoffs
+CLAUDE*.md
+CODEX*.md

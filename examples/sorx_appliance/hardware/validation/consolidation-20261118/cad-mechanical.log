@@ -1,0 +1,33 @@
+test_duplicate_component_refs_fail (test_mechanical.MechanicalProvenanceRegressions.test_duplicate_component_refs_fail) ... ok
+test_stale_and_missing_placement_metadata_fail (test_mechanical.MechanicalProvenanceRegressions.test_stale_and_missing_placement_metadata_fail) ... ok
+test_bottom_component_height_is_not_clipped (test_mechanical.MechanicalRegressions.test_bottom_component_height_is_not_clipped) ... ok
+test_component_pair_screen_samples_bounds_only_linearly (test_mechanical.MechanicalRegressions.test_component_pair_screen_samples_bounds_only_linearly) ... /opt/cq/lib/python3.11/site-packages/cadquery/selectors.py:884: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+  parse_result = _expression_grammar.parseString(selectorString, parseAll=True)
+/opt/cq/lib/python3.11/site-packages/pyparsing/util.py:466: PyparsingDeprecationWarning: 'parseAll' argument is deprecated, use 'parse_all'
+  return fn(self, *args, **kwargs)
+ok
+test_fan_has_vertical_tolerance_allowance (test_mechanical.MechanicalRegressions.test_fan_has_vertical_tolerance_allowance) ... ok
+test_geometry_failure_is_not_zero_interference (test_mechanical.MechanicalRegressions.test_geometry_failure_is_not_zero_interference) ... ok
+test_j9_has_no_enclosure_interference (test_mechanical.MechanicalRegressions.test_j9_has_no_enclosure_interference) ... ok
+test_module_keepout_rejects_top_part_but_not_carrier_bottom_part (test_mechanical.MechanicalRegressions.test_module_keepout_rejects_top_part_but_not_carrier_bottom_part) ... ok
+{"all_ports_aligned": true, "max_interference_mm3": 0.001599, "interference_mm3": {}, "clearances": {"heatsink_top_to_lid_mm": 15.4, "magjack_top_to_lid_mm": 19.8, "internal_height_mm": 41.0, "fan_height_mm": 40.0, "fan_vertical_allowance_mm": 1.0, "bottom_parts_to_floor_mm": 4.2, "outer_mm": [215.0, 123.6, 44.0]}}
+OE {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+MD-IN {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+MGMT {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+USB-C PWR {'left': 1.8, 'right': 1.8, 'bottom': 1.6, 'top': 1.6} OK
+PPS {'left': 1.0, 'right': 1.0, 'bottom': 1.0, 'top': 1.0} OK
+USB 1 {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+USB 2 {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+CONSOLE {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+USB-C DEBUG {'left': 1.5, 'right': 1.5, 'bottom': 1.6, 'top': 1.6} OK
+microSD {'left': 0.6, 'right': 0.6, 'bottom': 0.3, 'top': 0.9} OK
+test_reporting_preserves_individual_component_geometry (test_mechanical.MechanicalRegressions.test_reporting_preserves_individual_component_geometry) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 67.803s
+
+OK
+RESET {'left': 0.5, 'right': 0.5, 'bottom': 0.5, 'top': 0.5} OK
+RECOVERY {'left': 0.5, 'right': 0.5, 'bottom': 0.5, 'top': 0.5} OK
+LED window {'left': 1.0, 'right': 1.0, 'bottom': 0.4, 'top': 1.4} OK
+mechanical success: False | blockers: ['Placement data lacks a matching PCB/hash provenance sidecar; rerun mech_export.py.', 'Module/heatsink mounting footprints absent or not at the manufacturer coordinates.', 'Envelope heights from the prior design and inferred package bounds require exact-MPN maximum-height qualification.', 'Supplier Type 1 metal and screw geometry are placed; exact module revision, V1.1B TIM compression/load and assembly access remain unqualified.', '1.5 mm floor/lid and fan nominal dimensions require enclosure-process and supplier tolerance/strength sign-off.', 'Cable plug/latch and microSD removal access envelopes have not been qualified.']

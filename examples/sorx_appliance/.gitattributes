@@ -1,0 +1,20 @@
+# Preserve original attachment and extracted-file bytes for baseline comparison.
+baseline/** -text
+hardware/** -text
+reference_images/** -text
+
+# Historical helper bytes and the transfer inventory are SHA-256 evidence.
+runs/**/*.py -text
+docs/local-transfer.tsv -text
+
+# Supplier STEP and license artifacts are immutable, hash-bound upstream bytes.
+hardware/mech/vendor/**/*.step -diff
+hardware/mech/vendor/**/*-README.txt -diff
+
+# Preserve raw subprocess log bytes, including unittest subtest trailing spaces.
+hardware/validation/**/*.log -whitespace
+hardware/validation/**/*.txt -whitespace
+
+# Preserve generated CAD evidence byte-for-byte; do not treat STEP as source text.
+hardware/validation/**/*.step -diff -whitespace
+hardware/validation/**/*.svg -whitespace

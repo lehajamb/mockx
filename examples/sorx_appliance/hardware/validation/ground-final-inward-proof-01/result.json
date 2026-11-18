@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "source_inputs_sha256": {
+    "/work/hardware/runs/route-verifier-18-ground-detour-proof.kicad_pcb": "9456e53ade81d8faed38fffea33c15c05cc6d7937d03bda08648e42cdca3d36f",
+    "/work/hardware/runs/route-verifier-18-ground-detour-proof.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/tools/ground_fanout.py": "513f287eb92a5c86f2584c13ec3a27765c98dad8f64dc60992fde40032d92a49",
+    "/work/hardware/tools/route_completion.py": "bc7d396d99c1dd4182b598bc17026cdc77ecd3429efb0606c2754ae052418923",
+    "/work/hardware/tools/ground_stitch.py": "944ed992d865e6dc428454b547959a7774e77d37ccb053391d76410e6606e12a",
+    "/work/hardware/tools/proj.py": "ff52d56d41ec62ea47d282e4adf0618ec057c642114953b5858d273eeda7c704"
+  },
+  "sources_unchanged": true,
+  "input": "/work/hardware/runs/route-verifier-18-ground-detour-proof.kicad_pcb",
+  "input_sha256": "9456e53ade81d8faed38fffea33c15c05cc6d7937d03bda08648e42cdca3d36f",
+  "output": "/work/hardware/runs/route-verifier-19-inward-proof.kicad_pcb",
+  "output_sha256": "80e27b9da71a79719965b2654becfdf695ce05ebb8cfa035f0ffd6aa24301814",
+  "tool_sha256": "513f287eb92a5c86f2584c13ec3a27765c98dad8f64dc60992fde40032d92a49",
+  "environment": {
+    "python": "3.11.2 (main, Oct  7 2026, 12:35:07) [GCC 12.2.0]",
+    "kicad": "7.0.11",
+    "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2"
+  },
+  "target": {
+    "reference": "J1",
+    "pad": "204",
+    "start_mm": [
+      58.6195,
+      60.174
+    ],
+    "via_mm": [
+      58.6195,
+      58.374
+    ]
+  },
+  "before_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 40,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 39,
+    "Footprint errors": 0
+  },
+  "reroutes": [
+    {
+      "old_uuid": "e6deb02c-bfd0-4198-b3b6-727871646222",
+      "net": "PPS_QOS",
+      "width_mm": 0.15,
+      "old_endpoints": [
+        [
+          55.1706,
+          61.502
+        ],
+        [
+          61.8482,
+          54.8244
+        ]
+      ],
+      "new_runs": [
+        [
+          "B",
+          [
+            [
+              55.1706,
+              61.502
+            ],
+            [
+              55.150000000000006,
+              61.50000000000001
+            ],
+            [
+              57.7,
+              58.95
+            ],
+            [
+              58.85000000000001,
+              58.95
+            ],
+            [
+              58.900000000000006,
+              58.900000000000006
+            ],
+            [
+              58.95,
+              58.900000000000006
+            ],
+            [
+              61.400000000000006,
+              56.45
+            ],
+            [
+              61.400000000000006,
+              56.400000000000006
+            ],
+            [
+              61.45,
+              56.35000000000001
+            ],
+            [
+              61.45,
+              56.2
+            ],
+            [
+              61.50000000000001,
+              56.150000000000006
+            ],
+            [
+              61.50000000000001,
+              56.050000000000004
+            ],
+            [
+              61.550000000000004,
+              56.00000000000001
+            ],
+            [
+              61.550000000000004,
+              55.85000000000001
+            ],
+            [
+              61.60000000000001,
+              55.800000000000004
+            ],
+            [
+              61.60000000000001,
+              55.650000000000006
+            ],
+            [
+              61.650000000000006,
+              55.60000000000001
+            ],
+            [
+              61.650000000000006,
+              55.50000000000001
+            ],
+            [
+              61.7,
+              55.45
+            ],
+            [
+              61.7,
+              55.300000000000004
+            ],
+            [
+              61.75000000000001,
+              55.25000000000001
+            ],
+            [
+              61.75000000000001,
+              55.10000000000001
+            ],
+            [
+              61.800000000000004,
+              55.050000000000004
+            ],
+            [
+              61.800000000000004,
+              54.900000000000006
+            ],
+            [
+              61.85000000000001,
+              54.85000000000001
+            ],
+            [
+              61.85000000000001,
+              54.800000000000004
+            ],
+            [
+              61.8482,
+              54.8244
+            ]
+          ]
+        ]
+      ],
+      "new_vias": []
+    }
+  ],
+  "new_non_connectivity_findings": [],
+  "remaining_affected_signal_opens": [],
+  "target_still_open": false,
+  "accepted_for_further_development": true,
+  "fabrication_approval": false
+}

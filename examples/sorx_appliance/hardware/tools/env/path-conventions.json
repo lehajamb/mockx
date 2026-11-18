@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "active_hardware": "/work/hardware",
+  "custom_footprint_library": "/hardware/hw/sorx.pretty",
+  "same_clone_alias": {
+    "source_relative_to_appliance": "hardware/hw",
+    "target": "/hardware/hw",
+    "read_only": true
+  },
+  "KICAD7_FOOTPRINT_DIR": "/usr/share/kicad/footprints",
+  "baseline_and_reference_images_read_only": true,
+  "network": "none"
+}

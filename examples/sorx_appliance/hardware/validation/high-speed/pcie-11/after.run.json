@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "/work/tools/high_speed_audit.py",
+    "runs/pcie-trial-11.kicad_pcb",
+    "--output",
+    "validation/high-speed/pcie-11/after.json"
+  ],
+  "returncode": 1,
+  "stdout": "{\"success\": false, \"summary\": {\"pairs\": 21, \"complete_paths\": 21, \"geometric_prerequisites_pass\": 0, \"planar_skew_failures\": [\"MD_MDI1\", \"MD_MDI2\", \"MD_MDI3\", \"OE_MDI0\", \"OE_MDI1\", \"OE_MDI3\", \"MG_MDI0\", \"MG_MDI1\", \"MG_MDI2\", \"MG_MDI3\", \"PCIE_RX\", \"USB2_D\", \"USB1_D\", \"USB_DEBUG_A\", \"USB_DEBUG_B\"]}, \"errors\": []}\n",
+  "stderr": ""
+}

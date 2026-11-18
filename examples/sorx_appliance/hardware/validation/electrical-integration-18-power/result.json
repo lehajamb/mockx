@@ -1,0 +1,193 @@
+{
+  "status": "ACCEPTED FOR FURTHER DEVELOPMENT",
+  "fabrication_ready": false,
+  "source": "/hardware/runs/electrical-final17/route-electrical-17-sma.kicad_pcb",
+  "source_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "output": "/hardware/runs/electrical-final17/route-electrical-18-power.kicad_pcb",
+  "output_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "audit_source_sha256": "4a9d59f1d3292ec9f2004aeffd04bc6b1c7f66bcfa97734081f5ddb669ad555f",
+  "before": {
+    "DRC violations": 95,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 95,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [],
+  "routes": [
+    {
+      "net": "+1V8",
+      "width_mm": 0.15,
+      "current_allocation_a": 0.005,
+      "rationale": "isolated pullups/74LVC1G07 and local capacitor only",
+      "endpoints": [
+        [
+          [
+            30.6387,
+            55.3606
+          ],
+          "I",
+          "+1V8",
+          "Track [+1V8] on In2.Cu, length 15.4936 mm"
+        ],
+        [
+          [
+            31.1375,
+            56.45
+          ],
+          "B",
+          "+1V8",
+          "Track [+1V8] on B.Cu, length 0.0125 mm"
+        ]
+      ],
+      "accepted_route": false,
+      "refusal": "No clearance-safe path at branch width"
+    },
+    {
+      "net": "+1V2_PHY",
+      "width_mm": 0.15,
+      "current_allocation_a": 0.3,
+      "rationale": "single short QFN supply pin4 escape; max route5mm",
+      "endpoints": [
+        [
+          [
+            69.35,
+            36.0625
+          ],
+          "F",
+          "+1V2_PHY",
+          "Track [+1V2_PHY] on F.Cu, length 6.2940 mm"
+        ],
+        [
+          [
+            71.85,
+            36.0625
+          ],
+          "F",
+          "+1V2_PHY",
+          "Pad 4 [+1V2_PHY] of U13 on F.Cu"
+        ]
+      ],
+      "accepted_route": false,
+      "refusal": "No clearance-safe path at branch width"
+    },
+    {
+      "net": "VBUS_DBG_RAW",
+      "width_mm": 0.15,
+      "current_allocation_a": 0.1,
+      "rationale": "USB-C fine-pitch escape to debug UART island",
+      "endpoints": [
+        [
+          [
+            115.6525,
+            106.42
+          ],
+          "F",
+          "VBUS_DBG_RAW",
+          "Pad 1 [VBUS_DBG_RAW] of FB2 on F.Cu"
+        ],
+        [
+          [
+            115.6,
+            110.64
+          ],
+          "F",
+          "VBUS_DBG_RAW",
+          "Pad B9 [VBUS_DBG_RAW] of J10 on F.Cu"
+        ]
+      ],
+      "accepted_route": false,
+      "refusal": "No clearance-safe path at branch width"
+    },
+    {
+      "net": "VBUS_DBG_RAW",
+      "width_mm": 0.15,
+      "current_allocation_a": 0.1,
+      "rationale": "USB-C fine-pitch escape to debug UART island",
+      "endpoints": [
+        [
+          [
+            115.6,
+            110.64
+          ],
+          "F",
+          "VBUS_DBG_RAW",
+          "Pad B9 [VBUS_DBG_RAW] of J10 on F.Cu"
+        ],
+        [
+          [
+            120.4,
+            110.64
+          ],
+          "F",
+          "VBUS_DBG_RAW",
+          "Pad B4 [VBUS_DBG_RAW] of J10 on F.Cu"
+        ]
+      ],
+      "accepted_route": false,
+      "refusal": "No clearance-safe path at branch width"
+    },
+    {
+      "net": "+1V8",
+      "width_mm": 0.15,
+      "current_allocation_a": 0.005,
+      "rationale": "isolated pullups/74LVC1G07 and local capacitor only",
+      "endpoints": [
+        [
+          [
+            50.734,
+            59.729
+          ],
+          "I",
+          "+1V8",
+          "Track [+1V8] on In2.Cu, length 10.4678 mm"
+        ],
+        [
+          [
+            36.3131,
+            62.5131
+          ],
+          "F",
+          "+1V8",
+          "Track [+1V8] on F.Cu, length 1.8662 mm"
+        ]
+      ],
+      "accepted_route": false,
+      "refusal": "No clearance-safe path at branch width"
+    },
+    {
+      "net": "VBUS_IN",
+      "width_mm": 0.25,
+      "current_allocation_a": 0.036,
+      "rationale": "Q2 source/reference and R12 sense branch; excludes main input",
+      "endpoints": [
+        [
+          [
+            12.26,
+            21.95
+          ],
+          "F",
+          "VBUS_IN",
+          "Track [VBUS_IN] on F.Cu, length 1.3025 mm"
+        ],
+        [
+          [
+            10.74,
+            21.73
+          ],
+          "F",
+          "VBUS_IN",
+          "Track [VBUS_IN] on F.Cu, length 6.7150 mm"
+        ]
+      ],
+      "accepted_route": false,
+      "refusal": "No clearance-safe path at branch width"
+    }
+  ],
+  "tool_sha256": "353c0fcbb9e0f225659c8b25a2d8642cc2c7d876735115aa8f9905131ccff3b4",
+  "router_sha256": "bc7d396d99c1dd4182b598bc17026cdc77ecd3429efb0606c2754ae052418923",
+  "thermal_qualification": false
+}

@@ -1,0 +1,18 @@
+test_clipped_obstacle_tangencies_remain_blocked (test_route_completion.RoutingGeometryTests.test_clipped_obstacle_tangencies_remain_blocked) ... ERROR
+test_obstacle_polygon_holes_remain_available (test_route_completion.RoutingGeometryTests.test_obstacle_polygon_holes_remain_available) ... ok
+
+======================================================================
+ERROR: test_clipped_obstacle_tangencies_remain_blocked (test_route_completion.RoutingGeometryTests.test_clipped_obstacle_tangencies_remain_blocked)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_route_completion.py", line 25, in test_clipped_obstacle_tangencies_remain_blocked
+    grid.stamp(cells, GeometryCollection([box(1,1,2,2),Point(4,4)]), 0)
+  File "/work/hardware/tools/route_completion.py", line 60, in stamp
+    dr.polygon([((x - self.x0) / RES - ox - a0, (y - self.y0) / RES - oy - b0) for x, y in poly.exterior.coords], fill=1, outline=1)
+                                                                                           ^^^^^^^^^^^^^
+AttributeError: 'Point' object has no attribute 'exterior'
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.047s
+
+FAILED (errors=1)

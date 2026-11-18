@@ -1,0 +1,36 @@
+test_detour_avoids_new_via_without_shrinking_power_trace (test_ground_stitch.GroundGeometryTests.test_detour_avoids_new_via_without_shrinking_power_trace) ... ERROR
+test_detour_refuses_blocked_copper (test_ground_stitch.GroundGeometryTests.test_detour_refuses_blocked_copper) ... ERROR
+test_detour_refuses_via_at_existing_track_endpoint (test_ground_stitch.GroundGeometryTests.test_detour_refuses_via_at_existing_track_endpoint) ... ERROR
+test_stitch_uses_copper_island_beyond_obstructed_pad (test_ground_stitch.GroundGeometryTests.test_stitch_uses_copper_island_beyond_obstructed_pad) ... ok
+
+======================================================================
+ERROR: test_detour_avoids_new_via_without_shrinking_power_trace (test_ground_stitch.GroundGeometryTests.test_detour_avoids_new_via_without_shrinking_power_trace)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_ground_stitch.py", line 20, in test_detour_avoids_new_via_without_shrinking_power_trace
+    path = gs.detour_polyline((-5,0),(5,0),(0,0),.5,Point().buffer(0),box(-6,-3,6,3))
+           ^^^^^^^^^^^^^^^^^^
+AttributeError: module 'ground_stitch' has no attribute 'detour_polyline'
+
+======================================================================
+ERROR: test_detour_refuses_blocked_copper (test_ground_stitch.GroundGeometryTests.test_detour_refuses_blocked_copper)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_ground_stitch.py", line 27, in test_detour_refuses_blocked_copper
+    path = gs.detour_polyline((-5,0),(5,0),(0,0),.5,box(-2,-3,2,3),box(-6,-3,6,3))
+           ^^^^^^^^^^^^^^^^^^
+AttributeError: module 'ground_stitch' has no attribute 'detour_polyline'
+
+======================================================================
+ERROR: test_detour_refuses_via_at_existing_track_endpoint (test_ground_stitch.GroundGeometryTests.test_detour_refuses_via_at_existing_track_endpoint)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_ground_stitch.py", line 31, in test_detour_refuses_via_at_existing_track_endpoint
+    self.assertIsNone(gs.detour_polyline((0,0),(5,0),(0,0),.5,Point().buffer(0),box(-6,-3,6,3)))
+                      ^^^^^^^^^^^^^^^^^^
+AttributeError: module 'ground_stitch' has no attribute 'detour_polyline'
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.028s
+
+FAILED (errors=3)

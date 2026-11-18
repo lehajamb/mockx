@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name "sorx")(type "KiCad")(uri "${KIPRJMOD}/sorx.pretty")(options "")(descr "SORX custom footprints"))
+)

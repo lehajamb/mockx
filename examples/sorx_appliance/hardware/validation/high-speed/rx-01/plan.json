@@ -1,0 +1,36 @@
+{
+  "source_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "filtered": "validation/high-speed/rx-01/filtered.kicad_pcb",
+  "output": "runs/rx-trial-01.kicad_pcb",
+  "points": [
+    [
+      48.8517,
+      56.2713
+    ],
+    [
+      48.5017,
+      56.2713
+    ],
+    [
+      47.41530389693211,
+      55.184903896932106
+    ],
+    [
+      47.005396103067895,
+      55.184903896932106
+    ],
+    [
+      45.919000000000004,
+      56.2713
+    ],
+    [
+      45.569,
+      56.2713
+    ]
+  ],
+  "removed": [
+    "  (segment locked (start 48.8517 56.2713) (end 45.569 56.2713) (width 0.155) (layer \"F.Cu\") (net 67) (tstamp 0c7c585c-0401-463e-9193-db956eb27f3c))\n"
+  ],
+  "added_planar_mm": 0.8999999999999986,
+  "after_drc": "validation/high-speed/rx-01/after-drc.txt"
+}

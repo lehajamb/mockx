@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.kicad_prl
+~*.lck
+*-backups/
+.venv/
+runs/
+
+## Pause checkpoint: exact large native evidence is archived and hashed.
+/hardware/validation/high-speed/mdi-paired-01/filtered.kicad_pcb
+/hardware/validation/high-speed/mdi-paired-02/filtered.kicad_pcb
+/hardware/validation/high-speed/rgmii-06/anchors-MG_TXD0.kicad_pcb
+/hardware/validation/high-speed/rgmii-07/anchors-MG_TXD0.kicad_pcb
+/hardware/validation/high-speed/rgmii-08/anchors-MG_TXD0.kicad_pcb
+/hardware/validation/high-speed/rx-01/filtered.kicad_pcb
+/hardware/validation/verifier-smoke-20261117/mechanical/sorx-assembly.step

@@ -1,0 +1,38 @@
+test_bom_keeps_off_board_heatsink_and_screws (test_electrical_model.ElectricalRequirements.test_bom_keeps_off_board_heatsink_and_screws) ... C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tools\gen_bom.py:6: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lehaj\\dev\\mockx_rebirth_july_2026\\mockx-sorx-codex\\examples\\sorx_appliance\\hardware\\tools\\..\\bom\\stock_notes.json' mode='r' encoding='utf-8'>
+  NOTES = json.load(open(os.path.join(BOM, 'stock_notes.json')))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ERROR
+test_fram_ordering_code_matches_voltage_and_package (test_electrical_model.ElectricalRequirements.test_fram_ordering_code_matches_voltage_and_package) ... ok
+test_ksz9131_bias_resistor_is_6040_ohms (test_electrical_model.ElectricalRequirements.test_ksz9131_bias_resistor_is_6040_ohms) ... ok
+test_pd_controller_has_protected_auxiliary_supply (test_electrical_model.ElectricalRequirements.test_pd_controller_has_protected_auxiliary_supply) ... ok
+test_pd_enable_actually_controls_efuse (test_electrical_model.ElectricalRequirements.test_pd_enable_actually_controls_efuse) ... ok
+test_pd_sense_has_precision_clamp_and_rated_series_resistor (test_electrical_model.ElectricalRequirements.test_pd_sense_has_precision_clamp_and_rated_series_resistor) ... ok
+test_te_socket_hold_down_land_pattern (test_electrical_model.ElectricalRequirements.test_te_socket_hold_down_land_pattern) ... ok
+test_te_socket_locating_holes (test_electrical_model.ElectricalRequirements.test_te_socket_locating_holes) ... ok
+test_unquoted_bom_parts_remain_explicitly_unknown (test_electrical_model.ElectricalRequirements.test_unquoted_bom_parts_remain_explicitly_unknown) ... ERROR
+test_verdin_uart_handshake_pin_numbers (test_electrical_model.ElectricalRequirements.test_verdin_uart_handshake_pin_numbers) ... ok
+
+======================================================================
+ERROR: test_bom_keeps_off_board_heatsink_and_screws (test_electrical_model.ElectricalRequirements.test_bom_keeps_off_board_heatsink_and_screws)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 66, in test_bom_keeps_off_board_heatsink_and_screws
+    self.assertTrue(gen_bom.include_part(model.DESIGN.parts[ref]))
+                    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'gen_bom' has no attribute 'include_part'
+
+======================================================================
+ERROR: test_unquoted_bom_parts_remain_explicitly_unknown (test_electrical_model.ElectricalRequirements.test_unquoted_bom_parts_remain_explicitly_unknown)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 61, in test_unquoted_bom_parts_remain_explicitly_unknown
+    self.assertEqual(gen_bom.est(model.DESIGN.parts["U38"]), (None, None, None))
+                     ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tools\gen_bom.py", line 33, in est
+    raise KeyError(p.mpn)
+KeyError: 'TPS7A1650DGNR'
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.075s
+
+FAILED (errors=2)

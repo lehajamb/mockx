@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "baseline_date": "2026-11-16",
+  "release_status": "NOT READY FOR FABRICATION",
+  "import_commit": "df8247829ee12cb5b1c03e0d8fa1c29383a95f74",
+  "hardware_archive_sha256": "2f51a36928e87cb51dcb15f3fa5f04b5b789473a67bb6b2b4529f671bc91addd",
+  "path_base": "examples/sorx_appliance",
+  "evidence_policy": "Preserved baseline measurements from the preceding independent review of this exact archive. Archived tool results are not fresh executions. The bootstrap validates provenance and syntax, not hardware readiness. Do not overwrite this file with revised-design results.",
+  "pcb_inventory": {
+    "evidence_class": "independent_file_inspection",
+    "source": "hardware/hw/sorx.kicad_pcb",
+    "footprints": 348,
+    "pads": 1500,
+    "named_nets": 262,
+    "track_segments": 3317,
+    "vias": 1180,
+    "track_segments_by_layer": {"F.Cu": 2115, "In2.Cu": 124, "B.Cu": 1078},
+    "limit": "Object counts and declared connectivity do not prove a routed electrical connection."
+  },
+  "erc": {
+    "evidence_class": "archived_tool_report",
+    "source": "hardware/docs/reports/erc-report.txt",
+    "errors": 0,
+    "warnings": 0,
+    "fresh_run_in_bootstrap": false,
+    "limit": "Generator power flags and broad bidirectional socket pin types limit ERC coverage."
+  },
+  "drc": {
+    "evidence_class": "archived_tool_report_with_independent_classification",
+    "source": "hardware/docs/reports/drc-report.txt",
+    "unconnected_items": 51,
+    "unconnected_signal_or_supply_items": 10,
+    "unconnected_gnd_items": 41,
+    "gnd_zone_only_items": 38,
+    "gnd_pad_pair_items": 3,
+    "other_findings": 255,
+    "other_errors_before_waivers": 15,
+    "other_warnings_before_waivers": 240,
+    "fresh_run_in_bootstrap": false,
+    "limit": "The 255 other findings exclude the 51 opens and are subject to object-specific waiver review. Zone-only findings are not counts of disconnected IC pins."
+  },
+  "differential_path_examples": {
+    "evidence_class": "independent_geometry_calculation",
+    "source": "hardware/hw/sorx.kicad_pcb",
+    "unit": "mm",
+    "method": "Sum Euclidean lengths of track segments on each named net. For these two pairs, verify exactly two endpoint pads and a direct unbranched bottom-layer IC-to-jack route with no vias; therefore net sums represent the source-to-destination paths.",
+    "pairs": {
+      "OE_MDI1": {"p_length": 12.5857168799, "n_length": 16.9503581675, "absolute_mismatch": 4.3646412875},
+      "OE_MDI3": {"p_length": 10.2203493178, "n_length": 20.9768861265, "absolute_mismatch": 10.7565368087}
+    },
+    "limit": "Examples only, not a complete signal-integrity qualification. Other nets may branch; do not treat arbitrary net-total differences as path skew."
+  },
+  "mechanical": {
+    "evidence_class": "archived_tool_report",
+    "source": "hardware/mech/fit-check.json",
+    "j9_enclosure_interference_mm3": 5.002,
+    "fresh_cad_kernel_run_in_bootstrap": false,
+    "limit": "Saved rounded value; supplied checker has partial model coverage and suppresses geometry exceptions."
+  },
+  "sourcing": {
+    "evidence_class": "independent_count_of_archived_stock_claims",
+    "source": "hardware/bom/stock-check.csv",
+    "checked_active_or_electromechanical_lines": 7,
+    "total_active_or_electromechanical_lines": 39,
+    "fresh_stock_query_in_bootstrap": false,
+    "limit": "Counts submitted checked flags, not current availability or purchasing approval."
+  },
+  "consistency_checks": {
+    "evidence_class": "independent_file_comparison",
+    "declared_pad_assignments_checked": 1500,
+    "declared_pad_assignment_mismatches": 0,
+    "mechanical_placement_records_matching_pcb": 348,
+    "placement_csv_entries_matching_pcb": 320,
+    "nested_fabrication_archive_files_matching_loose_exports": 24,
+    "limit": "Agreement between artifacts generated from one model cannot establish that the underlying model is correct."
+  }
+}

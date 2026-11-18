@@ -1,0 +1,19 @@
+{
+  "matching_routing_and_placement": true,
+  "files": {
+    "runs/route-electrical-10-usb3.kicad_pcb": {
+      "sha256": "5f6a8ad9f42cd2cabb923557a6e9b08447048aec95ed2444025c18cfc4d722c5",
+      "tracks_and_vias": 9735,
+      "footprints": 371,
+      "pcbnew": "7.0.11"
+    },
+    "runs/usb3-replay-13.kicad_pcb": {
+      "sha256": "5f6a8ad9f42cd2cabb923557a6e9b08447048aec95ed2444025c18cfc4d722c5",
+      "tracks_and_vias": 9735,
+      "footprints": 371,
+      "pcbnew": "7.0.11"
+    }
+  },
+  "scope": "Normalized track/via copper and footprint/pad placement/net geometry; UUIDs and zone-fill serialization excluded. Native DRC/reference audits remain separate required checks.",
+  "worker_source": "import pcbnew,json,hashlib,sys\nb=pcbnew.LoadBoard(sys.argv[1]);tracks=[]\nfor t in b.GetTracks():\n if t.GetClass()=='PCB_VIA':tracks.append(['via',t.GetNetname(),t.GetPosition().x,t.GetPosition().y,t.GetWidth(),t.GetDrillValue()])\n else:\n  a,c=t.GetStart(),t.GetEnd();ends=sorted([(a.x,a.y),(c.x,c.y)]);tracks.append(['track',t.GetNetname(),b.GetLayerName(t.GetLayer()),ends,t.GetWidth()])\nparts=[]\nfor f in b.GetFootprints():\n pads=sorted([[p.GetNumber(),p.GetNetname(),p.GetPosition().x,p.GetPosition().y,p.GetSize().x,p.GetSize().y] for p in f.Pads()])\n parts.append([f.GetReference(),f.GetPosition().x,f.GetPosition().y,f.GetOrientationDegrees(),b.GetLayerName(f.GetLayer()),pads])\ndata={'tracks':sorted(tracks,key=lambda x:json.dumps(x)),'parts':sorted(parts)}\nprint(json.dumps({'sha256':hashlib.sha256(json.dumps(data,sort_keys=True,separators=(',',':')).encode()).hexdigest(),'tracks_and_vias':len(tracks),'footprints':len(parts),'pcbnew':pcbnew.GetBuildVersion()}))\n"
+}

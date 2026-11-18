@@ -1,0 +1,412 @@
+{
+  "schema_version": 1,
+  "source_inputs_sha256": {
+    "/work/hardware/runs/route-electrical-13c-trimmed.kicad_pcb": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+    "/work/hardware/runs/route-electrical-13c-trimmed.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/tools/ground_stitch.py": "944ed992d865e6dc428454b547959a7774e77d37ccb053391d76410e6606e12a",
+    "/work/hardware/tools/route_completion.py": "1827b6df85a8c85b0e38d0df444e08aca1f402002a7623fe05f73f49b981d16e",
+    "/work/hardware/tools/proj.py": "56ec7009279be311eeb2d347e0daf5e49a8dac6437e7549fb6cfb05a387d2575"
+  },
+  "sources_unchanged": true,
+  "tool_environment": {
+    "python": "3.11.2 (main, Oct  7 2026, 12:35:07) [GCC 12.2.0]",
+    "kicad": "7.0.11",
+    "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+    "command": [
+      "ground_stitch.py",
+      "/work/hardware/runs/route-electrical-13c-trimmed.kicad_pcb",
+      "/work/hardware/runs/route-verifier-14-ground-proof.kicad_pcb",
+      "--report-dir",
+      "/work/hardware/validation/ground-final-proof-01",
+      "--iterations",
+      "1",
+      "--trace-escapes"
+    ]
+  },
+  "input": "/work/hardware/runs/route-electrical-13c-trimmed.kicad_pcb",
+  "input_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "output": "/work/hardware/runs/route-verifier-14-ground-proof.kicad_pcb",
+  "output_sha256": "723ee1a845811a9ee6bb01c2d68e4f166504825ca4dc9e2f3af622afbaf0408d",
+  "initial_ground_groups": 32,
+  "remaining_ground_groups": 25,
+  "native_ground_open_items": 25,
+  "supply_detours": [],
+  "ground_escape_routes": [],
+  "vias_added": [
+    {
+      "position_mm": [
+        121.7017,
+        107.6321
+      ],
+      "layer_connected": "F.Cu",
+      "strategy": "contained",
+      "target_pads": [
+        {
+          "reference": "R87",
+          "pad": "2",
+          "x_mm": 120.15,
+          "y_mm": 108.39
+        },
+        {
+          "reference": "C112",
+          "pad": "2",
+          "x_mm": 122.19,
+          "y_mm": 106.15
+        }
+      ],
+      "uuid": "7b86d9cf-2960-41fe-9eea-fab3405b85c9"
+    },
+    {
+      "position_mm": [
+        109.3996,
+        58.7372
+      ],
+      "layer_connected": "F.Cu",
+      "strategy": "overlap",
+      "target_pads": [
+        {
+          "reference": "J1",
+          "pad": "10",
+          "x_mm": 109.1195,
+          "y_mm": 60.174
+        }
+      ],
+      "uuid": "d01a3b97-141c-4173-a16d-85462297ed91"
+    },
+    {
+      "position_mm": [
+        74.4525,
+        59.384
+      ],
+      "layer_connected": "F.Cu",
+      "strategy": "contained",
+      "target_pads": [
+        {
+          "reference": "J1",
+          "pad": "146",
+          "x_mm": 73.1195,
+          "y_mm": 60.174
+        }
+      ],
+      "uuid": "1deb8839-46b7-47da-a585-58d6228c65db"
+    },
+    {
+      "position_mm": [
+        67.8265,
+        53.6607
+      ],
+      "layer_connected": "F.Cu",
+      "strategy": "contained",
+      "target_pads": [
+        {
+          "reference": "J1",
+          "pad": "167",
+          "x_mm": 67.8695,
+          "y_mm": 51.974
+        }
+      ],
+      "uuid": "2a5530b5-4a01-4894-9975-fa79922eb185"
+    },
+    {
+      "position_mm": [
+        29.9542,
+        49.8802
+      ],
+      "layer_connected": "B.Cu",
+      "strategy": "contained",
+      "target_pads": [
+        {
+          "reference": "C58",
+          "pad": "2",
+          "x_mm": 30.17,
+          "y_mm": 49.07
+        }
+      ],
+      "uuid": "c8977bda-47eb-4b69-bc72-045ba3981fa2"
+    },
+    {
+      "position_mm": [
+        27.6634,
+        47.1042
+      ],
+      "layer_connected": "B.Cu",
+      "strategy": "contained",
+      "target_pads": [
+        {
+          "reference": "C63",
+          "pad": "2",
+          "x_mm": 27.68,
+          "y_mm": 49.23
+        }
+      ],
+      "uuid": "9290843d-8392-4ff0-8d8a-c01a0ebf8b3f"
+    },
+    {
+      "position_mm": [
+        23.8269,
+        41.4869
+      ],
+      "layer_connected": "B.Cu",
+      "strategy": "overlap",
+      "target_pads": [
+        {
+          "reference": "C56",
+          "pad": "2",
+          "x_mm": 23.09,
+          "y_mm": 41.45
+        }
+      ],
+      "uuid": "f40dcc04-8513-4c00-9aba-8b1df4f90a8b"
+    }
+  ],
+  "unresolved_pads": [
+    [
+      {
+        "reference": "C88",
+        "pad": "2",
+        "x_mm": 68.77,
+        "y_mm": 46.11
+      }
+    ],
+    [
+      {
+        "reference": "C89",
+        "pad": "2",
+        "x_mm": 66.299999,
+        "y_mm": 46.1
+      }
+    ],
+    [
+      {
+        "reference": "U13",
+        "pad": "29",
+        "x_mm": 69.85,
+        "y_mm": 42.9375
+      },
+      {
+        "reference": "U13",
+        "pad": "49",
+        "x_mm": 70.6,
+        "y_mm": 39.5
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "11",
+        "x_mm": 108.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "158",
+        "x_mm": 70.1195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "170",
+        "x_mm": 67.1195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "179",
+        "x_mm": 64.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "182",
+        "x_mm": 64.1195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "194",
+        "x_mm": 61.1195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "195",
+        "x_mm": 60.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "204",
+        "x_mm": 58.6195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "209",
+        "x_mm": 57.3695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "229",
+        "x_mm": 52.3695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "242",
+        "x_mm": 49.1195,
+        "y_mm": 60.174
+      }
+    ],
+    [
+      {
+        "reference": "J1",
+        "pad": "243",
+        "x_mm": 48.8695,
+        "y_mm": 51.974
+      }
+    ],
+    [
+      {
+        "reference": "C8",
+        "pad": "2",
+        "x_mm": 61.68,
+        "y_mm": 47.18
+      }
+    ],
+    [
+      {
+        "reference": "C82",
+        "pad": "2",
+        "x_mm": 77.17,
+        "y_mm": 36.92
+      }
+    ],
+    [
+      {
+        "reference": "C123",
+        "pad": "2",
+        "x_mm": 122.32,
+        "y_mm": 89.1
+      }
+    ],
+    [
+      {
+        "reference": "R20",
+        "pad": "2",
+        "x_mm": 16.96,
+        "y_mm": 35.76
+      }
+    ],
+    [
+      {
+        "reference": "U2",
+        "pad": "6",
+        "x_mm": 13.5375,
+        "y_mm": 14.25
+      },
+      {
+        "reference": "U2",
+        "pad": "10",
+        "x_mm": 15.75,
+        "y_mm": 14.9625
+      },
+      {
+        "reference": "U2",
+        "pad": "12",
+        "x_mm": 16.75,
+        "y_mm": 14.9625
+      },
+      {
+        "reference": "U2",
+        "pad": "13",
+        "x_mm": 17.4625,
+        "y_mm": 14.25
+      },
+      {
+        "reference": "U2",
+        "pad": "22",
+        "x_mm": 15.25,
+        "y_mm": 11.0375
+      },
+      {
+        "reference": "U2",
+        "pad": "25",
+        "x_mm": 15.5,
+        "y_mm": 13.0
+      }
+    ],
+    [
+      {
+        "reference": "C9",
+        "pad": "2",
+        "x_mm": 38.96,
+        "y_mm": 45.07
+      }
+    ],
+    [
+      {
+        "reference": "C87",
+        "pad": "2",
+        "x_mm": 64.06,
+        "y_mm": 42.03
+      }
+    ],
+    [
+      {
+        "reference": "C71",
+        "pad": "2",
+        "x_mm": 18.73,
+        "y_mm": 40.07
+      }
+    ],
+    [
+      {
+        "reference": "C67",
+        "pad": "2",
+        "x_mm": 22.94,
+        "y_mm": 35.91
+      }
+    ],
+    [
+      {
+        "reference": "U11",
+        "pad": "4",
+        "x_mm": 40.565,
+        "y_mm": 49.4
+      }
+    ]
+  ],
+  "before_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 113,
+    "unconnected pads": 47,
+    "Footprint errors": 0
+  },
+  "new_drc_findings": [],
+  "fabrication_approval": false
+}

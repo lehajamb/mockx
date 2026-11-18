@@ -1,0 +1,32 @@
+test_exact_ordering_parts_and_separate_shunts (test_service_headers.ServiceHeaderTests.test_exact_ordering_parts_and_separate_shunts) ... FAIL
+test_finished_drill_and_original_pad_centers (test_service_headers.ServiceHeaderTests.test_finished_drill_and_original_pad_centers) ... ERROR
+
+======================================================================
+ERROR: test_finished_drill_and_original_pad_centers (test_service_headers.ServiceHeaderTests.test_finished_drill_and_original_pad_centers)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/hardware/tests/test_service_headers.py", line 14, in test_finished_drill_and_original_pad_centers
+    fp=parse((ROOT/'hw/sorx.pretty'/('Wurth_'+mpn+'.kicad_mod')).read_text());pads=sorted(find(fp,'pad'),key=lambda p:int(p[1]));self.assertEqual(len(pads),count)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/pathlib.py", line 1059, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/pathlib.py", line 1045, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/hardware/hw/sorx.pretty/Wurth_61300311121.kicad_mod'
+
+======================================================================
+FAIL: test_exact_ordering_parts_and_separate_shunts (test_service_headers.ServiceHeaderTests.test_exact_ordering_parts_and_separate_shunts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/hardware/tests/test_service_headers.py", line 9, in test_exact_ordering_parts_and_separate_shunts
+    self.assertEqual(DESIGN.parts[ref].mpn,mpn);self.assertEqual(DESIGN.parts[ref].fp,'sorx:Wurth_'+mpn)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '' != '61300311121'
++ 61300311121
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.018s
+
+FAILED (failures=1, errors=1)

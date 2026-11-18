@@ -1,0 +1,22 @@
+{
+  "model_nets": 262,
+  "mismatches": [
+    {
+      "net": "FRAM_DNU",
+      "model_only": [
+        [
+          "R11",
+          "2"
+        ],
+        [
+          "U1",
+          "7"
+        ]
+      ],
+      "schematic_only": []
+    }
+  ],
+  "extra_multi_node_nets": [
+    "FRAM_HOLD#"
+  ]
+}

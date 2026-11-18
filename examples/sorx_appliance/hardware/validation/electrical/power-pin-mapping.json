@@ -1,0 +1,147 @@
+{
+  "U2": {
+    "1": "PD_CC1",
+    "2": "PD_CC1",
+    "4": "PD_CC2",
+    "5": "PD_CC2",
+    "6": "GND",
+    "7": "I2C1_SCL",
+    "8": "I2C1_SDA",
+    "10": "GND",
+    "11": "PD_ATTACH#",
+    "12": "GND",
+    "13": "GND",
+    "16": "PD_EN_SNK#",
+    "18": "PD_VS",
+    "19": "PD_ALERT#",
+    "21": "PD_1V2",
+    "22": "GND",
+    "23": "PD_2V7",
+    "24": "+4V5_PD",
+    "25": "GND",
+    "9": null,
+    "14": null,
+    "15": null,
+    "17": null,
+    "20": null,
+    "3": null
+  },
+  "U3": {
+    "1": "VIN_PROT",
+    "2": "VIN_PROT",
+    "3": "VIN_PROT",
+    "4": "EF_BGATE",
+    "5": "EF_DRV",
+    "6": "VBUS_IN",
+    "7": "EF_UVLO",
+    "8": "EF_OVP",
+    "21": "GND",
+    "9": "GND",
+    "10": "EF_DVDT",
+    "11": "EF_ILIM",
+    "12": "EF_MODE",
+    "13": "EF_SHDN#",
+    "14": "EF_IMON",
+    "15": "PWR_FLT#",
+    "16": "EF_PGTH",
+    "17": "EF_PGOOD",
+    "18": "VSYS",
+    "19": "VSYS",
+    "20": "VSYS"
+  },
+  "U4": {
+    "1": "GND",
+    "2": "VSYS",
+    "3": "B5S_EN",
+    "4": "B5S_PG",
+    "5": "B5S_FB",
+    "6": "B5S_VCC",
+    "7": "B5S_BOOT",
+    "8": "B5S_SW",
+    "9": "GND"
+  },
+  "U5": {
+    "1": "GND",
+    "2": "VSYS",
+    "3": "PWR_EN",
+    "4": "B5U_PG",
+    "5": "B5U_FB",
+    "6": "B5U_VCC",
+    "7": "B5U_BOOT",
+    "8": "B5U_SW",
+    "9": "GND"
+  },
+  "U6": {
+    "1": "GND",
+    "2": "VSYS",
+    "3": "PWR_EN",
+    "4": "B3V3_PG",
+    "5": "B3V3_FB",
+    "6": "B3V3_VCC",
+    "7": "B3V3_BOOT",
+    "8": "B3V3_SW",
+    "9": "GND"
+  },
+  "U7": {
+    "1": "GND",
+    "2": "+1V2_PHY",
+    "3": "+3V3"
+  },
+  "U38": {
+    "1": "+4V5_PD",
+    "2": "PD_AUX_ADJ",
+    "4": "GND",
+    "5": "VBUS_IN",
+    "8": "VBUS_IN",
+    "9": "GND",
+    "3": null,
+    "6": null,
+    "7": null
+  },
+  "U39": {
+    "1": "PD_CLAMP_REF",
+    "2": "GND",
+    "3": "PD_VS"
+  },
+  "U40": {
+    "1": "USB1_EN",
+    "2": "RECOVERY#",
+    "3": "GND",
+    "4": "USB1_EN_SAFE",
+    "5": "+1V8"
+  },
+  "Q1": {
+    "1": "VBUS_IN",
+    "2": "VBUS_IN",
+    "3": "VBUS_IN",
+    "4": "EF_BGATE",
+    "5": "VIN_PROT",
+    "6": "VIN_PROT",
+    "7": "VIN_PROT",
+    "8": "VIN_PROT"
+  },
+  "Q2": {
+    "1": "EF_DRV",
+    "2": "VBUS_IN",
+    "3": "EF_BGATE"
+  },
+  "Q5": {
+    "1": "PD_EN_SNK#",
+    "2": "+4V5_PD",
+    "3": "EF_SHDN#"
+  },
+  "U20": {
+    "2": "USB1_EN_SAFE",
+    "3": "GND",
+    "4": "USB1_EN_3V3",
+    "5": "+3V3",
+    "1": null
+  },
+  "U21": {
+    "1": "USB1_VBUS",
+    "2": "GND",
+    "3": "USB1_OC#",
+    "4": "USB1_EN_3V3",
+    "5": "+5V_USB"
+  }
+}

@@ -1,0 +1,94 @@
+Planning ground group C88 2
+Planning ground group C89 2
+Planning ground group C84 2
+Planning ground group U13 29
+Planning ground group R84 2
+Planning ground group C8 2
+Planning ground group C82 2
+Planning ground group C123 2
+Planning ground group R20 2
+Planning ground group J1 10
+Planning ground group J1 89
+Planning ground group J1 97
+Planning ground group J1 103
+Planning ground group J1 109
+Planning ground group J1 115
+Planning ground group J1 121
+Planning ground group J1 127
+Planning ground group J1 146
+Planning ground group J1 158
+Planning ground group J1 167
+Planning ground group J1 170
+Planning ground group J1 173
+Planning ground group J1 179
+Planning ground group J1 182
+Planning ground group J1 194
+Planning ground group J1 195
+Planning ground group J1 204
+Planning ground group J1 209
+Planning ground group J1 229
+Planning ground group J1 242
+Planning ground group J1 243
+Planning ground group C3 2
+Planning ground group C9 2
+Planning ground group C87 2
+Planning ground group U12 3
+Planning ground group C58 2
+Planning ground group C63 2
+Planning ground group C71 2
+Planning ground group C56 2
+Planning ground group C67 2
+Planning ground group U11 4
+Ground stitching pass 1: added 5, groups remaining 36
+Planning ground group C88 2
+Planning ground group C89 2
+Planning ground group C84 2
+Planning ground group U13 29
+Planning ground group R84 2
+Planning ground group R20 2
+Planning ground group J1 10
+Planning ground group J1 89
+Planning ground group J1 97
+Planning ground group J1 103
+Planning ground group J1 109
+Planning ground group J1 115
+Planning ground group J1 121
+Planning ground group J1 127
+Planning ground group J1 158
+Planning ground group J1 167
+Planning ground group J1 170
+Planning ground group J1 173
+Planning ground group J1 179
+Planning ground group J1 182
+Planning ground group J1 194
+Planning ground group J1 195
+Planning ground group J1 204
+Planning ground group J1 209
+Planning ground group J1 229
+Planning ground group J1 242
+Planning ground group J1 243
+Planning ground group C3 2
+Planning ground group C9 2
+Planning ground group C87 2
+Planning ground group U12 3
+Planning ground group C58 2
+Planning ground group C63 2
+Planning ground group C71 2
+Planning ground group C67 2
+Planning ground group U11 4
+Ground stitching pass 2: added 0, groups remaining 36
+{
+  "initial_ground_groups": 41,
+  "remaining_ground_groups": 36,
+  "before_counts": {
+    "DRC violations": 254,
+    "unconnected pads": 51,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 254,
+    "unconnected pads": 46,
+    "Footprint errors": 0
+  }
+}
+New non-connectivity DRC findings: 0

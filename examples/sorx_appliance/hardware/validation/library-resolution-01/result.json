@@ -1,0 +1,223 @@
+{
+  "input": "/work/hardware/runs/route-electrical-09-branches.kicad_pcb",
+  "input_sha256": "e59b8ff8c62ef4b0a7e5d2aacf1f91423f1c1674f42faf68698a1e30af80653c",
+  "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "cases": [
+    {
+      "name": "checkpoint-no-local",
+      "command": [
+        "/usr/bin/python3",
+        "-c",
+        "import pcbnew,sys; b=pcbnew.LoadBoard(sys.argv[1]); pcbnew.WriteDRCReport(b,sys.argv[2],pcbnew.EDA_UNITS_MILLIMETRES,True)",
+        "/tmp/sorx-codex-libraries-k7o3354q/checkpoint-no-local/sorx.kicad_pcb",
+        "/work/hardware/validation/library-resolution-01/checkpoint-no-local.txt"
+      ],
+      "exit_code": 0,
+      "source_pcb_sha256": "e59b8ff8c62ef4b0a7e5d2aacf1f91423f1c1674f42faf68698a1e30af80653c",
+      "local_table": false,
+      "explicit_KICAD7_FOOTPRINT_DIR": false,
+      "counts": {
+        "DRC violations": 319,
+        "unconnected pads": 72,
+        "Footprint errors": 0
+      },
+      "categories": {
+        "track_dangling": 36,
+        "via_dangling": 6,
+        "hole_clearance": 13,
+        "clearance": 1,
+        "courtyards_overlap": 6,
+        "silk_edge_clearance": 18,
+        "copper_edge_clearance": 7,
+        "lib_footprint_issues": 199,
+        "silk_over_copper": 12,
+        "solder_mask_bridge": 6,
+        "silk_overlap": 15,
+        "unconnected_items": 72
+      },
+      "library_samples": [
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'USB3_A_Receptacle_Wuerth_692122030100' not found in library 'Connector_USB'.",
+          "objects": "Local override; Severity: warning\n    @(86.0000 mm, 110.6200 mm): Footprint J9",
+          "fingerprint": "1e9e9f921ae0eedae6840d074f3273fdafa388d5cf3ab30128ab0fdb667164ed",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(68.2900 mm, 46.1100 mm): Footprint C88",
+          "fingerprint": "646d48f848d95e4345bd07949bb4ad693d74f3ca62ba71f7df5f574af2a32969",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(65.8200 mm, 46.1000 mm): Footprint C89",
+          "fingerprint": "d787e6eecf17f773949b95958ace4740156113b1db2e72bd97b7aea74fea1055",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'L_Coilcraft_XAL5050-XXX' not found in library 'Inductor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(19.0000 mm, 59.0000 mm): Footprint L1",
+          "fingerprint": "29c9bed29df5b6de66f982d1afb00fe240bc609f054d2c2ac13aa83a7ea2c3fd",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'C_1206_3216Metric' not found in library 'Capacitor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(21.2200 mm, 99.9200 mm): Footprint C43",
+          "fingerprint": "d14aaa9a9913c05ea1ac3f707efc490aee579c8cf25bb3cacb70f0f3c1b7a942",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(91.8400 mm, 30.7500 mm): Footprint U25",
+          "fingerprint": "51af155c4dbce3cbec7822e0a52b9f8beafe85edf3003f1098095474af8309b2",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(47.4600 mm, 113.6200 mm): Footprint R103",
+          "fingerprint": "d1050156f25d872c65993e6a4206b3d3501af193d7c4f3ef54da9755a369614d",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'Texas_HSOP-8-1EP_3.9x4.9mm_P1.27mm_ThermalVias' not found in library 'Package_SO'.",
+          "objects": "Local override; Severity: warning\n    @(8.0000 mm, 77.0000 mm): Footprint U5",
+          "fingerprint": "4147743f17e9aa85d6371f038496ef3893523dd460c36fe0b415120b2343ad4e",
+          "section": "DRC violations"
+        }
+      ]
+    },
+    {
+      "name": "project-local",
+      "command": [
+        "/usr/bin/python3",
+        "-c",
+        "import pcbnew,sys; b=pcbnew.LoadBoard(sys.argv[1]); pcbnew.WriteDRCReport(b,sys.argv[2],pcbnew.EDA_UNITS_MILLIMETRES,True)",
+        "/tmp/sorx-codex-libraries-k7o3354q/project-local/sorx.kicad_pcb",
+        "/work/hardware/validation/library-resolution-01/project-local.txt"
+      ],
+      "exit_code": 0,
+      "source_pcb_sha256": "e59b8ff8c62ef4b0a7e5d2aacf1f91423f1c1674f42faf68698a1e30af80653c",
+      "local_table": true,
+      "explicit_KICAD7_FOOTPRINT_DIR": false,
+      "counts": {
+        "DRC violations": 319,
+        "unconnected pads": 72,
+        "Footprint errors": 0
+      },
+      "categories": {
+        "track_dangling": 36,
+        "via_dangling": 6,
+        "hole_clearance": 13,
+        "clearance": 1,
+        "courtyards_overlap": 6,
+        "silk_edge_clearance": 18,
+        "copper_edge_clearance": 7,
+        "lib_footprint_issues": 199,
+        "silk_over_copper": 12,
+        "solder_mask_bridge": 6,
+        "silk_overlap": 15,
+        "unconnected_items": 72
+      },
+      "library_samples": [
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'USB3_A_Receptacle_Wuerth_692122030100' not found in library 'Connector_USB'.",
+          "objects": "Local override; Severity: warning\n    @(86.0000 mm, 110.6200 mm): Footprint J9",
+          "fingerprint": "1e9e9f921ae0eedae6840d074f3273fdafa388d5cf3ab30128ab0fdb667164ed",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(68.2900 mm, 46.1100 mm): Footprint C88",
+          "fingerprint": "646d48f848d95e4345bd07949bb4ad693d74f3ca62ba71f7df5f574af2a32969",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'C_0402_1005Metric' not found in library 'Capacitor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(65.8200 mm, 46.1000 mm): Footprint C89",
+          "fingerprint": "d787e6eecf17f773949b95958ace4740156113b1db2e72bd97b7aea74fea1055",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'L_Coilcraft_XAL5050-XXX' not found in library 'Inductor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(19.0000 mm, 59.0000 mm): Footprint L1",
+          "fingerprint": "29c9bed29df5b6de66f982d1afb00fe240bc609f054d2c2ac13aa83a7ea2c3fd",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'C_1206_3216Metric' not found in library 'Capacitor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(21.2200 mm, 99.9200 mm): Footprint C43",
+          "fingerprint": "d14aaa9a9913c05ea1ac3f707efc490aee579c8cf25bb3cacb70f0f3c1b7a942",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'SOT-23-5' not found in library 'Package_TO_SOT_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(91.8400 mm, 30.7500 mm): Footprint U25",
+          "fingerprint": "51af155c4dbce3cbec7822e0a52b9f8beafe85edf3003f1098095474af8309b2",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'R_0402_1005Metric' not found in library 'Resistor_SMD'.",
+          "objects": "Local override; Severity: warning\n    @(47.4600 mm, 113.6200 mm): Footprint R103",
+          "fingerprint": "d1050156f25d872c65993e6a4206b3d3501af193d7c4f3ef54da9755a369614d",
+          "section": "DRC violations"
+        },
+        {
+          "category": "lib_footprint_issues",
+          "message": "Footprint 'Texas_HSOP-8-1EP_3.9x4.9mm_P1.27mm_ThermalVias' not found in library 'Package_SO'.",
+          "objects": "Local override; Severity: warning\n    @(8.0000 mm, 77.0000 mm): Footprint U5",
+          "fingerprint": "4147743f17e9aa85d6371f038496ef3893523dd460c36fe0b415120b2343ad4e",
+          "section": "DRC violations"
+        }
+      ]
+    },
+    {
+      "name": "project-local-explicit-env",
+      "command": [
+        "/usr/bin/python3",
+        "-c",
+        "import pcbnew,sys; b=pcbnew.LoadBoard(sys.argv[1]); pcbnew.WriteDRCReport(b,sys.argv[2],pcbnew.EDA_UNITS_MILLIMETRES,True)",
+        "/tmp/sorx-codex-libraries-k7o3354q/project-local-explicit-env/sorx.kicad_pcb",
+        "/work/hardware/validation/library-resolution-01/project-local-explicit-env.txt"
+      ],
+      "exit_code": 0,
+      "source_pcb_sha256": "e59b8ff8c62ef4b0a7e5d2aacf1f91423f1c1674f42faf68698a1e30af80653c",
+      "local_table": true,
+      "explicit_KICAD7_FOOTPRINT_DIR": true,
+      "counts": {
+        "DRC violations": 120,
+        "unconnected pads": 72,
+        "Footprint errors": 0
+      },
+      "categories": {
+        "track_dangling": 36,
+        "via_dangling": 6,
+        "hole_clearance": 13,
+        "clearance": 1,
+        "courtyards_overlap": 6,
+        "silk_edge_clearance": 18,
+        "copper_edge_clearance": 7,
+        "silk_over_copper": 12,
+        "solder_mask_bridge": 6,
+        "silk_overlap": 15,
+        "unconnected_items": 72
+      },
+      "library_samples": []
+    }
+  ],
+  "fabrication_approval": false
+}

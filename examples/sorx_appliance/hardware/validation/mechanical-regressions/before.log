@@ -1,0 +1,64 @@
+test_bottom_component_height_is_not_clipped (test_mechanical.MechanicalRegressions.test_bottom_component_height_is_not_clipped) ... FAIL
+test_fan_has_vertical_tolerance_allowance (test_mechanical.MechanicalRegressions.test_fan_has_vertical_tolerance_allowance) ... FAIL
+test_geometry_failure_is_not_zero_interference (test_mechanical.MechanicalRegressions.test_geometry_failure_is_not_zero_interference) ... ERROR
+test_j9_has_no_enclosure_interference (test_mechanical.MechanicalRegressions.test_j9_has_no_enclosure_interference) ... /opt/cq/lib/python3.11/site-packages/cadquery/selectors.py:884: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+  parse_result = _expression_grammar.parseString(selectorString, parseAll=True)
+/opt/cq/lib/python3.11/site-packages/pyparsing/util.py:466: PyparsingDeprecationWarning: 'parseAll' argument is deprecated, use 'parse_all'
+  return fn(self, *args, **kwargs)
+ok
+test_reporting_preserves_individual_component_geometry (test_mechanical.MechanicalRegressions.test_reporting_preserves_individual_component_geometry) ... /tmp/before/sorx-hw/tools/gen_mech.py:249: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp0z3gupbb/fit-check.json' mode='w' encoding='UTF-8'>
+  json.dump(res, open(os.path.join(MECH, 'fit-check.json'), 'w'), indent=1)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+FAIL
+
+======================================================================
+ERROR: test_geometry_failure_is_not_zero_interference (test_mechanical.MechanicalRegressions.test_geometry_failure_is_not_zero_interference)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/before/sorx-hw/tests/test_mechanical.py", line 30, in test_geometry_failure_is_not_zero_interference
+    gen_mech.intersection_volume(BrokenShell(), object(), "J9")
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'gen_mech' has no attribute 'intersection_volume'
+
+======================================================================
+FAIL: test_bottom_component_height_is_not_clipped (test_mechanical.MechanicalRegressions.test_bottom_component_height_is_not_clipped)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/before/sorx-hw/tests/test_mechanical.py", line 37, in test_bottom_component_height_is_not_clipped
+    self.assertAlmostEqual(bounds.zlen, 1.8, places=5)
+AssertionError: 1.1999999999999997 != 1.8 within 5 places (0.6000000000000003 difference)
+
+======================================================================
+FAIL: test_fan_has_vertical_tolerance_allowance (test_mechanical.MechanicalRegressions.test_fan_has_vertical_tolerance_allowance)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/before/sorx-hw/tests/test_mechanical.py", line 40, in test_fan_has_vertical_tolerance_allowance
+    self.assertGreaterEqual(gen_mech.ZC - gen_mech.ZF - gen_mech.FAN["size"], 1.0)
+AssertionError: 0.0 not greater than or equal to 1.0
+
+======================================================================
+FAIL: test_reporting_preserves_individual_component_geometry (test_mechanical.MechanicalRegressions.test_reporting_preserves_individual_component_geometry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/before/sorx-hw/tests/test_mechanical.py", line 23, in test_reporting_preserves_individual_component_geometry
+    self.assertEqual(len(parts["J9"].objects), original_count)
+AssertionError: 350 != 1
+
+----------------------------------------------------------------------
+Ran 5 tests in 13.430s
+
+FAILED (failures=3, errors=1)
+{"all_ports_aligned": true, "max_interference_mm3": 5.002, "interference_mm3": {"J9": 5.002}, "clearances": {"heatsink_top_to_lid_mm": 15.6, "magjack_top_to_lid_mm": 18.8, "internal_height_mm": 40.0, "fan_height_mm": 40.0, "bottom_parts_to_floor_mm": 4.8, "outer_mm": [215.0, 123.6, 44.0]}}
+OE {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+MD-IN {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+MGMT {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+USB-C PWR {'left': 1.8, 'right': 1.8, 'bottom': 1.6, 'top': 1.6} OK
+PPS {'left': 1.0, 'right': 1.0, 'bottom': 1.0, 'top': 1.0} OK
+USB 1 {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+USB 2 {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+CONSOLE {'left': 0.5, 'right': 0.5, 'bottom': 0.3, 'top': 0.5} OK
+USB-C DEBUG {'left': 1.5, 'right': 1.5, 'bottom': 1.6, 'top': 1.6} OK
+microSD {'left': 0.6, 'right': 0.6, 'bottom': 0.3, 'top': 0.9} OK
+RESET {'left': 0.5, 'right': 0.5, 'bottom': 0.5, 'top': 0.5} OK
+RECOVERY {'left': 0.5, 'right': 0.5, 'bottom': 0.5, 'top': 0.5} OK
+LED window {'left': 1.0, 'right': 1.0, 'bottom': 0.4, 'top': 1.4} OK

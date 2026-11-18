@@ -1,0 +1,146 @@
+{
+  "accepted": false,
+  "source_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "output_sha256": "daf110a8c3b2d2c8c31c06d1c722290613850f08ab3ea99a246ec153b2a33ca7",
+  "tool_sha256": "d704d6790df7ac6b50669ef709b2e388ac311b7e36232f1e3a00b5113f241c70",
+  "renamed": [
+    {
+      "uuid": "8c72ce64-9713-4703-8e35-f4b1f068bb6a",
+      "before": "USB 2 / REC",
+      "after": "USB2/REC"
+    },
+    {
+      "uuid": "b80416cb-8d04-4a80-b03e-4dcc6bb8b072",
+      "before": "SORX CARRIER  REV A  2026-11",
+      "after": "SORX CARRIER REV B - WIP"
+    }
+  ],
+  "changes": [
+    {
+      "uuid": "1ad24985-24ad-4fc7-9c2f-9f354f456f87",
+      "text": "PWR 15-20V PD",
+      "before_mm": [
+        14.0,
+        9.6
+      ],
+      "after_mm": [
+        14.0,
+        16.6
+      ]
+    },
+    {
+      "uuid": "31e83e62-0ac8-42ff-8523-3c25d5dd837b",
+      "text": "SD",
+      "before_mm": [
+        156.0,
+        100.2
+      ],
+      "after_mm": [
+        156.5,
+        97.2
+      ]
+    },
+    {
+      "uuid": "5203c68f-4001-4523-bd16-29eb8649252b",
+      "text": "Verdin iMX8M Plus  J1",
+      "before_mm": [
+        78.0,
+        94.2
+      ],
+      "after_mm": [
+        76.5,
+        92.2
+      ]
+    },
+    {
+      "uuid": "5cbdf230-1282-4701-ab78-e7f0f56bb855",
+      "text": "CR2032 +",
+      "before_mm": [
+        152.0,
+        42.0
+      ],
+      "after_mm": [
+        152.0,
+        45.0
+      ]
+    },
+    {
+      "uuid": "b37f840a-2ffd-4faa-8d08-4966b28dbdfe",
+      "text": "DEBUG",
+      "before_mm": [
+        118.0,
+        108.2
+      ],
+      "after_mm": [
+        116.5,
+        104.7
+      ]
+    },
+    {
+      "uuid": "d8644b6a-e877-4aa8-8427-b1ab4f7122ae",
+      "text": "PPS IN",
+      "before_mm": [
+        100.0,
+        6.3
+      ],
+      "after_mm": [
+        104.0,
+        8.3
+      ]
+    },
+    {
+      "uuid": "e6c0b552-9b15-4ff6-97a3-ee01172e7607",
+      "text": "FAN",
+      "before_mm": [
+        139.8,
+        13.6
+      ],
+      "after_mm": [
+        139.8,
+        15.6
+      ]
+    },
+    {
+      "uuid": "f585b5a2-facd-4c9b-b7de-1fcdc0ee494d",
+      "text": "ALARM",
+      "before_mm": [
+        50.0,
+        112.8
+      ],
+      "after_mm": [
+        50.5,
+        112.8
+      ]
+    }
+  ],
+  "unresolved": [
+    "USB2/REC"
+  ],
+  "before": {
+    "DRC violations": 95,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 75,
+    "unconnected pads": 35,
+    "Footprint errors": 0
+  },
+  "new_findings": [
+    {
+      "category": "silk_over_copper",
+      "message": "Silkscreen clipped by solder mask",
+      "objects": "Local override; Severity: warning\n    @(86.0000 mm, 99.9000 mm): PCB Text 'USB2/REC' on F.Silkscreen",
+      "fingerprint": "2038d4fffc9b380778adab4e02a3092dd5c17285f6a3f4578d628bcdd0099142",
+      "section": "DRC violations"
+    },
+    {
+      "category": "silk_overlap",
+      "message": "Silkscreen overlap",
+      "objects": "Rule: board setup constraints silk; Severity: warning\n    @(86.0000 mm, 99.9000 mm): PCB Text 'USB2/REC' on F.Silkscreen\n    @(82.6000 mm, 100.3200 mm): Line on F.Silkscreen",
+      "fingerprint": "9d6a7fee721554005ff803f6f434235348f65425b38aca53f0e853fc12150c65",
+      "section": "DRC violations"
+    }
+  ],
+  "fabrication_ready": false
+}

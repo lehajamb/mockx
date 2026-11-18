@@ -1,0 +1,62 @@
+{
+  "generated_utc": "2026-11-17T02:43:04.729714+00:00",
+  "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "commands": [
+    {
+      "name": "schematic",
+      "command": [
+        "python3",
+        "gen_sch.py"
+      ],
+      "cwd": "/work/hardware/tools",
+      "exit_status": 0
+    },
+    {
+      "name": "bom",
+      "command": [
+        "python3",
+        "gen_bom.py"
+      ],
+      "cwd": "/work/hardware/tools",
+      "exit_status": 0
+    },
+    {
+      "name": "netlist",
+      "command": [
+        "kicad-cli",
+        "sch",
+        "export",
+        "netlist",
+        "--format",
+        "kicadsexpr",
+        "-o",
+        "../hw/sorx.net",
+        "../hw/sorx.kicad_sch"
+      ],
+      "cwd": "/work/hardware/tools",
+      "exit_status": 0
+    },
+    {
+      "name": "parity",
+      "command": [
+        "python3",
+        "verification_worker.py",
+        "netlist",
+        "../hw/sorx.net",
+        "/work/hardware/validation/sma-generation/netlist-parity.json"
+      ],
+      "cwd": "/work/hardware/tools",
+      "exit_status": 0
+    }
+  ],
+  "artifacts": {
+    "tools/design.py": "aaefa4916062c4f1e157e8df93d51d7bfb1d555d4cc1216c7c31d80a62fce110",
+    "tools/gen_sma.py": "a54c52fa974f7e56df3f903f845a5931d9e13c559ee4fcf280eab5db6d5def80",
+    "hw/sorx.net": "69914cc5a662812ef045337269e73b276d80de7e6cbaaa1d77cab7915c858047",
+    "hw/sorx_mgmt_io.kicad_sch": "20215e3b8e911a58bdcb0a384d19c37f0169b2b7105208ee52ffd5244c09fde6",
+    "bom/sorx-bom.csv": "a1ca1dc5b9aa7f00761ce25ec2ff7ea6ed3f93b84b37332fc2ed0b6f70dbedee",
+    "hw/sorx.pretty/SMA_Amphenol_132289_Drawing.kicad_mod": "c6e1adfcd111280db5ed8b5934f36827ccaedc1116c05fabc73f96e18746b1a0",
+    "hw/sorx_eth_md.kicad_sch": "17e1cc2c53c630bf27b98cd927a551bc18830cd9f45642e9adb4dd0f3d551056"
+  },
+  "native_pcb_not_yet_updated": true
+}

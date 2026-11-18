@@ -1,0 +1,258 @@
+[
+  {
+    "uuid": "233a5b09-804e-4f30-af92-fd1873b0166e",
+    "net": "PCIE_CLK_N",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      32.85,
+      48.7
+    ],
+    "end_mm": [
+      32.85,
+      48.75
+    ],
+    "copper_gap_to_proposed_via_mm": 0.18330222895508846,
+    "added_by_ordinary_proof": false
+  },
+  {
+    "uuid": "38feb4a7-b50f-4cd7-b1ec-cd27f494ab52",
+    "net": "PCIE_CLK_N",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      32.9,
+      48.8
+    ],
+    "end_mm": [
+      32.9,
+      48.95
+    ],
+    "copper_gap_to_proposed_via_mm": 0.03480964092657035,
+    "added_by_ordinary_proof": false
+  },
+  {
+    "uuid": "58110eb7-5c64-4976-93c1-60859af7032e",
+    "net": "PCIE_CLK_N",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      32.85,
+      48.75
+    ],
+    "end_mm": [
+      32.9,
+      48.8
+    ],
+    "copper_gap_to_proposed_via_mm": 0.11290721854495561,
+    "added_by_ordinary_proof": false
+  },
+  {
+    "uuid": "cdda421e-3d55-41e5-b5cc-d6e3be4e4327",
+    "net": "PCIE_CLK_N",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      32.95,
+      49.0
+    ],
+    "end_mm": [
+      32.95,
+      51.35
+    ],
+    "copper_gap_to_proposed_via_mm": -0.047501000000006344,
+    "added_by_ordinary_proof": false
+  },
+  {
+    "uuid": "eccb7890-80b3-4563-930d-ddd089991ba4",
+    "net": "PCIE_CLK_N",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      32.65,
+      48.5
+    ],
+    "end_mm": [
+      32.85,
+      48.7
+    ],
+    "copper_gap_to_proposed_via_mm": 0.21663730736336778,
+    "added_by_ordinary_proof": false
+  },
+  {
+    "uuid": "f5cc0d16-cf80-4bac-b97f-e5cabb6bcede",
+    "net": "PCIE_CLK_N",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      32.9,
+      48.95
+    ],
+    "end_mm": [
+      32.95,
+      49.0
+    ],
+    "copper_gap_to_proposed_via_mm": -0.0296504060646387,
+    "added_by_ordinary_proof": false
+  },
+  {
+    "uuid": "b97816f2-4ad9-44d1-9e4b-58acee50f31c",
+    "net": "PCIE_TX_P",
+    "layer": "B.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.8464,
+      48.7465
+    ],
+    "end_mm": [
+      33.8464,
+      50.3356
+    ],
+    "copper_gap_to_proposed_via_mm": 0.18890100000000626,
+    "added_by_ordinary_proof": false
+  },
+  {
+    "uuid": "07beeb11-d6bb-4a8a-843a-885f4331197a",
+    "net": "PCIE_RST#_3V3",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.2,
+      48.45
+    ],
+    "end_mm": [
+      33.2,
+      48.5
+    ],
+    "copper_gap_to_proposed_via_mm": 0.2402234065776418,
+    "added_by_ordinary_proof": true
+  },
+  {
+    "uuid": "63440987-aabe-4f53-a3f9-7793f4ec8510",
+    "net": "PCIE_RST#_3V3",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.2,
+      48.5
+    ],
+    "end_mm": [
+      33.25,
+      48.55
+    ],
+    "copper_gap_to_proposed_via_mm": 0.18580294221856786,
+    "added_by_ordinary_proof": true
+  },
+  {
+    "uuid": "88b98ae6-0702-467f-a23f-0961d4358160",
+    "net": "PCIE_RST#_3V3",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.4,
+      49.6
+    ],
+    "end_mm": [
+      33.4,
+      49.75
+    ],
+    "copper_gap_to_proposed_via_mm": 0.12948016809484442,
+    "added_by_ordinary_proof": true
+  },
+  {
+    "uuid": "a3abfa1a-51dc-4489-9920-dccb3562f5ab",
+    "net": "PCIE_RST#_3V3",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.3,
+      48.75
+    ],
+    "end_mm": [
+      33.3,
+      49.4
+    ],
+    "copper_gap_to_proposed_via_mm": -0.3549989999999994,
+    "added_by_ordinary_proof": true
+  },
+  {
+    "uuid": "ac084acd-eb1c-4a1a-b931-0f6f999650f2",
+    "net": "PCIE_RST#_3V3",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.25,
+      48.55
+    ],
+    "end_mm": [
+      33.25,
+      48.7
+    ],
+    "copper_gap_to_proposed_via_mm": 0.03609602284745711,
+    "added_by_ordinary_proof": true
+  },
+  {
+    "uuid": "c4dc72ea-ff9a-4ba8-b105-4e2acd6b9178",
+    "net": "PCIE_RST#_3V3",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.35,
+      49.55
+    ],
+    "end_mm": [
+      33.4,
+      49.6
+    ],
+    "copper_gap_to_proposed_via_mm": 0.07053354531505107,
+    "added_by_ordinary_proof": true
+  },
+  {
+    "uuid": "d78a3952-7df8-4186-ac24-3d447cfc144d",
+    "net": "PCIE_RST#_3V3",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.25,
+      48.7
+    ],
+    "end_mm": [
+      33.3,
+      48.75
+    ],
+    "copper_gap_to_proposed_via_mm": -0.01444481698219946,
+    "added_by_ordinary_proof": true
+  },
+  {
+    "uuid": "f10f1745-5529-4d3a-8bd0-a48fcf9c1b38",
+    "net": "PCIE_RST#_3V3",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.3,
+      49.4
+    ],
+    "end_mm": [
+      33.35,
+      49.45
+    ],
+    "copper_gap_to_proposed_via_mm": -0.08431109412122462,
+    "added_by_ordinary_proof": true
+  },
+  {
+    "uuid": "f8a2a35d-7613-4ebc-a540-f31a876dcb7b",
+    "net": "PCIE_RST#_3V3",
+    "layer": "In3.Cu",
+    "kind": "track",
+    "start_mm": [
+      33.35,
+      49.45
+    ],
+    "end_mm": [
+      33.35,
+      49.55
+    ],
+    "copper_gap_to_proposed_via_mm": -0.027868699191497537,
+    "added_by_ordinary_proof": true
+  }
+]

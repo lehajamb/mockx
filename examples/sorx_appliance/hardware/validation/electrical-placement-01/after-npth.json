@@ -1,0 +1,732 @@
+{
+  "pcb": "runs/route-electrical-11-placement.kicad_pcb",
+  "pcb_sha256": "906b8e782e7ff958017476b2fea618764c14420eafedcbcded819395d59a2dc1",
+  "kicad": "7.0.11",
+  "npth_count": 27,
+  "copper_pad_count": 1503,
+  "clearance_review_mm": 0.25,
+  "other_component_findings": [],
+  "own_footprint_review": [
+    {
+      "hole": {
+        "ref": "H5",
+        "pad": "",
+        "uuid": "ef5c9cd3-c3f3-403a-b5d5-d9abd8916411",
+        "xy": [
+          45.3945,
+          87.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H5",
+        "pad": "1",
+        "uuid": "60ba24e8-b24b-4748-b41f-a759f5b13fcd",
+        "xy": [
+          43.3195,
+          87.074
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H5",
+        "pad": "",
+        "uuid": "ef5c9cd3-c3f3-403a-b5d5-d9abd8916411",
+        "xy": [
+          45.3945,
+          87.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H5",
+        "pad": "1",
+        "uuid": "0c40a3b9-3d5d-4c21-a5c4-3a8e5d7d142d",
+        "xy": [
+          45.3945,
+          84.999
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H5",
+        "pad": "",
+        "uuid": "ef5c9cd3-c3f3-403a-b5d5-d9abd8916411",
+        "xy": [
+          45.3945,
+          87.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H5",
+        "pad": "1",
+        "uuid": "d6eda10a-536f-4547-bb27-5022c83daca5",
+        "xy": [
+          45.3945,
+          89.149
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H5",
+        "pad": "",
+        "uuid": "ef5c9cd3-c3f3-403a-b5d5-d9abd8916411",
+        "xy": [
+          45.3945,
+          87.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H5",
+        "pad": "1",
+        "uuid": "a5eabf22-668e-42a8-89e3-81e09a7f76cc",
+        "xy": [
+          47.4695,
+          87.074
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.0,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H6",
+        "pad": "",
+        "uuid": "feb3896f-2a3c-4a2f-9c84-f6f65f0ba734",
+        "xy": [
+          110.5945,
+          87.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H6",
+        "pad": "1",
+        "uuid": "fc66b7bb-0c7f-400f-a15d-8aa1e70df5a9",
+        "xy": [
+          108.5195,
+          87.074
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H6",
+        "pad": "",
+        "uuid": "feb3896f-2a3c-4a2f-9c84-f6f65f0ba734",
+        "xy": [
+          110.5945,
+          87.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H6",
+        "pad": "1",
+        "uuid": "7c60bfa8-f07e-4c54-9e58-1449121e0250",
+        "xy": [
+          110.5945,
+          84.999
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H6",
+        "pad": "",
+        "uuid": "feb3896f-2a3c-4a2f-9c84-f6f65f0ba734",
+        "xy": [
+          110.5945,
+          87.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H6",
+        "pad": "1",
+        "uuid": "0ef96461-9390-495f-807a-ed42390c8527",
+        "xy": [
+          110.5945,
+          89.149
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H6",
+        "pad": "",
+        "uuid": "feb3896f-2a3c-4a2f-9c84-f6f65f0ba734",
+        "xy": [
+          110.5945,
+          87.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H6",
+        "pad": "1",
+        "uuid": "347eb9af-9d25-4914-a9ac-29154ae86bb1",
+        "xy": [
+          112.6695,
+          87.074
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.0,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H7",
+        "pad": "",
+        "uuid": "b701680f-b2eb-4791-b18c-8bac1e4c9394",
+        "xy": [
+          37.9945,
+          56.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H7",
+        "pad": "1",
+        "uuid": "c7381ace-5e0a-4dc0-81ac-72ed019a732d",
+        "xy": [
+          35.9195,
+          56.074
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H7",
+        "pad": "",
+        "uuid": "b701680f-b2eb-4791-b18c-8bac1e4c9394",
+        "xy": [
+          37.9945,
+          56.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H7",
+        "pad": "1",
+        "uuid": "c076765c-cc94-4487-a8b9-d68e6ec5ac27",
+        "xy": [
+          37.9945,
+          53.999
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.19999999999999574,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H7",
+        "pad": "",
+        "uuid": "b701680f-b2eb-4791-b18c-8bac1e4c9394",
+        "xy": [
+          37.9945,
+          56.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H7",
+        "pad": "1",
+        "uuid": "8557959c-c631-45dc-9dc5-e9870a96f213",
+        "xy": [
+          37.9945,
+          58.149
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H7",
+        "pad": "",
+        "uuid": "b701680f-b2eb-4791-b18c-8bac1e4c9394",
+        "xy": [
+          37.9945,
+          56.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H7",
+        "pad": "1",
+        "uuid": "567767bc-30f4-4f52-8956-6d6562b230a8",
+        "xy": [
+          40.0695,
+          56.074
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.0,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "J10",
+        "pad": "",
+        "uuid": "15054dd8-e364-4332-a197-cdca44d81bf8",
+        "xy": [
+          115.11,
+          111.715
+        ],
+        "drill_mm": [
+          0.65,
+          0.65
+        ]
+      },
+      "component_pad": {
+        "ref": "J10",
+        "pad": "A1",
+        "uuid": "7577bd1c-4a24-4410-8e55-d51fc396fc6a",
+        "xy": [
+          114.8,
+          110.64
+        ],
+        "net": "GND",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.19660877838299864,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "J10",
+        "pad": "",
+        "uuid": "15054dd8-e364-4332-a197-cdca44d81bf8",
+        "xy": [
+          115.11,
+          111.715
+        ],
+        "drill_mm": [
+          0.65,
+          0.65
+        ]
+      },
+      "component_pad": {
+        "ref": "J10",
+        "pad": "B12",
+        "uuid": "062d0cab-aa47-4364-abb2-c5309d1449b9",
+        "xy": [
+          114.8,
+          110.64
+        ],
+        "net": "GND",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.19660877838299864,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "J10",
+        "pad": "",
+        "uuid": "5349d1d7-7e7f-47e8-ac15-6f4bcd067906",
+        "xy": [
+          120.89,
+          111.715
+        ],
+        "drill_mm": [
+          0.65,
+          0.65
+        ]
+      },
+      "component_pad": {
+        "ref": "J10",
+        "pad": "A12",
+        "uuid": "001ffcf3-3c15-4564-8944-21b55fb7813e",
+        "xy": [
+          121.2,
+          110.64
+        ],
+        "net": "GND",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.19660877838299864,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "J10",
+        "pad": "",
+        "uuid": "5349d1d7-7e7f-47e8-ac15-6f4bcd067906",
+        "xy": [
+          120.89,
+          111.715
+        ],
+        "drill_mm": [
+          0.65,
+          0.65
+        ]
+      },
+      "component_pad": {
+        "ref": "J10",
+        "pad": "B1",
+        "uuid": "afaa301a-e467-4546-83c3-ebb327fb1b85",
+        "xy": [
+          121.2,
+          110.64
+        ],
+        "net": "GND",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.19660877838299864,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "J3",
+        "pad": "",
+        "uuid": "f942dc17-3ca8-4dc3-b953-988c8f79d6b5",
+        "xy": [
+          16.89,
+          6.285
+        ],
+        "drill_mm": [
+          0.65,
+          0.65
+        ]
+      },
+      "component_pad": {
+        "ref": "J3",
+        "pad": "A1",
+        "uuid": "c09704b0-b27f-474e-89a7-d899ee8a4d3b",
+        "xy": [
+          17.2,
+          7.36
+        ],
+        "net": "GND",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.196608778382995,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "J3",
+        "pad": "",
+        "uuid": "f942dc17-3ca8-4dc3-b953-988c8f79d6b5",
+        "xy": [
+          16.89,
+          6.285
+        ],
+        "drill_mm": [
+          0.65,
+          0.65
+        ]
+      },
+      "component_pad": {
+        "ref": "J3",
+        "pad": "B12",
+        "uuid": "0797bb9f-6dc4-463b-9f6c-f8533b3c1ccb",
+        "xy": [
+          17.2,
+          7.36
+        ],
+        "net": "GND",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.196608778382995,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "J3",
+        "pad": "",
+        "uuid": "1dd3bce0-45f3-434e-b6b1-ae70cd9ecf4d",
+        "xy": [
+          11.11,
+          6.285
+        ],
+        "drill_mm": [
+          0.65,
+          0.65
+        ]
+      },
+      "component_pad": {
+        "ref": "J3",
+        "pad": "A12",
+        "uuid": "deddf065-00f5-4cc1-b67b-e9ef32f61756",
+        "xy": [
+          10.8,
+          7.36
+        ],
+        "net": "GND",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.19660877838299468,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "J3",
+        "pad": "",
+        "uuid": "1dd3bce0-45f3-434e-b6b1-ae70cd9ecf4d",
+        "xy": [
+          11.11,
+          6.285
+        ],
+        "drill_mm": [
+          0.65,
+          0.65
+        ]
+      },
+      "component_pad": {
+        "ref": "J3",
+        "pad": "B1",
+        "uuid": "32552ba9-007f-4a59-b54e-ec7ca5743d70",
+        "xy": [
+          10.8,
+          7.36
+        ],
+        "net": "GND",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.19660877838299468,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H8",
+        "pad": "",
+        "uuid": "97352877-5097-48ad-8ef5-5da2544fee29",
+        "xy": [
+          117.9945,
+          56.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H8",
+        "pad": "1",
+        "uuid": "d3152d0e-2cc1-4b8c-a2c5-cdbc56b858e2",
+        "xy": [
+          115.9195,
+          56.074
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H8",
+        "pad": "",
+        "uuid": "97352877-5097-48ad-8ef5-5da2544fee29",
+        "xy": [
+          117.9945,
+          56.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H8",
+        "pad": "1",
+        "uuid": "ff0817b8-26cd-4e99-86e3-165bd1d2415d",
+        "xy": [
+          117.9945,
+          53.999
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.19999999999999574,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H8",
+        "pad": "",
+        "uuid": "97352877-5097-48ad-8ef5-5da2544fee29",
+        "xy": [
+          117.9945,
+          56.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H8",
+        "pad": "1",
+        "uuid": "390e1106-1bc4-466b-8457-7b4b598d04a5",
+        "xy": [
+          117.9945,
+          58.149
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.20000000000000284,
+      "physical_overlap_mm2": 0.0
+    },
+    {
+      "hole": {
+        "ref": "H8",
+        "pad": "",
+        "uuid": "97352877-5097-48ad-8ef5-5da2544fee29",
+        "xy": [
+          117.9945,
+          56.074
+        ],
+        "drill_mm": [
+          3.0,
+          3.0
+        ]
+      },
+      "component_pad": {
+        "ref": "H8",
+        "pad": "1",
+        "uuid": "0e0981f5-4745-441d-b2ad-36b73c578d85",
+        "xy": [
+          120.0695,
+          56.074
+        ],
+        "net": "",
+        "layers": [
+          "F.Cu"
+        ]
+      },
+      "copper_to_drill_mm": 0.0,
+      "physical_overlap_mm2": 0.0
+    }
+  ],
+  "physical_overlap_count": 0
+}

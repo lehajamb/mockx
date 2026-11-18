@@ -1,0 +1,141 @@
+{
+  "source_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "output_sha256": "aad96befd1a709d2d68110f01c03cd31e6da3c768b9a3b1804b2d50dcc2dcbf4",
+  "tool_sha256": "2009a157f92e75bce12ccbcd80a27bdb0c18cca2f3c260f68e68993b539b804f",
+  "footprint_sha256": "c6e1adfcd111280db5ed8b5934f36827ccaedc1116c05fabc73f96e18746b1a0",
+  "before": {
+    "DRC violations": 113,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 114,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [
+    {
+      "category": "copper_edge_clearance",
+      "message": "Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0900 mm)",
+      "objects": "Rule: board setup constraints edge; Severity: error\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(95.7500 mm, 2.5400 mm): Pad 2 [GND] of J5 on F.Cu",
+      "fingerprint": "a2c91df965d1306f8ffd71851ec6d93c986a5d705ba7619ddd19753f50f2e61b",
+      "section": "DRC violations"
+    },
+    {
+      "category": "copper_edge_clearance",
+      "message": "Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0900 mm)",
+      "objects": "Rule: board setup constraints edge; Severity: error\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(95.7500 mm, 2.5400 mm): Pad 2 [GND] of J5 on B.Cu",
+      "fingerprint": "909511eca8bf2c6157d1cee99998b381756249355decc63edd3a530d2b846036",
+      "section": "DRC violations"
+    },
+    {
+      "category": "copper_edge_clearance",
+      "message": "Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0900 mm)",
+      "objects": "Rule: board setup constraints edge; Severity: error\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(104.2500 mm, 2.5400 mm): Pad 2 [GND] of J5 on F.Cu",
+      "fingerprint": "7604e88c680282ae65d24df45be377f6c214a6ef3570b2cb553912bf816a4633",
+      "section": "DRC violations"
+    },
+    {
+      "category": "copper_edge_clearance",
+      "message": "Board edge clearance violation (board setup constraints edge clearance 0.2500 mm; actual 0.0900 mm)",
+      "objects": "Rule: board setup constraints edge; Severity: error\n    @(0.0000 mm, 0.0000 mm): Line on Edge.Cuts\n    @(104.2500 mm, 2.5400 mm): Pad 2 [GND] of J5 on B.Cu",
+      "fingerprint": "0d23480c64c38d6074651e090305c859d20a7433c8c7ac1d3647a001ced429ee",
+      "section": "DRC violations"
+    },
+    {
+      "category": "lib_footprint_issues",
+      "message": "The current configuration does not include the library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(100.0000 mm, 2.5400 mm): Footprint J5",
+      "fingerprint": "0c037a6be893fb0d6d4d09bd0309328d436753c5a093ac6869f3e6c76bcc2ec9",
+      "section": "DRC violations"
+    }
+  ],
+  "pad_changes": [
+    {
+      "uuid": "4109f700-7d11-4595-8d6d-e126b15481c4",
+      "pad": "1",
+      "net": "PPS_RAW",
+      "before_nm": [
+        100000000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        100000000,
+        2900000,
+        1500000,
+        5200000
+      ]
+    },
+    {
+      "uuid": "89c20d49-9ac1-4b98-969a-68647e30c217",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        95750000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        95750000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    },
+    {
+      "uuid": "c4de2317-394d-4936-981d-23efcf38262b",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        95750000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        95750000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    },
+    {
+      "uuid": "e1dc2e66-7935-41e7-a8bc-84522e114891",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        104250000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        104250000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    },
+    {
+      "uuid": "8add629a-6f2f-44fc-aa52-49635ec8e150",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        104250000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        104250000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    }
+  ],
+  "fabrication_ready": false
+}

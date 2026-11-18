@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "proof_sha256": "80e27b9da71a79719965b2654becfdf695ce05ebb8cfa035f0ffd6aa24301814",
+  "omissions": [
+    {
+      "uuid": "c8977bda-47eb-4b69-bc72-045ba3981fa2",
+      "reason": "Omit only the proposed C58 ground via at(29.9542,49.8802): fresh integration DRC identifies an overlapping PCIe via at(30.05,49.9). No current source copper is removed by this omission.",
+      "evidence_path": "ground-pcie-integration-01/result.json",
+      "evidence_sha256": "edd181cf77690a724d154cd9f2a1da8634fd7ac410f84a86772f8ee3fc7b2521"
+    }
+  ]
+}

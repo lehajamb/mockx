@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "input": "/work/hardware/runs/route-03-placement.kicad_pcb",
+  "output": "/work/hardware/runs/route-verifier-04-signals.kicad_pcb",
+  "input_sha256": "f96442f93b2d2e5e23471b5a0de1b2996022cb0bc5dfa35e8a4c272931941ad9",
+  "output_sha256": "36b28eefd3f62b8348511c662d1cfd37356e7d3cc3c38a6f06ced1683e61df31",
+  "source_inputs_sha256": {
+    "/work/hardware/runs/route-03-placement.kicad_pcb": "f96442f93b2d2e5e23471b5a0de1b2996022cb0bc5dfa35e8a4c272931941ad9",
+    "/work/hardware/runs/route-03-placement.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/tools/route_completion.py": "7fa8147c724293941076c5039ad80101bbefac1df4e48dd25cad48007a7370c8",
+    "/work/hardware/tools/proj.py": "9e0e53b46f0dd604846c318790e14d5815237e11179c3de91d48fcf15ec928a0",
+    "/work/hardware/tools/verification_worker.py": "640b76ebe2c9fbffeaac16b87e919d258acc20127a78070828791891c7ef6c10",
+    "/work/hardware/tools/design.py": "ba22875d01655ef373c640a165926f94498a0965761be2d2f65b6aa53321e127",
+    "/work/hardware/tools/gen_sch.py": "3c5e0a9232b82f8ea40648886f830382712de91d2ae6484d08c430ad5956b09d",
+    "/work/hardware/tools/../validation/placement-signal-01/execute.py": "8fd6a3a486cf01daf8b1da8278c8f4142a4610402d7afc679a43ba63837f9398"
+  },
+  "sources_unchanged": true,
+  "environment": {
+    "python": "3.11.2 (main, Oct  7 2026, 12:35:07) [GCC 12.2.0]",
+    "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2"
+  },
+  "commands": [
+    {
+      "label": "before-board",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/verification_worker.py",
+        "board",
+        "/work/hardware/runs/route-03-placement.kicad_pcb",
+        "/work/hardware/validation/placement-signal-01/before/model.json",
+        "--drc",
+        "/work/hardware/validation/placement-signal-01/before/drc-stored.txt"
+      ],
+      "returncode": 0,
+      "seconds": 24.947547674179077
+    },
+    {
+      "label": "routing",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/route_completion.py",
+        "/work/hardware/runs/route-03-placement.kicad_pcb",
+        "/work/hardware/runs/route-verifier-04-signals.kicad_pcb",
+        "2"
+      ],
+      "returncode": 1,
+      "seconds": 216.72439694404602
+    },
+    {
+      "label": "after-board",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/verification_worker.py",
+        "board",
+        "/work/hardware/runs/route-verifier-04-signals.kicad_pcb",
+        "/work/hardware/validation/placement-signal-01/after/model.json",
+        "--drc",
+        "/work/hardware/validation/placement-signal-01/after/drc-stored.txt"
+      ],
+      "returncode": 0,
+      "seconds": 22.074645280838013
+    }
+  ],
+  "before_counts": {
+    "DRC violations": 342,
+    "unconnected pads": 130,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 342,
+    "unconnected pads": 91,
+    "Footprint errors": 0
+  },
+  "new_non_connectivity_findings": [
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1991 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(119.1000 mm, 57.5000 mm): Track [IMON_ADC] on B.Cu, length 0.0500 mm\n    @(117.9945 mm, 56.0740 mm): NPTH pad of H8",
+      "fingerprint": "5d3446df4d5394480a3d0069e18ff47ba22b11f2f3295399d7b2ea214b1926d4",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1907 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(118.7000 mm, 57.7500 mm): Track [IMON_ADC] on B.Cu, length 0.1500 mm\n    @(117.9945 mm, 56.0740 mm): NPTH pad of H8",
+      "fingerprint": "fdaefb5c2615e3755fbcf0dc1c3f21efa5cb8c598cf168e778449e2ee46a4e7c",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1991 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(119.0500 mm, 57.5000 mm): Track [IMON_ADC] on B.Cu, length 0.2121 mm\n    @(117.9945 mm, 56.0740 mm): NPTH pad of H8",
+      "fingerprint": "8a8f0454b10fd46dc57ec79bb62f4c3631fa036cf8ece1659e2921b590ebb7dc",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1778 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(118.3000 mm, 57.8000 mm): Track [IMON_ADC] on B.Cu, length 0.0707 mm\n    @(117.9945 mm, 56.0740 mm): NPTH pad of H8",
+      "fingerprint": "471b8937b007ef4a5719cc0b0c3c6de7d90077e5c9f018c6a0ad64474a24a4c6",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1778 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(118.5000 mm, 57.8000 mm): Track [IMON_ADC] on B.Cu, length 0.2000 mm\n    @(117.9945 mm, 56.0740 mm): NPTH pad of H8",
+      "fingerprint": "26cde25408cf6496f97b6274cdf60bd2fcc2855c8435bd707f46fb9db3e39ae6",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1907 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(118.5500 mm, 57.7500 mm): Track [IMON_ADC] on B.Cu, length 0.0707 mm\n    @(117.9945 mm, 56.0740 mm): NPTH pad of H8",
+      "fingerprint": "7d452a4acebcd0d62e06d985b18d33cdb6f7c03d7a4ee44dd6e209d8f2a78844",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1907 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(111.1000 mm, 88.8000 mm): Track [LED_SYS#] on B.Cu, length 0.0707 mm\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6",
+      "fingerprint": "80e3e1b55d481e90c46adacc9cf6058ed172ff6e2747d20eb3e3f3b959320879",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1991 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(111.5000 mm, 88.6500 mm): Track [LED_SYS#] on B.Cu, length 0.2121 mm\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6",
+      "fingerprint": "9e1a36fe3881839c030c6b647d1e0d97dced1132d027372ed3f69da5ee81cd3f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1778 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(110.8500 mm, 88.8500 mm): Track [LED_SYS#] on B.Cu, length 0.0707 mm\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6",
+      "fingerprint": "34cc546422c70ca2f99f033eb6ae7d64aacfc4b4669cb7cf75859aa0f7079017",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1991 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(111.6500 mm, 88.5000 mm): Track [LED_SYS#] on B.Cu, length 0.0500 mm\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6",
+      "fingerprint": "06f2f17ee300b5a6d33393324e8f4d71ae4a681d918629a1060d9d827970686c",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1907 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(111.1500 mm, 88.7500 mm): Track [LED_SYS#] on B.Cu, length 0.1500 mm\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6",
+      "fingerprint": "fe47f3c711baa3e83d2404056afea090bed4ba5b9253f120d28b2f87dd9237f9",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1778 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(110.9000 mm, 88.8000 mm): Track [LED_SYS#] on B.Cu, length 0.2000 mm\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6",
+      "fingerprint": "d188447eb0a4f20b893155de88544ab988a3e24ae411b6dc167a90a1169090b1",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1955 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(110.2000 mm, 88.8000 mm): Track [USB1_EN_SAFE] on In3.Cu, length 0.1500 mm\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6",
+      "fingerprint": "d543ce141e4d34942a82eae8e19582f874058fb9a85242bce488e8b5ac4f36aa",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_clearance",
+      "message": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1955 mm)",
+      "objects": "Rule: board setup constraints hole; Severity: error\n    @(110.2500 mm, 88.8500 mm): Track [USB1_EN_SAFE] on In3.Cu, length 0.0707 mm\n    @(110.5945 mm, 87.0740 mm): NPTH pad of H6",
+      "fingerprint": "59f5b1c2d4fd2f6a9fd21f819b32b3e661f204635480e14d94b398b710951049",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_near_hole",
+      "message": "Drilled holes too close together (board setup constraints min 0.2495 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints; Severity: error\n    @(93.4500 mm, 48.7500 mm): Via [USB1_EN] on F.Cu - B.Cu\n    @(93.5165 mm, 48.8106 mm): Via [USB1_EN] on F.Cu - B.Cu",
+      "fingerprint": "ac6378bc1e893aa85d99b7b248ac339fcca5f40fc2a8a25d6cc435706494f016",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_near_hole",
+      "message": "Drilled holes too close together (board setup constraints min 0.2495 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints; Severity: error\n    @(127.8500 mm, 46.2000 mm): Via [FRAM_SCK] on F.Cu - B.Cu\n    @(127.8252 mm, 46.1539 mm): Via [FRAM_SCK] on F.Cu - B.Cu",
+      "fingerprint": "03e9414a072f1f60a1991b2ca9c58fd404f501e13f4630c4e95bff92568c78d3",
+      "section": "DRC violations"
+    },
+    {
+      "category": "holes_co_located",
+      "message": "Drilled holes co-located",
+      "objects": "Local override; Severity: warning\n    @(18.3500 mm, 12.0000 mm): Via [PD_VS] on F.Cu - B.Cu\n    @(18.3500 mm, 12.0000 mm): Via [PD_VS] on F.Cu - B.Cu",
+      "fingerprint": "1ccf614ea1634b751b876dd6aa16396c3ba3f783a356eea75d9a961b3c766222",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_near_hole",
+      "message": "Drilled holes too close together (board setup constraints min 0.2495 mm; actual 0.0000 mm)",
+      "objects": "Rule: board setup constraints; Severity: error\n    @(5.0000 mm, 25.8000 mm): Via [EF_BGATE] on F.Cu - B.Cu\n    @(4.9395 mm, 25.8195 mm): Via [EF_BGATE] on F.Cu - B.Cu",
+      "fingerprint": "39fb7161a84df0abfaeeb22d0db283a19888c6fa694fc3a92a26c3bce4439588",
+      "section": "DRC violations"
+    },
+    {
+      "category": "hole_near_hole",
+      "message": "Drilled holes too close together (board setup constraints min 0.2495 mm; actual 0.1826 mm)",
+      "objects": "Rule: board setup constraints; Severity: error\n    @(33.8656 mm, 54.0602 mm): Via [PCIE_RST#_3V3] on F.Cu - B.Cu\n    @(34.3000 mm, 53.8500 mm): Via [PCIE_RST#_3V3] on F.Cu - B.Cu",
+      "fingerprint": "1b73050ffd38156318f125a5cca94c1ff78895f54f456e56191f49a2fe92367e",
+      "section": "DRC violations"
+    }
+  ],
+  "board_model": {
+    "footprints": 368,
+    "pads": 1582,
+    "track_segments": 6831,
+    "vias": 1214,
+    "model_mismatches": [
+      "R21: value '24.9k' != '9.1k'"
+    ],
+    "duplicate_via_sites": [
+      {
+        "x_mm": 18.35,
+        "y_mm": 12.0,
+        "nets": [
+          "PD_VS",
+          "PD_VS"
+        ]
+      }
+    ]
+  },
+  "routing_exit_code": 1,
+  "fabrication_approval": false
+}

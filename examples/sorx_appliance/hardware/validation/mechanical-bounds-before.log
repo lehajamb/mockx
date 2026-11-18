@@ -1,0 +1,18 @@
+test_component_pair_screen_samples_bounds_only_linearly (test_mechanical.MechanicalRegressions.test_component_pair_screen_samples_bounds_only_linearly) ... /opt/cq/lib/python3.11/site-packages/cadquery/selectors.py:884: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+  parse_result = _expression_grammar.parseString(selectorString, parseAll=True)
+/opt/cq/lib/python3.11/site-packages/pyparsing/util.py:466: PyparsingDeprecationWarning: 'parseAll' argument is deprecated, use 'parse_all'
+  return fn(self, *args, **kwargs)
+FAIL
+
+======================================================================
+FAIL: test_component_pair_screen_samples_bounds_only_linearly (test_mechanical.MechanicalRegressions.test_component_pair_screen_samples_bounds_only_linearly)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_mechanical.py", line 72, in test_component_pair_screen_samples_bounds_only_linearly
+    self.assertLessEqual(sample.call_count,8*len(parts))
+AssertionError: 106643 not less than or equal to 2616
+
+----------------------------------------------------------------------
+Ran 1 test in 6.591s
+
+FAILED (failures=1)

@@ -1,0 +1,13 @@
+test_checkpoint_refuses_existing_output (test_route_completion.RoutingGeometryTests.test_checkpoint_refuses_existing_output) ... ok
+test_checkpoint_requires_source_project_rules (test_route_completion.RoutingGeometryTests.test_checkpoint_requires_source_project_rules) ... ok
+test_clipped_obstacle_tangencies_remain_blocked (test_route_completion.RoutingGeometryTests.test_clipped_obstacle_tangencies_remain_blocked) ... ok
+test_generic_router_refuses_power_and_differential_pairs (test_route_completion.RoutingGeometryTests.test_generic_router_refuses_power_and_differential_pairs) ... ok
+test_ground_inner_routing_layer_is_recognized (test_route_completion.RoutingGeometryTests.test_ground_inner_routing_layer_is_recognized) ... ok
+test_inner_power_endpoint_is_not_misread_as_bottom_layer (test_route_completion.RoutingGeometryTests.test_inner_power_endpoint_is_not_misread_as_bottom_layer) ... ok
+test_obstacle_polygon_holes_remain_available (test_route_completion.RoutingGeometryTests.test_obstacle_polygon_holes_remain_available) ... ok
+test_power_tracks_are_never_generic_ripup_candidates (test_route_completion.RoutingGeometryTests.test_power_tracks_are_never_generic_ripup_candidates) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.031s
+
+OK

@@ -1,0 +1,14 @@
+test_obstacle_polygon_holes_remain_available (test_route_completion.RoutingGeometryTests.test_obstacle_polygon_holes_remain_available) ... FAIL
+
+======================================================================
+FAIL: test_obstacle_polygon_holes_remain_available (test_route_completion.RoutingGeometryTests.test_obstacle_polygon_holes_remain_available)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_route_completion.py", line 16, in test_obstacle_polygon_holes_remain_available
+    self.assertEqual(cells[100,100], 0)
+AssertionError: 1 != 0
+
+----------------------------------------------------------------------
+Ran 1 test in 0.017s
+
+FAILED (failures=1)

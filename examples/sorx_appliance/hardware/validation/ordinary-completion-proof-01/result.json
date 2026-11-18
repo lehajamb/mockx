@@ -1,0 +1,124 @@
+{
+  "source": "/work/hardware/runs/route-combined-15b-ground.kicad_pcb",
+  "source_sha256": "0e825f295aac2fe7da0723bf85a7b8d2c6de2a09d00255e1a4cd65d6a5e986c6",
+  "output": "/work/hardware/runs/route-verifier-21-ordinary-proof.kicad_pcb",
+  "output_sha256": "9e4f04e0c5a1aacff22f042f629b0677f8b1434f5d74cbb7e14045035744ddb1",
+  "source_inputs_sha256": {
+    "/work/hardware/runs/route-combined-15b-ground.kicad_pcb": "0e825f295aac2fe7da0723bf85a7b8d2c6de2a09d00255e1a4cd65d6a5e986c6",
+    "/work/hardware/runs/route-combined-15b-ground.kicad_pro": "43cfe2a441ae024bcf9dadc07674d90331e4b717440b6edf8ab188e9c6347782",
+    "/work/hardware/validation/ordinary-completion-proof-01/execute.py": "8af1f83c274df37f7933de7c666b3d5235ffc22b360f23e786555402cdee5d19",
+    "/work/hardware/tools/route_completion.py": "bc7d396d99c1dd4182b598bc17026cdc77ecd3429efb0606c2754ae052418923",
+    "/work/hardware/tools/proj.py": "ff52d56d41ec62ea47d282e4adf0618ec057c642114953b5858d273eeda7c704",
+    "/work/hardware/tools/verification_core.py": "c786006d083231cda6adc11628df176661e14214cfd2d5544b7fb422dd6250b0",
+    "/work/hardware/tools/replay_copper_delta.py": "acbbb94c9c9bfbf30dad7540a13c275e54d87c9e4cd6c05efa6920a88a4ebfe8"
+  },
+  "sources_unchanged": true,
+  "commands": [
+    {
+      "label": "before",
+      "command": [
+        "/usr/bin/python3",
+        "-c",
+        "import pcbnew,json,sys;from pathlib import Path;from replay_copper_delta import inventory,copper_differences;b=pcbnew.LoadBoard(sys.argv[1]);a=inventory(b);pcbnew.ZONE_FILLER(b).Fill(b.Zones());pcbnew.WriteDRCReport(b,sys.argv[2],pcbnew.EDA_UNITS_MILLIMETRES,True);Path(sys.argv[3]).write_text(json.dumps({'postfill_changes':copper_differences(a,inventory(b)),'kicad':pcbnew.Version()}))",
+        "/work/hardware/runs/route-combined-15b-ground.kicad_pcb",
+        "/work/hardware/validation/ordinary-completion-proof-01/before.txt",
+        "/work/hardware/validation/ordinary-completion-proof-01/before.json"
+      ],
+      "returncode": 0,
+      "seconds": 10.067641973495483
+    },
+    {
+      "label": "routing",
+      "command": [
+        "/usr/bin/python3",
+        "/work/hardware/tools/route_completion.py",
+        "/work/hardware/runs/route-combined-15b-ground.kicad_pcb",
+        "/work/hardware/runs/route-verifier-21-ordinary-proof.kicad_pcb",
+        "2"
+      ],
+      "returncode": 1,
+      "seconds": 995.8148393630981
+    },
+    {
+      "label": "after",
+      "command": [
+        "/usr/bin/python3",
+        "-c",
+        "import pcbnew,json,sys;from pathlib import Path;from replay_copper_delta import inventory,copper_differences;b=pcbnew.LoadBoard(sys.argv[1]);a=inventory(b);pcbnew.ZONE_FILLER(b).Fill(b.Zones());pcbnew.WriteDRCReport(b,sys.argv[2],pcbnew.EDA_UNITS_MILLIMETRES,True);Path(sys.argv[3]).write_text(json.dumps({'postfill_changes':copper_differences(a,inventory(b)),'kicad':pcbnew.Version()}))",
+        "/work/hardware/runs/route-verifier-21-ordinary-proof.kicad_pcb",
+        "/work/hardware/validation/ordinary-completion-proof-01/after.txt",
+        "/work/hardware/validation/ordinary-completion-proof-01/after.json"
+      ],
+      "returncode": 0,
+      "seconds": 10.584782838821411
+    }
+  ],
+  "before_counts": {
+    "DRC violations": 107,
+    "unconnected pads": 36,
+    "Footprint errors": 0
+  },
+  "after_counts": {
+    "DRC violations": 104,
+    "unconnected pads": 31,
+    "Footprint errors": 0
+  },
+  "new_non_connectivity_findings": [
+    {
+      "category": "lib_footprint_issues",
+      "message": "Footprint 'Standoff_SMT_M2_WA-SMSI' not found in library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(45.3945 mm, 87.0740 mm): Footprint H5",
+      "fingerprint": "a4dca0e8d76f30f540c71fc0ca526ac9418f200dba89c39f85e2b8188137a580",
+      "section": "DRC violations"
+    },
+    {
+      "category": "lib_footprint_issues",
+      "message": "Footprint 'SODIMM-260_DDR4_TE_2309409-2' not found in library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(78.0000 mm, 64.0000 mm): Footprint J1",
+      "fingerprint": "74a2b540647fac62e3e6c667f56ffa902b8fc1912457464070a1704e6f5e6932",
+      "section": "DRC violations"
+    },
+    {
+      "category": "lib_footprint_issues",
+      "message": "Footprint 'Standoff_SMT_M2_WA-SMSI' not found in library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(110.5945 mm, 87.0740 mm): Footprint H6",
+      "fingerprint": "43da35103fc3c3a1eb762f42ee4e1e1d75c80cbf3be5ad279870803d74365946",
+      "section": "DRC violations"
+    },
+    {
+      "category": "lib_footprint_issues",
+      "message": "Footprint 'Standoff_SMT_M2_WA-SMSI' not found in library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(37.9945 mm, 56.0740 mm): Footprint H7",
+      "fingerprint": "ea9e1e2396921f32168e24cf05dcac33ea3bd16810f8ffed8f66fb9af565629f",
+      "section": "DRC violations"
+    },
+    {
+      "category": "lib_footprint_issues",
+      "message": "Footprint 'Standoff_SMT_M2_WA-SMSI' not found in library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(117.9945 mm, 56.0740 mm): Footprint H8",
+      "fingerprint": "256112d31ff58b02c5be0bbc036b127b05c557891ebf1a4619c70330facd9240",
+      "section": "DRC violations"
+    },
+    {
+      "category": "lib_footprint_issues",
+      "message": "Footprint 'LT_MS8E' not found in library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(8.0000 mm, 15.0000 mm): Footprint U38",
+      "fingerprint": "8aff0e6f6657e78b9771d7be8557701ada3a89da65e8aebf01c9cca9f6ba3e86",
+      "section": "DRC violations"
+    }
+  ],
+  "fill_before": {
+    "postfill_changes": [],
+    "kicad": "7.0.11"
+  },
+  "fill_after": {
+    "postfill_changes": [],
+    "kicad": "7.0.11"
+  },
+  "accepted_for_further_development": false,
+  "fabrication_approval": false,
+  "environment": {
+    "container_image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+    "KICAD7_FOOTPRINT_DIR": "/usr/share/kicad/footprints"
+  }
+}

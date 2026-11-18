@@ -1,0 +1,539 @@
+{
+  "status": "ACCEPTED FOR FURTHER DEVELOPMENT",
+  "source": "runs/route-combined-15b-ground.kicad_pcb",
+  "source_sha256": "0e825f295aac2fe7da0723bf85a7b8d2c6de2a09d00255e1a4cd65d6a5e986c6",
+  "output": "runs/route-electrical-16a-widen.kicad_pcb",
+  "output_sha256": "334602bf7a902ea4843d79c92a1b700683125cffe5a4a95cb32258c05e20738e",
+  "network_sha256": "644ec9995d0ccb2c735b46c8b599c2f0706e3a709cc071836dce29cbbb9081f6",
+  "tool_sha256": "182d16f89521071f406d23200eb9fabb294ea87f9a3f97005729419414fdc168",
+  "before": {
+    "DRC violations": 107,
+    "unconnected pads": 36,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 107,
+    "unconnected pads": 36,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [],
+  "changes": [
+    {
+      "uuid": "136ea3f6-d631-4689-9314-c8126eef2e64",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 1.5,
+      "target_mm": 1.5,
+      "current_a": 2.5899999999992516,
+      "start": [
+        43.817,
+        51.512
+      ],
+      "end": [
+        44.869,
+        51.512
+      ],
+      "to_mm": 1.5
+    },
+    {
+      "uuid": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 1.4241999999999906,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000044003,
+      "start": [
+        39.725,
+        47.42
+      ],
+      "end": [
+        43.817,
+        51.512
+      ],
+      "to_mm": 1.4000000000000001
+    },
+    {
+      "uuid": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 1.1566756826189644,
+      "target_mm": 1.5,
+      "current_a": 2.590000000004447,
+      "start": [
+        29.5413,
+        54.7337
+      ],
+      "end": [
+        23.8,
+        60.475
+      ],
+      "to_mm": 1.1500000000000001
+    },
+    {
+      "uuid": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 1.3368429845560916,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000044594,
+      "start": [
+        27.6309,
+        41.0032
+      ],
+      "end": [
+        26.8104,
+        41.8237
+      ],
+      "to_mm": 1.3250000000000002
+    },
+    {
+      "uuid": "512211ea-0f83-4af3-9363-1d1da34eda28",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 1.5,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000045384,
+      "start": [
+        21.3216,
+        62.3434
+      ],
+      "end": [
+        20.655,
+        61.6769
+      ],
+      "to_mm": 1.5
+    },
+    {
+      "uuid": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 1.5,
+      "target_mm": 1.5,
+      "current_a": 2.59000000000444,
+      "start": [
+        34.7846,
+        44.4577
+      ],
+      "end": [
+        34.5438,
+        44.4577
+      ],
+      "to_mm": 1.5
+    },
+    {
+      "uuid": "6e7de82b-203a-4637-bbc6-144eb2600765",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 1.5,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000045384,
+      "start": [
+        20.655,
+        59.0
+      ],
+      "end": [
+        20.655,
+        61.6769
+      ],
+      "to_mm": 1.5
+    },
+    {
+      "uuid": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.65,
+      "maximum_safe_mm": 0.8091731899145836,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000044088,
+      "start": [
+        39.725,
+        45.64
+      ],
+      "end": [
+        39.725,
+        47.42
+      ],
+      "to_mm": 0.8
+    },
+    {
+      "uuid": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.379210572112179,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000044465,
+      "start": [
+        26.8104,
+        52.0028
+      ],
+      "end": [
+        29.5413,
+        54.7337
+      ],
+      "to_mm": 0.375
+    },
+    {
+      "uuid": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.5429069965490465,
+      "target_mm": 1.5,
+      "current_a": 2.59000000000444,
+      "start": [
+        34.5438,
+        44.4577
+      ],
+      "end": [
+        31.0893,
+        41.0032
+      ],
+      "to_mm": 0.525
+    },
+    {
+      "uuid": "cf76601b-460e-431d-96c9-c84c53305a27",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.5,
+      "maximum_safe_mm": 1.5,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000044026,
+      "start": [
+        34.7846,
+        44.4577
+      ],
+      "end": [
+        35.0,
+        44.2423
+      ],
+      "to_mm": 1.5
+    },
+    {
+      "uuid": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 1.5,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000044465,
+      "start": [
+        21.3216,
+        62.3434
+      ],
+      "end": [
+        23.19,
+        60.475
+      ],
+      "to_mm": 1.5
+    },
+    {
+      "uuid": "f6a8576f-7668-4660-9d04-6f626586c88f",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.65,
+      "maximum_safe_mm": 0.8091731899145836,
+      "target_mm": 1.5,
+      "current_a": 2.590000000004433,
+      "start": [
+        40.925,
+        44.44
+      ],
+      "end": [
+        39.725,
+        45.64
+      ],
+      "to_mm": 0.8
+    },
+    {
+      "uuid": "419f44d8-b25e-470d-97ba-f4c681cc0b63",
+      "net": "VBUS_IN",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 0.8667619023324858,
+      "target_mm": 2.0,
+      "current_a": 1.8926731078904944,
+      "start": [
+        4.025,
+        21.095
+      ],
+      "end": [
+        2.021,
+        19.091
+      ],
+      "to_mm": 0.8500000000000001
+    },
+    {
+      "uuid": "5dd896da-a07f-4873-94f8-d0f42434f7ff",
+      "net": "VBUS_IN",
+      "layer": "F.Cu",
+      "from_mm": 0.5,
+      "maximum_safe_mm": 0.5999999999999999,
+      "target_mm": 2.0,
+      "current_a": 1.8001214057347295,
+      "start": [
+        11.6,
+        8.2977
+      ],
+      "end": [
+        11.6,
+        7.36
+      ],
+      "to_mm": 0.6000000000000001
+    },
+    {
+      "uuid": "dae1460d-f420-4fc0-83f3-645086ee24c5",
+      "net": "VBUS_IN",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 1.7500000000000004,
+      "target_mm": 2.0,
+      "current_a": 1.8926731078905001,
+      "start": [
+        5.225,
+        16.465
+      ],
+      "end": [
+        5.225,
+        14.275
+      ],
+      "to_mm": 1.75
+    },
+    {
+      "uuid": "1fb39c93-c8da-4434-8a65-bbc3d3e04053",
+      "net": "VIN_PROT",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 2.0,
+      "target_mm": 2.0,
+      "current_a": 1.281826859678042,
+      "start": [
+        7.6375,
+        26.2425
+      ],
+      "end": [
+        8.975,
+        24.905
+      ],
+      "to_mm": 2.0
+    },
+    {
+      "uuid": "313fd86b-11be-49e5-8a2f-dc2847ee5268",
+      "net": "VIN_PROT",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 1.7249999999999988,
+      "target_mm": 2.0,
+      "current_a": 1.8926731078904948,
+      "start": [
+        7.6375,
+        31.075
+      ],
+      "end": [
+        7.6375,
+        29.2336
+      ],
+      "to_mm": 1.725
+    },
+    {
+      "uuid": "4d1cec2b-8389-4ea5-94e4-cee31c266d14",
+      "net": "VIN_PROT",
+      "layer": "F.Cu",
+      "from_mm": 0.5,
+      "maximum_safe_mm": 0.5699999999999988,
+      "target_mm": 2.0,
+      "current_a": 0.6108462482124455,
+      "start": [
+        7.5127,
+        21.07
+      ],
+      "end": [
+        8.95,
+        21.07
+      ],
+      "to_mm": 0.55
+    },
+    {
+      "uuid": "d09e600e-3c09-4594-87bf-bd3527dd183d",
+      "net": "VIN_PROT",
+      "layer": "F.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 2.0,
+      "target_mm": 2.0,
+      "current_a": 1.2818268596780418,
+      "start": [
+        7.6375,
+        29.2336
+      ],
+      "end": [
+        7.6375,
+        26.2425
+      ],
+      "to_mm": 2.0
+    },
+    {
+      "uuid": "fe7a0e29-e3b0-4980-a437-58821c4aeb7d",
+      "net": "VIN_PROT",
+      "layer": "In2.Cu",
+      "from_mm": 0.8,
+      "maximum_safe_mm": 2.0,
+      "target_mm": 2.0,
+      "current_a": 0.6108462482124456,
+      "start": [
+        7.6375,
+        21.1948
+      ],
+      "end": [
+        7.6375,
+        29.2336
+      ],
+      "to_mm": 2.0
+    }
+  ],
+  "limited_segments": [
+    {
+      "uuid": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.2537999999999969,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000044465,
+      "start": [
+        26.8104,
+        41.8237
+      ],
+      "end": [
+        26.8104,
+        52.0028
+      ]
+    },
+    {
+      "uuid": "5bd4936b-4401-4639-9145-ef5c46d59451",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.30377799999999977,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000044376,
+      "start": [
+        31.0893,
+        41.0032
+      ],
+      "end": [
+        27.6309,
+        41.0032
+      ]
+    },
+    {
+      "uuid": "ebf46ae2-02f6-4311-b503-035ec1548441",
+      "net": "+5V",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.2538000000000038,
+      "target_mm": 1.5,
+      "current_a": 2.5900000000044336,
+      "start": [
+        35.0,
+        44.2423
+      ],
+      "end": [
+        40.7273,
+        44.2423
+      ]
+    },
+    {
+      "uuid": "0179e7c7-ba2f-459f-a815-a90fff7817bb",
+      "net": "VBUS_IN",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.29889727145697154,
+      "target_mm": 2.0,
+      "current_a": 1.8926731078904995,
+      "start": [
+        2.021,
+        17.0795
+      ],
+      "end": [
+        2.5174,
+        16.5831
+      ]
+    },
+    {
+      "uuid": "28c9e197-c114-446f-b4d9-c7e00dc612a6",
+      "net": "VBUS_IN",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.32540000000000235,
+      "target_mm": 2.0,
+      "current_a": 1.8926731078903754,
+      "start": [
+        10.3439,
+        8.2977
+      ],
+      "end": [
+        11.6,
+        8.2977
+      ]
+    },
+    {
+      "uuid": "76045996-23e4-41c6-b868-88998722a158",
+      "net": "VBUS_IN",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.3380000000000004,
+      "target_mm": 2.0,
+      "current_a": 1.892673107890502,
+      "start": [
+        2.021,
+        19.091
+      ],
+      "end": [
+        2.021,
+        17.0795
+      ]
+    },
+    {
+      "uuid": "860a4cc6-5a5b-44b5-8f2e-650bad01e465",
+      "net": "VBUS_IN",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.36011433393141457,
+      "target_mm": 2.0,
+      "current_a": 1.8926731078903754,
+      "start": [
+        6.3686,
+        12.273
+      ],
+      "end": [
+        10.3439,
+        8.2977
+      ]
+    },
+    {
+      "uuid": "f559f3a4-1d74-41e2-b44a-d52ca66d3a6b",
+      "net": "VBUS_IN",
+      "layer": "F.Cu",
+      "from_mm": 0.35,
+      "maximum_safe_mm": 0.26397799999999305,
+      "target_mm": 2.0,
+      "current_a": 1.8926731078904924,
+      "start": [
+        2.5174,
+        16.5831
+      ],
+      "end": [
+        5.3431,
+        16.5831
+      ]
+    }
+  ],
+  "fabrication_ready": false
+}

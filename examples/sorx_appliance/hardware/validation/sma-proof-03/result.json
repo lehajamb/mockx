@@ -1,0 +1,113 @@
+{
+  "source_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "output_sha256": "c6690f0c76e9407b7a05bcbcac36208c280a36507ae4cd658bf19d5c96c2ecbe",
+  "tool_sha256": "2bde7107347e3728e599dcac31aa8ff4c45952e5ca177350f5384010724e6494",
+  "footprint_sha256": "c6e1adfcd111280db5ed8b5934f36827ccaedc1116c05fabc73f96e18746b1a0",
+  "before": {
+    "DRC violations": 107,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 103,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [
+    {
+      "category": "lib_footprint_mismatch",
+      "message": "Footprint 'SMA_Amphenol_132289_Drawing' does not match copy in library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(100.0000 mm, 2.5400 mm): Footprint J5",
+      "fingerprint": "b5fadd58aada721a4b19bce724fd887fc87922db1390d49ec87bcdbf856f5378",
+      "section": "DRC violations"
+    }
+  ],
+  "pad_changes": [
+    {
+      "uuid": "4109f700-7d11-4595-8d6d-e126b15481c4",
+      "pad": "1",
+      "net": "PPS_RAW",
+      "before_nm": [
+        100000000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        100000000,
+        2900000,
+        1500000,
+        5200000
+      ]
+    },
+    {
+      "uuid": "89c20d49-9ac1-4b98-969a-68647e30c217",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        95750000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        95750000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    },
+    {
+      "uuid": "c4de2317-394d-4936-981d-23efcf38262b",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        95750000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        95750000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    },
+    {
+      "uuid": "e1dc2e66-7935-41e7-a8bc-84522e114891",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        104250000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        104250000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    },
+    {
+      "uuid": "8add629a-6f2f-44fc-aa52-49635ec8e150",
+      "pad": "2",
+      "net": "GND",
+      "before_nm": [
+        104250000,
+        2540000,
+        1500000,
+        5080000
+      ],
+      "after_nm": [
+        104250000,
+        3050000,
+        1600000,
+        4900000
+      ]
+    }
+  ],
+  "fabrication_ready": false
+}

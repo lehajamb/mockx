@@ -1,0 +1,1 @@
+Experiment stopped deliberately after identifying a polygon-hole rasterization defect. No after-DRC or candidate approval exists. Corrected regression evidence is routing-tests-before/after.txt.

@@ -1,0 +1,51 @@
+test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) ... 
+  test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='1', layers=['F.Cu', 'F.Paste', 'F.Mask']) ... FAIL
+  test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='2', layers=['F.Cu', 'F.Paste', 'F.Mask']) ... FAIL
+  test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='2', layers=['F.Cu', 'F.Paste', 'F.Mask']) ... FAIL
+  test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='2', layers=['B.Cu', 'B.Paste', 'B.Mask']) ... FAIL
+  test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='2', layers=['B.Cu', 'B.Paste', 'B.Mask']) ... FAIL
+
+======================================================================
+FAIL: test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='1', layers=['F.Cu', 'F.Paste', 'F.Mask'])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_sma_land_pattern.py", line 18, in test_exact_copper_land_dimensions_and_edge_offsets
+    self.assertAlmostEqual(l,5.2 if signal else 4.9)
+AssertionError: 5.08 != 5.2 within 7 places (0.1200000000000001 difference)
+
+======================================================================
+FAIL: test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='2', layers=['F.Cu', 'F.Paste', 'F.Mask'])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_sma_land_pattern.py", line 17, in test_exact_copper_land_dimensions_and_edge_offsets
+    self.assertAlmostEqual(w,1.5 if signal else 1.6)
+AssertionError: 1.5 != 1.6 within 7 places (0.10000000000000009 difference)
+
+======================================================================
+FAIL: test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='2', layers=['F.Cu', 'F.Paste', 'F.Mask'])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_sma_land_pattern.py", line 17, in test_exact_copper_land_dimensions_and_edge_offsets
+    self.assertAlmostEqual(w,1.5 if signal else 1.6)
+AssertionError: 1.5 != 1.6 within 7 places (0.10000000000000009 difference)
+
+======================================================================
+FAIL: test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='2', layers=['B.Cu', 'B.Paste', 'B.Mask'])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_sma_land_pattern.py", line 17, in test_exact_copper_land_dimensions_and_edge_offsets
+    self.assertAlmostEqual(w,1.5 if signal else 1.6)
+AssertionError: 1.5 != 1.6 within 7 places (0.10000000000000009 difference)
+
+======================================================================
+FAIL: test_exact_copper_land_dimensions_and_edge_offsets (test_sma_land_pattern.SmaLandPatternTests.test_exact_copper_land_dimensions_and_edge_offsets) (pad='2', layers=['B.Cu', 'B.Paste', 'B.Mask'])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/hardware/tests/test_sma_land_pattern.py", line 17, in test_exact_copper_land_dimensions_and_edge_offsets
+    self.assertAlmostEqual(w,1.5 if signal else 1.6)
+AssertionError: 1.5 != 1.6 within 7 places (0.10000000000000009 difference)
+
+----------------------------------------------------------------------
+Ran 1 test in 0.029s
+
+FAILED (failures=5)

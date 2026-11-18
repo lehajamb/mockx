@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name "SORX")(type "KiCad")(uri "${KIPRJMOD}/sorx.kicad_sym")(options "")(descr "SORX custom symbols"))
+)

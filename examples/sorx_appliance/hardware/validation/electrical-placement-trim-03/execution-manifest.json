@@ -1,0 +1,36 @@
+{
+  "status": "ACCEPTED FOR FURTHER DEVELOPMENT",
+  "fabrication_ready": false,
+  "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "commands": [
+    "python3 tools/relocate_electrical.py runs/route-electrical-10-usb3.kicad_pcb runs/route-electrical-11b-placement.kicad_pcb validation/electrical-placement-02",
+    "python3 /audit.py runs/route-electrical-11b-placement.kicad_pcb validation/electrical-placement-02/power-islands-before.json",
+    "python3 /repair.py runs/route-electrical-11b-placement.kicad_pcb runs/route-electrical-12-power.kicad_pcb validation/power-routing-03 --audit-source runs/route-electrical-11b-placement.kicad_pcb",
+    "python3 tools/audit_orphan_copper.py runs/route-electrical-12-power.kicad_pcb --report-dir validation/electrical-placement-orphans-01",
+    "python3 /trim.py"
+  ],
+  "script_mounts": {
+    "/audit.py": "validation/electrical-placement-02/island-audit-script.py",
+    "/repair.py": "validation/power-routing-03/repair-run-script.py",
+    "/trim.py": "validation/electrical-placement-trim-03/trim-script.py"
+  },
+  "notes": [
+    "All Docker runs used --network none and only the dedicated Codex hardware directory plus the listed dedicated scripts.",
+    "Electrical-placement-01 and -02 are intentionally rejected intermediate placement-only checkpoints: detached reset copper required repair.",
+    "Initial exact-reset-trim attempts13 and13b were rejected because actual pad connectivity changed; only13c was accepted.",
+    "The final trim removes only pad-free islands and dangling reset dead ends. The actual pad connectivity groups before/after are equal; open required functions remain explicit.",
+    "KICAD7_FOOTPRINT_DIR was not explicitly set in these paired historical runs; the inherited environment is the same on both sides. The later verifier fixes library resolution."
+  ],
+  "sources": {
+    "tools/relocate_electrical.py": "45f2f569a7952237ccac04131a64f08427ef12e2be972f7ceea92456789fd4eb",
+    "tools/audit_npth.py": "90c45b255a32f2b5b5603dc985ef45062717f6094bdc8a5e962a77eb9db61654",
+    "tools/route_power_branches.py": "353c0fcbb9e0f225659c8b25a2d8642cc2c7d876735115aa8f9905131ccff3b4",
+    "tools/route_completion.py": "1827b6df85a8c85b0e38d0df444e08aca1f402002a7623fe05f73f49b981d16e",
+    "tools/audit_orphan_copper.py": "82df6cf021f363f83fb651ce5f756843a9fa83e3792d5bfa4f268f6d94535c77",
+    "validation/electrical-placement-02/island-audit-script.py": "f099741368979418f220a3a4fddd44b8cebedd0358c37ee89c15bf695c56f40b",
+    "validation/power-routing-03/repair-run-script.py": "ff9a4f4cc92ae74baacd79746fad423aa3b7e14eedb9d0a40b10e18bb50065b0",
+    "validation/electrical-placement-trim-03/trim-script.py": "ee460b1a04b9566ac318f861df6e380d51807d6d10d1175574e1167522798cf4"
+  },
+  "output_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "output": "runs/route-electrical-13c-trimmed.kicad_pcb"
+}

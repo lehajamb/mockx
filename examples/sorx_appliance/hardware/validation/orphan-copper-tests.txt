@@ -1,0 +1,8 @@
+test_only_padless_component_is_removed_and_pad_graph_is_unchanged (test_orphan_copper.OrphanCopperTests.test_only_padless_component_is_removed_and_pad_graph_is_unchanged) ... ok
+test_plated_transition_preserves_pad_connected_back_copper (test_orphan_copper.OrphanCopperTests.test_plated_transition_preserves_pad_connected_back_copper) ... ok
+test_protected_or_locked_copper_is_never_cleanup_target (test_orphan_copper.OrphanCopperTests.test_protected_or_locked_copper_is_never_cleanup_target) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.048s
+
+OK

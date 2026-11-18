@@ -1,0 +1,119 @@
+{
+  "archive_sha256": "2f51a36928e87cb51dcb15f3fa5f04b5b789473a67bb6b2b4529f671bc91addd",
+  "tool_image_id": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "checks": [
+    {
+      "name": "drc",
+      "argv": [
+        "python3",
+        "-c",
+        "import sys; import pcbnew,json; from pathlib import Path; b=pcbnew.LoadBoard('sorx.kicad_pcb'); o=Path(sys.argv[1]); pcbnew.WriteDRCReport(b,str(o/'drc-stored.txt'),pcbnew.EDA_UNITS_MILLIMETRES,True); pcbnew.ZONE_FILLER(b).Fill(b.Zones()); pcbnew.WriteDRCReport(b,str(o/'drc-refilled.txt'),pcbnew.EDA_UNITS_MILLIMETRES,True); (o/'inventory.json').write_text(json.dumps({'footprints':len(list(b.GetFootprints())),'pads':sum(len(list(f.Pads())) for f in b.GetFootprints()),'named_nets':len([n for n in b.GetNetsByName() if n]),'segments':sum(x.GetClass()!='PCB_VIA' for x in b.GetTracks()),'vias':sum(x.GetClass()=='PCB_VIA' for x in b.GetTracks())},indent=2))",
+        "/work/hardware/validation/baseline-codex"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "erc",
+      "argv": [
+        "xvfb-run",
+        "-a",
+        "eeschema_do",
+        "run_erc",
+        "/tmp/sorx-codex-baseline-apyedr2p/sorx-hw/hw/sorx.kicad_sch",
+        "/tmp/sorx-codex-baseline-apyedr2p/erc"
+      ],
+      "exit_code": 0,
+      "log_sha256": "ad030bda8585b454f78b71ec8bc8c5c2406c470c206544f429efd7a4023e8d68"
+    },
+    {
+      "name": "netlist-parity",
+      "argv": [
+        "python3",
+        "check_netlist.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "895115b8b1545ff4c1aba37d181aa20ac783d5e924d987f988148f07d7972486"
+    },
+    {
+      "name": "pairs",
+      "argv": [
+        "python3",
+        "pairs.py",
+        "/tmp/sorx-codex-baseline-apyedr2p/sorx-hw/hw/sorx.kicad_pcb"
+      ],
+      "exit_code": 0,
+      "log_sha256": "bfa4040b38ecdfa60caa2bde6a4260d5f77c43df3a7469f6e84b258aa063fd02"
+    },
+    {
+      "name": "mech-export",
+      "argv": [
+        "python3",
+        "mech_export.py",
+        "/tmp/sorx-codex-baseline-apyedr2p/sorx-hw/hw/sorx.kicad_pcb",
+        "/tmp/sorx-codex-baseline-apyedr2p/sorx-hw/hw/build/mech_parts.json"
+      ],
+      "exit_code": 0,
+      "log_sha256": "bc7dba4ef64703a69c8b1d3f206e0b2451e507c0e881574463665511f71e5899"
+    },
+    {
+      "name": "mechanical",
+      "argv": [
+        "/opt/cq/bin/python",
+        "gen_mech.py"
+      ],
+      "exit_code": 0,
+      "log_sha256": "d2802b2bd65284c412e65f207241ad98e0d8ed392770db4d9db886c079145220"
+    },
+    {
+      "name": "system-packages",
+      "argv": [
+        "dpkg-query",
+        "-W"
+      ],
+      "exit_code": 0,
+      "log_sha256": "1d1ec7d430d86ba5ef046c2fa4d7fa9ab37eeac1f6bd2009de35b718f6d39432"
+    },
+    {
+      "name": "python-packages",
+      "argv": [
+        "python3",
+        "-m",
+        "pip",
+        "freeze"
+      ],
+      "exit_code": 0,
+      "log_sha256": "bb90e4ab9e691e733b1469f19b4dd0122c53315a991e395cdc2065ffb8212307"
+    },
+    {
+      "name": "cadquery-packages",
+      "argv": [
+        "/opt/cq/bin/python",
+        "-m",
+        "pip",
+        "freeze"
+      ],
+      "exit_code": 0,
+      "log_sha256": "0b773b176f305ac7ca2a36a834d04ff1c5aa5d10befa819baf81a24207392069"
+    }
+  ],
+  "hardware_ready": false,
+  "execution_success": true,
+  "outputs": {
+    "cadquery-packages.log": "0b773b176f305ac7ca2a36a834d04ff1c5aa5d10befa819baf81a24207392069",
+    "drc-refilled.txt": "e2a3d0ec109eb13a2d6713b1f87419729ab2604556e1e0d41dd4b92645a72559",
+    "drc-stored.txt": "bb4cfa39c68273a07598f80f4ed702e781529dbb8b8eaf64d782040a80052f25",
+    "drc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "erc-report.txt": "d4ca11cdfc3c0a2be8b8512079751576c41400ccb69f956b0fead61242be0a03",
+    "erc.log": "ad030bda8585b454f78b71ec8bc8c5c2406c470c206544f429efd7a4023e8d68",
+    "fit-check.json": "80db7e85e6af59e60891113c62a1d63724d221cea4bd94bd6b29d54701e25e1f",
+    "inventory.json": "fbd8215bcddcd0a8fbd2c57b9f70791621b9502358efb9b270d27e388146a3c4",
+    "mech-export.log": "bc7dba4ef64703a69c8b1d3f206e0b2451e507c0e881574463665511f71e5899",
+    "mechanical.log": "d2802b2bd65284c412e65f207241ad98e0d8ed392770db4d9db886c079145220",
+    "netlist-parity.log": "895115b8b1545ff4c1aba37d181aa20ac783d5e924d987f988148f07d7972486",
+    "pairs.log": "bfa4040b38ecdfa60caa2bde6a4260d5f77c43df3a7469f6e84b258aa063fd02",
+    "python-packages.log": "bb90e4ab9e691e733b1469f19b4dd0122c53315a991e395cdc2065ffb8212307",
+    "system-packages.log": "1d1ec7d430d86ba5ef046c2fa4d7fa9ab37eeac1f6bd2009de35b718f6d39432"
+  },
+  "inventory_correction": "Fresh KiCad API recount: wxString empty-net truth value is True, so explicitly str-convert before excluding net 0. Actual named nets=262."
+}

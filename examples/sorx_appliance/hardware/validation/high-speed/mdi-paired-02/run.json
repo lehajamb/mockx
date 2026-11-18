@@ -1,0 +1,15 @@
+{
+  "success": false,
+  "source_sha256": "825e00ab492409f0c4665e1710710c23160ca38cbcf83e9748ebc51d6f933f0d",
+  "removed_primitives": 38,
+  "command": [
+    "/usr/bin/python3",
+    "/work/tools/correct_mdi.py",
+    "validation/high-speed/mdi-paired-02/filtered.kicad_pcb",
+    "runs/mdi-paired-02.kicad_pcb",
+    "--evidence",
+    "validation/high-speed/mdi-paired-02",
+    "--worker"
+  ],
+  "returncode": 1
+}

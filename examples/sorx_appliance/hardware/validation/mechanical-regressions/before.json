@@ -1,0 +1,6 @@
+{
+  "expected_failure": true,
+  "returncode": 1,
+  "source": "preserved baseline ZIP",
+  "command": "/opt/cq/bin/python -m unittest discover -s /tmp/before/sorx-hw/tests -p test_mechanical.py -v"
+}

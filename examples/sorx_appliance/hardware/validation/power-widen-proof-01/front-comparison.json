@@ -1,0 +1,13 @@
+{
+  "before": {
+    "DRC violations": 113,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 113,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "new_other": []
+}

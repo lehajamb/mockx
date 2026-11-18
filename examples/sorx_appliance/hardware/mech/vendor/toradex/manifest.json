@@ -1,0 +1,40 @@
+{
+  "vendor": "Toradex",
+  "assets": [
+    {
+      "id": "verdin-family-max",
+      "source_url": "https://docs.toradex.com/108878-verdin-module-maximum-components-height_step_model.zip",
+      "archive_sha256": "de83ae8ec8381f6565f54081200412132eb00637ddcefb3e22712e66f89dffda",
+      "step_sha256": "1eeb1ad85e15cb6e62fed8f7f23f7a844902cf64ac50cb98ddbdc82cb198e52b",
+      "archive_member": "Verdin Module Maximum Components Height_step_model/Verdin Module Maximum Components Height.STEP",
+      "retrieved_date": "2026-11-17",
+      "limitations": "Supplier simplified model. Generic max-height envelope is for fit; CPU-specific model is nominal thermal-interface geometry, not all populated components."
+    },
+    {
+      "id": "verdin-imx8mp-cpu",
+      "source_url": "https://docs.toradex.com/108788-verdin_imx8m_plus_v1.0_step_model.zip",
+      "archive_sha256": "e8f2005625bd673d0a62034b7316abd972c58f61a7168a1df9f570b2ca77e467",
+      "step_sha256": "7747cf9006b23bf34aa963078e2d4fc727e106e31f7769fe655ba2d5267edd3d",
+      "archive_member": "Verdin_iMX8M_Plus_V1.0_step_model/Verdin iMX8M Plus V1.0.step",
+      "retrieved_date": "2026-11-17",
+      "limitations": "Supplier Verdin iMX8M Plus V1.0 nominal CAD contains 2103 solids. Used as a reference only; exact selected module revision, tolerances and thermal interface require qualification."
+    },
+    {
+      "id": "heatsink-type1-v11",
+      "source_url": "https://docs.toradex.com/118320-verdin-industrial-heatsink-type-1-v1.1-3d-step-model.zip",
+      "archive_sha256": "05a7604c77506250360810d99c1c6f3c9b9648d1b838357d34513abe00bbc280",
+      "step_sha256": "dd95472cc1919f86d7e7459711e71772d5f5ebf35befb3d85d4f56e87794e0d9",
+      "retrieved_date": "2026-11-17",
+      "selected_mpn": "23111101",
+      "limitations": "Public V1.1 metal STEP; selected V1.1B changes TIM material to TGP3500ULM. TIM compression and exact assembly still require qualification."
+    }
+  ],
+  "source_index": "https://developer.toradex.com/hardware/verdin-som-family/modules/verdin-imx8m-plus/",
+  "supporting_files": {
+    "heatsink-datasheet.pdf": "2ade2a6404cb37b2e49dd70f2ad9ca801e837b1d1f13263f9adc1f2960c9eff7",
+    "heatsink-type1-v11-README.txt": "6d22e6be92841a434a32c971ca828acd69206df1b7a4a8a264fd521ea2b4d92a",
+    "verdin-family-max-README.txt": "2995aca954f1887667b5274af65fd4576cd33af47dda441f779050e4af778bd8",
+    "verdin-imx8mp-cpu-README.txt": "cdd3bd318210ae2f2f9508f33a800c6a08fbdff7d72aafdfcf13740937b6dd8b"
+  },
+  "datasheet_url": "https://docs.toradex.com/109465-verdin_industrial_heatsink_datasheet.pdf"
+}

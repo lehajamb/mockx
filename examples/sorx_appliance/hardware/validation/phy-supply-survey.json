@@ -1,0 +1,10 @@
+{
+  "source_sha256": "5188991db0633f32b6552605679a701606510d5833916cdc843b0ec5413cead1",
+  "direct_via_options": [],
+  "grid_via_escape": null,
+  "conservative_clearance_mm": 0.185,
+  "trace_width_mm": 0.25,
+  "via_diameter_mm": 0.6,
+  "drill_mm": 0.3,
+  "no_board_changes": true
+}

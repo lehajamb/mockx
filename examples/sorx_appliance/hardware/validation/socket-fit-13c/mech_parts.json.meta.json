@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "source_pcb_sha256": "8b9d37de517287fd49d7c12f221765020cdd29ea738bb878ef77581833a4aefa",
+  "parts_sha256": "daa9ea0ca58b1de298c46be3b242e7dee59222f0beccc0d881f10e4cf24701ef",
+  "footprints": 371,
+  "pcbnew_version": "7.0.11",
+  "limitations": "XY envelopes derive from PCB fabrication graphics or pad bounds; maximum component heights are separate qualification inputs."
+}

@@ -1,0 +1,10 @@
+{
+  "footprints": 368,
+  "pads": 1582,
+  "track_segments": 3233,
+  "vias": 1161,
+  "model_mismatches": [
+    "R21: value '24.9k' != '9.1k'"
+  ],
+  "duplicate_via_sites": []
+}

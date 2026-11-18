@@ -1,0 +1,124 @@
+{
+  "purpose": "Failed attempts and large PCB/KiCad UI scratch remain available locally without being committed. Selected raw reports, commands and acceptance checks remain under validation/high-speed. Historical command paths are preserved in their original reports.",
+  "relocations": [
+    {
+      "experimental_source": "runs/high-speed-experiments/correct_mdi_experimental.py",
+      "sha256": "bb07c58728498a8e0a3b3187124be2b02823678ec8674fd6d3013e761a61858f"
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/mdi-topology-01",
+      "scratch_directory": "runs/high-speed-experiments/mdi-topology-01",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/mdi-topology-02",
+      "scratch_directory": "runs/high-speed-experiments/mdi-topology-02",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/mdi-topology-03",
+      "scratch_directory": "runs/high-speed-experiments/mdi-topology-03",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/mdi-topology-04",
+      "scratch_directory": "runs/high-speed-experiments/mdi-topology-04",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/mdi-topology-05",
+      "scratch_directory": "runs/high-speed-experiments/mdi-topology-05",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/mdi-topology-06",
+      "scratch_directory": "runs/high-speed-experiments/mdi-topology-06",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/mdi-topology-07",
+      "scratch_directory": "runs/high-speed-experiments/mdi-topology-07",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/mdi-topology-08",
+      "scratch_directory": "runs/high-speed-experiments/mdi-topology-08",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-combined-10",
+      "scratch_directory": "runs/high-speed-experiments/usb3-combined-10",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-combined-11",
+      "scratch_directory": "runs/high-speed-experiments/usb3-combined-11",
+      "retained_raw_evidence_directory": "validation/high-speed/usb3-combined-11"
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-replay-13",
+      "scratch_directory": "runs/high-speed-experiments/usb3-replay-13",
+      "retained_raw_evidence_directory": "validation/high-speed/usb3-replay-13"
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-01",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-01",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-02",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-02",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-03",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-03",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-04",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-04",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-05",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-05",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-06",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-06",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-07",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-07",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-08",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-08",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-09",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-09",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-10",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-10",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-11",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-11",
+      "retained_raw_evidence_directory": null
+    },
+    {
+      "original_evidence_directory": "validation/high-speed/usb3-topology-12",
+      "scratch_directory": "runs/high-speed-experiments/usb3-topology-12",
+      "retained_raw_evidence_directory": "validation/high-speed/usb3-topology-12"
+    }
+  ]
+}

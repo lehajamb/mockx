@@ -1,0 +1,23 @@
+.FF
+======================================================================
+FAIL: test_reduced_total_cannot_hide_new_ground_island (test_power_acceptance.PowerAcceptanceTests.test_reduced_total_cannot_hide_new_ground_island)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_power_acceptance.py", line 11, in test_reduced_total_cannot_hide_new_ground_island
+    self.assertFalse(accepted)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_required_power_net_must_be_fully_connected (test_power_acceptance.PowerAcceptanceTests.test_required_power_net_must_be_fully_connected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_power_acceptance.py", line 14, in test_required_power_net_must_be_fully_connected
+    self.assertFalse(accepted)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.013s
+
+FAILED (failures=2)

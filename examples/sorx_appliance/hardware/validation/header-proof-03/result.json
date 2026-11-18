@@ -1,0 +1,23 @@
+{
+  "status": "ACCEPTED FOR FURTHER DEVELOPMENT",
+  "source": "runs/power-parallel-front-proof-01.kicad_pcb",
+  "source_sha256": "1b0d2daeb9027e756f05e196231699b36a1eb811ffe74caaf152d1c49109778a",
+  "output": "runs/header-proof-03.kicad_pcb",
+  "output_sha256": "7872246bf43f510a601b714218ea2a5e7e1a43c72a894acc178703a6c8517012",
+  "tool_sha256": "dd72769762bbeda1ff210aa230bc80cd7505c2463c4335c25c8afaea37e76a2d",
+  "jp2_x": null,
+  "finished_hole_mm": 1.2,
+  "required_finished_hole_tolerance_mm": 0.05,
+  "before": {
+    "DRC violations": 107,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 107,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [],
+  "fabrication_ready": false
+}

@@ -1,0 +1,6202 @@
+{
+  "board": "runs/power-widen-proof-01.kicad_pcb",
+  "board_sha256": "0e866ff614a3c9c44bbd9f2575d1ec1605871edabd049cdb6cbb7fd8b295d04f",
+  "assumptions": {
+    "temperature_c": 85,
+    "copper_thickness_mm": 0.025,
+    "barrel_plating_mm": 0.02,
+    "rho_ohm_mm": 2.1643958e-05,
+    "nominal_board_thickness_mm": 1.6,
+    "source_revision": "current board hash",
+    "pads": "ideal equipotential copper; spreading/contact/connector resistance excluded",
+    "zones": "No power zones modeled; GND return drop excluded",
+    "thermal": "85C is a scenario, not predicted self heating or an approved temperature",
+    "interpretation": "Full trace/barrel network. Conservative material assumptions but NOT a mathematical upper bound on complete rail drop because pads/contacts/ground are omitted.",
+    "unknown_module_division": "All pads ideal-short common-load solution plus one-at-a-time worst allocation scenarios; no assumed equal division."
+  },
+  "cases": [
+    {
+      "net": "VBUS_IN",
+      "source_pads": [
+        "J3:A4",
+        "J3:A9",
+        "J3:B4",
+        "J3:B9"
+      ],
+      "sink_pads": [
+        "Q1:1",
+        "Q1:2",
+        "Q1:3"
+      ],
+      "load_a": 1.8926731078904993,
+      "terminal_assumption": "sink pads shorted by ideal module/package",
+      "voltage_drop_v": 0.0625733485697978,
+      "equivalent_ohms": 0.033060832485510214,
+      "total_copper_loss_w": 0.11843089410870598,
+      "shared_full_current_sections": [
+        {
+          "length_mm": 5.589396262567183,
+          "kind": "track",
+          "object": "860a4cc6-5a5b-44b5-8f2e-650bad01e465",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            6.3915999999999995,
+            12.25
+          ],
+          "end": [
+            10.3439,
+            8.2977
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013825903765984126,
+          "current_a": 1.8926731078903085,
+          "power_w": 0.049527311376198896,
+          "drop_v": 0.026167916250157495,
+          "load_fraction": 0.9999999999998992
+        },
+        {
+          "length_mm": 2.3726,
+          "kind": "track",
+          "object": "f559f3a4-1d74-41e2-b44a-d52ca66d3a6b",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            2.5174,
+            16.5831
+          ],
+          "end": [
+            4.89,
+            16.5831
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.00586885197152,
+          "current_a": 1.8926731078904213,
+          "power_w": 0.021023468985040684,
+          "drop_v": 0.011107818300685586,
+          "load_fraction": 0.9999999999999588
+        },
+        {
+          "length_mm": 2.0115000000000016,
+          "kind": "track",
+          "object": "76045996-23e4-41c6-b868-88998722a158",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            2.021,
+            19.091
+          ],
+          "end": [
+            2.021,
+            17.0795
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.004975636744800004,
+          "current_a": 1.8926731078904155,
+          "power_w": 0.01782378313386543,
+          "drop_v": 0.009417253861514374,
+          "load_fraction": 0.9999999999999558
+        },
+        {
+          "length_mm": 1.2561,
+          "kind": "track",
+          "object": "28c9e197-c114-446f-b4d9-c7e00dc612a6",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            10.3439,
+            8.2977
+          ],
+          "end": [
+            11.6,
+            8.2977
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.0031070829307200004,
+          "current_a": 1.8926731078903078,
+          "power_w": 0.01113022818515824,
+          "drop_v": 0.005880692306958749,
+          "load_fraction": 0.9999999999998989
+        },
+        {
+          "length_mm": 2.4098199102837565,
+          "kind": "track",
+          "object": "419f44d8-b25e-470d-97ba-f4c681cc0b63",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            3.7250000000000028,
+            20.795
+          ],
+          "end": [
+            2.021,
+            19.091
+          ],
+          "width_mm": 0.85,
+          "ohms": 0.002454496043564489,
+          "current_a": 1.8926731078904102,
+          "power_w": 0.008792523937593515,
+          "drop_v": 0.0046455586550779165,
+          "load_fraction": 0.9999999999999529
+        },
+        {
+          "length_mm": 0.7020156123620027,
+          "kind": "track",
+          "object": "0179e7c7-ba2f-459f-a815-a90fff7817bb",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            2.021,
+            17.0795
+          ],
+          "end": [
+            2.5174,
+            16.5831
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.0017365024490637107,
+          "current_a": 1.8926731078904195,
+          "power_w": 0.00622051903123446,
+          "drop_v": 0.0032866314871287383,
+          "load_fraction": 0.9999999999999579
+        },
+        {
+          "length_mm": 1.1936259040145014,
+          "kind": "track",
+          "object": "dae1460d-f420-4fc0-83f3-645086ee24c5",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            5.225,
+            15.904999
+          ],
+          "end": [
+            5.225,
+            14.711373095985499
+          ],
+          "width_mm": 1.75,
+          "ohms": 0.0005905094613531863,
+          "current_a": 1.8926731078904195,
+          "power_w": 0.002115329779380424,
+          "drop_v": 0.0011176413774580327,
+          "load_fraction": 0.9999999999999579
+        }
+      ],
+      "all_current_carrying_sections": [
+        {
+          "length_mm": 5.589396262567183,
+          "kind": "track",
+          "object": "860a4cc6-5a5b-44b5-8f2e-650bad01e465",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            6.3915999999999995,
+            12.25
+          ],
+          "end": [
+            10.3439,
+            8.2977
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013825903765984126,
+          "current_a": 1.8926731078903085,
+          "power_w": 0.049527311376198896,
+          "drop_v": 0.026167916250157495,
+          "load_fraction": 0.9999999999998992
+        },
+        {
+          "length_mm": 2.3726,
+          "kind": "track",
+          "object": "f559f3a4-1d74-41e2-b44a-d52ca66d3a6b",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            2.5174,
+            16.5831
+          ],
+          "end": [
+            4.89,
+            16.5831
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.00586885197152,
+          "current_a": 1.8926731078904213,
+          "power_w": 0.021023468985040684,
+          "drop_v": 0.011107818300685586,
+          "load_fraction": 0.9999999999999588
+        },
+        {
+          "length_mm": 2.0115000000000016,
+          "kind": "track",
+          "object": "76045996-23e4-41c6-b868-88998722a158",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            2.021,
+            19.091
+          ],
+          "end": [
+            2.021,
+            17.0795
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.004975636744800004,
+          "current_a": 1.8926731078904155,
+          "power_w": 0.01782378313386543,
+          "drop_v": 0.009417253861514374,
+          "load_fraction": 0.9999999999999558
+        },
+        {
+          "length_mm": 1.2561,
+          "kind": "track",
+          "object": "28c9e197-c114-446f-b4d9-c7e00dc612a6",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            10.3439,
+            8.2977
+          ],
+          "end": [
+            11.6,
+            8.2977
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.0031070829307200004,
+          "current_a": 1.8926731078903078,
+          "power_w": 0.01113022818515824,
+          "drop_v": 0.005880692306958749,
+          "load_fraction": 0.9999999999998989
+        },
+        {
+          "length_mm": 2.4098199102837565,
+          "kind": "track",
+          "object": "419f44d8-b25e-470d-97ba-f4c681cc0b63",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            3.7250000000000028,
+            20.795
+          ],
+          "end": [
+            2.021,
+            19.091
+          ],
+          "width_mm": 0.85,
+          "ohms": 0.002454496043564489,
+          "current_a": 1.8926731078904102,
+          "power_w": 0.008792523937593515,
+          "drop_v": 0.0046455586550779165,
+          "load_fraction": 0.9999999999999529
+        },
+        {
+          "length_mm": 0.7020156123620027,
+          "kind": "track",
+          "object": "0179e7c7-ba2f-459f-a815-a90fff7817bb",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            2.021,
+            17.0795
+          ],
+          "end": [
+            2.5174,
+            16.5831
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.0017365024490637107,
+          "current_a": 1.8926731078904195,
+          "power_w": 0.00622051903123446,
+          "drop_v": 0.0032866314871287383,
+          "load_fraction": 0.9999999999999579
+        },
+        {
+          "length_mm": 1.1936259040145014,
+          "kind": "track",
+          "object": "dae1460d-f420-4fc0-83f3-645086ee24c5",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            5.225,
+            15.904999
+          ],
+          "end": [
+            5.225,
+            14.711373095985499
+          ],
+          "width_mm": 1.75,
+          "ohms": 0.0005905094613531863,
+          "current_a": 1.8926731078904195,
+          "power_w": 0.002115329779380424,
+          "drop_v": 0.0011176413774580327,
+          "load_fraction": 0.9999999999999579
+        },
+        {
+          "length_mm": 0.3627000000000012,
+          "kind": "track",
+          "object": "5dd896da-a07f-4873-94f8-d0f42434f7ff",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            11.6,
+            8.2977
+          ],
+          "end": [
+            11.6,
+            7.935
+          ],
+          "width_mm": 0.6,
+          "ohms": 0.0005233509044400017,
+          "current_a": 1.8149129441808258,
+          "power_w": 0.0017238702516528157,
+          "drop_v": 0.0009498363308169016,
+          "load_fraction": 0.9589151642798254
+        },
+        {
+          "length_mm": 2.6500000000000004,
+          "kind": "track",
+          "object": "6139d9f3-9717-4738-a8b6-a880006a96b6",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            14.25,
+            8.2977
+          ],
+          "end": [
+            11.6,
+            8.2977
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.006555027280000001,
+          "current_a": 0.07776016370948186,
+          "power_w": 3.96359102115448e-05,
+          "drop_v": 0.0005097199944129197,
+          "load_fraction": 0.04108483572007337
+        },
+        {
+          "length_mm": 1.7752000000000017,
+          "kind": "track",
+          "object": "76eecbee-d0b7-4bde-9792-349a48176037",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            16.0252,
+            8.2977
+          ],
+          "end": [
+            14.25,
+            8.2977
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.0043911261990400045,
+          "current_a": 0.07776016370948186,
+          "power_w": 2.655157275756015e-05,
+          "drop_v": 0.0003414546921063456,
+          "load_fraction": 0.04108483572007337
+        },
+        {
+          "length_mm": 0.5129352590727201,
+          "kind": "track",
+          "object": "7cfea421-87d5-4937-94ff-79851e43d21a",
+          "net": "VBUS_IN",
+          "layer": "F.Cu",
+          "start": [
+            16.3879,
+            7.9350000000000005
+          ],
+          "end": [
+            16.0252,
+            8.2977
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.001268794194753037,
+          "current_a": 0.07776016370948184,
+          "power_w": 7.671945612430867e-06,
+          "drop_v": 9.866164429763634e-05,
+          "load_fraction": 0.04108483572007336
+        }
+      ],
+      "graph_warnings": [
+        "Overlapping track centerlines: 3253f4b8-893c-4777-9a94-44a0fd21025d / d95951e9-38d8-4a70-a5fe-0a113b07b344",
+        "Overlapping track centerlines: 39dc7d23-93e8-4c0b-bdbd-17c750b8d3a5 / c0650efe-b50a-473f-92e6-90aa396f2716"
+      ],
+      "trace_count": 66,
+      "barrel_section_count": 15
+    },
+    {
+      "net": "VIN_PROT",
+      "source_pads": [
+        "Q1:5",
+        "Q1:6",
+        "Q1:7",
+        "Q1:8"
+      ],
+      "sink_pads": [
+        "U3:1",
+        "U3:2",
+        "U3:3"
+      ],
+      "load_a": 1.8926731078904993,
+      "terminal_assumption": "sink pads shorted by ideal module/package",
+      "voltage_drop_v": 0.003705381540663075,
+      "equivalent_ohms": 0.001957750403498336,
+      "total_copper_loss_w": 0.007013075996486859,
+      "shared_full_current_sections": [
+        {
+          "length_mm": 1.3414,
+          "kind": "track",
+          "object": "313fd86b-11be-49e5-8a2f-dc2847ee5268",
+          "net": "VIN_PROT",
+          "layer": "F.Cu",
+          "start": [
+            7.6375,
+            30.875
+          ],
+          "end": [
+            7.6375,
+            29.5336
+          ],
+          "width_mm": 1.725,
+          "ohms": 0.0006732337451872463,
+          "current_a": 1.892673107890499,
+          "power_w": 0.0024116656597086205,
+          "drop_v": 0.0012742114048403057,
+          "load_fraction": 0.9999999999999999
+        }
+      ],
+      "all_current_carrying_sections": [
+        {
+          "length_mm": 1.3414,
+          "kind": "track",
+          "object": "313fd86b-11be-49e5-8a2f-dc2847ee5268",
+          "net": "VIN_PROT",
+          "layer": "F.Cu",
+          "start": [
+            7.6375,
+            30.875
+          ],
+          "end": [
+            7.6375,
+            29.5336
+          ],
+          "width_mm": 1.725,
+          "ohms": 0.0006732337451872463,
+          "current_a": 1.892673107890499,
+          "power_w": 0.0024116656597086205,
+          "drop_v": 0.0012742114048403057,
+          "load_fraction": 0.9999999999999999
+        },
+        {
+          "length_mm": 2.6910999999999987,
+          "kind": "track",
+          "object": "d09e600e-3c09-4594-87bf-bd3527dd183d",
+          "net": "VIN_PROT",
+          "layer": "F.Cu",
+          "start": [
+            7.6375,
+            28.9336
+          ],
+          "end": [
+            7.6375,
+            26.2425
+          ],
+          "width_mm": 2.0,
+          "ohms": 0.0011649211074759994,
+          "current_a": 1.3506038768307296,
+          "power_w": 0.0021249685091229266,
+          "drop_v": 0.0015733469639590317,
+          "load_fraction": 0.7135959565336989
+        },
+        {
+          "length_mm": 1.4672465709620885,
+          "kind": "track",
+          "object": "1fb39c93-c8da-4434-8a65-bbc3d3e04053",
+          "net": "VIN_PROT",
+          "layer": "F.Cu",
+          "start": [
+            7.6375,
+            26.2425
+          ],
+          "end": [
+            8.675000000000002,
+            25.205
+          ],
+          "width_mm": 2.0,
+          "ohms": 0.0006351404631509492,
+          "current_a": 1.3506038768307296,
+          "power_w": 0.0011585793015543965,
+          "drop_v": 0.0008578231718637372,
+          "load_fraction": 0.7135959565336989
+        },
+        {
+          "length_mm": 7.590815425461297,
+          "kind": "track",
+          "object": "fe7a0e29-e3b0-4980-a437-58821c4aeb7d",
+          "net": "VIN_PROT",
+          "layer": "In2.Cu",
+          "start": [
+            7.6375,
+            21.3427845745387
+          ],
+          "end": [
+            7.6375,
+            28.9336
+          ],
+          "width_mm": 2.0,
+          "ohms": 0.0032859058050887287,
+          "current_a": 0.5420692310597655,
+          "power_w": 0.000965527444302668,
+          "drop_v": 0.0017811884330992667,
+          "load_fraction": 0.28640404346629883
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "2d3fefd3-5b80-49eb-be4e-edfc373a94c6",
+          "xy": [
+            7.6375,
+            29.2336
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null,
+          "ohms": 0.000306797414867316,
+          "current_a": 0.5420692310597683,
+          "power_w": 9.014906131416306e-05,
+          "drop_v": 0.0001663054387682507,
+          "load_fraction": 0.2864040434663004
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "429fcad0-72f3-4be4-8576-a347902d5680",
+          "xy": [
+            7.5127,
+            21.07
+          ],
+          "layers": [
+            "In1.Cu",
+            "In2.Cu"
+          ],
+          "barrel_length_mm": null,
+          "ohms": 0.000306797414867316,
+          "current_a": 0.5420692310597652,
+          "power_w": 9.014906131416202e-05,
+          "drop_v": 0.00016630543876824976,
+          "load_fraction": 0.2864040434662987
+        },
+        {
+          "length_mm": 0.18730000000000047,
+          "kind": "track",
+          "object": "4d1cec2b-8389-4ea5-94e4-cee31c266d14",
+          "net": "VIN_PROT",
+          "layer": "F.Cu",
+          "start": [
+            7.8126999999999995,
+            21.07
+          ],
+          "end": [
+            8.0,
+            21.07
+          ],
+          "width_mm": 0.55,
+          "ohms": 0.0002948300606109098,
+          "current_a": 0.5420692310597655,
+          "power_w": 8.663258529334673e-05,
+          "drop_v": 0.00015981830424865992,
+          "load_fraction": 0.28640404346629883
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "2d3fefd3-5b80-49eb-be4e-edfc373a94c6",
+          "xy": [
+            7.6375,
+            29.2336
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null,
+          "ohms": 0.00014532509125293915,
+          "current_a": 0.5420692310597656,
+          "power_w": 4.270218693828732e-05,
+          "drop_v": 7.877626046917099e-05,
+          "load_fraction": 0.2864040434662989
+        },
+        {
+          "length_mm": 0.0,
+          "kind": "via",
+          "object": "429fcad0-72f3-4be4-8576-a347902d5680",
+          "xy": [
+            7.5127,
+            21.07
+          ],
+          "layers": [
+            "F.Cu",
+            "In1.Cu"
+          ],
+          "barrel_length_mm": null,
+          "ohms": 0.00014532509125293915,
+          "current_a": 0.5420692310597655,
+          "power_w": 4.2702186938287304e-05,
+          "drop_v": 7.877626046917096e-05,
+          "load_fraction": 0.28640404346629883
+        }
+      ],
+      "graph_warnings": [],
+      "trace_count": 11,
+      "barrel_section_count": 10
+    },
+    {
+      "net": "+5V",
+      "source_pads": [
+        "L1:2"
+      ],
+      "sink_pads": [
+        "J1:251",
+        "J1:253",
+        "J1:255",
+        "J1:257",
+        "J1:259"
+      ],
+      "load_a": 2.59,
+      "terminal_assumption": "sink pads shorted by ideal module/package",
+      "voltage_drop_v": 0.20099413215669887,
+      "equivalent_ohms": 0.07760391202961346,
+      "total_copper_loss_w": 0.5205748022863275,
+      "shared_full_current_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.5900000000024215,
+          "power_w": 0.1689030681129524,
+          "drop_v": 0.06521353981188976,
+          "load_fraction": 1.000000000000935
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.5900000000023176,
+          "power_w": 0.08877321319215088,
+          "drop_v": 0.034275371888830675,
+          "load_fraction": 1.0000000000008948
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000002423,
+          "power_w": 0.059811642601094624,
+          "drop_v": 0.023093298301559335,
+          "load_fraction": 1.0000000000009355
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.5900000000024344,
+          "power_w": 0.057385659907245305,
+          "drop_v": 0.022156625446792033,
+          "load_fraction": 1.00000000000094
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000024357,
+          "power_w": 0.054042706843239405,
+          "drop_v": 0.02086590997806509,
+          "load_fraction": 1.0000000000009406
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.5900000000024233,
+          "power_w": 0.03689716352110811,
+          "drop_v": 0.014246009081495594,
+          "load_fraction": 1.0000000000009357
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.5900000000022807,
+          "power_w": 0.018414484743453714,
+          "drop_v": 0.007109839669280887,
+          "load_fraction": 1.0000000000008806
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.5900000000024233,
+          "power_w": 0.008642452733674599,
+          "drop_v": 0.003336854337322978,
+          "load_fraction": 1.0000000000009357
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.5900000000023518,
+          "power_w": 0.0064165447904678255,
+          "drop_v": 0.0024774304210277986,
+          "load_fraction": 1.0000000000009082
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.590000000002292,
+          "power_w": 0.006388352725042523,
+          "drop_v": 0.0024665454536821896,
+          "load_fraction": 1.0000000000008848
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.590000000002424,
+          "power_w": 0.0050859713213141705,
+          "drop_v": 0.001963695490853054,
+          "load_fraction": 1.000000000000936
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000002471,
+          "power_w": 0.0036496622439422476,
+          "drop_v": 0.0014091360015207588,
+          "load_fraction": 1.0000000000009541
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.5899999999978576,
+          "power_w": 0.002786486775488094,
+          "drop_v": 0.0010758636198804628,
+          "load_fraction": 0.9999999999991729
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000024717,
+          "power_w": 0.001265668185343453,
+          "drop_v": 0.0004886749750356159,
+          "load_fraction": 1.0000000000009543
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000023504,
+          "power_w": 0.001179412264846316,
+          "drop_v": 0.0004553715308282802,
+          "load_fraction": 1.0000000000009075
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.590000000002284,
+          "power_w": 0.0009323123249637736,
+          "drop_v": 0.0003599661486343442,
+          "load_fraction": 1.0000000000008817
+        }
+      ],
+      "all_current_carrying_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.5900000000024215,
+          "power_w": 0.1689030681129524,
+          "drop_v": 0.06521353981188976,
+          "load_fraction": 1.000000000000935
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.5900000000023176,
+          "power_w": 0.08877321319215088,
+          "drop_v": 0.034275371888830675,
+          "load_fraction": 1.0000000000008948
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000002423,
+          "power_w": 0.059811642601094624,
+          "drop_v": 0.023093298301559335,
+          "load_fraction": 1.0000000000009355
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.5900000000024344,
+          "power_w": 0.057385659907245305,
+          "drop_v": 0.022156625446792033,
+          "load_fraction": 1.00000000000094
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000024357,
+          "power_w": 0.054042706843239405,
+          "drop_v": 0.02086590997806509,
+          "load_fraction": 1.0000000000009406
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.5900000000024233,
+          "power_w": 0.03689716352110811,
+          "drop_v": 0.014246009081495594,
+          "load_fraction": 1.0000000000009357
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.5900000000022807,
+          "power_w": 0.018414484743453714,
+          "drop_v": 0.007109839669280887,
+          "load_fraction": 1.0000000000008806
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.5900000000024233,
+          "power_w": 0.008642452733674599,
+          "drop_v": 0.003336854337322978,
+          "load_fraction": 1.0000000000009357
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.5900000000023518,
+          "power_w": 0.0064165447904678255,
+          "drop_v": 0.0024774304210277986,
+          "load_fraction": 1.0000000000009082
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.590000000002292,
+          "power_w": 0.006388352725042523,
+          "drop_v": 0.0024665454536821896,
+          "load_fraction": 1.0000000000008848
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.590000000002424,
+          "power_w": 0.0050859713213141705,
+          "drop_v": 0.001963695490853054,
+          "load_fraction": 1.000000000000936
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000002471,
+          "power_w": 0.0036496622439422476,
+          "drop_v": 0.0014091360015207588,
+          "load_fraction": 1.0000000000009541
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.5899999999978576,
+          "power_w": 0.002786486775488094,
+          "drop_v": 0.0010758636198804628,
+          "load_fraction": 0.9999999999991729
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000024717,
+          "power_w": 0.001265668185343453,
+          "drop_v": 0.0004886749750356159,
+          "load_fraction": 1.0000000000009543
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000023504,
+          "power_w": 0.001179412264846316,
+          "drop_v": 0.0004553715308282802,
+          "load_fraction": 1.0000000000009075
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.590000000002284,
+          "power_w": 0.0009323123249637736,
+          "drop_v": 0.0003599661486343442,
+          "load_fraction": 1.0000000000008817
+        }
+      ],
+      "graph_warnings": [],
+      "trace_count": 109,
+      "barrel_section_count": 15
+    },
+    {
+      "net": "+5V",
+      "source_pads": [
+        "L1:2"
+      ],
+      "sink_pads": [
+        "J1:251"
+      ],
+      "load_a": 2.59,
+      "terminal_assumption": "entire rail load at this single pin; other pads unloaded",
+      "voltage_drop_v": 0.21191101183609015,
+      "equivalent_ohms": 0.0818189234888379,
+      "total_copper_loss_w": 0.5488495206563849,
+      "shared_full_current_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.590000000004524,
+          "power_w": 0.1689030681132266,
+          "drop_v": 0.0652135398119427,
+          "load_fraction": 1.0000000000017466
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.590000000004725,
+          "power_w": 0.08877321319231592,
+          "drop_v": 0.03427537188886254,
+          "load_fraction": 1.0000000000018243
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000004519,
+          "power_w": 0.059811642601191435,
+          "drop_v": 0.023093298301578025,
+          "load_fraction": 1.0000000000017448
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.5900000000044847,
+          "power_w": 0.05738565990733616,
+          "drop_v": 0.022156625446809575,
+          "load_fraction": 1.0000000000017315
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000044887,
+          "power_w": 0.054042706843325086,
+          "drop_v": 0.02086590997808163,
+          "load_fraction": 1.000000000001733
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.590000000004517,
+          "power_w": 0.03689716352116777,
+          "drop_v": 0.014246009081507112,
+          "load_fraction": 1.0000000000017442
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004647,
+          "power_w": 0.018414484743487357,
+          "drop_v": 0.007109839669287382,
+          "load_fraction": 1.0000000000017941
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.590000000004489,
+          "power_w": 0.008642452733688388,
+          "drop_v": 0.00333685433732564,
+          "load_fraction": 1.0000000000017333
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004673,
+          "power_w": 0.006416544790479327,
+          "drop_v": 0.002477430421030019,
+          "load_fraction": 1.0000000000018043
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.590000000004682,
+          "power_w": 0.006388352725054314,
+          "drop_v": 0.0024665454536844655,
+          "load_fraction": 1.0000000000018077
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "8bf77b82-db13-4027-a748-261512c0e500",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.87,
+            51.099
+          ],
+          "end": [
+            46.87,
+            50.7721
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.0008086182708799874,
+          "current_a": 2.5899999999999936,
+          "power_w": 0.005424292222890017,
+          "drop_v": 0.0020943213215791623,
+          "load_fraction": 0.9999999999999976
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000044923,
+          "power_w": 0.005085971321322293,
+          "drop_v": 0.0019636954908546222,
+          "load_fraction": 1.0000000000017346
+        },
+        {
+          "length_mm": 0.35769999999999413,
+          "kind": "track",
+          "object": "35d54dda-5293-4bff-9981-d1e607bd7757",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.5123,
+            50.7721
+          ],
+          "end": [
+            46.87,
+            50.7721
+          ],
+          "width_mm": 0.5,
+          "ohms": 0.0006193635021279898,
+          "current_a": 2.5899999999999923,
+          "power_w": 0.004154752308624744,
+          "drop_v": 0.001604151470511489,
+          "load_fraction": 0.9999999999999971
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000004554,
+          "power_w": 0.0036496622439481175,
+          "drop_v": 0.001409136001521892,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.5,
+          "kind": "track",
+          "object": "cf20c835-ded5-4495-9386-a87383cfaf62",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            50.7721
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0005410989499999998,
+          "current_a": 2.590000000000076,
+          "power_w": 0.0036297458664952113,
+          "drop_v": 0.0014014462805000405,
+          "load_fraction": 1.0000000000000293
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.5900000000002628,
+          "power_w": 0.0027864867754932693,
+          "drop_v": 0.001075863619881462,
+          "load_fraction": 1.0000000000001015
+        },
+        {
+          "length_mm": 0.35769999999999413,
+          "kind": "track",
+          "object": "773cdcd5-3516-4a2e-ad49-1d644952d25a",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.0123,
+            50.7721
+          ],
+          "end": [
+            46.37,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888299936,
+          "current_a": 2.58999999999993,
+          "power_w": 0.00259672019289034,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999731
+        },
+        {
+          "length_mm": 0.35770000000000124,
+          "kind": "track",
+          "object": "251f7e92-83f5-4279-8ac6-8e8a5fc65360",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.5113,
+            50.7721
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888300013,
+          "current_a": 2.5899999999998786,
+          "power_w": 0.0025967201928902882,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999531
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "94a6f8a7-0bb7-4764-a9ee-37562a36f89e",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            51.099
+          ],
+          "end": [
+            44.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00035377049350999437,
+          "current_a": 2.5900000000003085,
+          "power_w": 0.0023731278475149584,
+          "drop_v": 0.0009162655781909945,
+          "load_fraction": 1.0000000000001192
+        },
+        {
+          "length_mm": 0.20265680348806447,
+          "kind": "track",
+          "object": "a730f0e8-35cd-4762-a8f6-68cecca77c9c",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            46.0123,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.000219314767155496,
+          "current_a": 2.589999999999952,
+          "power_w": 0.0014711853895557282,
+          "drop_v": 0.000568025246932724,
+          "load_fraction": 0.9999999999999815
+        },
+        {
+          "length_mm": 0.2012425899256947,
+          "kind": "track",
+          "object": "e4d01359-7265-4a49-bd5e-e2b4a2fbe047",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.37,
+            50.9144
+          ],
+          "end": [
+            46.5123,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0002177843082081479,
+          "current_a": 2.589999999999957,
+          "power_w": 0.001460918917891028,
+          "drop_v": 0.0005640613582590936,
+          "load_fraction": 0.9999999999999833
+        },
+        {
+          "length_mm": 0.20124258992568966,
+          "kind": "track",
+          "object": "4bc4a6c9-5272-4239-84ca-595ad6e35d80",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.5113,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00021778430820814247,
+          "current_a": 2.5899999999997667,
+          "power_w": 0.0014609189178907771,
+          "drop_v": 0.0005640613582590381,
+          "load_fraction": 0.99999999999991
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000046433,
+          "power_w": 0.0012656681853455752,
+          "drop_v": 0.0004886749750360256,
+          "load_fraction": 1.0000000000017928
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000047183,
+          "power_w": 0.0011794122648484725,
+          "drop_v": 0.00045537153082869647,
+          "load_fraction": 1.0000000000018219
+        },
+        {
+          "length_mm": 0.14329999999999643,
+          "kind": "track",
+          "object": "a7e152bd-7473-45b2-be14-14b8144eb888",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0001550789590699961,
+          "current_a": 2.58999999999985,
+          "power_w": 0.0010402851653373204,
+          "drop_v": 0.0004016545039912666,
+          "load_fraction": 0.9999999999999423
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "281b9d00-6ca1-4d10-be93-01d4c0804c08",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.37,
+            50.9144
+          ],
+          "end": [
+            46.37,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "d2740e8a-d54a-48dc-8d5d-9a9da17cff11",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.5900000000044803,
+          "power_w": 0.0009323123249653549,
+          "drop_v": 0.0003599661486346495,
+          "load_fraction": 1.00000000000173
+        }
+      ],
+      "all_current_carrying_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.590000000004524,
+          "power_w": 0.1689030681132266,
+          "drop_v": 0.0652135398119427,
+          "load_fraction": 1.0000000000017466
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.590000000004725,
+          "power_w": 0.08877321319231592,
+          "drop_v": 0.03427537188886254,
+          "load_fraction": 1.0000000000018243
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000004519,
+          "power_w": 0.059811642601191435,
+          "drop_v": 0.023093298301578025,
+          "load_fraction": 1.0000000000017448
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.5900000000044847,
+          "power_w": 0.05738565990733616,
+          "drop_v": 0.022156625446809575,
+          "load_fraction": 1.0000000000017315
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000044887,
+          "power_w": 0.054042706843325086,
+          "drop_v": 0.02086590997808163,
+          "load_fraction": 1.000000000001733
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.590000000004517,
+          "power_w": 0.03689716352116777,
+          "drop_v": 0.014246009081507112,
+          "load_fraction": 1.0000000000017442
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004647,
+          "power_w": 0.018414484743487357,
+          "drop_v": 0.007109839669287382,
+          "load_fraction": 1.0000000000017941
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.590000000004489,
+          "power_w": 0.008642452733688388,
+          "drop_v": 0.00333685433732564,
+          "load_fraction": 1.0000000000017333
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004673,
+          "power_w": 0.006416544790479327,
+          "drop_v": 0.002477430421030019,
+          "load_fraction": 1.0000000000018043
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.590000000004682,
+          "power_w": 0.006388352725054314,
+          "drop_v": 0.0024665454536844655,
+          "load_fraction": 1.0000000000018077
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "8bf77b82-db13-4027-a748-261512c0e500",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.87,
+            51.099
+          ],
+          "end": [
+            46.87,
+            50.7721
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.0008086182708799874,
+          "current_a": 2.5899999999999936,
+          "power_w": 0.005424292222890017,
+          "drop_v": 0.0020943213215791623,
+          "load_fraction": 0.9999999999999976
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000044923,
+          "power_w": 0.005085971321322293,
+          "drop_v": 0.0019636954908546222,
+          "load_fraction": 1.0000000000017346
+        },
+        {
+          "length_mm": 0.35769999999999413,
+          "kind": "track",
+          "object": "35d54dda-5293-4bff-9981-d1e607bd7757",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.5123,
+            50.7721
+          ],
+          "end": [
+            46.87,
+            50.7721
+          ],
+          "width_mm": 0.5,
+          "ohms": 0.0006193635021279898,
+          "current_a": 2.5899999999999923,
+          "power_w": 0.004154752308624744,
+          "drop_v": 0.001604151470511489,
+          "load_fraction": 0.9999999999999971
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000004554,
+          "power_w": 0.0036496622439481175,
+          "drop_v": 0.001409136001521892,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.5,
+          "kind": "track",
+          "object": "cf20c835-ded5-4495-9386-a87383cfaf62",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            50.7721
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0005410989499999998,
+          "current_a": 2.590000000000076,
+          "power_w": 0.0036297458664952113,
+          "drop_v": 0.0014014462805000405,
+          "load_fraction": 1.0000000000000293
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.5900000000002628,
+          "power_w": 0.0027864867754932693,
+          "drop_v": 0.001075863619881462,
+          "load_fraction": 1.0000000000001015
+        },
+        {
+          "length_mm": 0.35769999999999413,
+          "kind": "track",
+          "object": "773cdcd5-3516-4a2e-ad49-1d644952d25a",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.0123,
+            50.7721
+          ],
+          "end": [
+            46.37,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888299936,
+          "current_a": 2.58999999999993,
+          "power_w": 0.00259672019289034,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999731
+        },
+        {
+          "length_mm": 0.35770000000000124,
+          "kind": "track",
+          "object": "251f7e92-83f5-4279-8ac6-8e8a5fc65360",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.5113,
+            50.7721
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888300013,
+          "current_a": 2.5899999999998786,
+          "power_w": 0.0025967201928902882,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999531
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "94a6f8a7-0bb7-4764-a9ee-37562a36f89e",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            51.099
+          ],
+          "end": [
+            44.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00035377049350999437,
+          "current_a": 2.5900000000003085,
+          "power_w": 0.0023731278475149584,
+          "drop_v": 0.0009162655781909945,
+          "load_fraction": 1.0000000000001192
+        },
+        {
+          "length_mm": 0.20265680348806447,
+          "kind": "track",
+          "object": "a730f0e8-35cd-4762-a8f6-68cecca77c9c",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            46.0123,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.000219314767155496,
+          "current_a": 2.589999999999952,
+          "power_w": 0.0014711853895557282,
+          "drop_v": 0.000568025246932724,
+          "load_fraction": 0.9999999999999815
+        },
+        {
+          "length_mm": 0.2012425899256947,
+          "kind": "track",
+          "object": "e4d01359-7265-4a49-bd5e-e2b4a2fbe047",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.37,
+            50.9144
+          ],
+          "end": [
+            46.5123,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0002177843082081479,
+          "current_a": 2.589999999999957,
+          "power_w": 0.001460918917891028,
+          "drop_v": 0.0005640613582590936,
+          "load_fraction": 0.9999999999999833
+        },
+        {
+          "length_mm": 0.20124258992568966,
+          "kind": "track",
+          "object": "4bc4a6c9-5272-4239-84ca-595ad6e35d80",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.5113,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00021778430820814247,
+          "current_a": 2.5899999999997667,
+          "power_w": 0.0014609189178907771,
+          "drop_v": 0.0005640613582590381,
+          "load_fraction": 0.99999999999991
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000046433,
+          "power_w": 0.0012656681853455752,
+          "drop_v": 0.0004886749750360256,
+          "load_fraction": 1.0000000000017928
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000047183,
+          "power_w": 0.0011794122648484725,
+          "drop_v": 0.00045537153082869647,
+          "load_fraction": 1.0000000000018219
+        },
+        {
+          "length_mm": 0.14329999999999643,
+          "kind": "track",
+          "object": "a7e152bd-7473-45b2-be14-14b8144eb888",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0001550789590699961,
+          "current_a": 2.58999999999985,
+          "power_w": 0.0010402851653373204,
+          "drop_v": 0.0004016545039912666,
+          "load_fraction": 0.9999999999999423
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "281b9d00-6ca1-4d10-be93-01d4c0804c08",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.37,
+            50.9144
+          ],
+          "end": [
+            46.37,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "d2740e8a-d54a-48dc-8d5d-9a9da17cff11",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.5900000000044803,
+          "power_w": 0.0009323123249653549,
+          "drop_v": 0.0003599661486346495,
+          "load_fraction": 1.00000000000173
+        }
+      ],
+      "graph_warnings": [],
+      "trace_count": 109,
+      "barrel_section_count": 15
+    },
+    {
+      "net": "+5V",
+      "source_pads": [
+        "L1:2"
+      ],
+      "sink_pads": [
+        "J1:253"
+      ],
+      "load_a": 2.59,
+      "terminal_assumption": "entire rail load at this single pin; other pads unloaded",
+      "voltage_drop_v": 0.20816589165249408,
+      "equivalent_ohms": 0.08037293113995911,
+      "total_copper_loss_w": 0.5391496593808531,
+      "shared_full_current_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.590000000004407,
+          "power_w": 0.16890306811321135,
+          "drop_v": 0.06521353981193975,
+          "load_fraction": 1.0000000000017015
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.5900000000047294,
+          "power_w": 0.08877321319231622,
+          "drop_v": 0.034275371888862594,
+          "load_fraction": 1.000000000001826
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000004401,
+          "power_w": 0.05981164260118598,
+          "drop_v": 0.02309329830157697,
+          "load_fraction": 1.0000000000016993
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.590000000004363,
+          "power_w": 0.05738565990733077,
+          "drop_v": 0.022156625446808534,
+          "load_fraction": 1.0000000000016847
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000043684,
+          "power_w": 0.05404270684332006,
+          "drop_v": 0.02086590997808066,
+          "load_fraction": 1.0000000000016867
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.590000000004406,
+          "power_w": 0.03689716352116461,
+          "drop_v": 0.014246009081506502,
+          "load_fraction": 1.0000000000017013
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004657,
+          "power_w": 0.018414484743487506,
+          "drop_v": 0.007109839669287411,
+          "load_fraction": 1.0000000000017981
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.590000000004403,
+          "power_w": 0.008642452733687812,
+          "drop_v": 0.003336854337325529,
+          "load_fraction": 1.0000000000017
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004702,
+          "power_w": 0.00641654479047947,
+          "drop_v": 0.002477430421030047,
+          "load_fraction": 1.0000000000018154
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.5900000000046526,
+          "power_w": 0.006388352725054169,
+          "drop_v": 0.0024665454536844378,
+          "load_fraction": 1.0000000000017963
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000043644,
+          "power_w": 0.005085971321321791,
+          "drop_v": 0.001963695490854525,
+          "load_fraction": 1.000000000001685
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.5900000000043755,
+          "power_w": 0.003649662243947614,
+          "drop_v": 0.001409136001521795,
+          "load_fraction": 1.0000000000016893
+        },
+        {
+          "length_mm": 0.5,
+          "kind": "track",
+          "object": "cf20c835-ded5-4495-9386-a87383cfaf62",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            50.7721
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0005410989499999998,
+          "current_a": 2.590000000000076,
+          "power_w": 0.0036297458664952113,
+          "drop_v": 0.0014014462805000405,
+          "load_fraction": 1.0000000000000293
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.590000000000196,
+          "power_w": 0.002786486775493126,
+          "drop_v": 0.0010758636198814342,
+          "load_fraction": 1.0000000000000757
+        },
+        {
+          "length_mm": 0.35769999999999413,
+          "kind": "track",
+          "object": "773cdcd5-3516-4a2e-ad49-1d644952d25a",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.0123,
+            50.7721
+          ],
+          "end": [
+            46.37,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888299936,
+          "current_a": 2.58999999999993,
+          "power_w": 0.00259672019289034,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999731
+        },
+        {
+          "length_mm": 0.35770000000000124,
+          "kind": "track",
+          "object": "251f7e92-83f5-4279-8ac6-8e8a5fc65360",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.5113,
+            50.7721
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888300013,
+          "current_a": 2.5899999999998786,
+          "power_w": 0.0025967201928902882,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999531
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "94a6f8a7-0bb7-4764-a9ee-37562a36f89e",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            51.099
+          ],
+          "end": [
+            44.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00035377049350999437,
+          "current_a": 2.5900000000003867,
+          "power_w": 0.0023731278475151016,
+          "drop_v": 0.0009162655781910222,
+          "load_fraction": 1.0000000000001494
+        },
+        {
+          "length_mm": 0.20265680348806447,
+          "kind": "track",
+          "object": "a730f0e8-35cd-4762-a8f6-68cecca77c9c",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            46.0123,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.000219314767155496,
+          "current_a": 2.589999999999952,
+          "power_w": 0.0014711853895557282,
+          "drop_v": 0.000568025246932724,
+          "load_fraction": 0.9999999999999815
+        },
+        {
+          "length_mm": 0.20124258992568966,
+          "kind": "track",
+          "object": "4bc4a6c9-5272-4239-84ca-595ad6e35d80",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.5113,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00021778430820814247,
+          "current_a": 2.5899999999997667,
+          "power_w": 0.0014609189178907771,
+          "drop_v": 0.0005640613582590381,
+          "load_fraction": 0.99999999999991
+        },
+        {
+          "length_mm": 0.1845999999999961,
+          "kind": "track",
+          "object": "ec64e5be-6042-40a7-b12c-85742108b6d3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.37,
+            51.099
+          ],
+          "end": [
+            46.37,
+            50.9144
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00019977373233999576,
+          "current_a": 2.589999999999968,
+          "power_w": 0.0013401021739098925,
+          "drop_v": 0.0005174139667605826,
+          "load_fraction": 0.9999999999999877
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000044225,
+          "power_w": 0.0012656681853453597,
+          "drop_v": 0.000488674975035984,
+          "load_fraction": 1.0000000000017075
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000045607,
+          "power_w": 0.001179412264848329,
+          "drop_v": 0.00045537153082866877,
+          "load_fraction": 1.000000000001761
+        },
+        {
+          "length_mm": 0.14329999999999643,
+          "kind": "track",
+          "object": "a7e152bd-7473-45b2-be14-14b8144eb888",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0001550789590699961,
+          "current_a": 2.58999999999985,
+          "power_w": 0.0010402851653373204,
+          "drop_v": 0.0004016545039912666,
+          "load_fraction": 0.9999999999999423
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "281b9d00-6ca1-4d10-be93-01d4c0804c08",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.37,
+            50.9144
+          ],
+          "end": [
+            46.37,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "d2740e8a-d54a-48dc-8d5d-9a9da17cff11",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.5900000000044803,
+          "power_w": 0.0009323123249653549,
+          "drop_v": 0.0003599661486346495,
+          "load_fraction": 1.00000000000173
+        }
+      ],
+      "all_current_carrying_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.590000000004407,
+          "power_w": 0.16890306811321135,
+          "drop_v": 0.06521353981193975,
+          "load_fraction": 1.0000000000017015
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.5900000000047294,
+          "power_w": 0.08877321319231622,
+          "drop_v": 0.034275371888862594,
+          "load_fraction": 1.000000000001826
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000004401,
+          "power_w": 0.05981164260118598,
+          "drop_v": 0.02309329830157697,
+          "load_fraction": 1.0000000000016993
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.590000000004363,
+          "power_w": 0.05738565990733077,
+          "drop_v": 0.022156625446808534,
+          "load_fraction": 1.0000000000016847
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000043684,
+          "power_w": 0.05404270684332006,
+          "drop_v": 0.02086590997808066,
+          "load_fraction": 1.0000000000016867
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.590000000004406,
+          "power_w": 0.03689716352116461,
+          "drop_v": 0.014246009081506502,
+          "load_fraction": 1.0000000000017013
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004657,
+          "power_w": 0.018414484743487506,
+          "drop_v": 0.007109839669287411,
+          "load_fraction": 1.0000000000017981
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.590000000004403,
+          "power_w": 0.008642452733687812,
+          "drop_v": 0.003336854337325529,
+          "load_fraction": 1.0000000000017
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004702,
+          "power_w": 0.00641654479047947,
+          "drop_v": 0.002477430421030047,
+          "load_fraction": 1.0000000000018154
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.5900000000046526,
+          "power_w": 0.006388352725054169,
+          "drop_v": 0.0024665454536844378,
+          "load_fraction": 1.0000000000017963
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000043644,
+          "power_w": 0.005085971321321791,
+          "drop_v": 0.001963695490854525,
+          "load_fraction": 1.000000000001685
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.5900000000043755,
+          "power_w": 0.003649662243947614,
+          "drop_v": 0.001409136001521795,
+          "load_fraction": 1.0000000000016893
+        },
+        {
+          "length_mm": 0.5,
+          "kind": "track",
+          "object": "cf20c835-ded5-4495-9386-a87383cfaf62",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            50.7721
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0005410989499999998,
+          "current_a": 2.590000000000076,
+          "power_w": 0.0036297458664952113,
+          "drop_v": 0.0014014462805000405,
+          "load_fraction": 1.0000000000000293
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.590000000000196,
+          "power_w": 0.002786486775493126,
+          "drop_v": 0.0010758636198814342,
+          "load_fraction": 1.0000000000000757
+        },
+        {
+          "length_mm": 0.35769999999999413,
+          "kind": "track",
+          "object": "773cdcd5-3516-4a2e-ad49-1d644952d25a",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.0123,
+            50.7721
+          ],
+          "end": [
+            46.37,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888299936,
+          "current_a": 2.58999999999993,
+          "power_w": 0.00259672019289034,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999731
+        },
+        {
+          "length_mm": 0.35770000000000124,
+          "kind": "track",
+          "object": "251f7e92-83f5-4279-8ac6-8e8a5fc65360",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.5113,
+            50.7721
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888300013,
+          "current_a": 2.5899999999998786,
+          "power_w": 0.0025967201928902882,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999531
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "94a6f8a7-0bb7-4764-a9ee-37562a36f89e",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            51.099
+          ],
+          "end": [
+            44.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00035377049350999437,
+          "current_a": 2.5900000000003867,
+          "power_w": 0.0023731278475151016,
+          "drop_v": 0.0009162655781910222,
+          "load_fraction": 1.0000000000001494
+        },
+        {
+          "length_mm": 0.20265680348806447,
+          "kind": "track",
+          "object": "a730f0e8-35cd-4762-a8f6-68cecca77c9c",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            46.0123,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.000219314767155496,
+          "current_a": 2.589999999999952,
+          "power_w": 0.0014711853895557282,
+          "drop_v": 0.000568025246932724,
+          "load_fraction": 0.9999999999999815
+        },
+        {
+          "length_mm": 0.20124258992568966,
+          "kind": "track",
+          "object": "4bc4a6c9-5272-4239-84ca-595ad6e35d80",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.5113,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00021778430820814247,
+          "current_a": 2.5899999999997667,
+          "power_w": 0.0014609189178907771,
+          "drop_v": 0.0005640613582590381,
+          "load_fraction": 0.99999999999991
+        },
+        {
+          "length_mm": 0.1845999999999961,
+          "kind": "track",
+          "object": "ec64e5be-6042-40a7-b12c-85742108b6d3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.37,
+            51.099
+          ],
+          "end": [
+            46.37,
+            50.9144
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00019977373233999576,
+          "current_a": 2.589999999999968,
+          "power_w": 0.0013401021739098925,
+          "drop_v": 0.0005174139667605826,
+          "load_fraction": 0.9999999999999877
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000044225,
+          "power_w": 0.0012656681853453597,
+          "drop_v": 0.000488674975035984,
+          "load_fraction": 1.0000000000017075
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000045607,
+          "power_w": 0.001179412264848329,
+          "drop_v": 0.00045537153082866877,
+          "load_fraction": 1.000000000001761
+        },
+        {
+          "length_mm": 0.14329999999999643,
+          "kind": "track",
+          "object": "a7e152bd-7473-45b2-be14-14b8144eb888",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0001550789590699961,
+          "current_a": 2.58999999999985,
+          "power_w": 0.0010402851653373204,
+          "drop_v": 0.0004016545039912666,
+          "load_fraction": 0.9999999999999423
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "281b9d00-6ca1-4d10-be93-01d4c0804c08",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            46.37,
+            50.9144
+          ],
+          "end": [
+            46.37,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "d2740e8a-d54a-48dc-8d5d-9a9da17cff11",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.5900000000044803,
+          "power_w": 0.0009323123249653549,
+          "drop_v": 0.0003599661486346495,
+          "load_fraction": 1.00000000000173
+        }
+      ],
+      "graph_warnings": [],
+      "trace_count": 109,
+      "barrel_section_count": 15
+    },
+    {
+      "net": "+5V",
+      "source_pads": [
+        "L1:2"
+      ],
+      "sink_pads": [
+        "J1:255"
+      ],
+      "load_a": 2.59,
+      "terminal_assumption": "entire rail load at this single pin; other pads unloaded",
+      "voltage_drop_v": 0.2061936172325108,
+      "equivalent_ohms": 0.07961143522490766,
+      "total_copper_loss_w": 0.5340414686331234,
+      "shared_full_current_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.5900000000045877,
+          "power_w": 0.16890306811323494,
+          "drop_v": 0.0652135398119443,
+          "load_fraction": 1.0000000000017715
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.590000000004727,
+          "power_w": 0.08877321319231607,
+          "drop_v": 0.034275371888862566,
+          "load_fraction": 1.0000000000018252
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000004581,
+          "power_w": 0.059811642601194315,
+          "drop_v": 0.023093298301578576,
+          "load_fraction": 1.0000000000017688
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.5900000000045353,
+          "power_w": 0.057385659907338404,
+          "drop_v": 0.022156625446810005,
+          "load_fraction": 1.000000000001751
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000045407,
+          "power_w": 0.05404270684332725,
+          "drop_v": 0.020865909978082048,
+          "load_fraction": 1.0000000000017533
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.5900000000045824,
+          "power_w": 0.036897163521169625,
+          "drop_v": 0.014246009081507471,
+          "load_fraction": 1.0000000000017693
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004647,
+          "power_w": 0.018414484743487357,
+          "drop_v": 0.007109839669287382,
+          "load_fraction": 1.0000000000017941
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.590000000004554,
+          "power_w": 0.00864245273368882,
+          "drop_v": 0.003336854337325723,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004702,
+          "power_w": 0.00641654479047947,
+          "drop_v": 0.002477430421030047,
+          "load_fraction": 1.0000000000018154
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.590000000004682,
+          "power_w": 0.006388352725054314,
+          "drop_v": 0.0024665454536844655,
+          "load_fraction": 1.0000000000018077
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000045473,
+          "power_w": 0.005085971321322509,
+          "drop_v": 0.001963695490854664,
+          "load_fraction": 1.0000000000017557
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000004554,
+          "power_w": 0.0036496622439481175,
+          "drop_v": 0.001409136001521892,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.5,
+          "kind": "track",
+          "object": "cf20c835-ded5-4495-9386-a87383cfaf62",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            50.7721
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0005410989499999998,
+          "current_a": 2.590000000000076,
+          "power_w": 0.0036297458664952113,
+          "drop_v": 0.0014014462805000405,
+          "load_fraction": 1.0000000000000293
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.590000000000196,
+          "power_w": 0.002786486775493126,
+          "drop_v": 0.0010758636198814342,
+          "load_fraction": 1.0000000000000757
+        },
+        {
+          "length_mm": 0.35770000000000124,
+          "kind": "track",
+          "object": "251f7e92-83f5-4279-8ac6-8e8a5fc65360",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.5113,
+            50.7721
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888300013,
+          "current_a": 2.5899999999998786,
+          "power_w": 0.0025967201928902882,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999531
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "94a6f8a7-0bb7-4764-a9ee-37562a36f89e",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            51.099
+          ],
+          "end": [
+            44.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00035377049350999437,
+          "current_a": 2.5900000000003867,
+          "power_w": 0.0023731278475151016,
+          "drop_v": 0.0009162655781910222,
+          "load_fraction": 1.0000000000001494
+        },
+        {
+          "length_mm": 0.20124258992568966,
+          "kind": "track",
+          "object": "4bc4a6c9-5272-4239-84ca-595ad6e35d80",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.5113,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00021778430820814247,
+          "current_a": 2.5899999999997667,
+          "power_w": 0.0014609189178907771,
+          "drop_v": 0.0005640613582590381,
+          "load_fraction": 0.99999999999991
+        },
+        {
+          "length_mm": 0.1835999999999985,
+          "kind": "track",
+          "object": "31f8cd02-613e-42f4-a33f-e5b1e9312306",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            51.099
+          ],
+          "end": [
+            45.869,
+            50.9154
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0001986915344399983,
+          "current_a": 2.5899999999998276,
+          "power_w": 0.001332842682176775,
+          "drop_v": 0.0005146110741995613,
+          "load_fraction": 0.9999999999999335
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000046433,
+          "power_w": 0.0012656681853455752,
+          "drop_v": 0.0004886749750360256,
+          "load_fraction": 1.0000000000017928
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000045607,
+          "power_w": 0.001179412264848329,
+          "drop_v": 0.00045537153082866877,
+          "load_fraction": 1.000000000001761
+        },
+        {
+          "length_mm": 0.14329999999999643,
+          "kind": "track",
+          "object": "a7e152bd-7473-45b2-be14-14b8144eb888",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0001550789590699961,
+          "current_a": 2.58999999999985,
+          "power_w": 0.0010402851653373204,
+          "drop_v": 0.0004016545039912666,
+          "load_fraction": 0.9999999999999423
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "d2740e8a-d54a-48dc-8d5d-9a9da17cff11",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.5900000000044803,
+          "power_w": 0.0009323123249653549,
+          "drop_v": 0.0003599661486346495,
+          "load_fraction": 1.00000000000173
+        }
+      ],
+      "all_current_carrying_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.5900000000045877,
+          "power_w": 0.16890306811323494,
+          "drop_v": 0.0652135398119443,
+          "load_fraction": 1.0000000000017715
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.590000000004727,
+          "power_w": 0.08877321319231607,
+          "drop_v": 0.034275371888862566,
+          "load_fraction": 1.0000000000018252
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000004581,
+          "power_w": 0.059811642601194315,
+          "drop_v": 0.023093298301578576,
+          "load_fraction": 1.0000000000017688
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.5900000000045353,
+          "power_w": 0.057385659907338404,
+          "drop_v": 0.022156625446810005,
+          "load_fraction": 1.000000000001751
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000045407,
+          "power_w": 0.05404270684332725,
+          "drop_v": 0.020865909978082048,
+          "load_fraction": 1.0000000000017533
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.5900000000045824,
+          "power_w": 0.036897163521169625,
+          "drop_v": 0.014246009081507471,
+          "load_fraction": 1.0000000000017693
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004647,
+          "power_w": 0.018414484743487357,
+          "drop_v": 0.007109839669287382,
+          "load_fraction": 1.0000000000017941
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.590000000004554,
+          "power_w": 0.00864245273368882,
+          "drop_v": 0.003336854337325723,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004702,
+          "power_w": 0.00641654479047947,
+          "drop_v": 0.002477430421030047,
+          "load_fraction": 1.0000000000018154
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.590000000004682,
+          "power_w": 0.006388352725054314,
+          "drop_v": 0.0024665454536844655,
+          "load_fraction": 1.0000000000018077
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000045473,
+          "power_w": 0.005085971321322509,
+          "drop_v": 0.001963695490854664,
+          "load_fraction": 1.0000000000017557
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000004554,
+          "power_w": 0.0036496622439481175,
+          "drop_v": 0.001409136001521892,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.5,
+          "kind": "track",
+          "object": "cf20c835-ded5-4495-9386-a87383cfaf62",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            50.7721
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0005410989499999998,
+          "current_a": 2.590000000000076,
+          "power_w": 0.0036297458664952113,
+          "drop_v": 0.0014014462805000405,
+          "load_fraction": 1.0000000000000293
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.590000000000196,
+          "power_w": 0.002786486775493126,
+          "drop_v": 0.0010758636198814342,
+          "load_fraction": 1.0000000000000757
+        },
+        {
+          "length_mm": 0.35770000000000124,
+          "kind": "track",
+          "object": "251f7e92-83f5-4279-8ac6-8e8a5fc65360",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.5113,
+            50.7721
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0003871021888300013,
+          "current_a": 2.5899999999998786,
+          "power_w": 0.0025967201928902882,
+          "drop_v": 0.0010025946690696563,
+          "load_fraction": 0.9999999999999531
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "94a6f8a7-0bb7-4764-a9ee-37562a36f89e",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            51.099
+          ],
+          "end": [
+            44.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00035377049350999437,
+          "current_a": 2.5900000000003867,
+          "power_w": 0.0023731278475151016,
+          "drop_v": 0.0009162655781910222,
+          "load_fraction": 1.0000000000001494
+        },
+        {
+          "length_mm": 0.20124258992568966,
+          "kind": "track",
+          "object": "4bc4a6c9-5272-4239-84ca-595ad6e35d80",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.5113,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00021778430820814247,
+          "current_a": 2.5899999999997667,
+          "power_w": 0.0014609189178907771,
+          "drop_v": 0.0005640613582590381,
+          "load_fraction": 0.99999999999991
+        },
+        {
+          "length_mm": 0.1835999999999985,
+          "kind": "track",
+          "object": "31f8cd02-613e-42f4-a33f-e5b1e9312306",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            51.099
+          ],
+          "end": [
+            45.869,
+            50.9154
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0001986915344399983,
+          "current_a": 2.5899999999998276,
+          "power_w": 0.001332842682176775,
+          "drop_v": 0.0005146110741995613,
+          "load_fraction": 0.9999999999999335
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000046433,
+          "power_w": 0.0012656681853455752,
+          "drop_v": 0.0004886749750360256,
+          "load_fraction": 1.0000000000017928
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000045607,
+          "power_w": 0.001179412264848329,
+          "drop_v": 0.00045537153082866877,
+          "load_fraction": 1.000000000001761
+        },
+        {
+          "length_mm": 0.14329999999999643,
+          "kind": "track",
+          "object": "a7e152bd-7473-45b2-be14-14b8144eb888",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.869,
+            50.9154
+          ],
+          "end": [
+            45.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0001550789590699961,
+          "current_a": 2.58999999999985,
+          "power_w": 0.0010402851653373204,
+          "drop_v": 0.0004016545039912666,
+          "load_fraction": 0.9999999999999423
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "d2740e8a-d54a-48dc-8d5d-9a9da17cff11",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.5900000000044803,
+          "power_w": 0.0009323123249653549,
+          "drop_v": 0.0003599661486346495,
+          "load_fraction": 1.00000000000173
+        }
+      ],
+      "graph_warnings": [],
+      "trace_count": 109,
+      "barrel_section_count": 15
+    },
+    {
+      "net": "+5V",
+      "source_pads": [
+        "L1:2"
+      ],
+      "sink_pads": [
+        "J1:257"
+      ],
+      "load_a": 2.59,
+      "terminal_assumption": "entire rail load at this single pin; other pads unloaded",
+      "voltage_drop_v": 0.20422810959375357,
+      "equivalent_ohms": 0.07885255196670023,
+      "total_copper_loss_w": 0.528950803848747,
+      "shared_full_current_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.5900000000046077,
+          "power_w": 0.16890306811323755,
+          "drop_v": 0.0652135398119448,
+          "load_fraction": 1.000000000001779
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.5900000000047316,
+          "power_w": 0.08877321319231637,
+          "drop_v": 0.03427537188886262,
+          "load_fraction": 1.000000000001827
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.5900000000046,
+          "power_w": 0.05981164260119519,
+          "drop_v": 0.02309329830157875,
+          "load_fraction": 1.0000000000017761
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.590000000004587,
+          "power_w": 0.05738565990734069,
+          "drop_v": 0.02215662544681045,
+          "load_fraction": 1.000000000001771
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000045855,
+          "power_w": 0.054042706843329125,
+          "drop_v": 0.02086590997808241,
+          "load_fraction": 1.0000000000017706
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.590000000004603,
+          "power_w": 0.036897163521170215,
+          "drop_v": 0.014246009081507582,
+          "load_fraction": 1.0000000000017772
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004657,
+          "power_w": 0.018414484743487506,
+          "drop_v": 0.007109839669287411,
+          "load_fraction": 1.0000000000017981
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.5900000000045753,
+          "power_w": 0.008642452733688962,
+          "drop_v": 0.003336854337325751,
+          "load_fraction": 1.0000000000017666
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004702,
+          "power_w": 0.00641654479047947,
+          "drop_v": 0.002477430421030047,
+          "load_fraction": 1.0000000000018154
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.5900000000046526,
+          "power_w": 0.006388352725054169,
+          "drop_v": 0.0024665454536844378,
+          "load_fraction": 1.0000000000017963
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000045837,
+          "power_w": 0.005085971321322652,
+          "drop_v": 0.0019636954908546916,
+          "load_fraction": 1.00000000000177
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000004516,
+          "power_w": 0.00364966224394801,
+          "drop_v": 0.0014091360015218712,
+          "load_fraction": 1.0000000000017437
+        },
+        {
+          "length_mm": 0.5,
+          "kind": "track",
+          "object": "cf20c835-ded5-4495-9386-a87383cfaf62",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            50.7721
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0005410989499999998,
+          "current_a": 2.590000000000127,
+          "power_w": 0.0036297458664953544,
+          "drop_v": 0.0014014462805000683,
+          "load_fraction": 1.000000000000049
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.590000000000196,
+          "power_w": 0.002786486775493126,
+          "drop_v": 0.0010758636198814342,
+          "load_fraction": 1.0000000000000757
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "94a6f8a7-0bb7-4764-a9ee-37562a36f89e",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            51.099
+          ],
+          "end": [
+            44.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00035377049350999437,
+          "current_a": 2.5900000000003085,
+          "power_w": 0.0023731278475149584,
+          "drop_v": 0.0009162655781909945,
+          "load_fraction": 1.0000000000001192
+        },
+        {
+          "length_mm": 0.1845999999999961,
+          "kind": "track",
+          "object": "67842960-f776-426f-958a-381f9736871d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            51.099
+          ],
+          "end": [
+            45.369,
+            50.9144
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00019977373233999576,
+          "current_a": 2.589999999999968,
+          "power_w": 0.0013401021739098925,
+          "drop_v": 0.0005174139667605826,
+          "load_fraction": 0.9999999999999877
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000046064,
+          "power_w": 0.0012656681853455392,
+          "drop_v": 0.0004886749750360186,
+          "load_fraction": 1.0000000000017786
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000045607,
+          "power_w": 0.001179412264848329,
+          "drop_v": 0.00045537153082866877,
+          "load_fraction": 1.000000000001761
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "d2740e8a-d54a-48dc-8d5d-9a9da17cff11",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.59000000000468,
+          "power_w": 0.0009323123249654987,
+          "drop_v": 0.00035996614863467724,
+          "load_fraction": 1.000000000001807
+        }
+      ],
+      "all_current_carrying_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.5900000000046077,
+          "power_w": 0.16890306811323755,
+          "drop_v": 0.0652135398119448,
+          "load_fraction": 1.000000000001779
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.5900000000047316,
+          "power_w": 0.08877321319231637,
+          "drop_v": 0.03427537188886262,
+          "load_fraction": 1.000000000001827
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.5900000000046,
+          "power_w": 0.05981164260119519,
+          "drop_v": 0.02309329830157875,
+          "load_fraction": 1.0000000000017761
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.590000000004587,
+          "power_w": 0.05738565990734069,
+          "drop_v": 0.02215662544681045,
+          "load_fraction": 1.000000000001771
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000045855,
+          "power_w": 0.054042706843329125,
+          "drop_v": 0.02086590997808241,
+          "load_fraction": 1.0000000000017706
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.590000000004603,
+          "power_w": 0.036897163521170215,
+          "drop_v": 0.014246009081507582,
+          "load_fraction": 1.0000000000017772
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004657,
+          "power_w": 0.018414484743487506,
+          "drop_v": 0.007109839669287411,
+          "load_fraction": 1.0000000000017981
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.5900000000045753,
+          "power_w": 0.008642452733688962,
+          "drop_v": 0.003336854337325751,
+          "load_fraction": 1.0000000000017666
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004702,
+          "power_w": 0.00641654479047947,
+          "drop_v": 0.002477430421030047,
+          "load_fraction": 1.0000000000018154
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.5900000000046526,
+          "power_w": 0.006388352725054169,
+          "drop_v": 0.0024665454536844378,
+          "load_fraction": 1.0000000000017963
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000045837,
+          "power_w": 0.005085971321322652,
+          "drop_v": 0.0019636954908546916,
+          "load_fraction": 1.00000000000177
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000004516,
+          "power_w": 0.00364966224394801,
+          "drop_v": 0.0014091360015218712,
+          "load_fraction": 1.0000000000017437
+        },
+        {
+          "length_mm": 0.5,
+          "kind": "track",
+          "object": "cf20c835-ded5-4495-9386-a87383cfaf62",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            50.7721
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0005410989499999998,
+          "current_a": 2.590000000000127,
+          "power_w": 0.0036297458664953544,
+          "drop_v": 0.0014014462805000683,
+          "load_fraction": 1.000000000000049
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.590000000000196,
+          "power_w": 0.002786486775493126,
+          "drop_v": 0.0010758636198814342,
+          "load_fraction": 1.0000000000000757
+        },
+        {
+          "length_mm": 0.32689999999999486,
+          "kind": "track",
+          "object": "94a6f8a7-0bb7-4764-a9ee-37562a36f89e",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            44.869,
+            51.099
+          ],
+          "end": [
+            44.869,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00035377049350999437,
+          "current_a": 2.5900000000003085,
+          "power_w": 0.0023731278475149584,
+          "drop_v": 0.0009162655781909945,
+          "load_fraction": 1.0000000000001192
+        },
+        {
+          "length_mm": 0.1845999999999961,
+          "kind": "track",
+          "object": "67842960-f776-426f-958a-381f9736871d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            51.099
+          ],
+          "end": [
+            45.369,
+            50.9144
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00019977373233999576,
+          "current_a": 2.589999999999968,
+          "power_w": 0.0013401021739098925,
+          "drop_v": 0.0005174139667605826,
+          "load_fraction": 0.9999999999999877
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000046064,
+          "power_w": 0.0012656681853455392,
+          "drop_v": 0.0004886749750360186,
+          "load_fraction": 1.0000000000017786
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000045607,
+          "power_w": 0.001179412264848329,
+          "drop_v": 0.00045537153082866877,
+          "load_fraction": 1.000000000001761
+        },
+        {
+          "length_mm": 0.14229999999999876,
+          "kind": "track",
+          "object": "d2740e8a-d54a-48dc-8d5d-9a9da17cff11",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            45.369,
+            50.9144
+          ],
+          "end": [
+            45.369,
+            50.7721
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.00015399676116999863,
+          "current_a": 2.5900000000000287,
+          "power_w": 0.001033025673604491,
+          "drop_v": 0.0003988516114303009,
+          "load_fraction": 1.000000000000011
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.59000000000468,
+          "power_w": 0.0009323123249654987,
+          "drop_v": 0.00035996614863467724,
+          "load_fraction": 1.000000000001807
+        }
+      ],
+      "graph_warnings": [],
+      "trace_count": 109,
+      "barrel_section_count": 15
+    },
+    {
+      "net": "+5V",
+      "source_pads": [
+        "L1:2"
+      ],
+      "sink_pads": [
+        "J1:259"
+      ],
+      "load_a": 2.59,
+      "terminal_assumption": "entire rail load at this single pin; other pads unloaded",
+      "voltage_drop_v": 0.20099413215686993,
+      "equivalent_ohms": 0.0776039120296795,
+      "total_copper_loss_w": 0.5205748022872134,
+      "shared_full_current_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.5900000000045877,
+          "power_w": 0.16890306811323494,
+          "drop_v": 0.0652135398119443,
+          "load_fraction": 1.0000000000017715
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.590000000004727,
+          "power_w": 0.08877321319231607,
+          "drop_v": 0.034275371888862566,
+          "load_fraction": 1.0000000000018252
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000004581,
+          "power_w": 0.059811642601194315,
+          "drop_v": 0.023093298301578576,
+          "load_fraction": 1.0000000000017688
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.5900000000045353,
+          "power_w": 0.057385659907338404,
+          "drop_v": 0.022156625446810005,
+          "load_fraction": 1.000000000001751
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000045407,
+          "power_w": 0.05404270684332725,
+          "drop_v": 0.020865909978082048,
+          "load_fraction": 1.0000000000017533
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.5900000000045824,
+          "power_w": 0.036897163521169625,
+          "drop_v": 0.014246009081507471,
+          "load_fraction": 1.0000000000017693
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004647,
+          "power_w": 0.018414484743487357,
+          "drop_v": 0.007109839669287382,
+          "load_fraction": 1.0000000000017941
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.590000000004554,
+          "power_w": 0.00864245273368882,
+          "drop_v": 0.003336854337325723,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004702,
+          "power_w": 0.00641654479047947,
+          "drop_v": 0.002477430421030047,
+          "load_fraction": 1.0000000000018154
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.590000000004682,
+          "power_w": 0.006388352725054314,
+          "drop_v": 0.0024665454536844655,
+          "load_fraction": 1.0000000000018077
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000045473,
+          "power_w": 0.005085971321322509,
+          "drop_v": 0.001963695490854664,
+          "load_fraction": 1.0000000000017557
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000004554,
+          "power_w": 0.0036496622439481175,
+          "drop_v": 0.001409136001521892,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.590000000000196,
+          "power_w": 0.002786486775493126,
+          "drop_v": 0.0010758636198814342,
+          "load_fraction": 1.0000000000000757
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000046433,
+          "power_w": 0.0012656681853455752,
+          "drop_v": 0.0004886749750360256,
+          "load_fraction": 1.0000000000017928
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000045607,
+          "power_w": 0.001179412264848329,
+          "drop_v": 0.00045537153082866877,
+          "load_fraction": 1.000000000001761
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.5900000000044803,
+          "power_w": 0.0009323123249653549,
+          "drop_v": 0.0003599661486346495,
+          "load_fraction": 1.00000000000173
+        }
+      ],
+      "all_current_carrying_sections": [
+        {
+          "length_mm": 10.179099999999998,
+          "kind": "track",
+          "object": "2ac454e6-db81-47d0-8122-74d9130ebdd9",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            41.8237
+          ],
+          "end": [
+            26.8104,
+            52.0028
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.025178972900319996,
+          "current_a": 2.5900000000045877,
+          "power_w": 0.16890306811323494,
+          "drop_v": 0.0652135398119443,
+          "load_fraction": 1.0000000000017715
+        },
+        {
+          "length_mm": 5.3500000000000005,
+          "kind": "track",
+          "object": "ebf46ae2-02f6-4311-b503-035ec1548441",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            35.0,
+            44.2423
+          ],
+          "end": [
+            40.35,
+            44.2423
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.013233734320000003,
+          "current_a": 2.590000000004727,
+          "power_w": 0.08877321319231607,
+          "drop_v": 0.034275371888862566,
+          "load_fraction": 1.0000000000018252
+        },
+        {
+          "length_mm": 3.862075817484683,
+          "kind": "track",
+          "object": "9d527c47-2d9a-436e-901c-b32430f50aaa",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            26.8104,
+            52.0028
+          ],
+          "end": [
+            29.5413,
+            54.7337
+          ],
+          "width_mm": 0.375,
+          "ohms": 0.008916331390555109,
+          "current_a": 2.590000000004581,
+          "power_w": 0.059811642601194315,
+          "drop_v": 0.023093298301578576,
+          "load_fraction": 1.0000000000017688
+        },
+        {
+          "length_mm": 3.458400000000001,
+          "kind": "track",
+          "object": "5bd4936b-4401-4639-9145-ef5c46d59451",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            31.0893,
+            41.0032
+          ],
+          "end": [
+            27.6309,
+            41.0032
+          ],
+          "width_mm": 0.35,
+          "ohms": 0.008554681639680003,
+          "current_a": 2.5900000000045353,
+          "power_w": 0.057385659907338404,
+          "drop_v": 0.022156625446810005,
+          "load_fraction": 1.000000000001751
+        },
+        {
+          "length_mm": 4.885400751217856,
+          "kind": "track",
+          "object": "cd75ec6c-f901-4225-99b9-b9094ed8dab3",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.5438,
+            44.4577
+          ],
+          "end": [
+            31.0893,
+            41.0032
+          ],
+          "width_mm": 0.525,
+          "ohms": 0.008056335898859254,
+          "current_a": 2.5900000000045407,
+          "power_w": 0.05404270684332725,
+          "drop_v": 0.020865909978082048,
+          "load_fraction": 1.0000000000017533
+        },
+        {
+          "length_mm": 7.306251527288118,
+          "kind": "track",
+          "object": "49a60937-8cec-4dd8-a63a-e38e4df33614",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            29.5413,
+            54.7337
+          ],
+          "end": [
+            24.375000000000004,
+            59.9
+          ],
+          "width_mm": 1.15,
+          "ohms": 0.0055003896067499095,
+          "current_a": 2.5900000000045824,
+          "power_w": 0.036897163521169625,
+          "drop_v": 0.014246009081507471,
+          "load_fraction": 1.0000000000017693
+        },
+        {
+          "length_mm": 4.439063984954005,
+          "kind": "track",
+          "object": "1d896034-1b86-465d-b0b3-26ddb71ff169",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.3,
+            47.995
+          ],
+          "end": [
+            43.43889224588195,
+            51.13389224588195
+          ],
+          "width_mm": 1.4,
+          "ohms": 0.0027451118414187747,
+          "current_a": 2.590000000004647,
+          "power_w": 0.018414484743487357,
+          "drop_v": 0.007109839669287382,
+          "load_fraction": 1.0000000000017941
+        },
+        {
+          "length_mm": 2.232194686849694,
+          "kind": "track",
+          "object": "dd7575d6-2905-4956-8130-ed9aa1ba0a69",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            22.900000000000002,
+            60.765
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0012883607479999444,
+          "current_a": 2.590000000004554,
+          "power_w": 0.00864245273368882,
+          "drop_v": 0.003336854337325723,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.8838834764831893,
+          "kind": "track",
+          "object": "f6a8576f-7668-4660-9d04-6f626586c88f",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            40.35,
+            45.01499999999999
+          ],
+          "end": [
+            39.725,
+            45.64
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009565368420948067,
+          "current_a": 2.590000000004702,
+          "power_w": 0.00641654479047947,
+          "drop_v": 0.002477430421030047,
+          "load_fraction": 1.0000000000018154
+        },
+        {
+          "length_mm": 0.8800000000000026,
+          "kind": "track",
+          "object": "8342562f-2f34-41e5-a22e-ddc54a4621ef",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            39.725,
+            45.64
+          ],
+          "end": [
+            39.725,
+            46.52
+          ],
+          "width_mm": 0.8,
+          "ohms": 0.0009523341520000026,
+          "current_a": 2.590000000004682,
+          "power_w": 0.006388352725054314,
+          "drop_v": 0.0024665454536844655,
+          "load_fraction": 1.0000000000018077
+        },
+        {
+          "length_mm": 1.1603622279271257,
+          "kind": "track",
+          "object": "4c2a737a-91c3-4c3a-925e-4647a7d50b0d",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            27.6309,
+            41.0032
+          ],
+          "end": [
+            26.8104,
+            41.8237
+          ],
+          "width_mm": 1.325,
+          "ohms": 0.0007581835872012418,
+          "current_a": 2.5900000000045473,
+          "power_w": 0.005085971321322509,
+          "drop_v": 0.001963695490854664,
+          "load_fraction": 1.0000000000017557
+        },
+        {
+          "length_mm": 0.9426440526518998,
+          "kind": "track",
+          "object": "512211ea-0f83-4af3-9363-1d1da34eda28",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            21.3216,
+            62.3434
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0005440679542546001,
+          "current_a": 2.590000000004554,
+          "power_w": 0.0036496622439481175,
+          "drop_v": 0.001409136001521892,
+          "load_fraction": 1.0000000000017584
+        },
+        {
+          "length_mm": 0.7197008959051345,
+          "kind": "track",
+          "object": "136ea3f6-d631-4689-9314-c8126eef2e64",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            43.99979910409486,
+            51.512
+          ],
+          "end": [
+            44.7195,
+            51.512
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0004153913590275493,
+          "current_a": 2.590000000000196,
+          "power_w": 0.002786486775493126,
+          "drop_v": 0.0010758636198814342,
+          "load_fraction": 1.0000000000000757
+        },
+        {
+          "length_mm": 0.32690000000000197,
+          "kind": "track",
+          "object": "6e7de82b-203a-4637-bbc6-144eb2600765",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            20.655,
+            61.35
+          ],
+          "end": [
+            20.655,
+            61.6769
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.00018867759653866777,
+          "current_a": 2.5900000000046433,
+          "power_w": 0.0012656681853455752,
+          "drop_v": 0.0004886749750360256,
+          "load_fraction": 1.0000000000017928
+        },
+        {
+          "length_mm": 0.3046216013351682,
+          "kind": "track",
+          "object": "cf76601b-460e-431d-96c9-c84c53305a27",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            35.0,
+            44.2423
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001758191238717633,
+          "current_a": 2.5900000000045607,
+          "power_w": 0.001179412264848329,
+          "drop_v": 0.00045537153082866877,
+          "load_fraction": 1.000000000001761
+        },
+        {
+          "length_mm": 0.24080000000000013,
+          "kind": "track",
+          "object": "6c51ccee-8781-4f9c-83e8-7e57031f1b32",
+          "net": "+5V",
+          "layer": "F.Cu",
+          "start": [
+            34.7846,
+            44.4577
+          ],
+          "end": [
+            34.5438,
+            44.4577
+          ],
+          "width_mm": 1.5,
+          "ohms": 0.0001389830689706667,
+          "current_a": 2.5900000000044803,
+          "power_w": 0.0009323123249653549,
+          "drop_v": 0.0003599661486346495,
+          "load_fraction": 1.00000000000173
+        }
+      ],
+      "graph_warnings": [],
+      "trace_count": 109,
+      "barrel_section_count": 15
+    }
+  ]
+}

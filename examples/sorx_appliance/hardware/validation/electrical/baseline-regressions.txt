@@ -1,0 +1,67 @@
+test_fram_ordering_code_matches_voltage_and_package (test_electrical_model.ElectricalRequirements.test_fram_ordering_code_matches_voltage_and_package) ... FAIL
+test_ksz9131_bias_resistor_is_6040_ohms (test_electrical_model.ElectricalRequirements.test_ksz9131_bias_resistor_is_6040_ohms) ... FAIL
+test_te_socket_hold_down_land_pattern (test_electrical_model.ElectricalRequirements.test_te_socket_hold_down_land_pattern) ... FAIL
+test_te_socket_locating_holes (test_electrical_model.ElectricalRequirements.test_te_socket_locating_holes) ... FAIL
+test_verdin_uart_handshake_pin_numbers (test_electrical_model.ElectricalRequirements.test_verdin_uart_handshake_pin_numbers) ... FAIL
+
+======================================================================
+FAIL: test_fram_ordering_code_matches_voltage_and_package (test_electrical_model.ElectricalRequirements.test_fram_ordering_code_matches_voltage_and_package)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 18, in test_fram_ordering_code_matches_voltage_and_package
+    self.assertEqual(fram.mpn, "CY15V104QN-50SXI")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'CY15B104QN-50SXI' != 'CY15V104QN-50SXI'
+- CY15B104QN-50SXI
+?     ^
++ CY15V104QN-50SXI
+?     ^
+
+
+======================================================================
+FAIL: test_ksz9131_bias_resistor_is_6040_ohms (test_electrical_model.ElectricalRequirements.test_ksz9131_bias_resistor_is_6040_ohms)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 26, in test_ksz9131_bias_resistor_is_6040_ohms
+    self.assertEqual(resistors[0].value, "6.04k")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '12.1k' != '6.04k'
+- 12.1k
++ 6.04k
+
+
+======================================================================
+FAIL: test_te_socket_hold_down_land_pattern (test_electrical_model.ElectricalRequirements.test_te_socket_hold_down_land_pattern)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 45, in test_te_socket_hold_down_land_pattern
+    self.assertAlmostEqual(abs(float(first(a,"at")[1])-float(first(b,"at")[1])),67.60,places=4)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 75.5 != 67.6 within 4 places (7.900000000000006 difference)
+
+======================================================================
+FAIL: test_te_socket_locating_holes (test_electrical_model.ElectricalRequirements.test_te_socket_locating_holes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 37, in test_te_socket_locating_holes
+    self.assertAlmostEqual(holes[1][0]-holes[0][0], 68.8, places=4)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 68.801 != 68.8 within 4 places (0.0010000000000047748 difference)
+
+======================================================================
+FAIL: test_verdin_uart_handshake_pin_numbers (test_electrical_model.ElectricalRequirements.test_verdin_uart_handshake_pin_numbers)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_electrical_model.py", line 29, in test_verdin_uart_handshake_pin_numbers
+    self.assertEqual({n:model.VERDIN_PINS[n] for n in (133,135,141,143)},
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     {133:"UART_1_RTS",135:"UART_1_CTS",141:"UART_2_RTS",143:"UART_2_CTS"})
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {133: 'UART_1_CTS', 135: 'UART_1_RTS', 141: 'UART_2_CTS', 143: 'UART_2_RTS'} != {133: 'UART_1_RTS', 135: 'UART_1_CTS', 141: 'UART_2_RTS', 143: 'UART_2_CTS'}
+- {133: 'UART_1_CTS', 135: 'UART_1_RTS', 141: 'UART_2_CTS', 143: 'UART_2_RTS'}
++ {133: 'UART_1_RTS', 135: 'UART_1_CTS', 141: 'UART_2_RTS', 143: 'UART_2_CTS'}
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.034s
+
+FAILED (failures=5)

@@ -1,0 +1,32 @@
+{
+  "archive_sha256": "2f51a36928e87cb51dcb15f3fa5f04b5b789473a67bb6b2b4529f671bc91addd",
+  "pcb_sha256": "4b0b5f18692eecd80ba4ca10c9bc060dbb6584ba1aa6668b223d5afe200c771a",
+  "image": "sha256:23dbab2af8391fba7496a546d6729c37a5e8bdfb8e941ab903589252e8bec1e2",
+  "kicad": "7.0.11",
+  "environment": {
+    "KICAD7_FOOTPRINT_DIR": "/usr/share/kicad/footprints"
+  },
+  "command": [
+    "python3",
+    "../validation/baseline-library-corrected/command.py"
+  ],
+  "counts": {
+    "DRC violations": 56,
+    "unconnected pads": 51,
+    "Footprint errors": 0
+  },
+  "categories": {
+    "hole_clearance": 8,
+    "silk_edge_clearance": 18,
+    "copper_edge_clearance": 7,
+    "holes_co_located": 1,
+    "silk_over_copper": 8,
+    "silk_overlap": 14,
+    "unconnected_items": 51
+  },
+  "artifacts": {
+    "command.py": "dd61cb3086048b220653622be9b0a4a8f619bbd3c85ea57ac7755a43cadc1dad",
+    "drc-refilled.txt": "49fcf3d40d084903674ac1734e0baddc0bc0d11062affbd1c64a49dd83aa9595"
+  },
+  "purpose": "Same-source baseline with corrected library resolution; historical255 findings remain unchanged evidence."
+}

@@ -1,0 +1,47 @@
+test_auxiliary_pd_rail_has_power_clearance_and_width (test_power_constraints.PowerClassificationTests.test_auxiliary_pd_rail_has_power_clearance_and_width) ... ok
+test_battery_and_charge_pump_supplies_are_not_signals (test_power_constraints.PowerClassificationTests.test_battery_and_charge_pump_supplies_are_not_signals) ... 
+  test_battery_and_charge_pump_supplies_are_not_signals (test_power_constraints.PowerClassificationTests.test_battery_and_charge_pump_supplies_are_not_signals) (net='VBAT_RTC') ... FAIL
+  test_battery_and_charge_pump_supplies_are_not_signals (test_power_constraints.PowerClassificationTests.test_battery_and_charge_pump_supplies_are_not_signals) (net='RS_VP') ... FAIL
+  test_battery_and_charge_pump_supplies_are_not_signals (test_power_constraints.PowerClassificationTests.test_battery_and_charge_pump_supplies_are_not_signals) (net='RS_VN') ... FAIL
+test_recovery_fixture_supply_is_not_a_generic_signal (test_power_constraints.PowerClassificationTests.test_recovery_fixture_supply_is_not_a_generic_signal) ... ok
+
+======================================================================
+FAIL: test_battery_and_charge_pump_supplies_are_not_signals (test_power_constraints.PowerClassificationTests.test_battery_and_charge_pump_supplies_are_not_signals) (net='VBAT_RTC')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_power_constraints.py", line 11, in test_battery_and_charge_pump_supplies_are_not_signals
+    self.assertEqual(proj.classify(net), "PWR")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'Default' != 'PWR'
+- Default
++ PWR
+
+
+======================================================================
+FAIL: test_battery_and_charge_pump_supplies_are_not_signals (test_power_constraints.PowerClassificationTests.test_battery_and_charge_pump_supplies_are_not_signals) (net='RS_VP')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_power_constraints.py", line 11, in test_battery_and_charge_pump_supplies_are_not_signals
+    self.assertEqual(proj.classify(net), "PWR")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'Default' != 'PWR'
+- Default
++ PWR
+
+
+======================================================================
+FAIL: test_battery_and_charge_pump_supplies_are_not_signals (test_power_constraints.PowerClassificationTests.test_battery_and_charge_pump_supplies_are_not_signals) (net='RS_VN')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lehaj\dev\mockx_rebirth_july_2026\mockx-sorx-codex\examples\sorx_appliance\hardware\tests\test_power_constraints.py", line 11, in test_battery_and_charge_pump_supplies_are_not_signals
+    self.assertEqual(proj.classify(net), "PWR")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'Default' != 'PWR'
+- Default
++ PWR
+
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.004s
+
+FAILED (failures=3)

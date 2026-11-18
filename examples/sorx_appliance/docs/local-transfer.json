@@ -1,0 +1,166 @@
+{
+  "scope": "Optional local engineering data, plus original historical helper scripts; not a release check.",
+  "source_commit": "94c7f2b58e9bb5608879bf14a2d8f805cbc34174",
+  "imported_git_subtree": "de68b4332b578df512b37611fe3cdbd025d6338c",
+  "enumeration": "git ls-files --others --ignored --exclude-standard -z -- examples/sorx_appliance/ (both runs/ trees and other ignored paths); ordinary untracked list was empty at source.",
+  "verification": "Each included source's size and SHA-256 was independently recomputed on its destination after copy. No source file was removed; collision copies use a separate local path.",
+  "source_ignored_files": 732,
+  "new_copies": 625,
+  "verified_engineering_files": 625,
+  "excluded_files": 107,
+  "source_ignored_bytes": 1112716497,
+  "verified_engineering_bytes": 1111886033,
+  "excluded_bytes": 830464,
+  "verified_by_directory": {
+    "hardware/runs": 571,
+    "hardware/validation": 7,
+    "runs": 47
+  },
+  "collisions": [],
+  "exclusion_rules": {
+    "python-cache": "__pycache__ or .pyc/.pyo",
+    "kicad-ui-state": ".kicad_prl",
+    "lock": "*.lck, *.lock, .~lock.*"
+  },
+  "exclusion_counts": {
+    "python-cache": 49,
+    "kicad-ui-state": 58,
+    "lock": 0
+  },
+  "inventory": {
+    "file": "local-transfer.tsv",
+    "sha256": "f4371435ea905c305d116297db6468519dca521126a7698a569f7c72aa5769f5",
+    "paths_relative_to": "examples/sorx_appliance/",
+    "dispositions": "portable-helper = original project-authored source preserved in Git at its source path; local-engineering = verified optional ignored copy (not needed by routing workflow); exclude:* = fingerprinted at source, not transferred. A '-' destination_override means same relative path."
+  },
+  "portable_helper_paths": [
+    {
+      "path": "hardware/runs/draw_phy_fanout.py"
+    },
+    {
+      "path": "hardware/runs/high-speed-experiments/correct_mdi_experimental.py"
+    },
+    {
+      "path": "hardware/runs/inspect_mdi.py"
+    },
+    {
+      "path": "hardware/runs/inspect_rgmii.py"
+    },
+    {
+      "path": "hardware/runs/inspect_rgmii_grid.py"
+    },
+    {
+      "path": "hardware/runs/pcie-wide.py"
+    },
+    {
+      "path": "hardware/runs/probe_rgmii.py"
+    },
+    {
+      "path": "hardware/runs/probe_routing.py"
+    },
+    {
+      "path": "hardware/runs/probe_rx_tuning.py"
+    },
+    {
+      "path": "hardware/runs/probe_te.py"
+    },
+    {
+      "path": "hardware/runs/profile_supplier_fit.py"
+    },
+    {
+      "path": "runs/audit_pd_paths.py",
+      "already_tracked_equivalent": "hardware/validation/pd-decoupling-proof-02/audit-paths-script.py"
+    },
+    {
+      "path": "runs/check_electrical_identity.py",
+      "already_tracked_equivalent": "hardware/validation/electrical-integration-17-sma/net-identity-script.py"
+    },
+    {
+      "path": "runs/electrical-blocked-endpoints.py"
+    },
+    {
+      "path": "runs/electrical-blocked-endpoints13.py"
+    },
+    {
+      "path": "runs/electrical-generation-headers.py"
+    },
+    {
+      "path": "runs/electrical-generation.py"
+    },
+    {
+      "path": "runs/electrical-grid-diagnostic.py"
+    },
+    {
+      "path": "runs/electrical-local-search.py"
+    },
+    {
+      "path": "runs/electrical-place-search.py"
+    },
+    {
+      "path": "runs/electrical-plot-obstacles.py"
+    },
+    {
+      "path": "runs/electrical-power-islands.py",
+      "already_tracked_equivalent": "hardware/validation/electrical-placement-02/island-audit-script.py"
+    },
+    {
+      "path": "runs/electrical-power-paths.py"
+    },
+    {
+      "path": "runs/electrical-repair-run.py",
+      "already_tracked_equivalent": "hardware/validation/power-routing-03/repair-run-script.py"
+    },
+    {
+      "path": "runs/electrical-reset-diagnose.py"
+    },
+    {
+      "path": "runs/electrical-trim-reset-graph.py",
+      "already_tracked_equivalent": "hardware/validation/electrical-placement-trim-03/trim-script.py"
+    },
+    {
+      "path": "runs/electrical-trim-reset.py"
+    },
+    {
+      "path": "runs/integrate_electrical_final.py",
+      "already_tracked_equivalent": "hardware/validation/electrical-integration-16/integration-script.py"
+    },
+    {
+      "path": "runs/integrate_sma17.py",
+      "already_tracked_equivalent": "hardware/validation/electrical-integration-17-sma/integration-script.py"
+    },
+    {
+      "path": "runs/phy_supply_survey.py",
+      "already_tracked_equivalent": "hardware/validation/phy_supply_survey.py"
+    },
+    {
+      "path": "runs/phy_txd0_survey.py",
+      "already_tracked_equivalent": "hardware/validation/phy_txd0_survey.py"
+    },
+    {
+      "path": "runs/plot_debug_power.py"
+    },
+    {
+      "path": "runs/power_parallel_front.py",
+      "already_tracked_equivalent": "hardware/validation/power-widen-proof-01/front-proof-script.py"
+    },
+    {
+      "path": "runs/power_parallel_trial.py"
+    },
+    {
+      "path": "runs/power_parallel_trial2.py"
+    },
+    {
+      "path": "runs/search_pd_caps.py"
+    },
+    {
+      "path": "runs/search_pd_caps_back.py"
+    },
+    {
+      "path": "runs/search_pd_caps_existing.py"
+    },
+    {
+      "path": "runs/search_power_bridges.py"
+    }
+  ],
+  "fresh_clone": "Baseline, selected experiment archives, historical scripts and all active routing inputs are committed. Bulk trials and supplier downloads listed as local-engineering are not distributed with Git. Legacy helpers can reference optional historical inputs; they are not entrypoints."
+}

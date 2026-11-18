@@ -1,0 +1,20 @@
+test_crossing_layers_do_not_create_a_connection (test_high_speed_audit.PathRegressions.test_crossing_layers_do_not_create_a_connection) ... ok
+test_duplicate_copper_is_an_error (test_high_speed_audit.PathRegressions.test_duplicate_copper_is_an_error) ... ok
+test_esd_stub_does_not_inflate_endpoint_length (test_high_speed_audit.PathRegressions.test_esd_stub_does_not_inflate_endpoint_length) ... ok
+test_geometry_scalar_report_roundtrips_boolean (test_high_speed_audit.PathRegressions.test_geometry_scalar_report_roundtrips_boolean) ... ok
+test_reference_slot_and_foreign_copper_are_reported (test_high_speed_audit.PathRegressions.test_reference_slot_and_foreign_copper_are_reported) ... ok
+test_series_capacitor_requires_explicit_bridge (test_high_speed_audit.PathRegressions.test_series_capacitor_requires_explicit_bridge) ... ok
+test_six_layer_internal_signal_requires_continuous_in4_ground (test_high_speed_audit.PathRegressions.test_six_layer_internal_signal_requires_continuous_in4_ground) ... FAIL
+
+======================================================================
+FAIL: test_six_layer_internal_signal_requires_continuous_in4_ground (test_high_speed_audit.PathRegressions.test_six_layer_internal_signal_requires_continuous_in4_ground)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/tests/test_high_speed_audit.py", line 72, in test_six_layer_internal_signal_requires_continuous_in4_ground
+    self.assertTrue(reference_audit(route,geometry)['continuous_projected_ground'])
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.037s
+
+FAILED (failures=1)

@@ -1,0 +1,11 @@
+open signal/power connections left: 10
+  OPEN USB1_OC# | Pad 157 [USB1_OC#] of J1 on F.Cu | Track [USB1_OC#] on F.Cu, length 2.4006 mm
+  OPEN USB1_VBUS_DET | Pad 159 [USB1_VBUS_DET] of J1 on F.Cu | Pad 2 [USB1_VBUS_DET] of R83 on F.Cu
+  OPEN MG_TXD0 | Pad 221 [MG_TXD0] of J1 on F.Cu | Pad 19 [MG_TXD0] of U13 on F.Cu
+  OPEN PWR_FLT# | Pad 10 [PWR_FLT#] of U30 on F.Cu | Pad 2 [PWR_FLT#] of R23 on F.Cu
+  OPEN +1V2_PHY | Track [+1V2_PHY] on F.Cu, length 6.2940 mm | Pad 4 [+1V2_PHY] of U13 on F.Cu
+  OPEN OE_0V9 | Track [OE_0V9] on B.Cu, length 1.3552 mm | Pad 1 [OE_0V9] of C64 on B.Cu
+  OPEN MG_LED2 | Pad 15 [MG_LED2] of U13 on F.Cu | Pad 2 [MG_LED2] of R71 on F.Cu
+  OPEN MG_LED2 | Pad 2 [MG_LED2] of U15 on F.Cu | Pad 15 [MG_LED2] of U13 on F.Cu
+  OPEN VBUS_DBG_RAW | Pad 1 [VBUS_DBG_RAW] of FB2 on F.Cu | Pad B9 [VBUS_DBG_RAW] of J10 on F.Cu
+  OPEN VBUS_DBG_RAW | Pad B9 [VBUS_DBG_RAW] of J10 on F.Cu | Pad B4 [VBUS_DBG_RAW] of J10 on F.Cu

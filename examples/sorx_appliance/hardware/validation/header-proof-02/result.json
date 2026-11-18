@@ -1,0 +1,45 @@
+{
+  "status": "REJECTED",
+  "source": "runs/power-parallel-front-proof-01.kicad_pcb",
+  "source_sha256": "1b0d2daeb9027e756f05e196231699b36a1eb811ffe74caaf152d1c49109778a",
+  "output": "runs/header-proof-02.kicad_pcb",
+  "output_sha256": "3f31b6f326743999f32ed57ee0602a55bec12e63ff65df7cb327db11701a5e00",
+  "tool_sha256": "8b501cc03be8d54edf9cc01abb4d97ac8ddaafe35dd50670c0d1dd1698aac675",
+  "jp2_x": null,
+  "finished_hole_mm": 1.2,
+  "required_finished_hole_tolerance_mm": 0.05,
+  "before": {
+    "DRC violations": 113,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "after": {
+    "DRC violations": 116,
+    "unconnected pads": 54,
+    "Footprint errors": 0
+  },
+  "new_other_findings": [
+    {
+      "category": "lib_footprint_issues",
+      "message": "The current configuration does not include the library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(160.5000 mm, 77.5000 mm): Footprint J14",
+      "fingerprint": "b16f0208163a8d457aa7b76210d4acc952bce607a2bd417861df586792592335",
+      "section": "DRC violations"
+    },
+    {
+      "category": "lib_footprint_issues",
+      "message": "The current configuration does not include the library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(154.0000 mm, 77.0000 mm): Footprint JP2",
+      "fingerprint": "494d3989061de2cd6195072f0313359904fe304e00b584dc3783e6769e0dd3a7",
+      "section": "DRC violations"
+    },
+    {
+      "category": "lib_footprint_issues",
+      "message": "The current configuration does not include the library 'sorx'.",
+      "objects": "Local override; Severity: warning\n    @(146.0000 mm, 77.0000 mm): Footprint JP1",
+      "fingerprint": "aad478e1ede17474bd0674c1a306f22a6cbb59d303c1595d07b53570f901c960",
+      "section": "DRC violations"
+    }
+  ],
+  "fabrication_ready": false
+}
