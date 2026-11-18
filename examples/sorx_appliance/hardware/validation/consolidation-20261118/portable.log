@@ -1,0 +1,28 @@
+Exported 1054 indexed paths; no .git, sibling or ignored trial files in export.
+SORX | NOT READY FOR FABRICATION | saved refilled DRC, inputs match
+PCB SHA-256: 5188991db0633f32b6552605679a701606510d5833916cdc843b0ec5413cead1
+Required opens: 30 (16 GND, 14 other); other findings: 93.
+Queue: +1V2_PHY (1), FRAM_MOSI (1), GND (16), MG_LED2 (2), MG_TXD0 (1), OE_JTAG_PU (1),
+       PCIE_RST#_1V8 (1), PCIE_RST#_3V3 (1), PD_ALERT# (1), PD_ATTACH# (2), PD_EN_SNK# (1),
+       USB1_OC# (1), USB1_VBUS_DET (1)
+Inspect one net: rerun with --net 'NAME'; act only after fresh native checks.
+ACCEPTED power-bridge-01: Three power opens closed; no other net gained an open (33 to 30).
+  hardware/validation/power-bridge-proof-01/strong-gate-review.json
+REJECTED ordinary-21: Six repaired, C64.2 GND disconnected (36 to 31). Change the route before retrying.
+  hardware/validation/ordinary-completion-proof-01/ground-split-audit.json
+Raw: hardware/validation/consolidation-20261118/drc-refilled.txt
+Method: docs/routing-runbook.md
+bound native ledger [PosixPath('/work/docs/routing-ledger.json')]
+pinned project OK
+test_changed_native_rules_require_fresh_accepted_evidence (test_routing_gate.RoutingGateTests.test_changed_native_rules_require_fresh_accepted_evidence) ... ok
+test_historical_accepted_power_bridge_actual_reports (test_routing_gate.RoutingGateTests.test_historical_accepted_power_bridge_actual_reports) ... ok
+test_inconsistent_pad_geometry_cannot_prove_a_join (test_routing_gate.RoutingGateTests.test_inconsistent_pad_geometry_cannot_prove_a_join) ... ok
+test_missing_or_ambiguous_target_and_unapproved_detour (test_routing_gate.RoutingGateTests.test_missing_or_ambiguous_target_and_unapproved_detour) ... ok
+test_missing_truncated_stale_and_failed_evidence (test_routing_gate.RoutingGateTests.test_missing_truncated_stale_and_failed_evidence) ... ok
+test_ordinary_proof_real_ground_regression_despite_fewer_opens (test_routing_gate.RoutingGateTests.test_ordinary_proof_real_ground_regression_despite_fewer_opens) ... ok
+test_partition_comparison_detects_same_net_swap_at_equal_open_count (test_routing_gate.RoutingGateTests.test_partition_comparison_detects_same_net_swap_at_equal_open_count) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.104s
+
+OK

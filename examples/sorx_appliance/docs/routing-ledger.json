@@ -1,0 +1,47 @@
+{
+  "inputs": {
+    "hardware/hw/fp-lib-table": "3384d8fef59897ce012dc589adaa92eda27e87eeb7a2f2c4c786f035ccd5f8dd",
+    "hardware/hw/sorx.kicad_pcb": "5188991db0633f32b6552605679a701606510d5833916cdc843b0ec5413cead1",
+    "hardware/hw/sorx.kicad_pro": "4b9e3356b595433c882e99fbfcf1af555c015656ce172c379e00e8a23e68fc41",
+    "hardware/hw/sorx.pretty/LT_MS8E.kicad_mod": "c8f25e3a0f68b61160f94fe67873b4c2d8e092079c92629f61009a3a194094bd",
+    "hardware/hw/sorx.pretty/SMA_Amphenol_132289_Drawing.kicad_mod": "c6e1adfcd111280db5ed8b5934f36827ccaedc1116c05fabc73f96e18746b1a0",
+    "hardware/hw/sorx.pretty/SODIMM-260_DDR4_TE_2309409-2.kicad_mod": "5eb690aa58413ed892d59b1d88f3a2019122b0a59be9af73011fb6b65a429bbb",
+    "hardware/hw/sorx.pretty/Standoff_SMT_M2_WA-SMSI.kicad_mod": "079835e86a23ae57445bd021dc56d14eead91a6a9da42e3af6d8431d94112666",
+    "hardware/hw/sorx.pretty/Wurth_61300211121.kicad_mod": "b09d530ba468670794b1e2beeabc3fe805bf3deebe3f8604fecf5fdb6e5acc43",
+    "hardware/hw/sorx.pretty/Wurth_61300311121.kicad_mod": "fa2d44829bdfca6289d80c4bde92886eeb19a1abaf72000887f719e22d544f86",
+    "hardware/tools/env/image-id.txt": "594a3f4d5b82e4a61d05075f969c8e7fa951e40ae877868a61ad389d67bcb01a"
+  },
+  "report": "hardware/validation/consolidation-20261118/drc-refilled.txt",
+  "report_sha256": "413d23f624bbbf2b41fba3a0da7b27519c172ae73f61c0b9edb935d7b4df9cd7",
+  "decisions": [
+    {
+      "id": "power-bridge-01",
+      "result": "ACCEPTED",
+      "source_sha256": "e849a676c5e91515ff0062ab52897d156b6bc2ee250b4ec288071f4b126e2204",
+      "candidate_sha256": "5188991db0633f32b6552605679a701606510d5833916cdc843b0ec5413cead1",
+      "nets": [
+        "+1V8",
+        "VBUS_IN"
+      ],
+      "lesson": "Three power opens closed; no other net gained an open (33 to 30).",
+      "evidence": "hardware/validation/power-bridge-proof-01/strong-gate-review.json"
+    },
+    {
+      "id": "ordinary-21",
+      "result": "REJECTED",
+      "source_sha256": "0e825f295aac2fe7da0723bf85a7b8d2c6de2a09d00255e1a4cd65d6a5e986c6",
+      "candidate_sha256": "9e4f04e0c5a1aacff22f042f629b0677f8b1434f5d74cbb7e14045035744ddb1",
+      "nets": [
+        "GND",
+        "PCIE_RST#_3V3",
+        "PCIE_CLK_N",
+        "OE_JTAG_PU",
+        "PCIE_RST#_1V8",
+        "PD_ATTACH#",
+        "PD_ALERT#"
+      ],
+      "lesson": "Six repaired, C64.2 GND disconnected (36 to 31). Change the route before retrying.",
+      "evidence": "hardware/validation/ordinary-completion-proof-01/ground-split-audit.json"
+    }
+  ]
+}
