@@ -18,4 +18,4 @@ A fresh full verifier run, final integrated high-speed/mechanical checks and
 coherent development export remain to be done after engineering resumes.
 No release gate is newly marked passed at this pause.
 
-Read [CODEX_RESUME.md](../../CODEX_RESUME.md) before continuing.
+For the current board and repair procedure, see the [appliance quick start](../../README.md#quick-start) and [routing runbook](../../docs/routing-runbook.md).

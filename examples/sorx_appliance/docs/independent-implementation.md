@@ -4,7 +4,7 @@
 
 The accepted native PCB is committed at `ad3d633` with 30 required opens,93
 other DRC findings, no model mismatches and no duplicate via sites.
-Read [the resume handoff](../CODEX_RESUME.md) before continuing.
+To continue from this board in the primary checkout, follow the [routing runbook](routing-runbook.md).
 
 ## Comparison boundaries
 

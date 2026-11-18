@@ -41,4 +41,4 @@ Update [routing-ledger.json](routing-ledger.json) only after the exact native re
 
 **The C64.2 counterexample.** On an earlier board, the ordinary-21 trial joined six openings but cut ground to capacitor C64.2. The headline count improved from 36 to 31; [the pad-group audit](../hardware/validation/ordinary-completion-proof-01/ground-split-audit.json) identifies the newly isolated pin. A proposed vertical copper connection (a *via*) at C64.2 failed [all 25 sampled locations](../hardware/validation/ordinary-completion-proof-01/c64-via-feasibility-grid.json). Skip those offsets. A different local path for the proposed reset signal is a new hypothesis; overwriting today's board with trial 21 is not. In contrast, the [accepted power-bridge proof](../hardware/validation/power-bridge-proof-01/strong-gate-review.json) removed three opens with no increase on any other net. Both are development evidence, never a general waiver.
 
-For the next task, copy the [short Codex prompt](../CODEX_RESUME.md).
+To choose the next repair, use the two commands in the [appliance quick start](../README.md#quick-start).
